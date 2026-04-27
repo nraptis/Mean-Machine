@@ -20,51 +20,52 @@ struct GScopeRules {
     std::unordered_map<std::string, int>        mReadPreferredMinimum;
     std::unordered_map<std::string, int>        mReadPreferredMaximum;
 
-    void                                SetReadPreferredMinimum(GSymbol pSymbol, int pCount);
-    void                                SetReadPreferredMaximum(GSymbol pSymbol, int pCount);
+    void                                        SetReadPreferredMinimum(GSymbol pSymbol, int pCount);
+    void                                        SetReadPreferredMaximum(GSymbol pSymbol, int pCount);
 
-    int                                 GetReadPreferredMinimum(GSymbol pSymbol) const;
-    int                                 GetReadPreferredMaximum(GSymbol pSymbol) const;
+    int                                         GetReadPreferredMinimum(GSymbol pSymbol) const;
+    int                                         GetReadPreferredMaximum(GSymbol pSymbol) const;
 };
+
 
 struct GScopeState {
     std::unordered_map<std::string, int>        mReadCounts;
 
-    void                                Clear();
+    void                                        Clear();
 
-    void                                Consume(GScopeState pScopeState);
-    void                                Consume(GLoop pLoop);
-    void                                Consume(GStatement pStatement);
-    void                                Consume(GSymbol pSymbol);
-    void                                Consume(GExpr pExpr);
+    void                                        Consume(GScopeState pScopeState);
+    void                                        Consume(GLoop pLoop);
+    void                                        Consume(GStatement pStatement);
+    void                                        Consume(GSymbol pSymbol);
+    void                                        Consume(GExpr pExpr);
 
-    void                                RegisterRead(GSymbol pSymbol);
-    void                                RegisterRead(GExpr pExpr);
+    void                                        RegisterRead(GSymbol pSymbol);
+    void                                        RegisterRead(GExpr pExpr);
 
-    int                                 GetReadCount(GSymbol pSymbol, int pCount = 0) const;
-    int                                 GetReadCount(GExpr pExpr, int pCount = 0) const;
+    int                                         GetReadCount(GSymbol pSymbol, int pCount = 0) const;
+    int                                         GetReadCount(GExpr pExpr, int pCount = 0) const;
 };
 
 struct GTarget {
-    GSymbol                             mSymbol;
-    std::shared_ptr<GExpr>              mIndex;
-
-    GTarget();
-
-    static GTarget                      Symbol(const GSymbol &pSymbol);
-    static GTarget                      Write(const GSymbol &pSymbol,
-                                             const GExpr &pIndex);
-
-    void                                Set(const GTarget &pOther);
-    void                                Invalidate();
-
-    bool                                IsInvalid() const;
-    bool                                HasIndex() const;
-    bool                                IsVar() const;
-    bool                                IsBuf() const;
+    GSymbol                                     mSymbol;
+    std::shared_ptr<GExpr>                      mIndex;
     
-    bool                                HasSymbol(GSymbol pSymbol) const;
-    bool                                HasOper(GOperType pOper) const;
+    GTarget();
+    
+    static GTarget                              Symbol(const GSymbol &pSymbol);
+    static GTarget                              Write(const GSymbol &pSymbol,
+                                                      const GExpr &pIndex);
+    
+    void                                        Set(const GTarget &pOther);
+    void                                        Invalidate();
+    
+    bool                                        IsInvalid() const;
+    bool                                        HasIndex() const;
+    bool                                        IsVar() const;
+    bool                                        IsBuf() const;
+    
+    bool                                        HasSymbol(GSymbol pSymbol) const;
+    bool                                        HasOper(GOperType pOper) const;
     
 };
 
@@ -111,22 +112,27 @@ struct GStatement {
     bool                                HasExprSymbol(GSymbol pSymbol) const;
     bool                                HasExprOper(GOperType pOper) const;
     
-    
+    std::vector<std::string>            ToCPPStatements() const;
+    std::string                         ToPretty() const;
     
 };
 
 struct GLoop {
     GSymbol                             mLoopVariable;
     std::string                         mLoopVariableName;
-    std::int32_t                        mLoopBegin;
+    int                                 mLoopBegin;
     std::string                         mLoopEndText;
-    std::int32_t                        mLoopStep;
+    int                                 mLoopStep;
     std::vector<GStatement>             mInitializationStatements;
     std::vector<GStatement>             mBodyStatements;
-
+    
     GLoop();
     
     bool                                IsInvalid() const;
+
+    void                                AddBody(GStatement &pStatemet);
+    void                                AddInitialization(GStatement &pStatemet);
+    
 };
 
 struct GBatch {
@@ -140,10 +146,10 @@ struct GBatch {
     bool                                IsInvalid() const;
     void                                CommitLoop(const GLoop &pLoop);
 
-    std::uint32_t                       CountReads(TwistWorkSpaceSlot pSlot) const;
-    std::uint32_t                       CountWrites(TwistWorkSpaceSlot pSlot) const;
-    std::uint32_t                       CountLoopsReading(TwistWorkSpaceSlot pSlot) const;
-    std::uint32_t                       CountLoopsWriting(TwistWorkSpaceSlot pSlot) const;
+    int                                 CountReads(TwistWorkSpaceSlot pSlot) const;
+    int                                 CountWrites(TwistWorkSpaceSlot pSlot) const;
+    int                                 CountLoopsReading(TwistWorkSpaceSlot pSlot) const;
+    int                                 CountLoopsWriting(TwistWorkSpaceSlot pSlot) const;
 
     std::vector<std::string>            CollectVariableNames() const;
     std::vector<TwistWorkSpaceSlot>     CollectReferencedSlots() const;
@@ -155,10 +161,16 @@ struct GBatch {
                                                  std::string *pError = nullptr);
 
     std::string                         BuildCpp(const std::string &pFunctionName = "GeneratedTwistSeed",
-                                                 std::string *pError = nullptr) const;
+                                                 std::string *pError = nullptr,
+                                                 bool pEmitDeclarations = true) const;
+    std::string                         BuildCppScopeBlock(std::string *pError = nullptr,
+                                                           bool pEmitDeclarations = true) const;
 
     bool                                Execute(TwistWorkSpace *pWorkspace,
                                                 std::string *pError = nullptr) const;
+    bool                                ExecuteWithVariables(TwistWorkSpace *pWorkspace,
+                                                             std::unordered_map<std::string, int> *pVariables,
+                                                             std::string *pError = nullptr) const;
 };
 
 #endif /* GSeedProgram_hpp */

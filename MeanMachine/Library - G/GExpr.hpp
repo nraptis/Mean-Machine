@@ -22,8 +22,7 @@ enum class GOperType : std::uint8_t {
     kMul = 6,
     kXor = 7,
     kAnd = 8,
-    kRotateLeft8 = 9,
-    kRotateRight8 = 10
+    kRotL8 = 9
 };
 
 enum class GExprType : std::uint8_t {
@@ -36,54 +35,78 @@ enum class GExprType : std::uint8_t {
     kMul = 6,
     kXor = 7,
     kAnd = 8,
-    kRotateLeft8 = 9,
-    kRotateRight8 = 10
+    kRotL8 = 9
+};
+
+enum class GReadWrapType : std::uint8_t {
+    kNone = 0,
+    kBlock = 1,
+    kSBox = 2,
+    kSalt = 3
 };
 
 struct GExpr {
     
 public:
-    GExprType                   mType;
-    GSymbol                     mSymbol;
-    std::uint64_t               mConstVal;
+    GExprType                           mType;
+    GSymbol                             mSymbol;
+    int                                 mConstVal;
+
+    GReadWrapType                       mReadWrapType;
+    GSymbol                             mReadWrapIndexSymbol;
+    GSymbol                             mReadWrapOracleSymbol;
+    int                                 mReadWrapOffset;
     
     // buffer reads use mSymbol as the source and mIndex as the wrapped index.
-    std::shared_ptr<GExpr>      mIndex;
+    std::shared_ptr<GExpr>              mIndex;
 
     // ops use mA and mB.
-    std::shared_ptr<GExpr>      mA;
-    std::shared_ptr<GExpr>      mB;
+    std::shared_ptr<GExpr>              mA;
+    std::shared_ptr<GExpr>              mB;
     
     GExpr();
     
-    static GExpr                Symbol(const GSymbol &pSymbol);
-    static GExpr                Const(std::uint64_t pVal);
-    static GExpr                Read(const GSymbol &pSymbol,
-                                     const GExpr &pIndex);
-    static GExpr                Add(const GExpr &a, const GExpr &b);
-    static GExpr                Sub(const GExpr &a, const GExpr &b);
-    static GExpr                Mul(const GExpr &a, const GExpr &b);
-    static GExpr                Xor(const GExpr &a, const GExpr &b);
-    static GExpr                And(const GExpr &a, const GExpr &b);
-    static GExpr                RotateLeft8(const GExpr &a, const GExpr &b);
-    static GExpr                RotateRight8(const GExpr &a, const GExpr &b);
+    static GExpr                        Symbol(const GSymbol &pSymbol);
+    static GExpr                        Const(int pVal);
+    static GExpr                        Read(const GSymbol &pSymbol, const GExpr &pIndex);
+    static GExpr                        Add(const GExpr &a, const GExpr &b);
+    static GExpr                        Sub(const GExpr &a, const GExpr &b);
+    static GExpr                        Mul(const GExpr &a, const GExpr &b);
+    static GExpr                        Xor(const GExpr &a, const GExpr &b);
+    static GExpr                        And(const GExpr &a, const GExpr &b);
+    static GExpr                        RotL8(const GExpr &a, const GExpr &b);
     
-    void                        Set(const GExpr &pOther);
-    void                        Invalidate();
+    // what this means.
+    // in c++ code
+    // before this statement
+    // we need:
+    // pIndexOracle = pIndex + pOffset;
+    // if (pIndexOracle >= S_BLOCK) { pIndexOracle -= S_BLOCK; }
+    //
+    // then, the inbuilt twist library does not do the if-statement injection, or the extra assignment.
+    //
+    static GExpr                        ReadBlockWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
+    static GExpr                        ReadSBoxWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
+    static GExpr                        ReadSaltWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
     
-    bool                        IsInvalid() const;
-    bool                        IsSymbol() const;
-    bool                        IsConst() const;
-    bool                        IsRead() const;
+    void                                Set(const GExpr &pOther);
+    void                                Invalidate();
     
-    std::vector<GSymbol>        GetSymbols() const;
-    std::vector<GOperType>      GetOps() const;
+    bool                                IsInvalid() const;
+    bool                                IsSymbol() const;
+    bool                                IsConst() const;
+    bool                                IsRead() const;
     
+    std::vector<GSymbol>                GetSymbols() const;
+    std::vector<GOperType>              GetOps() const;
     
 };
 
 bool                                    operator == (const GExpr &pLHS, const GExpr &pRHS);
 bool                                    operator != (const GExpr &pLHS, const GExpr &pRHS);
 std::string                             GExprKey(const GExpr &pExpr);
+
+GOperType                               OperTypeForExprType(const GExprType pType);
+GOperType                               OperTypeForExpr(const GExpr pExpr);
 
 #endif

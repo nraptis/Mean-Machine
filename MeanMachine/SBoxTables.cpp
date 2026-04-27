@@ -2,89 +2,74 @@
 //  SBoxTables.cpp
 //  MeanMachine
 //
-//  Created by Magneto on 4/20/26.
+//  Created by John Snow on 4/20/26.
 //
 
 #include "SBoxTables.hpp"
+#include "GTwistExpander.hpp"
 #include "TwistWorkSpace.hpp"
-
+#include "FileIO.hpp"
+#include "Random.hpp"
 #include <algorithm>
-
-std::vector<std::vector<std::uint8_t>> cData;
-bool cDidLoad = false;
+#include <cstdlib>
 
 namespace {
 
-void AppendTruncated(std::vector<std::uint8_t> *pDest,
-                     const std::vector<std::uint8_t> &pSource,
-                     const std::size_t pMaxLength) {
-    if ((pDest == NULL) || (pDest->size() >= pMaxLength)) {
-        return;
-    }
+std::vector<std::vector<std::uint8_t>> gSBoxTables;
+bool gSBoxTablesDidLoad = false;
 
-    const std::size_t aRemaining = pMaxLength - pDest->size();
-    const std::size_t aCopyLength = std::min(aRemaining, pSource.size());
-    pDest->insert(pDest->end(), pSource.begin(), pSource.begin() + aCopyLength);
+bool IsRunningUnderXCTest() {
+    return (std::getenv("XCTestConfigurationFilePath") != nullptr) ||
+           (std::getenv("XCTestBundlePath") != nullptr);
 }
 
-std::vector<std::uint8_t> BuildSalt(const std::vector<std::uint8_t> &pPrimary,
-                                    const std::vector<std::uint8_t> &pSecondary) {
-    std::vector<std::uint8_t> aResult;
-    aResult.reserve(S_SALT);
-    AppendTruncated(&aResult, pPrimary, S_SALT);
-    AppendTruncated(&aResult, pSecondary, S_SALT);
-    return aResult;
+void AppendIfUnique(std::vector<std::vector<std::uint8_t>> *pDest,
+                    const std::vector<std::uint8_t> &pCandidate,
+                    const std::size_t pExpectedLength) {
+    if ((pDest == nullptr) || (pCandidate.size() != pExpectedLength)) {
+        return;
+    }
+    for (const std::vector<std::uint8_t> &aExisting : *pDest) {
+        if (aExisting == pCandidate) {
+            return;
+        }
+    }
+    pDest->push_back(pCandidate);
 }
 
 } // namespace
 
 std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
-
-    /*
-    if (cDidLoad == false) {
-        
-        
-        std::string aProjectRoot = FileIO::ProjectRoot();
-        std::string aDirectory = FileIO::Join(aProjectRoot, "/Assets/data_s_box/");
-        printf("aDirectory = %s\n", aDirectory.c_str());
-        
-        auto aFilePaths = FileIO::GetAllFiles(aDirectory);
-        
-        for (auto &aFilePath: aFilePaths) {
-            
-            std::vector<std::uint8_t> aFileData;
-            FileIO::Load(aFilePath, aFileData);
-            
-            int aIndex = 0;
-            int aCeiling = (int)aFileData.size() - 255;
-            
-            while (aIndex < aCeiling) {
-                
-                std::vector<uint8_t> aSBox(
-                    aFileData.begin() + aIndex,
-                    aFileData.begin() + aIndex + 256
-                );
-                cData.push_back(aSBox);
-                
-                
-                aIndex += 256;
-            }
-        }
-        cDidLoad = true;
+    if (gSBoxTablesDidLoad) {
+        return gSBoxTables;
     }
-    
-    return &cData;
-    */
-    
-    std::vector<std::vector<std::uint8_t>> aResult;
-    aResult.push_back(GetTestA());
-    aResult.push_back(GetTestB());
-    aResult.push_back(GetTestC());
-    aResult.push_back(GetTestD());
-    return aResult;
+
+    if (IsRunningUnderXCTest()) {
+        gSBoxTablesDidLoad = true;
+        return gSBoxTables;
+    }
+
+    const std::string aDirectory = FileIO::ProjectRoot("Assets/data_s_box");
+    const std::vector<std::string> aFilePaths = FileIO::GetAllFiles(aDirectory);
+
+    for (const std::string &aFilePath : aFilePaths) {
+        std::vector<std::uint8_t> aFileData;
+        if (!FileIO::Load(aFilePath, aFileData)) {
+            continue;
+        }
+
+        for (std::size_t aOffset = 0U; (aOffset + static_cast<std::size_t>(S_SBOX)) <= aFileData.size(); aOffset += static_cast<std::size_t>(S_SBOX)) {
+            std::vector<std::uint8_t> aTable(aFileData.begin() + static_cast<long>(aOffset),
+                                             aFileData.begin() + static_cast<long>(aOffset + static_cast<std::size_t>(S_SBOX)));
+            gSBoxTables.push_back(aTable);
+        }
+    }
+
+    gSBoxTablesDidLoad = true;
+    return gSBoxTables;
 }
 
-std::vector<std::uint8_t> SBoxTables::GetTestA() {
+std::vector<std::uint8_t> SBoxTables::GetDefaultA() {
     std::vector<std::uint8_t> aResult = {
         0x13, 0xC0, 0x28, 0xE1, 0x8D, 0x9D, 0xDA, 0x0D, 0xD6, 0xEE, 0x54, 0x42, 0x44, 0x8E, 0x39, 0xB1,
         0xA2, 0xF3, 0xC4, 0x59, 0x03, 0xC3, 0x89, 0x72, 0x81, 0xE8, 0x2E, 0x7E, 0xB9, 0x96, 0xF6, 0xD3,
@@ -106,7 +91,7 @@ std::vector<std::uint8_t> SBoxTables::GetTestA() {
     return aResult;
 }
 
-std::vector<std::uint8_t> SBoxTables::GetTestB() {
+std::vector<std::uint8_t> SBoxTables::GetDefaultB() {
     std::vector<std::uint8_t> aResult = {
         0x8F, 0x24, 0x3A, 0x0A, 0x39, 0x54, 0xBF, 0xE4, 0x65, 0xDC, 0x64, 0x25, 0x09, 0x35, 0x87, 0x70,
         0x11, 0xBB, 0xD4, 0x6E, 0xE2, 0x28, 0xC9, 0xB6, 0xE3, 0xF0, 0x16, 0x6C, 0x5A, 0x72, 0x9B, 0x45,
@@ -128,7 +113,7 @@ std::vector<std::uint8_t> SBoxTables::GetTestB() {
     return aResult;
 }
 
-std::vector<std::uint8_t> SBoxTables::GetTestC() {
+std::vector<std::uint8_t> SBoxTables::GetDefaultC() {
     std::vector<std::uint8_t> aResult = {
         0x33, 0xE0, 0x1C, 0x3D, 0x0C, 0xFB, 0x12, 0x60, 0x6C, 0x2E, 0xDA, 0x56, 0x2D, 0x61, 0x5C, 0xEF,
         0x75, 0x10, 0x41, 0x13, 0xC4, 0x8D, 0xAD, 0xCB, 0x72, 0x55, 0x67, 0xB5, 0x30, 0x49, 0x06, 0x7A,
@@ -150,7 +135,7 @@ std::vector<std::uint8_t> SBoxTables::GetTestC() {
     return aResult;
 }
 
-std::vector<std::uint8_t> SBoxTables::GetTestD() {
+std::vector<std::uint8_t> SBoxTables::GetDefaultD() {
     std::vector<std::uint8_t> aResult = {
         0x84, 0x53, 0x09, 0x22, 0x9B, 0x6D, 0xAF, 0xD3, 0xF4, 0x39, 0x46, 0xE1, 0xB0, 0xDB, 0x45, 0xFD,
         0x4B, 0x2E, 0xF8, 0xA7, 0x72, 0x13, 0x30, 0xDC, 0xC0, 0x68, 0x58, 0x87, 0x0D, 0xDD, 0x3F, 0xE5,
@@ -172,18 +157,41 @@ std::vector<std::uint8_t> SBoxTables::GetTestD() {
     return aResult;
 }
 
-std::vector<std::uint8_t> SBoxTables::GetSaltA() {
-    return BuildSalt(GetTestA(), GetTestB());
-}
+void SBoxTables::InjectRandomFour(GTwistExpander *pExpander) {
+    if (pExpander == nullptr) {
+        return;
+    }
 
-std::vector<std::uint8_t> SBoxTables::GetSaltB() {
-    return BuildSalt(GetTestC(), GetTestD());
-}
+    std::vector<std::vector<std::uint8_t>> aUniqueTables;
+    for (const std::vector<std::uint8_t> &aTable : Get()) {
+        AppendIfUnique(&aUniqueTables, aTable, S_SBOX);
+    }
 
-std::vector<std::uint8_t> SBoxTables::GetSaltC() {
-    return GetSaltA();
-}
+    if (aUniqueTables.size() < 4U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultA(), S_SBOX);
+    }
+    if (aUniqueTables.size() < 4U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultB(), S_SBOX);
+    }
+    if (aUniqueTables.size() < 4U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultC(), S_SBOX);
+    }
+    if (aUniqueTables.size() < 4U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultD(), S_SBOX);
+    }
 
-std::vector<std::uint8_t> SBoxTables::GetSaltD() {
-    return GetSaltB();
+    if (aUniqueTables.empty()) {
+        return;
+    }
+
+    Random::Shuffle(&aUniqueTables);
+    const std::vector<std::uint8_t> aFallbackTable = aUniqueTables.front();
+    while (aUniqueTables.size() < 4U) {
+        aUniqueTables.push_back(aFallbackTable);
+    }
+
+    pExpander->_mSBoxA = aUniqueTables[0];
+    pExpander->_mSBoxB = aUniqueTables[1];
+    pExpander->_mSBoxC = aUniqueTables[2];
+    pExpander->_mSBoxD = aUniqueTables[3];
 }

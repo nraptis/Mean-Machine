@@ -271,26 +271,26 @@ void ByteString::RotateMin() {
     Rotate(aAmount);
 }
 
-std::uint32_t ByteString::Hash(std::uint8_t *pData, int pLength) {
-    std::uint32_t aResult = 5381;
+int ByteString::Hash(std::uint8_t *pData, int pLength) {
+    int aResult = 5381;
     for (int aIndex=0;aIndex<pLength;aIndex++) {
-        std::uint32_t aValue = pData[aIndex];
+        int aValue = pData[aIndex];
         aResult = ((aResult << 5) + aResult) ^ aValue;
     }
     return aResult;
 }
 
-std::uint32_t ByteString::Hash() {
+int ByteString::Hash() {
     return ByteString::Hash(mData, mLength);
 }
 
-std::uint32_t ByteString::HashRotationInvariant() {
+int ByteString::HashRotationInvariant() {
     int aRotateMinAmount = RotateMinAmount();
     if (aRotateMinAmount == 0) {
         return ByteString::Hash(mData, mLength);
     } else {
         Rotate(aRotateMinAmount);
-        std::uint32_t aResult = ByteString::Hash(mData, mLength);
+        int aResult = ByteString::Hash(mData, mLength);
         Rotate(-aRotateMinAmount);
         return aResult;
     }

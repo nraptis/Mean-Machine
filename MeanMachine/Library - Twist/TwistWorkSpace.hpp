@@ -12,7 +12,7 @@
 #define S_BLOCK 7680 // 3,840 // 1,920
 
 #define S_SBOX 256
-#define S_SALT 512
+#define S_SALT 128
 
 #define W_KEY_A 96
 #define H_KEY_A 10
@@ -56,10 +56,6 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kWorkLaneB=51,
     kWorkLaneC=52,
     kWorkLaneD=53,
-    kWorkLaneE=54,
-    kWorkLaneF=55,
-    kWorkLaneG=56,
-    kWorkLaneH=57,
     
     kOperationLaneA=70,
     kOperationLaneB=71,
@@ -95,9 +91,13 @@ class TwistWorkSpace {
 public:
     TwistWorkSpace();
     
-    std::uint8_t                            *mSource;
-    std::uint8_t                            *mDest;
+    // We stop storing source here.
+    // std::uint8_t                            *mSource;
     
+    // We stop storing dest here.
+    //std::uint8_t                            *mDest;
+    
+    // We keep these as clones
     std::uint8_t                            mSaltA[S_SALT];
     std::uint8_t                            mSaltB[S_SALT];
     std::uint8_t                            mSaltC[S_SALT];
@@ -122,10 +122,6 @@ public:
     std::uint8_t                            mWorkLaneB[S_BLOCK];
     std::uint8_t                            mWorkLaneC[S_BLOCK];
     std::uint8_t                            mWorkLaneD[S_BLOCK];
-    std::uint8_t                            mWorkLaneE[S_BLOCK];
-    std::uint8_t                            mWorkLaneF[S_BLOCK];
-    std::uint8_t                            mWorkLaneG[S_BLOCK];
-    std::uint8_t                            mWorkLaneH[S_BLOCK];
     
     std::uint8_t                            mOperationLaneA[S_BLOCK];
     std::uint8_t                            mOperationLaneB[S_BLOCK];
@@ -140,11 +136,11 @@ public:
     static void                             ShiftMaskBoxB(std::uint8_t *pBox); //
     
     static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkspace, TwistWorkSpaceSlot pSlot); //
-    static std::uint32_t                    GetBufferLength(TwistWorkSpaceSlot pSlot); //
+    static int                              GetBufferLength(TwistWorkSpaceSlot pSlot); //
 
     // Legacy misspellings retained while the rest of the project catches up.
     static std::uint8_t                     *GetBufer(TwistWorkSpace *pWorkspace, TwistWorkSpaceSlot pSlot); //
-    static std::uint32_t                    GetBuferLength(TwistWorkSpaceSlot pSlot); //
+    static int                              GetBuferLength(TwistWorkSpaceSlot pSlot); //
     
 };
 

@@ -27,17 +27,17 @@ public:
     
     void                                    RunSeed(TwistSeeder *pSeeder,
                                                     std::uint8_t *pPassword,
-                                                    std::uint32_t pPasswordLength);
+                                                    int pPasswordLength);
     
     
     bool                                    RunSeedExpect(TwistSeeder *pSeeder,
                                                           std::uint8_t *pPassword,
-                                                          std::uint32_t pPasswordLength,
+                                                          int pPasswordLength,
                                                           TwistWorkSpace *pExpectation);
     
     
     void                                    UnrollPassword(std::uint8_t *pPassword,
-                                                    std::uint32_t pPasswordLength);
+                                                    int pPasswordLength);
     
     
     

@@ -11,7 +11,7 @@
 std::random_device cRandomDevice;
 std::mt19937 cRandomGenerator(cRandomDevice());
 
-void Random::Seed(uint32_t pSeed) {
+void Random::Seed(int pSeed) {
     cRandomGenerator.seed(pSeed);
 }
 
@@ -19,24 +19,34 @@ bool Random::Bool() {
     return (Get(16) > 7);
 }
 
-uint64_t Random::Get() {
-    std::uniform_int_distribution<uint64_t> aDist(0, std::numeric_limits<std::uint64_t>::max());
+bool Random::Chance(std::uint8_t pProbability) {
+    if (pProbability == 0U) {
+        return false;
+    }
+    if (pProbability >= 100U) {
+        return true;
+    }
+    return Get(100) < static_cast<int>(pProbability);
+}
+
+int Random::Get() {
+    std::uniform_int_distribution<int> aDist(0, std::numeric_limits<int>::max());
     return aDist(cRandomGenerator);
 }
 
-uint64_t Random::Get(uint64_t pMax) {
+int Random::Get(int pMax) {
     if (pMax <= 0) {
         return 0;
     }
-    std::uniform_int_distribution<uint64_t> aDist(0, pMax - 1);
+    std::uniform_int_distribution<int> aDist(0, pMax - 1);
     return aDist(cRandomGenerator);
 }
 
-uint64_t Random::Get(uint64_t pMin, uint64_t pMax) {
+int Random::Get(int pMin, int pMax) {
     if (pMin >= pMax) {
         return pMin;
     }
-    std::uniform_int_distribution<uint64_t> aDist(pMin, pMax);
+    std::uniform_int_distribution<int> aDist(pMin, pMax);
     return aDist(cRandomGenerator);
 }
 
@@ -59,16 +69,4 @@ float Random::GetFloat(float pMin, float pMax) {
     }
     std::uniform_real_distribution<float> aDist(pMin, pMax);
     return aDist(cRandomGenerator);
-}
-
-ByteString Random::GetByteString(int pLength) {
-    ByteString aResult;
-    if (pLength > 0) {
-        aResult.Size(pLength);
-        aResult.mLength = pLength;
-        for (int aIndex=0; aIndex<pLength; aIndex++) {
-            aResult.mData[aIndex] = (Get(4) & 0xFF);
-        }
-    }
-    return aResult;
 }

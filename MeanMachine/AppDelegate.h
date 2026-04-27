@@ -2,7 +2,7 @@
 //  AppDelegate.h
 //  MeanMachine
 //
-//  Created by Magneto on 4/20/26.
+//  Created by John Snow on 4/20/26.
 //
 
 #import <Cocoa/Cocoa.h>

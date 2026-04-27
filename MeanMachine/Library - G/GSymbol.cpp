@@ -99,10 +99,6 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kWorkLaneB: return "work_b";
         case TwistWorkSpaceSlot::kWorkLaneC: return "work_c";
         case TwistWorkSpaceSlot::kWorkLaneD: return "work_d";
-        case TwistWorkSpaceSlot::kWorkLaneE: return "work_e";
-        case TwistWorkSpaceSlot::kWorkLaneF: return "work_f";
-        case TwistWorkSpaceSlot::kWorkLaneG: return "work_g";
-        case TwistWorkSpaceSlot::kWorkLaneH: return "work_h";
 
         case TwistWorkSpaceSlot::kOperationLaneA: return "op_a";
         case TwistWorkSpaceSlot::kOperationLaneB: return "op_b";
@@ -126,4 +122,61 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
 
         default: return "inv";
     }
+}
+
+std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kSource: return "aSource";
+        case TwistWorkSpaceSlot::kDest: return "aDestination";
+
+        case TwistWorkSpaceSlot::kSaltA: return "aSaltA";
+        case TwistWorkSpaceSlot::kSaltB: return "aSaltB";
+        case TwistWorkSpaceSlot::kSaltC: return "aSaltC";
+        case TwistWorkSpaceSlot::kSaltD: return "aSaltD";
+
+        case TwistWorkSpaceSlot::kSBoxA: return "aSBoxA";
+        case TwistWorkSpaceSlot::kSBoxB: return "aSBoxB";
+        case TwistWorkSpaceSlot::kSBoxC: return "aSBoxC";
+        case TwistWorkSpaceSlot::kSBoxD: return "aSBoxD";
+
+        case TwistWorkSpaceSlot::kSeedExpansionLaneA: return "aExpandLaneA";
+        case TwistWorkSpaceSlot::kSeedExpansionLaneB: return "aExpandLaneB";
+        case TwistWorkSpaceSlot::kSeedExpansionLaneC: return "aExpandLaneC";
+        case TwistWorkSpaceSlot::kSeedExpansionLaneD: return "aExpandLaneD";
+
+        case TwistWorkSpaceSlot::kWorkLaneA: return "aWorkLaneA";
+        case TwistWorkSpaceSlot::kWorkLaneB: return "aWorkLaneB";
+        case TwistWorkSpaceSlot::kWorkLaneC: return "aWorkLaneC";
+        case TwistWorkSpaceSlot::kWorkLaneD: return "aWorkLaneD";
+
+        case TwistWorkSpaceSlot::kOperationLaneA: return "aOperationLaneA";
+        case TwistWorkSpaceSlot::kOperationLaneB: return "aOperationLaneB";
+
+        case TwistWorkSpaceSlot::kMaskLaneA: return "aMaskLaneA";
+        case TwistWorkSpaceSlot::kMaskLaneB: return "aMaskLaneB";
+
+        case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return "aKeyBoxUnrolledA";
+        case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return "aKeyBoxUnrolledB";
+        case TwistWorkSpaceSlot::kKeyRowReadA: return "aKeyRowReadA";
+        case TwistWorkSpaceSlot::kKeyRowReadB: return "aKeyRowReadB";
+        case TwistWorkSpaceSlot::kKeyRowWriteA: return "aKeyRowWriteA";
+        case TwistWorkSpaceSlot::kKeyRowWriteB: return "aKeyRowWriteB";
+
+        case TwistWorkSpaceSlot::kMaskBoxUnrolledA: return "aMaskBoxUnrolledA";
+        case TwistWorkSpaceSlot::kMaskBoxUnrolledB: return "aMaskBoxUnrolledB";
+        case TwistWorkSpaceSlot::kMaskRowReadA: return "aMaskRowReadA";
+        case TwistWorkSpaceSlot::kMaskRowReadB: return "aMaskRowReadB";
+        case TwistWorkSpaceSlot::kMaskRowWriteA: return "aMaskRowWriteA";
+        case TwistWorkSpaceSlot::kMaskRowWriteB: return "aMaskRowWriteB";
+
+        default: return "aInvalidBuffer";
+    }
+}
+
+GSymbol VarSymbol(const std::string &pName) {
+    return GSymbol::Var(pName);
+}
+
+GSymbol BufSymbol(const TwistWorkSpaceSlot pSlot) {
+    return GSymbol::Buf(pSlot);
 }

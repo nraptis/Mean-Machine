@@ -63,9 +63,9 @@ public:
     std::string                     ToString() const;
     std::string                     ToHexArrayString() const;
     
-    static std::uint32_t            Hash(std::uint8_t *pData, int pLength);
-    std::uint32_t                   Hash();
-    std::uint32_t                   HashRotationInvariant();
+    static int            Hash(std::uint8_t *pData, int pLength);
+    int                   Hash();
+    int                   HashRotationInvariant();
     
     inline bool                     operator == (const ByteString &pString) const { return Compare(pString) == 0; }
     inline bool                     operator == (const std::string &pString) const { return Compare(pString) == 0; }

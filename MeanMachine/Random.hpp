@@ -8,17 +8,20 @@
 #ifndef RANDOM_HPP
 #define RANDOM_HPP
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <random>
-#include "ByteString.hpp"
+#include <vector>
 
 class Random {
 public:
     
-    static void                         Seed(uint32_t pSeed);
+    static void                         Seed(int pSeed);
     
-    static uint64_t                     Get();
-    static uint64_t                     Get(uint64_t pMax);
-    static uint64_t                     Get(uint64_t pMin, uint64_t pMax);
+    static int                          Get();
+    static int                          Get(int pMax);
+    static int                          Get(int pMin, int pMax);
     
     static float                        GetFloat();
     static float                        GetFloat(float pMax);
@@ -26,8 +29,62 @@ public:
     static float                        GetFloat(float pMin, float pMax);
     
     static bool                         Bool();
+    static bool                         Chance(std::uint8_t pProbability);
     
-    static ByteString                   GetByteString(int pLength);
+
+    template <typename T>
+    static T                            Choice(const std::vector<T> &pItems) {
+        if (pItems.empty()) {
+            return T();
+        }
+        const std::size_t aIndex = static_cast<std::size_t>(Get(static_cast<int>(pItems.size())));
+        return pItems[aIndex];
+    }
+
+    template <typename T>
+    static void                         Shuffle(std::vector<T> *pItems) {
+        if ((pItems == nullptr) || (pItems->size() < 2U)) {
+            return;
+        }
+        for (std::size_t i = 1U; i < pItems->size(); ++i) {
+            const std::size_t aSwapIndex = static_cast<std::size_t>(Get(static_cast<int>(i + 1U)));
+            std::swap((*pItems)[i], (*pItems)[aSwapIndex]);
+        }
+    }
+    
+    template <typename T>
+    static void                         Shuffle(T *pItems, int pLength) {
+        if ((pItems == nullptr) || (pLength < 2U)) {
+            return;
+        }
+        for (std::size_t i = 1U; i < pLength; ++i) {
+            const std::size_t aSwapIndex = static_cast<std::size_t>(Get(static_cast<int>(i + 1U)));
+            std::swap((*pItems)[i], (*pItems)[aSwapIndex]);
+        }
+    }
+    
+    static std::vector<int> RandomIndicesInRange(int pCount, int pRangeMax) {
+        
+        std::vector<int> aResult;
+        if (pRangeMax <= 0 || pCount <= 0) {
+            return aResult;
+        }
+        
+        pCount = std::min(pCount, pRangeMax);
+        
+        std::vector<int> aPool(pRangeMax);
+        for (int i = 0; i < pRangeMax; i++) {
+            aPool[i] = i;
+        }
+        
+        // Partial Fisher–Yates: only first pCount positions
+        for (int i = 0; i < pCount; i++) {
+            int j = i + Random::Get(pRangeMax - i); // random in [i, pRangeMax)
+            std::swap(aPool[i], aPool[j]);
+        }
+        
+        return std::vector<int>(aPool.begin(), aPool.begin() + pCount);
+    }
     
 };
 

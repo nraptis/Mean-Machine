@@ -7,6 +7,23 @@
 
 #include "GExpr.hpp"
 
+GOperType OperTypeForExprType(const GExprType pType) {
+    switch (pType) {
+        case GExprType::kRead: return GOperType::kRead;
+        case GExprType::kAdd: return GOperType::kAdd;
+        case GExprType::kSub: return GOperType::kSub;
+        case GExprType::kMul: return GOperType::kMul;
+        case GExprType::kXor: return GOperType::kXor;
+        case GExprType::kAnd: return GOperType::kAnd;
+        case GExprType::kRotL8: return GOperType::kRotL8;
+        default: return GOperType::kInv;
+    }
+}
+
+GOperType OperTypeForExpr(const GExpr pExpr) {
+    return OperTypeForExprType(pExpr.mType);
+}
+
 namespace {
 
 GExpr BinaryExpr(const GExprType pType,
@@ -19,18 +36,29 @@ GExpr BinaryExpr(const GExprType pType,
     return aExpr;
 }
 
-GOperType OperTypeForExprType(const GExprType pType) {
-    switch (pType) {
-        case GExprType::kRead: return GOperType::kRead;
-        case GExprType::kAdd: return GOperType::kAdd;
-        case GExprType::kSub: return GOperType::kSub;
-        case GExprType::kMul: return GOperType::kMul;
-        case GExprType::kXor: return GOperType::kXor;
-        case GExprType::kAnd: return GOperType::kAnd;
-        case GExprType::kRotateLeft8: return GOperType::kRotateLeft8;
-        case GExprType::kRotateRight8: return GOperType::kRotateRight8;
-        default: return GOperType::kInv;
+bool HasReadWrap(const GExpr &pExpr) {
+    return pExpr.mReadWrapType != GReadWrapType::kNone;
+}
+
+GExpr BuildWrappedRead(const GReadWrapType pWrapType,
+                       const GSymbol &pSymbol,
+                       const GSymbol &pIndex,
+                       const GSymbol &pIndexOracle,
+                       const int pOffset) {
+    if (pSymbol.IsInvalid() || pIndex.IsInvalid()) {
+        return GExpr();
     }
+
+    if (pIndexOracle.IsInvalid()) {
+        return GExpr::Read(pSymbol, GExpr::Symbol(pIndex));
+    }
+
+    GExpr aExpr = GExpr::Read(pSymbol, GExpr::Symbol(pIndexOracle));
+    aExpr.mReadWrapType = pWrapType;
+    aExpr.mReadWrapIndexSymbol = pIndex;
+    aExpr.mReadWrapOracleSymbol = pIndexOracle;
+    aExpr.mReadWrapOffset = pOffset;
+    return aExpr;
 }
 
 void AppendSymbols(const GExpr &pExpr,
@@ -49,6 +77,10 @@ void AppendSymbols(const GExpr &pExpr,
             if (pExpr.mIndex != nullptr) {
                 AppendSymbols(*pExpr.mIndex, pSymbols);
             }
+            if (HasReadWrap(pExpr)) {
+                pSymbols->push_back(pExpr.mReadWrapIndexSymbol);
+                pSymbols->push_back(pExpr.mReadWrapOracleSymbol);
+            }
             return;
 
         case GExprType::kAdd:
@@ -56,8 +88,7 @@ void AppendSymbols(const GExpr &pExpr,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotateLeft8:
-        case GExprType::kRotateRight8:
+        case GExprType::kRotL8:
             if (pExpr.mA != nullptr) {
                 AppendSymbols(*pExpr.mA, pSymbols);
             }
@@ -90,8 +121,7 @@ void AppendOps(const GExpr &pExpr,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotateLeft8:
-        case GExprType::kRotateRight8:
+        case GExprType::kRotL8:
             if (pExpr.mA != nullptr) {
                 AppendOps(*pExpr.mA, pOps);
             }
@@ -133,15 +163,18 @@ std::string ExprKeyInner(const GExpr &pExpr) {
 
         case GExprType::kRead:
             return "read(" + ExprKeyInner(GExpr::Symbol(pExpr.mSymbol)) + "," +
-                   ((pExpr.mIndex != nullptr) ? ExprKeyInner(*pExpr.mIndex) : "null") + ")";
+                   ((pExpr.mIndex != nullptr) ? ExprKeyInner(*pExpr.mIndex) : "null") +
+                   ",wrap=" + std::to_string(static_cast<int>(pExpr.mReadWrapType)) +
+                   ",base=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapIndexSymbol)) +
+                   ",oracle=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapOracleSymbol)) +
+                   ",offset=" + std::to_string(pExpr.mReadWrapOffset) + ")";
 
         case GExprType::kAdd:
         case GExprType::kSub:
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotateLeft8:
-        case GExprType::kRotateRight8:
+        case GExprType::kRotL8:
             return std::to_string(static_cast<int>(pExpr.mType)) + "(" +
                    ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + "," +
                    ((pExpr.mB != nullptr) ? ExprKeyInner(*pExpr.mB) : "null") + ")";
@@ -163,7 +196,7 @@ GExpr GExpr::Symbol(const GSymbol &pSymbol) {
     return aExpr;
 }
 
-GExpr GExpr::Const(std::uint64_t pVal) {
+GExpr GExpr::Const(int pVal) {
     GExpr aExpr;
     aExpr.mType = GExprType::kConst;
     aExpr.mConstVal = pVal;
@@ -176,6 +209,10 @@ GExpr GExpr::Read(const GSymbol &pSymbol,
     aExpr.mType = GExprType::kRead;
     aExpr.mSymbol = pSymbol;
     aExpr.mIndex = std::make_shared<GExpr>(pIndex);
+    aExpr.mReadWrapType = GReadWrapType::kNone;
+    aExpr.mReadWrapIndexSymbol.Invalidate();
+    aExpr.mReadWrapOracleSymbol.Invalidate();
+    aExpr.mReadWrapOffset = 0;
     return aExpr;
 }
 
@@ -199,12 +236,29 @@ GExpr GExpr::And(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kAnd, a, b);
 }
 
-GExpr GExpr::RotateLeft8(const GExpr &a, const GExpr &b) {
-    return BinaryExpr(GExprType::kRotateLeft8, a, b);
+GExpr GExpr::RotL8(const GExpr &a, const GExpr &b) {
+    return BinaryExpr(GExprType::kRotL8, a, b);
 }
 
-GExpr GExpr::RotateRight8(const GExpr &a, const GExpr &b) {
-    return BinaryExpr(GExprType::kRotateRight8, a, b);
+GExpr GExpr::ReadBlockWrap(const GSymbol &pSymbol,
+                           const GSymbol &pIndex,
+                           const GSymbol &pIndexOracle,
+                           int pOffset) {
+    return BuildWrappedRead(GReadWrapType::kBlock, pSymbol, pIndex, pIndexOracle, pOffset);
+}
+
+GExpr GExpr::ReadSBoxWrap(const GSymbol &pSymbol,
+                          const GSymbol &pIndex,
+                          const GSymbol &pIndexOracle,
+                          int pOffset) {
+    return BuildWrappedRead(GReadWrapType::kSBox, pSymbol, pIndex, pIndexOracle, pOffset);
+}
+
+GExpr GExpr::ReadSaltWrap(const GSymbol &pSymbol,
+                          const GSymbol &pIndex,
+                          const GSymbol &pIndexOracle,
+                          int pOffset) {
+    return BuildWrappedRead(GReadWrapType::kSalt, pSymbol, pIndex, pIndexOracle, pOffset);
 }
 
 void GExpr::Set(const GExpr &pOther) {
@@ -214,6 +268,10 @@ void GExpr::Set(const GExpr &pOther) {
     mIndex = pOther.mIndex;
     mA = pOther.mA;
     mB = pOther.mB;
+    mReadWrapType = pOther.mReadWrapType;
+    mReadWrapIndexSymbol = pOther.mReadWrapIndexSymbol;
+    mReadWrapOracleSymbol = pOther.mReadWrapOracleSymbol;
+    mReadWrapOffset = pOther.mReadWrapOffset;
 }
 
 void GExpr::Invalidate() {
@@ -223,6 +281,10 @@ void GExpr::Invalidate() {
     mIndex.reset();
     mA.reset();
     mB.reset();
+    mReadWrapType = GReadWrapType::kNone;
+    mReadWrapIndexSymbol.Invalidate();
+    mReadWrapOracleSymbol.Invalidate();
+    mReadWrapOffset = 0;
 }
 
 bool GExpr::IsInvalid() const {
@@ -234,15 +296,16 @@ bool GExpr::IsInvalid() const {
             return false;
 
         case GExprType::kRead:
-            return mSymbol.IsInvalid() || (mIndex == nullptr) || mIndex->IsInvalid();
+            return mSymbol.IsInvalid() || (mIndex == nullptr) || mIndex->IsInvalid() ||
+                   ((mReadWrapType != GReadWrapType::kNone) &&
+                    (mReadWrapIndexSymbol.IsInvalid() || mReadWrapOracleSymbol.IsInvalid()));
 
         case GExprType::kAdd:
         case GExprType::kSub:
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotateLeft8:
-        case GExprType::kRotateRight8:
+        case GExprType::kRotL8:
             return (mA == nullptr) || (mB == nullptr) ||
                    mA->IsInvalid() || mB->IsInvalid();
 
@@ -292,15 +355,18 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
 
         case GExprType::kRead:
             return (pLHS.mSymbol == pRHS.mSymbol) &&
-                   ExprPtrEqual(pLHS.mIndex, pRHS.mIndex);
+                   ExprPtrEqual(pLHS.mIndex, pRHS.mIndex) &&
+                   (pLHS.mReadWrapType == pRHS.mReadWrapType) &&
+                   (pLHS.mReadWrapOffset == pRHS.mReadWrapOffset) &&
+                   (pLHS.mReadWrapIndexSymbol == pRHS.mReadWrapIndexSymbol) &&
+                   (pLHS.mReadWrapOracleSymbol == pRHS.mReadWrapOracleSymbol);
 
         case GExprType::kAdd:
         case GExprType::kSub:
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotateLeft8:
-        case GExprType::kRotateRight8:
+        case GExprType::kRotL8:
             return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
                    ExprPtrEqual(pLHS.mB, pRHS.mB);
     }

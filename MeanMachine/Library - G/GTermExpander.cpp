@@ -4,49 +4,26 @@
 //
 
 #include "GTermExpander.hpp"
+#include "Random.hpp"
+
 #include <array>
 #include <cstdint>
-#include <random>
 
 namespace {
 
-enum class GTermPattern : std::uint8_t {
-    kAdd = 0,
-    kSub = 1,
-    kXor = 2,
-    kMul = 3,
-    kRotate = 4,
-    kMulThenAdd = 5,
-    kMulThenSub = 6,
-    kMulThenXor = 7,
-    kRotateAdd = 8,
-    kRotateSub = 9,
-    kRotateXor = 10,
-    kRotateMul = 11,
-    kPostRotateAdd = 12,
-    kPostRotateSub = 13,
-    kPostRotateXor = 14,
-    kPostRotateMul = 15
-};
+
 
 using RotateBuilder = GExpr (*)(const GExpr &, const GExpr &);
 
 struct GTermExpandConfig {
-    RotateBuilder                mRotateLeft = nullptr;
-    std::uint8_t               (*mNextScalar)() = nullptr;
-    std::uint8_t               (*mNextOddScalar)() = nullptr;
-    std::uint8_t               (*mNextRotate)() = nullptr;
+    RotateBuilder                   mRotateLeft = nullptr;
+    std::uint8_t                    (*mNextScalar)() = nullptr;
+    std::uint8_t                    (*mNextOddScalar)() = nullptr;
+    std::uint8_t                    (*mNextRotate)() = nullptr;
 };
 
-std::mt19937 &TermExpanderGenerator() {
-    static std::random_device cDevice;
-    static std::mt19937 cGenerator(cDevice());
-    return cGenerator;
-}
-
 std::size_t NextPatternIndex(const std::size_t pMaximumInclusive) {
-    std::uniform_int_distribution<std::size_t> aDistribution(0U, pMaximumInclusive);
-    return aDistribution(TermExpanderGenerator());
+    return static_cast<std::size_t>(Random::Get(static_cast<int>(pMaximumInclusive + 1U)));
 }
 
 std::uint8_t NextByteInRange(const std::uint8_t pMinimum,
@@ -54,8 +31,8 @@ std::uint8_t NextByteInRange(const std::uint8_t pMinimum,
     if (pMinimum >= pMaximum) {
         return pMinimum;
     }
-    std::uniform_int_distribution<std::uint16_t> aDistribution(pMinimum, pMaximum);
-    return static_cast<std::uint8_t>(aDistribution(TermExpanderGenerator()));
+    return static_cast<std::uint8_t>(Random::Get(static_cast<int>(pMinimum),
+                                                 static_cast<int>(pMaximum)));
 }
 
 constexpr std::array<GTermPattern, 16> kAllPatterns = {
@@ -102,17 +79,17 @@ std::uint8_t NextRotate8() {
     return NextByteInRange(1U, 7U);
 }
 
-GExpr ExpandWithConfig(const GSymbol pSymbol,
+GExpr ExpandWithConfig(const GExpr &pBase,
                        const bool pAllowMultiply,
                        const GTermExpandConfig &pConfig) {
-    if (pSymbol.IsInvalid() || (pConfig.mRotateLeft == nullptr) ||
+    if (pBase.IsInvalid() || (pConfig.mRotateLeft == nullptr) ||
         (pConfig.mNextScalar == nullptr) ||
         (pConfig.mNextOddScalar == nullptr) ||
         (pConfig.mNextRotate == nullptr)) {
         return GExpr();
     }
 
-    const GExpr aBase = GExpr::Symbol(pSymbol);
+    const GExpr &aBase = pBase;
     const GExpr aScalar1 = GExpr::Const(pConfig.mNextScalar());
     const GExpr aScalar2 = GExpr::Const(pConfig.mNextScalar());
     const GExpr aOddScalar = GExpr::Const(pConfig.mNextOddScalar());
@@ -165,10 +142,20 @@ GExpr ExpandWithConfig(const GSymbol pSymbol,
 
 GExpr GTermExpander::Expand(GSymbol pSymbol, bool pAllowMultiply) {
     const GTermExpandConfig aConfig = {
-        &GExpr::RotateLeft8,
+        &GExpr::RotL8,
         &NextScalar8,
         &NextOddScalar8,
         &NextRotate8,
     };
-    return ExpandWithConfig(pSymbol, pAllowMultiply, aConfig);
+    return ExpandWithConfig(GExpr::Symbol(pSymbol), pAllowMultiply, aConfig);
+}
+
+GExpr GTermExpander::Expand(GExpr pExpr, bool pAllowMultiply) {
+    const GTermExpandConfig aConfig = {
+        &GExpr::RotL8,
+        &NextScalar8,
+        &NextOddScalar8,
+        &NextRotate8,
+    };
+    return ExpandWithConfig(pExpr, pAllowMultiply, aConfig);
 }

@@ -2,14 +2,15 @@
 //  GStatement.cpp
 //  MeanMachine
 //
-//  Created by Magneto on 4/21/26.
+//  Created by John Snow on 4/21/26.
 //
 
 #include "GStatementRecipe.hpp"
+#include "GTermExpander.hpp"
+#include "Random.hpp"
 
 #include <algorithm>
 #include <cstdint>
-#include <random>
 #include <sstream>
 
 namespace {
@@ -19,19 +20,6 @@ void SetError(std::string *pError,
     if (pError != NULL) {
         *pError = pMessage;
     }
-}
-
-std::mt19937 &RecipeRng() {
-    static std::mt19937 cGenerator(std::random_device{}());
-    return cGenerator;
-}
-
-std::uint64_t RandomChoice(const std::uint64_t pMax) {
-    if (pMax == 0U) {
-        return 0U;
-    }
-    std::uniform_int_distribution<std::uint64_t> aDistribution(0U, pMax - 1U);
-    return aDistribution(RecipeRng());
 }
 
 std::string SlotKey(const GStatementSlot &pSlot) {
@@ -52,11 +40,10 @@ std::string SlotKey(const GStatementSlot &pSlot) {
     return "invalid";
 }
 
-std::unordered_map<std::uint8_t, int> DefaultOpWeights() {
-    std::unordered_map<std::uint8_t, int> aWeights;
-    aWeights[static_cast<std::uint8_t>(GOperType::kXor)] = 45;
-    aWeights[static_cast<std::uint8_t>(GOperType::kAdd)] = 40;
-    aWeights[static_cast<std::uint8_t>(GOperType::kMul)] = 15;
+std::unordered_map<int, int> DefaultOpWeights() {
+    std::unordered_map<int, int> aWeights;
+    aWeights[static_cast<int>(GOperType::kXor)] = 55U;
+    aWeights[static_cast<int>(GOperType::kAdd)] = 45U;
     return aWeights;
 }
 
@@ -67,8 +54,7 @@ bool IsSupportedRecipeOp(const GOperType pOper) {
         case GOperType::kMul:
         case GOperType::kXor:
         case GOperType::kAnd:
-        case GOperType::kRotateLeft8:
-        case GOperType::kRotateRight8:
+        case GOperType::kRotL8:
             return true;
         default:
             return false;
@@ -84,20 +70,13 @@ GExpr ApplyRecipeOp(const GOperType pOper,
         case GOperType::kMul: return GExpr::Mul(pLeft, pRight);
         case GOperType::kXor: return GExpr::Xor(pLeft, pRight);
         case GOperType::kAnd: return GExpr::And(pLeft, pRight);
-        case GOperType::kRotateLeft8: return GExpr::RotateLeft8(pLeft, pRight);
-        case GOperType::kRotateRight8: return GExpr::RotateRight8(pLeft, pRight);
+        case GOperType::kRotL8: return GExpr::RotL8(pLeft, pRight);
         default: return GExpr();
     }
 }
 
 bool ShouldIncludeSlot(const int pProbability) {
-    if (pProbability >= 100) {
-        return true;
-    }
-    if (pProbability <= 0) {
-        return false;
-    }
-    return RandomChoice(100U) < static_cast<std::uint64_t>(pProbability);
+    return Random::Chance(pProbability);
 }
 
 bool SlotKeysEqual(const GStatementSlot &pLeft,
@@ -108,16 +87,16 @@ bool SlotKeysEqual(const GStatementSlot &pLeft,
 struct PoolCandidate {
     GStatementSlot                       mSlot;
     std::string                          mKey;
-    int                                  mWeight = 0;
+    int                         mWeight = 0U;
     int                                  mOverdrawnCount = 0;
 };
 
-std::uint64_t RandomChoiceInRange(const std::uint64_t pMinimum,
-                                  const std::uint64_t pMaximumInclusive) {
+int RandomChoiceInRange(const int pMinimum,
+                                  const int pMaximumInclusive) {
     if (pMaximumInclusive <= pMinimum) {
         return pMinimum;
     }
-    return pMinimum + RandomChoice((pMaximumInclusive - pMinimum) + 1U);
+    return pMinimum + Random::Get((pMaximumInclusive - pMinimum) + 1U);
 }
 
 int SlotReadCount(const GStatementSlot &pSlot,
@@ -155,20 +134,20 @@ std::size_t ChooseWeightedCandidateIndex(const std::vector<PoolCandidate> &pCand
     }
 
     if (aPositiveTotal > 0) {
-        std::uint64_t aPick = RandomChoice(static_cast<std::uint64_t>(aPositiveTotal));
+        int aPick = Random::Get(static_cast<int>(aPositiveTotal));
         for (std::size_t aIndex = 0U; aIndex < pCandidates.size(); ++aIndex) {
             const int aWeight = pCandidates[aIndex].mWeight;
             if (aWeight <= 0) {
                 continue;
             }
-            if (aPick < static_cast<std::uint64_t>(aWeight)) {
+            if (aPick < static_cast<int>(aWeight)) {
                 return aIndex;
             }
-            aPick -= static_cast<std::uint64_t>(aWeight);
+            aPick -= static_cast<int>(aWeight);
         }
     }
 
-    return static_cast<std::size_t>(RandomChoice(static_cast<std::uint64_t>(pCandidates.size())));
+    return static_cast<std::size_t>(Random::Get(static_cast<int>(pCandidates.size())));
 }
 
 std::size_t ChooseLeastOverdrawnIndex(const std::vector<PoolCandidate> &pCandidates) {
@@ -254,22 +233,8 @@ GExpr GStatementSlot::ToExpr() const {
     return GExpr();
 }
 
-GSymbol GStatementSlot::GetPrimarySymbol() const {
-    if (mType == GStatementSlotType::kSymbol) {
-        return mSymbol;
-    }
-    if (mType == GStatementSlotType::kExpr) {
-        const std::vector<GSymbol> aSymbols = mExpr.GetSymbols();
-        if (!aSymbols.empty()) {
-            return aSymbols[0];
-        }
-    }
-    return GSymbol();
-}
-
-GPool::GPool(GScopeRules *pScopeRules, GScopeState *pScopeStateGlobal) {
-    mScopeRules = pScopeRules;
-    mScopeStateGlobal = pScopeStateGlobal;
+GPool::GPool(GScopeRules *pScopeRules) {
+    mScopeRules = pScopeRules;    
 }
 
 static void AddSlotCopies(std::unordered_map<std::string, std::vector<GPoolEntry>> *pCategories,
@@ -375,8 +340,8 @@ static bool FetchSlotsFromEntries(const std::vector<GPoolEntry> &pEntries,
     }
 
     const int aTargetCount = static_cast<int>(
-        RandomChoiceInRange(static_cast<std::uint64_t>(pMinimumCount),
-                            static_cast<std::uint64_t>(pMaximumCount))
+        RandomChoiceInRange(static_cast<int>(pMinimumCount),
+                            static_cast<int>(pMaximumCount))
     );
 
     std::vector<PoolCandidate> aGoodCandidates;
@@ -600,6 +565,10 @@ bool GPool::FetchSlots(std::string pCategory,
     return FetchSlots(pCategory, pCount, pCount, pRequiredSymbol, pResult, pScopeStateLocal, pScopeStateGlobal, pError);
 }
 
+GStatementRecipe::GStatementRecipe() {
+    
+}
+
 void GStatementRecipe::Clear() {
     mSlots.clear();
     mOpWeights.clear();
@@ -622,6 +591,18 @@ void GStatementRecipe::Add(GStatementSlot pSlot, int pProbability) {
     aEntry.mSlot = pSlot;
     aEntry.mProbability = pProbability;
     mSlots.push_back(aEntry);
+}
+
+void GStatementRecipe::Add(GSymbol pSymbol) {
+    Add(pSymbol, 100);
+}
+
+void GStatementRecipe::Add(GExpr pExpr) {
+    Add(pExpr, 100);
+}
+
+void GStatementRecipe::Add(GStatementSlot pSlot) {
+    Add(pSlot, 100);
 }
 
 void GStatementRecipe::ResetOpWeights(GSymbol pSymbol) {
@@ -657,8 +638,8 @@ void GStatementRecipe::SetOpWeight(GExpr pExpr, GOperType pOp, int pWeight) {
 }
 
 void GStatementRecipe::SetOpWeight(GStatementSlot pSlot, GOperType pOp, int pWeight) {
-    std::unordered_map<std::uint8_t, int> &aWeights = mOpWeights[SlotKey(pSlot)];
-    aWeights[static_cast<std::uint8_t>(pOp)] = pWeight;
+    std::unordered_map<int, int> &aWeights = mOpWeights[SlotKey(pSlot)];
+    aWeights[static_cast<int>(pOp)] = pWeight;
 }
 
 void GStatementRecipe::SetOpPairDisallow(GSymbol pSymbolA, GSymbol pSymbolB, GOperType pOp) {
@@ -703,8 +684,8 @@ static bool IsDisallowed(const std::vector<GStatementRecipe::GOpPairRule> &pRule
     return false;
 }
 
-static std::unordered_map<std::uint8_t, int> EffectiveOpWeights(
-    const std::unordered_map<std::string, std::unordered_map<std::uint8_t, int>> &pOpWeights,
+static std::unordered_map<int, int> EffectiveOpWeights(
+    const std::unordered_map<std::string, std::unordered_map<int, int>> &pOpWeights,
     const GStatementSlot &pSlot) {
     const auto aIterator = pOpWeights.find(SlotKey(pSlot));
     if (aIterator != pOpWeights.end()) {
@@ -715,7 +696,7 @@ static std::unordered_map<std::uint8_t, int> EffectiveOpWeights(
 
 static bool ChooseOp(const GStatementSlot &pLeft,
                      const GStatementSlot &pRight,
-                     const std::unordered_map<std::string, std::unordered_map<std::uint8_t, int>> &pOpWeights,
+                     const std::unordered_map<std::string, std::unordered_map<int, int>> &pOpWeights,
                      const std::vector<GStatementRecipe::GOpPairRule> &pPairRules,
                      GOperType *pOp,
                      std::string *pError) {
@@ -724,7 +705,7 @@ static bool ChooseOp(const GStatementSlot &pLeft,
         return false;
     }
 
-    const std::unordered_map<std::uint8_t, int> aWeights = EffectiveOpWeights(pOpWeights, pRight);
+    const std::unordered_map<int, int> aWeights = EffectiveOpWeights(pOpWeights, pRight);
     std::vector<std::pair<GOperType, int>> aCandidates;
     int aTotalWeight = 0;
     for (const auto &aPair : aWeights) {
@@ -745,13 +726,13 @@ static bool ChooseOp(const GStatementSlot &pLeft,
         return false;
     }
 
-    std::uint64_t aPick = RandomChoice(static_cast<std::uint64_t>(aTotalWeight));
+    int aPick = Random::Get(static_cast<int>(aTotalWeight));
     for (const auto &aCandidate : aCandidates) {
-        if (aPick < static_cast<std::uint64_t>(aCandidate.second)) {
+        if (aPick < static_cast<int>(aCandidate.second)) {
             *pOp = aCandidate.first;
             return true;
         }
-        aPick -= static_cast<std::uint64_t>(aCandidate.second);
+        aPick -= static_cast<int>(aCandidate.second);
     }
 
     *pOp = aCandidates.back().first;
@@ -759,7 +740,7 @@ static bool ChooseOp(const GStatementSlot &pLeft,
 }
 
 static bool BakeExpression(const std::vector<GStatementRecipe::GWeightedSlot> &pSlots,
-                           const std::unordered_map<std::string, std::unordered_map<std::uint8_t, int>> &pOpWeights,
+                           const std::unordered_map<std::string, std::unordered_map<int, int>> &pOpWeights,
                            const std::vector<GStatementRecipe::GOpPairRule> &pPairRules,
                            GExpr *pExpr,
                            std::string *pError) {
@@ -814,69 +795,154 @@ static bool BakeExpression(const std::vector<GStatementRecipe::GWeightedSlot> &p
 }
 
 bool GStatementRecipe::Bake(GSymbol pSymbol,
+                            GAssignType pAssignType,
                             GStatement &pResult,
-                            GScopeRules pScopeRules,
-                            GScopeState &pScopeStateGlobal,
-                            GScopeState &pScopeStateLocal,
-                            GPool &pPool,
                             std::string &pError) {
-    (void)pScopeRules;
-    (void)pScopeStateGlobal;
-    (void)pScopeStateLocal;
-    (void)pPool;
-
     GExpr aExpr;
     if (!BakeExpression(mSlots, mOpWeights, mOpPairDisallows, &aExpr, &pError)) {
         return false;
     }
 
-    pResult = GStatement::Assign(GTarget::Symbol(pSymbol), aExpr);
-    return !pResult.IsInvalid();
+    switch (pAssignType) {
+        case GAssignType::kInvalid:
+            return false;
+        case GAssignType::kSet:
+            pResult = GStatement::Assign(GTarget::Symbol(pSymbol), aExpr);
+            return !pResult.IsInvalid();
+        case GAssignType::kAddAssign:
+            pResult = GStatement::AddAssign(GTarget::Symbol(pSymbol), aExpr);
+            return !pResult.IsInvalid();
+        case GAssignType::kXorAssign:
+            pResult = GStatement::XorAssign(GTarget::Symbol(pSymbol), aExpr);
+            return !pResult.IsInvalid();
+    }
 }
 
 bool GStatementRecipe::Bake(GExpr pExpr,
+                            GAssignType pAssignType,
                             GStatement &pResult,
-                            GScopeRules pScopeRules,
-                            GScopeState &pScopeStateGlobal,
-                            GScopeState &pScopeStateLocal,
-                            GPool &pPool,
                             std::string &pError) {
     if (pExpr.IsSymbol()) {
-        return Bake(pExpr.mSymbol, pResult, pScopeRules, pScopeStateGlobal, pScopeStateLocal, pPool, pError);
+        return Bake(pExpr.mSymbol, pAssignType, pResult, pError);
     }
-
+    
     if (!pExpr.IsRead() || pExpr.mIndex == nullptr) {
         SetError(&pError, "Recipe bake target expression must be a symbol or read.");
         return false;
     }
-
+    
     GExpr aBakedExpr;
     if (!BakeExpression(mSlots, mOpWeights, mOpPairDisallows, &aBakedExpr, &pError)) {
         return false;
     }
-
-    pResult = GStatement::Assign(GTarget::Write(pExpr.mSymbol, *pExpr.mIndex), aBakedExpr);
-    return !pResult.IsInvalid();
+    switch (pAssignType) {
+        case GAssignType::kInvalid:
+            return false;
+        case GAssignType::kSet:
+            pResult = GStatement::Assign(GTarget::Write(pExpr.mSymbol, *pExpr.mIndex), aBakedExpr);
+            return !pResult.IsInvalid();
+        case GAssignType::kAddAssign:
+            pResult = GStatement::AddAssign(GTarget::Write(pExpr.mSymbol, *pExpr.mIndex), aBakedExpr);
+            return !pResult.IsInvalid();
+        case GAssignType::kXorAssign:
+            pResult = GStatement::XorAssign(GTarget::Write(pExpr.mSymbol, *pExpr.mIndex), aBakedExpr);
+            return !pResult.IsInvalid();
+    }
 }
 
-bool GStatementRecipe::Bake(std::string pCategory,
-                            GStatement &pResult,
-                            GScopeRules pScopeRules,
-                            GScopeState &pScopeStateGlobal,
-                            GScopeState &pScopeStateLocal,
-                            GPool &pPool,
-                            std::string &pError) {
-    std::vector<GStatementSlot> aTargets;
-    if (!pPool.FetchSlots(pCategory, 1, aTargets, pScopeStateLocal, pScopeStateGlobal, pError)) {
-        return false;
-    }
-    if (aTargets.empty()) {
-        SetError(&pError, "Recipe bake target category produced no targets.");
-        return false;
-    }
+bool GStatementRecipe::Bake(GSymbol pSymbol, GStatement &pResult, std::string &pError) {
+    return Bake(pSymbol, GAssignType::kSet, pResult, pError);
+}
 
-    if (aTargets[0].mType == GStatementSlotType::kSymbol) {
-        return Bake(aTargets[0].mSymbol, pResult, pScopeRules, pScopeStateGlobal, pScopeStateLocal, pPool, pError);
+bool GStatementRecipe::Bake(GExpr pExpr, GStatement &pResult, std::string &pError) {
+    return Bake(pExpr, GAssignType::kSet, pResult, pError);
+}
+
+bool GStatementRecipe::BakeMix(GSymbol pSymbol, GStatement &pResult, std::string &pError) {
+    if (Random::Bool()) {
+        return Bake(pSymbol, GAssignType::kAddAssign, pResult, pError);
+    } else {
+        return Bake(pSymbol, GAssignType::kXorAssign, pResult, pError);
     }
-    return Bake(aTargets[0].mExpr, pResult, pScopeRules, pScopeStateGlobal, pScopeStateLocal, pPool, pError);
+    
+}
+
+bool GStatementRecipe::BakeMix(GExpr pExpr, GStatement &pResult, std::string &pError) {
+    if (Random::Bool()) {
+        return Bake(pExpr, GAssignType::kAddAssign, pResult, pError);
+    } else {
+        return Bake(pExpr, GAssignType::kXorAssign, pResult, pError);
+    }
+}
+
+
+void GStatementRecipe::AddExpandable(GSymbol pSymbol, int pExpandProbability,
+                                     bool pAllowMultiply,
+                                     int pProbability) {
+    if (pSymbol.IsInvalid()) {
+        return;
+    }
+    Add(GTermExpander::Expand(pSymbol, pAllowMultiply), pProbability);
+}
+
+void GStatementRecipe::AddExpandable(GExpr pExpr, int pExpandProbability,
+                                     bool pAllowMultiply,
+                                     int pProbability) {
+    if (pExpr.IsInvalid()) {
+        return;
+    }
+    
+    if (Random::Get(100) < pProbability) {
+        Add(GTermExpander::Expand(pExpr, pAllowMultiply), pProbability);
+    } else {
+        Add(pExpr, pProbability);
+    }
+}
+
+void GStatementRecipe::AddExpandable(GStatementSlot pSlot, int pExpandProbability,
+                                     bool pAllowMultiply,
+                                     int pProbability) {
+    if (pSlot.IsInvalid()) {
+        return;
+    }
+    if (pSlot.mType == GStatementSlotType::kSymbol) {
+        AddExpandable(pSlot.mSymbol, pExpandProbability, pAllowMultiply, pProbability);
+        return;
+    }
+    if (pSlot.mType == GStatementSlotType::kExpr) {
+        AddExpandable(pSlot.mExpr, pExpandProbability, pAllowMultiply, pProbability);
+    }
+}
+
+void GStatementRecipe::AddExpandable(GSymbol pSymbol,
+                                                  int pExpandProbability,
+                                     bool pAllowMultiply) {
+    AddExpandable(pSymbol, pExpandProbability, pAllowMultiply, 100);
+}
+
+void GStatementRecipe::AddExpandable(GExpr pExpr,
+                                                  int pExpandProbability,
+                                     bool pAllowMultiply) {
+    AddExpandable(pExpr, pExpandProbability, pAllowMultiply, 100);
+}
+
+void GStatementRecipe::AddExpandable(GStatementSlot pSlot,
+                                                  int pExpandProbability,
+                                     bool pAllowMultiply) {
+    AddExpandable(pSlot, pExpandProbability, pAllowMultiply, 100);
+}
+
+void GStatementRecipe::AddExpandable(GSymbol pSymbol,
+                                     int pExpandProbability) {
+    AddExpandable(pSymbol, pExpandProbability, false, 100);
+}
+
+void GStatementRecipe::AddExpandable(GExpr pExpr,
+                                     int pExpandProbability) {
+    AddExpandable(pExpr, pExpandProbability, false, 100);
+}
+
+void GStatementRecipe::AddExpandable(GStatementSlot pSlot,
+                                     int pExpandProbability) {
+    AddExpandable(pSlot, pExpandProbability, false, 100);
 }

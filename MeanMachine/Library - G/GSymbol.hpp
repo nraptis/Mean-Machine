@@ -39,5 +39,9 @@ bool                                    operator != (const GSymbol &pSymbolLHS, 
 
 
 std::string                             BufName(TwistWorkSpaceSlot slot);
+std::string                             BufAliasName(TwistWorkSpaceSlot slot);
+
+GSymbol                                 VarSymbol(const std::string &pName);
+GSymbol                                 BufSymbol(const TwistWorkSpaceSlot pSlot);
 
 #endif

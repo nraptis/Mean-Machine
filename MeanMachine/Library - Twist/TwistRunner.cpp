@@ -7,10 +7,11 @@
 
 #include "TwistRunner.hpp"
 
+#include <cstdio>
+#include <cstring>
+
 
 TwistRunner::TwistRunner() {
-    mWorkSpace.mSource = mSource;
-    mWorkSpace.mDest = mDest;
 }
 
 TwistRunner::~TwistRunner() {
@@ -20,7 +21,7 @@ TwistRunner::~TwistRunner() {
 
 void TwistRunner::RunSeed(TwistSeeder *pSeeder,
                           std::uint8_t *pPassword,
-                          std::uint32_t pPasswordLength) {
+                          int pPasswordLength) {
     UnrollPassword(pPassword, pPasswordLength);
     
     pSeeder->Seed(&mWorkSpace, mSource);
@@ -29,7 +30,7 @@ void TwistRunner::RunSeed(TwistSeeder *pSeeder,
 
 bool TwistRunner::RunSeedExpect(TwistSeeder *pSeeder,
                                 std::uint8_t *pPassword,
-                                std::uint32_t pPasswordLength,
+                                int pPasswordLength,
                                 TwistWorkSpace *pExpectation) {
     RunSeed(pSeeder, pPassword, pPasswordLength);
     
@@ -49,7 +50,7 @@ bool TwistRunner::RunSeedExpect(TwistSeeder *pSeeder,
 
 
 void TwistRunner::UnrollPassword(std::uint8_t *pPassword,
-                                 std::uint32_t pPasswordLength) {
+                                 int pPasswordLength) {
     
     memset(mSource, 0, S_BLOCK);
     
