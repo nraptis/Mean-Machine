@@ -199,6 +199,10 @@ std::string ExprTypeToken(const GExprType pType) {
         case GExprType::kXor: return "xor";
         case GExprType::kAnd: return "and";
         case GExprType::kRotL8: return "rotl8";
+        case GExprType::kRotL32: return "rotl32";
+        case GExprType::kShiftL: return "shiftl";
+        case GExprType::kShiftR: return "shiftr";
+        case GExprType::kOr: return "or";
         default: return "invalid";
     }
 }
@@ -217,6 +221,10 @@ bool ExprTypeFromToken(const std::string &pToken,
     if (pToken == "xor") { *pType = GExprType::kXor; return true; }
     if (pToken == "and") { *pType = GExprType::kAnd; return true; }
     if (pToken == "rotl8") { *pType = GExprType::kRotL8; return true; }
+    if (pToken == "rotl32") { *pType = GExprType::kRotL32; return true; }
+    if (pToken == "shiftl") { *pType = GExprType::kShiftL; return true; }
+    if (pToken == "shiftr") { *pType = GExprType::kShiftR; return true; }
+    if (pToken == "or") { *pType = GExprType::kOr; return true; }
     return false;
 }
 
@@ -428,6 +436,9 @@ std::string ScalarOperatorText(const GExprType pType) {
         case GExprType::kMul: return "*";
         case GExprType::kXor: return "^";
         case GExprType::kAnd: return "&";
+        case GExprType::kOr: return "|";
+        case GExprType::kShiftL: return "<<";
+        case GExprType::kShiftR: return ">>";
         default: return "";
     }
 }
@@ -461,12 +472,26 @@ bool IsKeyScalarName(const std::string &pName) {
     return pName.find("Key") != std::string::npos;
 }
 
+bool IsWideStateScalarName(const std::string &pName) {
+    if (pName.find("Nibble") != std::string::npos) {
+        return false;
+    }
+    return StartsWithText(pName, "aValue") ||
+           StartsWithText(pName, "aState") ||
+           StartsWithText(pName, "aCarry") ||
+           StartsWithText(pName, "aPermute") ||
+           StartsWithText(pName, "aHoldPermute");
+}
+
 std::string ScalarCppTypeForName(const std::string &pName) {
     if (StartsWithText(pName, "aOracle")) {
-        return "std::size_t";
+        return "std::uint32_t";
     }
     if (IsKeyScalarName(pName)) {
-        return "std::size_t";
+        return "std::uint32_t";
+    }
+    if (IsWideStateScalarName(pName)) {
+        return "std::uint32_t";
     }
     return "std::uint8_t";
 }
@@ -474,15 +499,18 @@ std::string ScalarCppTypeForName(const std::string &pName) {
 int NormalizeScalarValueForName(const std::string &pName,
                                 const int pValue) {
     if (StartsWithText(pName, "aOracle")) {
-        return pValue;
+        return static_cast<int>(static_cast<std::uint32_t>(pValue));
     }
     if (IsKeyScalarName(pName)) {
+        return static_cast<int>(static_cast<std::uint32_t>(pValue));
+    }
+    if (IsWideStateScalarName(pName)) {
         return static_cast<int>(static_cast<std::uint32_t>(pValue));
     }
     return static_cast<int>(static_cast<unsigned int>(pValue) & 0xFFU);
 }
 
-bool LoopUsesSizeT(const GLoop &pLoop) {
+bool LoopUsesUint32(const GLoop &pLoop) {
     return (pLoop.mLoopBegin >= 0) && (pLoop.mLoopStep > 0);
 }
 
@@ -760,7 +788,11 @@ bool ExprFromJsonValue(const JsonValue &pValue,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotL8: {
+        case GExprType::kOr:
+        case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR: {
             const JsonValue *aA = pValue.find("a");
             const JsonValue *aB = pValue.find("b");
             if ((aA == NULL) || (aB == NULL)) {
@@ -779,7 +811,11 @@ bool ExprFromJsonValue(const JsonValue &pValue,
                 case GExprType::kMul: aExpr = GExpr::Mul(aLeft, aRight); break;
                 case GExprType::kXor: aExpr = GExpr::Xor(aLeft, aRight); break;
                 case GExprType::kAnd: aExpr = GExpr::And(aLeft, aRight); break;
+                case GExprType::kOr: aExpr = GExpr::Or(aLeft, aRight); break;
                 case GExprType::kRotL8: aExpr = GExpr::RotL8(aLeft, aRight); break;
+                case GExprType::kRotL32: aExpr = GExpr::RotL32(aLeft, aRight); break;
+                case GExprType::kShiftL: aExpr = GExpr::ShiftL(aLeft, aRight); break;
+                case GExprType::kShiftR: aExpr = GExpr::ShiftR(aLeft, aRight); break;
                 default: break;
             }
             break;
@@ -989,10 +1025,15 @@ std::string PrettyExpr(const GExpr &pExpr) {
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR:
             return "(" + PrettyExpr(*pExpr.mA) + " " + ScalarOperatorText(pExpr.mType) +
                    " " + PrettyExpr(*pExpr.mB) + ")";
         case GExprType::kRotL8:
             return "rotl8(" + PrettyExpr(*pExpr.mA) + ", " + PrettyExpr(*pExpr.mB) + ")";
+        case GExprType::kRotL32:
+            return "rotl32(" + PrettyExpr(*pExpr.mA) + ", " + PrettyExpr(*pExpr.mB) + ")";
         default:
             return "invalid_expr";
     }
@@ -1019,39 +1060,14 @@ void AppendPrettyLoopLines(const GLoop &pLoop,
     pLines->push_back("}");
 }
 
-bool ShouldMaskSBoxIndex(const GExpr *pIndexExpr) {
-    if (pIndexExpr == nullptr) {
-        return true;
-    }
-    if (pIndexExpr->mType != GExprType::kSymbol || !pIndexExpr->mSymbol.IsVar()) {
-        return true;
-    }
-    const std::string &aName = pIndexExpr->mSymbol.mName;
-    if (aName == "i") {
-        return true;
-    }
-    if (aName.find("Index") != std::string::npos) {
-        return true;
-    }
-    if (aName.find("Key") != std::string::npos) {
-        return true;
-    }
-    if (StartsWithText(aName, "aOracle")) {
-        return true;
-    }
-    return false;
-}
-
 std::string CppIndexForSlot(const TwistWorkSpaceSlot pSlot,
                             const GExpr *pIndexExpr,
                             const std::string &pIndexText) {
+    (void)pIndexExpr;
     if (IsSaltSlot(pSlot)) {
         return pIndexText + " & 0x7FU";
     }
     if (IsSBoxSlot(pSlot)) {
-        if (!ShouldMaskSBoxIndex(pIndexExpr)) {
-            return pIndexText;
-        }
         return pIndexText + " & 0xFFU";
     }
     return pIndexText;
@@ -1076,10 +1092,17 @@ std::string CppExpr(const GExpr &pExpr) {
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
             return "(" + CppExpr(*pExpr.mA) + " " + ScalarOperatorText(pExpr.mType) +
                    " " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kShiftL:
+            return "(static_cast<std::uint32_t>(" + CppExpr(*pExpr.mA) + ") << " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kShiftR:
+            return "(static_cast<std::uint32_t>(" + CppExpr(*pExpr.mA) + ") >> " + CppExpr(*pExpr.mB) + ")";
         case GExprType::kRotL8:
             return "RotL8(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kRotL32:
+            return "RotL32(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
         default:
             return "0";
     }
@@ -1228,9 +1251,28 @@ std::string StripOuterParens(const std::string &pText) {
     return pText.substr(1U, pText.size() - 2U);
 }
 
+std::string FormatExpressionForCppStatement(const std::string &pExpressionText) {
+    std::string aText = pExpressionText;
+
+    // Keep packed nibble rebuild statements readable in generated C++.
+    // Split before the final high-byte term with a continuation indent.
+    if ((aText.find("NibbleA") != std::string::npos) &&
+        (aText.find("NibbleD") != std::string::npos) &&
+        (aText.find("<< 24U") != std::string::npos)) {
+        const std::string kSplitToken = ") << 16U)) | ";
+        const std::size_t aSplitIndex = aText.find(kSplitToken);
+        if (aSplitIndex != std::string::npos) {
+            aText.replace(aSplitIndex, kSplitToken.size(), ") << 16U)) |\n\t\t");
+        }
+    }
+
+    return aText;
+}
+
 std::string CppStatement(const GStatement &pStatement) {
     const std::string aTargetText = CppTarget(pStatement.mTarget);
-    const std::string aExpressionText = StripOuterParens(CppExpr(pStatement.mExpression));
+    const std::string aExpressionText =
+        FormatExpressionForCppStatement(StripOuterParens(CppExpr(pStatement.mExpression)));
 
     if (pStatement.mTarget.IsBuf()) {
         if (pStatement.mAssignType == GAssignType::kSet) {
@@ -1360,7 +1402,11 @@ bool EvaluateExpr(const GExpr &pExpr,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotL8: {
+        case GExprType::kOr:
+        case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR: {
             int aLeft = 0ULL;
             int aRight = 0ULL;
             if ((pExpr.mA == NULL) || (pExpr.mB == NULL) ||
@@ -1375,7 +1421,20 @@ bool EvaluateExpr(const GExpr &pExpr,
                 case GExprType::kMul: *pValue = aLeft * aRight; return true;
                 case GExprType::kXor: *pValue = aLeft ^ aRight; return true;
                 case GExprType::kAnd: *pValue = aLeft & aRight; return true;
+                case GExprType::kOr: *pValue = aLeft | aRight; return true;
                 case GExprType::kRotL8: *pValue = RotL8(aLeft, aRight); return true;
+                case GExprType::kRotL32:
+                    *pValue = static_cast<int>(RotL32(static_cast<std::uint32_t>(aLeft),
+                                                      static_cast<std::uint32_t>(aRight)));
+                    return true;
+                case GExprType::kShiftL:
+                    *pValue = static_cast<int>(static_cast<std::uint32_t>(aLeft) <<
+                                               (static_cast<std::uint32_t>(aRight) & 31U));
+                    return true;
+                case GExprType::kShiftR:
+                    *pValue = static_cast<int>(static_cast<std::uint32_t>(aLeft) >>
+                                               (static_cast<std::uint32_t>(aRight) & 31U));
+                    return true;
                 default: break;
             }
             break;
@@ -2077,10 +2136,10 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
                 aLines.push_back(Indent(1) + aStatementLine);
             }
         }
-        if (LoopUsesSizeT(aLoop)) {
-            aLines.push_back(Indent(1) + "for (std::size_t " + aLoop.mLoopVariableName + " = " +
+        if (LoopUsesUint32(aLoop)) {
+            aLines.push_back(Indent(1) + "for (std::uint32_t " + aLoop.mLoopVariableName + " = " +
                              std::to_string(aLoop.mLoopBegin) + "U; " +
-                             aLoop.mLoopVariableName + " < static_cast<std::size_t>(" + aLoop.mLoopEndText + "); " +
+                             aLoop.mLoopVariableName + " < static_cast<std::uint32_t>(" + aLoop.mLoopEndText + "); " +
                              aLoop.mLoopVariableName + " += " + std::to_string(aLoop.mLoopStep) + "U) {");
         } else {
             aLines.push_back(Indent(1) + "for (int " + aLoop.mLoopVariableName + " = " +

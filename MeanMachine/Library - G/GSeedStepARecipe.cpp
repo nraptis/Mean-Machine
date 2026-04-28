@@ -8,6 +8,8 @@
 #include "GSeedStepARecipe.hpp"
 #include "GLoopFragmentComposer.hpp"
 #include <algorithm>
+#include <array>
+#include <functional>
 #include <set>
 
 namespace {
@@ -99,126 +101,16 @@ SaltBehaviorAssignment AssignLoopContractBehaviors(
     return aResult;
 }
 
-void SetWorkLaneError(std::string *pError,
-                      const std::string &pMessage) {
-    if (pError != nullptr) {
-        *pError = pMessage;
-    }
-}
-
-bool AppendLoopStatement(GLoop *pLoop,
-                         GScopeState *pScopeState,
-                         const GStatement &pStatement,
-                         std::string *pError) {
-    if ((pLoop == nullptr) || (pScopeState == nullptr)) {
-        SetWorkLaneError(pError, "Internal error: loop append target was null.");
-        return false;
-    }
-    if (pStatement.IsInvalid()) {
-        SetWorkLaneError(pError, "Internal error: attempted to append an invalid statement.");
-        return false;
-    }
-
-    GStatement aStatement = pStatement;
-    pLoop->AddBody(aStatement);
-    pScopeState->Consume(aStatement);
-    return true;
-}
-
-bool EmitAssign(GLoop *pLoop,
-                GScopeState *pScopeState,
-                const GTarget &pTarget,
-                const GExpr &pExpression,
-                std::string *pError) {
-    return AppendLoopStatement(pLoop,
-                               pScopeState,
-                               GStatement::Assign(pTarget, pExpression),
-                               pError);
-}
-
-bool EmitXorAssign(GLoop *pLoop,
-                   GScopeState *pScopeState,
-                   const GTarget &pTarget,
-                   const GExpr &pExpression,
-                   std::string *pError) {
-    return AppendLoopStatement(pLoop,
-                               pScopeState,
-                               GStatement::XorAssign(pTarget, pExpression),
-                               pError);
-}
-
-bool EmitRecipeAssign(GLoop *pLoop,
-                      GScopeState *pScopeState,
-                      GStatementRecipe *pRecipe,
-                      GSymbol pTarget,
-                      std::string &pError) {
-    if (pRecipe == nullptr) {
-        pError = "Internal error: recipe assign target was null.";
-        return false;
-    }
-
-    GStatement aStatement;
-    if (!pRecipe->Bake(pTarget, aStatement, pError)) {
-        return false;
-    }
-    return AppendLoopStatement(pLoop, pScopeState, aStatement, &pError);
-}
-
-bool EmitRecipeMix(GLoop *pLoop,
-                   GScopeState *pScopeState,
-                   GStatementRecipe *pRecipe,
-                   GSymbol pTarget,
-                   std::string &pError) {
-    if (pRecipe == nullptr) {
-        pError = "Internal error: recipe mix target was null.";
-        return false;
-    }
-
-    GStatement aStatement;
-    if (!pRecipe->BakeMix(pTarget, aStatement, pError)) {
-        return false;
-    }
-    return AppendLoopStatement(pLoop, pScopeState, aStatement, &pError);
-}
-
-GExpr SaltReadExpr(GSymbol pSalt,
-                   LoopSaltBehavior pBehavior,
-                   GSymbol pLoopIndex,
-                   GSymbol pSourceByteA,
-                   bool pSecondSourceEnabled,
-                   GSymbol pSourceByteB,
-                   GSymbol pValue,
-                   GSymbol pCarry,
-                   GSymbol pOracle,
-                   int pOffset) {
-    switch (pBehavior) {
-        case LoopSaltBehavior::kSourceA:
-            return GQuick::BufferRead(pSalt, pSourceByteA);
-            
-        case LoopSaltBehavior::kSourceB:
-            if (pSecondSourceEnabled) {
-                return GQuick::BufferRead(pSalt, pSourceByteB);
-            }
-            return GExpr::ReadSaltWrap(pSalt, pLoopIndex, pOracle, pOffset);
-        case LoopSaltBehavior::kValue:
-            return GQuick::BufferRead(pSalt, pValue);
-        case LoopSaltBehavior::kCarry:
-            return GQuick::BufferRead(pSalt, pCarry);
-        case LoopSaltBehavior::kLoopIndex:
-        case LoopSaltBehavior::kInv:
-        default:
-            return GExpr::ReadSaltWrap(pSalt, pLoopIndex, pOracle, pOffset);
-    }
-}
-
 } // namespace
 
 
 GSeedStepARecipeWorkSpace::GSeedStepARecipeWorkSpace() {
-    
+    mSecondPass = false;
 }
 
 bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString) {
+    
+    mSecondPass = pSecondPass;
     
     const std::string aCategryIdentifierSalt = "t";
     const std::string aCategryIdentifierSBox = "s";
@@ -289,11 +181,25 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
     mCarry = VarSymbol("aCarry");
     
     
+    mValueNibbleA = VarSymbol("aValueNibbleA");
+    mValueNibbleB = VarSymbol("aValueNibbleB");
+    mValueNibbleC = VarSymbol("aValueNibbleC");
+    mValueNibbleD = VarSymbol("aValueNibbleD");
+    
+    
     for (int i=0;i<SEED_WORK_LANE_COUNT;i++) {
         aScopeRules.SetReadPreferredMaximum(aSBoxes[i], 3);
         aScopeRules.SetReadPreferredMaximum(aSalts[i], 3);
     }
-
+    
+    
+    for (int i=0;i<SEED_WORK_LANE_COUNT;i++) {
+        mLoopContracts[i].mValueTransformPlusA = Random::Bool();
+        mLoopContracts[i].mValueTransformPlusB = Random::Bool();
+        mLoopContracts[i].mValueTransformPlusC = Random::Bool();
+        mLoopContracts[i].mValueTransformPlusD = Random::Bool();
+    }
+    
     
     if (pSecondPass == false) {
 
@@ -420,6 +326,27 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
         }
     }
     
+    
+    
+    //GSymbol                                 mValueTransformSBoxA;
+    //GSymbol                                 mValueTransformSBoxB;
+    //GSymbol                                 mValueTransformSBoxC;
+    //GSymbol                                 mValueTransformSBoxD;
+    
+    for (int aWhich=0; aWhich<SEED_WORK_LANE_COUNT; aWhich++) {
+        
+        std::vector<GSymbol> aBoxList;
+        aBoxList.push_back(mSBoxA);
+        aBoxList.push_back(mSBoxB);
+        aBoxList.push_back(mSBoxC);
+        aBoxList.push_back(mSBoxD);
+        Random::Shuffle(&aBoxList);
+        
+        mLoopContracts[aWhich].mValueTransformSBoxA = aBoxList[0];
+        mLoopContracts[aWhich].mValueTransformSBoxB = aBoxList[1];
+        mLoopContracts[aWhich].mValueTransformSBoxC = aBoxList[2];
+        mLoopContracts[aWhich].mValueTransformSBoxD = aBoxList[3];
+    }
     
     // Pick sources
     for (int aWhich=0; aWhich<SEED_WORK_LANE_COUNT; aWhich++) {
@@ -600,6 +527,7 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
         std::vector<SeedConsumeOrder> aConsumeOrderChoices = { SeedConsumeOrder::kBeforeSBox, SeedConsumeOrder::kAfterSBox };
         
         mLoopContracts[aWhich].mValueConsumeOrder_Carry = Random::Choice(aConsumeOrderChoices);
+        mLoopContracts[aWhich].mValueConsumeOrder_SourceA = Random::Choice(aConsumeOrderChoices);
         mLoopContracts[aWhich].mValueConsumeOrder_SourceB = Random::Choice(aConsumeOrderChoices);
         mLoopContracts[aWhich].mValueConsumeOrder_Salt = Random::Choice(aConsumeOrderChoices);
         
@@ -624,143 +552,189 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
     
     for (int aWhich=0; aWhich<SEED_WORK_LANE_COUNT; aWhich++) {
         
-        std::vector<GSymbol> aFetchedSalts;
-        std::vector<GSymbol> aFetchedSBoxes;
-        
         aStateLocal[aWhich].Clear();
         
-        GSymbol aRequired;
-        if (pSecondPass == false) {
-            // Pass1:
-            // Salts:
-            // L1: must C, not A  → {C,B,D}
-            // L2: must D, not B  → {D,C,A}
-            // L3: must A, not C  → {A,D,B}
-            // L4: must B, not D  → {B,A,C}
-            if (aWhich == 1) { aRequired = mSaltD; }
-            else if (aWhich == 2) { aRequired = mSaltA; }
-            else if (aWhich == 3) { aRequired = mSaltB; }
-            else { aRequired = mSaltC; }
-        } else {
-            // Pass2:
-            // Salts:
-            // L1: must B, not C  → {B,A,D}
-            // L2: must C, not D  → {C,A,B}
-            // L3: must D, not B  → {D,C,A}
-            // L4: must A, not C  → {A,B,D}
-            if (aWhich == 0) { aRequired = mSaltB; }
-            else if (aWhich == 1) { aRequired = mSaltC; }
-            else if (aWhich == 2) { aRequired = mSaltD; }
-            else { aRequired = mSaltA; }
-        }
+        bool aPlannedLane = false;
+        std::string aLaneErrorString = "Plan: lane planner did not produce a result.";
         
-        std::vector<GStatementSlot> aSlotListSalts;
-        if (!mLoopPools[aWhich].FetchSlots(aCategryIdentifierSalt,
-                                           3,
-                                           aRequired,
-                                           aSlotListSalts,
-                                           aStateLocal[aWhich],
-                                           aStateGlobal,
-                                           pErrorString)) {
-            return false;
-        }
-        
-        for (int i=0; i<aSlotListSalts.size(); i++) {
-            switch (aSlotListSalts[i].mType) {
-                case GStatementSlotType::kInv:
-                    pErrorString = "Plan: Invalid Slot Type, Expected Symbol (Salt)";
-                    return false;
-                case GStatementSlotType::kSymbol:
-                    aFetchedSalts.push_back(aSlotListSalts[i].mSymbol);
-                    break;
-                case GStatementSlotType::kExpr:
-                    pErrorString = "Plan: Invalid Slot Type, Expected Symbol (Salt)";
-                    return false;
+        for (int aLaneTry=0; ((aLaneTry<128) && (aPlannedLane == false)); aLaneTry++) {
+            
+            std::vector<GSymbol> aFetchedSalts;
+            std::vector<GSymbol> aFetchedSBoxes;
+            GScopeState aLocalLaneState;
+            aLocalLaneState.Clear();
+            
+            GSymbol aRequiredSalt;
+            if (pSecondPass == false) {
+                // Pass1:
+                // Salts:
+                // L1: must C, not A  → {C,B,D}
+                // L2: must D, not B  → {D,C,A}
+                // L3: must A, not C  → {A,D,B}
+                // L4: must B, not D  → {B,A,C}
+                if (aWhich == 1) { aRequiredSalt = mSaltD; }
+                else if (aWhich == 2) { aRequiredSalt = mSaltA; }
+                else if (aWhich == 3) { aRequiredSalt = mSaltB; }
+                else { aRequiredSalt = mSaltC; }
+            } else {
+                // Pass2:
+                // Salts:
+                // L1: must B, not C  → {B,A,D}
+                // L2: must C, not D  → {C,A,B}
+                // L3: must D, not B  → {D,C,A}
+                // L4: must A, not C  → {A,B,D}
+                if (aWhich == 0) { aRequiredSalt = mSaltB; }
+                else if (aWhich == 1) { aRequiredSalt = mSaltC; }
+                else if (aWhich == 2) { aRequiredSalt = mSaltD; }
+                else { aRequiredSalt = mSaltA; }
             }
-        }
-        
-        if (aSlotListSalts.size() < 3) {
-            pErrorString = "Plan: We needed to get 3 salts here. (Salt)";
-            return false;
-        }
-        
-        if (pSecondPass == false) {
-            // Pass1:
-            // SBoxes:
-            // L1: must A, not D  → {A,B,C}
-            // L2: must B, not A  → {B,C,D}
-            // L3: must C, not B  → {C,D,A}
-            // L4: must D, not C  → {D,A,B}
-            if (aWhich == 1) { aRequired = mSBoxB; }
-            else if (aWhich == 2) { aRequired = mSBoxC; }
-            else if (aWhich == 3) { aRequired = mSBoxD; }
-            else { aRequired = mSBoxA; }
-        } else {
-            // Pass2:
-            // SBoxes:
-            // L1: must C, not A  → {C,B,D}
-            // L2: must D, not B  → {D,C,A}
-            // L3: must A, not C  → {A,D,B}
-            // L4: must B, not D  → {B,A,C}
-            if (aWhich == 0) { aRequired = mSBoxC; }
-            else if (aWhich == 1) { aRequired = mSBoxD; }
-            else if (aWhich == 2) { aRequired = mSBoxA; }
-            else { aRequired = mSBoxB; }
-        }
-        
-        std::vector<GStatementSlot> aSlotListSBoxes;
-        if (!mLoopPools[aWhich].FetchSlots(aCategryIdentifierSBox,
-                                           3,
-                                           aRequired,
-                                           aSlotListSBoxes,
-                                           aStateLocal[aWhich],
-                                           aStateGlobal,
-                                           pErrorString)) {
-            return false;
-        }
-        
-        for (int i=0; i<aSlotListSBoxes.size(); i++) {
-            switch (aSlotListSBoxes[i].mType) {
-                    
-                case GStatementSlotType::kInv:
-                    pErrorString = "Plan: Invalid Slot Type, Expected Symbol (S-Box)";
-                    return false;
-                case GStatementSlotType::kSymbol:
-                    aFetchedSBoxes.push_back(aSlotListSBoxes[i].mSymbol);
-                    break;
-                case GStatementSlotType::kExpr:
-                    pErrorString = "Plan: Invalid Slot Type, Expected Symbol (S-Box)";
-                    return false;
+            
+            std::vector<GStatementSlot> aSlotListSalts;
+            if (!mLoopPools[aWhich].FetchSlots(aCategryIdentifierSalt,
+                                               3,
+                                               aRequiredSalt,
+                                               aSlotListSalts,
+                                               aLocalLaneState,
+                                               aStateGlobal,
+                                               aLaneErrorString)) {
+                continue;
             }
+            
+            bool aLaneValid = true;
+            for (int i=0; i<aSlotListSalts.size(); i++) {
+                switch (aSlotListSalts[i].mType) {
+                    case GStatementSlotType::kInv:
+                    case GStatementSlotType::kExpr:
+                        aLaneErrorString = "Plan: Invalid Slot Type, Expected Symbol (Salt)";
+                        aLaneValid = false;
+                        break;
+                    case GStatementSlotType::kSymbol:
+                        aFetchedSalts.push_back(aSlotListSalts[i].mSymbol);
+                        break;
+                }
+                if (aLaneValid == false) {
+                    break;
+                }
+            }
+            if (aLaneValid == false) {
+                continue;
+            }
+            if (aSlotListSalts.size() < 3) {
+                aLaneErrorString = "Plan: We needed to get 3 salts here. (Salt)";
+                continue;
+            }
+            
+            GSymbol aRequiredSBox;
+            if (pSecondPass == false) {
+                // Pass1:
+                // SBoxes:
+                // L1: must A, not D  → {A,B,C}
+                // L2: must B, not A  → {B,C,D}
+                // L3: must C, not B  → {C,D,A}
+                // L4: must D, not C  → {D,A,B}
+                if (aWhich == 1) { aRequiredSBox = mSBoxB; }
+                else if (aWhich == 2) { aRequiredSBox = mSBoxC; }
+                else if (aWhich == 3) { aRequiredSBox = mSBoxD; }
+                else { aRequiredSBox = mSBoxA; }
+            } else {
+                // Pass2:
+                // SBoxes:
+                // L1: must C, not A  → {C,B,D}
+                // L2: must D, not B  → {D,C,A}
+                // L3: must A, not C  → {A,D,B}
+                // L4: must B, not D  → {B,A,C}
+                if (aWhich == 0) { aRequiredSBox = mSBoxC; }
+                else if (aWhich == 1) { aRequiredSBox = mSBoxD; }
+                else if (aWhich == 2) { aRequiredSBox = mSBoxA; }
+                else { aRequiredSBox = mSBoxB; }
+            }
+            
+            std::vector<GStatementSlot> aSlotListSBoxes;
+            if (!mLoopPools[aWhich].FetchSlots(aCategryIdentifierSBox,
+                                               3,
+                                               aRequiredSBox,
+                                               aSlotListSBoxes,
+                                               aLocalLaneState,
+                                               aStateGlobal,
+                                               aLaneErrorString)) {
+                continue;
+            }
+            
+            for (int i=0; i<aSlotListSBoxes.size(); i++) {
+                switch (aSlotListSBoxes[i].mType) {
+                    case GStatementSlotType::kInv:
+                    case GStatementSlotType::kExpr:
+                        aLaneErrorString = "Plan: Invalid Slot Type, Expected Symbol (S-Box)";
+                        aLaneValid = false;
+                        break;
+                    case GStatementSlotType::kSymbol:
+                        aFetchedSBoxes.push_back(aSlotListSBoxes[i].mSymbol);
+                        break;
+                }
+                if (aLaneValid == false) {
+                    break;
+                }
+            }
+            if (aLaneValid == false) {
+                continue;
+            }
+            if (aSlotListSBoxes.size() < 3) {
+                aLaneErrorString = "Plan: We needed to get 3 s-boxes here. (S-Box)";
+                continue;
+            }
+            
+            mLoopContracts[aWhich].mValueSalt = aFetchedSalts[0];
+            aLocalLaneState.Consume(aFetchedSalts[0]);
+            
+            if (mLoopContracts[aWhich].mCarryEnabled) {
+                mLoopContracts[aWhich].mCarrySalt = aFetchedSalts[1];
+                mLoopContracts[aWhich].mCarrySBox = aFetchedSBoxes[0];
+                aLocalLaneState.Consume(aFetchedSalts[1]);
+                aLocalLaneState.Consume(aFetchedSBoxes[0]);
+            }
+            
+            if (mLoopContracts[aWhich].mPermuteEnabled) {
+                mLoopContracts[aWhich].mPermuteSalt = aFetchedSalts[2];
+                mLoopContracts[aWhich].mPermuteSBoxA = aFetchedSBoxes[1];
+                mLoopContracts[aWhich].mPermuteSBoxB = aFetchedSBoxes[2];
+                aLocalLaneState.Consume(aFetchedSalts[2]);
+                aLocalLaneState.Consume(aFetchedSBoxes[1]);
+                aLocalLaneState.Consume(aFetchedSBoxes[2]);
+            }
+            
+            aStateLocal[aWhich] = aLocalLaneState;
+            aStateGlobal.Consume(aStateLocal[aWhich]);
+            aPlannedLane = true;
         }
         
-        if (aSlotListSBoxes.size() < 3) {
-            pErrorString = "Plan: We needed to get 3 s-boxes here. (S-Box)";
+        if (aPlannedLane == false) {
+            pErrorString = "Plan: failed to assign lane " + std::to_string(aWhich) + " after 128 attempts. Last error: " + aLaneErrorString;
             return false;
         }
-        
-        
-        mLoopContracts[aWhich].mValueSalt = aFetchedSalts[0];
-        mLoopContracts[aWhich].mValueSBox = aFetchedSBoxes[0];
-        aStateLocal[aWhich].Consume(aFetchedSalts[0]);
-        aStateLocal[aWhich].Consume(aFetchedSBoxes[0]);
-        
-        if (mLoopContracts[aWhich].mCarryEnabled) {
-            mLoopContracts[aWhich].mCarrySalt = aFetchedSalts[1];
-            mLoopContracts[aWhich].mCarrySBox = aFetchedSBoxes[1];
-            aStateLocal[aWhich].Consume(aFetchedSalts[1]);
-            aStateLocal[aWhich].Consume(aFetchedSBoxes[1]);
+    }
+    
+    if (pSecondPass == false) {
+        int aPasswordReadCount = Random::Get(2);
+        if (aPasswordReadCount != 0) {
+            int aWhich = Random::Get(2, 3);
+            mLoopContracts[aWhich].mSourceB = mSource;
+            mLoopContracts[aWhich].mSecondSourceEnabled = true;
         }
-        
-        if (mLoopContracts[aWhich].mPermuteEnabled) {
-            mLoopContracts[aWhich].mPermuteSalt = aFetchedSalts[2];
-            mLoopContracts[aWhich].mPermuteSBox = aFetchedSBoxes[2];
-            aStateLocal[aWhich].Consume(aFetchedSalts[2]);
-            aStateLocal[aWhich].Consume(aFetchedSBoxes[2]);
+    } else {
+        int aPasswordReadCount = Random::Get(1, 2);
+        std::vector<int> aPasswordReadList;
+        aPasswordReadList.push_back(0);
+        aPasswordReadList.push_back(1);
+        aPasswordReadList.push_back(2);
+        Random::Shuffle(&aPasswordReadList);
+        if (aPasswordReadCount > 0) {
+            mLoopContracts[aPasswordReadList[0]].mSourceB = mSource;
+            mLoopContracts[aPasswordReadList[0]].mSecondSourceEnabled = true;
         }
-        
-        aStateGlobal.Consume(aStateLocal[aWhich]);
-        
+        if (aPasswordReadCount > 1) {
+            mLoopContracts[aPasswordReadList[1]].mSourceB = mSource;
+            mLoopContracts[aPasswordReadList[1]].mSecondSourceEnabled = true;
+        }
     }
     
     return true;
@@ -792,11 +766,13 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
         
         const GSeedStepARecipeLoopContract &aContract = mLoopContracts[aWhich];
         
-        
         aComposerValue.ResetSetEqual(mValue);
+        aComposerValue.MixVariable(mValue).Expand(50, false);
         
-        // source a
-        aComposerValue.MixBuffer(aContract.mSourceA).Offset().Expand(50, true);
+        // source a before
+        if (aContract.mValueConsumeOrder_SourceA == SeedConsumeOrder::kBeforeSBox) {
+            aComposerValue.MixBuffer(aContract.mSourceA).Offset().Expand(50, true);
+        }
         
         // source b before
         if (aContract.mSecondSourceEnabled == true) {
@@ -831,7 +807,58 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             }
         }
         
-        aComposerValue.Transform(aContract.mValueSBox);
+        /*
+        aComposerValue.Transform().TransformSchemeQuadBoxNibbles(aContract.mValueTransformSBoxA,
+                                                                 aContract.mValueTransformSBoxB,
+                                                                 aContract.mValueTransformSBoxC,
+                                                                 aContract.mValueTransformSBoxD);
+        */
+        
+        /*
+        aComposerValue.Transform().TransformSchemeQuadBoxNibbles(aContract.mValueTransformSBoxA,
+                                                                 aContract.mValueTransformSBoxB,
+                                                                 aContract.mValueTransformSBoxC,
+                                                                 aContract.mValueTransformSBoxD,
+                                                                 mValueNibbleC,
+                                                                 mValueNibbleD,
+                                                                 mValueNibbleB,
+                                                                 mValueNibbleA,
+                                                                 aContract.mValueTransformPlusA,
+                                                                 aContract.mValueTransformPlusB,
+                                                                 aContract.mValueTransformPlusC,
+                                                                 aContract.mValueTransformPlusD);
+        */
+        
+        aComposerValue.Transform().TransformSchemeQuadBoxNibbles(aContract.mValueTransformSBoxA,
+                                                                 aContract.mValueTransformSBoxB,
+                                                                 aContract.mValueTransformSBoxC,
+                                                                 aContract.mValueTransformSBoxD,
+                                                                 mValueNibbleC,
+                                                                 mValueNibbleD,
+                                                                 mValueNibbleB,
+                                                                 mValueNibbleA,
+                                                                 aContract.mValueTransformPlusA,
+                                                                 aContract.mValueTransformPlusB,
+                                                                 aContract.mValueTransformPlusC,
+                                                                 aContract.mValueTransformPlusD);
+
+        // a = s[a ^ c]
+        // b = s[b ^ d]
+        // c = s[c ^ a]
+        // d = s[d ^ b]
+
+        // mValueNibbleC means c is in place of all a
+        // mValueNibbleD means d is in place of all b
+        
+        
+                                                                 
+                                                                 
+
+        
+        // source a after
+        if (aContract.mValueConsumeOrder_SourceA == SeedConsumeOrder::kAfterSBox) {
+            aComposerValue.MixBuffer(aContract.mSourceA).Offset().Expand(50, true);
+        }
         
         // source b after
         if (aContract.mSecondSourceEnabled == true) {
@@ -869,6 +896,9 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
         
         if (!aComposerValue.BakeStatements(&aLoop.mBodyStatements, &pErrorString)) {
             printf("errored on aComposerValue.BakeStatements\\()\n");
+            if (!pErrorString.empty()) {
+                printf("composer error: %s\n", pErrorString.c_str());
+            }
             return false;
         }
         
@@ -877,12 +907,9 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             if (aContract.mCarryEnabled == false) {
                 return true;
             }
-            
-            if (Random::Bool()) {
-                aComposerCarry.ResetAddEqual(mCarry);
-            } else {
-                aComposerCarry.ResetXorEqual(mCarry);
-            }
+
+            aComposerCarry.ResetSetEqual(mCarry);
+            aComposerCarry.MixVariable(mCarry).Expand(50, false);
             
             
             // value before
@@ -918,7 +945,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             switch (aContract.mCarrySBoxBehavior) {
                 case LoopSBoxBehavior::kMixWithLoopIndex:
-                    aComposerCarry.MixBuffer(aContract.mCarrySBox).Key(mLoopIndex);
+                    aComposerCarry.MixBuffer(aContract.mCarrySBox).Key(mLoopIndex).Offset();
                     break;
                 case LoopSBoxBehavior::kPassSelfThrough:
                     aComposerCarry.Transform(aContract.mCarrySBox);
@@ -960,6 +987,9 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             if (!aComposerCarry.BakeStatements(&aLoop.mBodyStatements, &pErrorString)) {
                 printf("errored on aComposerCarry.BakeStatements()\n");
+                if (!pErrorString.empty()) {
+                    printf("composer error: %s\n", pErrorString.c_str());
+                }
                 return false;
             }
             
@@ -971,7 +1001,9 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                 return true;
             }
             
-            aComposerPermute.ResetAddEqual(mPermute);
+            aComposerPermute.ResetSetEqual(mPermute);
+            
+            aComposerPermute.MixVariable(mPermute).Expand(50, false);
             
             // value before
             if (aContract.mPermuteConsumeOrder_Value == SeedConsumeOrder::kBeforeSBox) {
@@ -1018,14 +1050,15 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             switch (aContract.mPermuteSBoxBehavior) {
                 case LoopSBoxBehavior::kMixWithLoopIndex:
-                    aComposerPermute.MixBuffer(aContract.mPermuteSBox).Key(mLoopIndex);
+                    aComposerPermute.MixBuffer(aContract.mPermuteSBoxA).Key(mLoopIndex).Offset();
                     break;
                 case LoopSBoxBehavior::kPassSelfThrough:
-                    aComposerPermute.Transform(aContract.mPermuteSBox);
                     break;
                 default:
                     break;
             }
+            
+            aComposerPermute.Transform().TransformSchemeSingleBoxRotate(aContract.mPermuteSBoxB, Random::Get(1, 4));
             
             // value after
             if (aContract.mPermuteConsumeOrder_Value == SeedConsumeOrder::kAfterSBox) {
@@ -1072,13 +1105,16 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             if (!aComposerPermute.BakeStatements(&aLoop.mBodyStatements, &pErrorString)) {
                 printf("errored on aComposerPermute.BakeStatements()\n");
+                if (!pErrorString.empty()) {
+                    printf("composer error: %s\n", pErrorString.c_str());
+                }
                 return false;
             }
             
             GTarget aValueTarget = GTarget::Symbol(mValue);
             GExpr aValueExpr = GExpr::Symbol(mValue);
             GExpr aPermuteExpr = GExpr::Symbol(mPermute);
-            GStatement aPermuteValueStatement = GStatement::Assign(aValueTarget, GExpr::RotL8(aValueExpr, aPermuteExpr));
+            GStatement aPermuteValueStatement = GStatement::Assign(aValueTarget, GExpr::RotL32(aValueExpr, aPermuteExpr));
             aLoop.mBodyStatements.push_back(aPermuteValueStatement);
             
             return true;
@@ -1107,8 +1143,13 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                 break;
         }
         
+        const bool aIsOddLoop = ((aWhich & 1) == 1);
+        const bool aWriteForward = (mSecondPass == aIsOddLoop);
         GExpr aLoopIndexExpr = GExpr::Symbol(mLoopIndex);
-        GTarget aDestTarget = GTarget::Write(aContract.mDest, aLoopIndexExpr);
+        GExpr aDestIndexExpr = aWriteForward
+            ? aLoopIndexExpr
+            : GExpr::Sub(GExpr::Const(S_BLOCK - 1), aLoopIndexExpr);
+        GTarget aDestTarget = GTarget::Write(aContract.mDest, aDestIndexExpr);
         GExpr aValueExpr = GExpr::Symbol(mValue);
         GStatement aDestAssignStatement = GStatement::Assign(aDestTarget, aValueExpr);
         aLoop.mBodyStatements.push_back(aDestAssignStatement);

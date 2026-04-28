@@ -50,6 +50,27 @@ public:
                                                    bool pAllowMultiply);
     
     GLoopFragmentComposerInputBuffer        &ExpandDebug(GTermPattern pPattern, int pConstantA, int pConstantB);
+    GLoopFragmentComposerInputBuffer        &TransformSchemeQuadBoxNibbles();
+    GLoopFragmentComposerInputBuffer        &TransformSchemeQuadBoxNibbles(GSymbol pSBoxA,
+                                                                           GSymbol pSBoxB,
+                                                                           GSymbol pSBoxC,
+                                                                           GSymbol pSBoxD);
+    GLoopFragmentComposerInputBuffer        &TransformSchemeQuadBoxNibbles(GSymbol pSBoxA,
+                                                                           GSymbol pSBoxB,
+                                                                           GSymbol pSBoxC,
+                                                                           GSymbol pSBoxD,
+                                                                           GSymbol pReadA,
+                                                                           GSymbol pReadB,
+                                                                           GSymbol pReadC,
+                                                                           GSymbol pReadD,
+                                                                           bool pPlusA,
+                                                                           bool pPlusB,
+                                                                           bool pPlusC,
+                                                                           bool pPlusD);
+
+    GLoopFragmentComposerInputBuffer        &TransformSchemeSingleBoxRotate(std::uint8_t pRotateAmount);
+    GLoopFragmentComposerInputBuffer        &TransformSchemeSingleBoxRotate(GSymbol pSBox,
+                                                                            std::uint8_t pRotateAmount);
 
     bool                                    IsValid() const;
 
@@ -118,6 +139,7 @@ public:
 
     GLoopFragmentComposerInputBuffer       MixBuffer(GSymbol pBuffer);
     GLoopFragmentComposerInputVariable     MixVariable(GSymbol pVariable);
+    GLoopFragmentComposerInputBuffer       Transform();
     GLoopFragmentComposerInputBuffer       Transform(GSymbol pBuffer);
     
 
@@ -136,6 +158,12 @@ private:
         kNone = 0,
         kAdd = 1,
         kXor = 2
+    };
+
+    enum class TransformScheme : std::uint8_t {
+        kDefault = 0,
+        kQuadBoxNibbles = 1,
+        kSingleBoxRotate = 2
     };
 
     struct Node {
@@ -157,6 +185,22 @@ private:
         GTermPattern                     mDebugExpandPattern = GTermPattern::kAdd;
         int                              mDebugExpandConstantA = 0;
         int                              mDebugExpandConstantB = 0;
+        TransformScheme                  mTransformScheme = TransformScheme::kDefault;
+        GSymbol                          mTransformBoxA;
+        GSymbol                          mTransformBoxB;
+        GSymbol                          mTransformBoxC;
+        GSymbol                          mTransformBoxD;
+        std::uint8_t                     mTransformRotateAmount = 3U;
+        bool                             mHasExplicitTransformBoxes = false;
+        bool                             mHasQuadReadMix = false;
+        GSymbol                          mQuadReadA;
+        GSymbol                          mQuadReadB;
+        GSymbol                          mQuadReadC;
+        GSymbol                          mQuadReadD;
+        bool                             mQuadReadPlusA = false;
+        bool                             mQuadReadPlusB = false;
+        bool                             mQuadReadPlusC = false;
+        bool                             mQuadReadPlusD = false;
     };
 
     struct BufferTemp {
@@ -190,6 +234,26 @@ private:
                                                                     GTermPattern pPattern,
                                                                     int pConstantA,
                                                                     int pConstantB);
+    bool                                   ConfigureNodeTransformScheme(std::size_t pNodeIndex,
+                                                                        TransformScheme pScheme);
+    bool                                   ConfigureNodeTransformRotateAmount(std::size_t pNodeIndex,
+                                                                              std::uint8_t pRotateAmount);
+    bool                                   ConfigureNodeTransformBuffer(std::size_t pNodeIndex,
+                                                                        GSymbol pBuffer);
+    bool                                   ConfigureNodeTransformQuadBoxes(std::size_t pNodeIndex,
+                                                                           GSymbol pSBoxA,
+                                                                           GSymbol pSBoxB,
+                                                                           GSymbol pSBoxC,
+                                                                           GSymbol pSBoxD);
+    bool                                   ConfigureNodeTransformQuadReadMix(std::size_t pNodeIndex,
+                                                                             GSymbol pReadA,
+                                                                             GSymbol pReadB,
+                                                                             GSymbol pReadC,
+                                                                             GSymbol pReadD,
+                                                                             bool pPlusA,
+                                                                             bool pPlusB,
+                                                                             bool pPlusC,
+                                                                             bool pPlusD);
 
     void                                   SetConfigError(const std::string &pErrorString);
 
@@ -211,6 +275,10 @@ private:
                                                             std::unordered_map<std::string, int> *pVariableTempCounters,
                                                             std::vector<GStatement> *pStatementList,
                                                             std::string *pErrorString);
+    bool                                   EmitTransformScheme(const Node &pNode,
+                                                              bool *pTargetInitialized,
+                                                              std::vector<GStatement> *pStatementList,
+                                                              std::string *pErrorString);
 
     GLoopFragmentDomain                    ResolveDomain(const Node &pNode) const;
     int                                    ResolveOffset(const Node &pNode,

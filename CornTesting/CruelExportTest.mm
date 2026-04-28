@@ -9,7 +9,7 @@
 #import <XCTest/XCTest.h>
 #include "TwistWorkSpace.hpp"
 #include "Random.hpp"
-#include "TwistExpander_FrodoBaggins.hpp"
+#include "TwistExpander_FrodoShire.hpp"
 #include "GTwistTwister.hpp"
 #include "GTwistExpander.hpp"
 #include "TwistExpander.hpp"
@@ -94,13 +94,13 @@
     int ps = (int)strlen(pwd);
     
     // This is exported from something in G, as C++ code we can drop in over DemoExpander
-    TwistExpander_FrodoBaggins aExpanderA;
+    TwistExpander_FrodoShire aExpanderA;
     
     // This uses json load;
     GTwistTwister aExpanderB;
     
     std::string aLoadError;
-    if (!aExpanderB.LoadProjectRoot("aaa/bbb/ccc/FrodoBaggins.json", &aLoadError)) {
+    if (!aExpanderB.LoadProjectRoot("CornTesting/Gen/FrodoShire.json", &aLoadError)) {
         XCTFail("%s", aLoadError.c_str());
         return;
     }

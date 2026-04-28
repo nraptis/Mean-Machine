@@ -2,10 +2,10 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_FrodoBaggins : public TwistExpander {
+class TwistExpander_FrodoShire : public TwistExpander {
 public:
-    TwistExpander_FrodoBaggins();
-    ~TwistExpander_FrodoBaggins() override = default;
+    TwistExpander_FrodoShire();
+    ~TwistExpander_FrodoShire() override = default;
 
     void Seed(TwistWorkSpace *pWorkspace,
               std::uint8_t *pSource,

@@ -16,6 +16,10 @@ GOperType OperTypeForExprType(const GExprType pType) {
         case GExprType::kXor: return GOperType::kXor;
         case GExprType::kAnd: return GOperType::kAnd;
         case GExprType::kRotL8: return GOperType::kRotL8;
+        case GExprType::kRotL32: return GOperType::kRotL32;
+        case GExprType::kShiftL: return GOperType::kShiftL;
+        case GExprType::kShiftR: return GOperType::kShiftR;
+        case GExprType::kOr: return GOperType::kOr;
         default: return GOperType::kInv;
     }
 }
@@ -88,7 +92,11 @@ void AppendSymbols(const GExpr &pExpr,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
         case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR:
             if (pExpr.mA != nullptr) {
                 AppendSymbols(*pExpr.mA, pSymbols);
             }
@@ -121,7 +129,11 @@ void AppendOps(const GExpr &pExpr,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
         case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR:
             if (pExpr.mA != nullptr) {
                 AppendOps(*pExpr.mA, pOps);
             }
@@ -174,7 +186,11 @@ std::string ExprKeyInner(const GExpr &pExpr) {
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
         case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR:
             return std::to_string(static_cast<int>(pExpr.mType)) + "(" +
                    ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + "," +
                    ((pExpr.mB != nullptr) ? ExprKeyInner(*pExpr.mB) : "null") + ")";
@@ -236,8 +252,24 @@ GExpr GExpr::And(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kAnd, a, b);
 }
 
+GExpr GExpr::Or(const GExpr &a, const GExpr &b) {
+    return BinaryExpr(GExprType::kOr, a, b);
+}
+
 GExpr GExpr::RotL8(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kRotL8, a, b);
+}
+
+GExpr GExpr::RotL32(const GExpr &a, const GExpr &b) {
+    return BinaryExpr(GExprType::kRotL32, a, b);
+}
+
+GExpr GExpr::ShiftL(const GExpr &a, const GExpr &b) {
+    return BinaryExpr(GExprType::kShiftL, a, b);
+}
+
+GExpr GExpr::ShiftR(const GExpr &a, const GExpr &b) {
+    return BinaryExpr(GExprType::kShiftR, a, b);
 }
 
 GExpr GExpr::ReadBlockWrap(const GSymbol &pSymbol,
@@ -305,7 +337,11 @@ bool GExpr::IsInvalid() const {
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
         case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR:
             return (mA == nullptr) || (mB == nullptr) ||
                    mA->IsInvalid() || mB->IsInvalid();
 
@@ -366,7 +402,11 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
         case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR:
             return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
                    ExprPtrEqual(pLHS.mB, pRHS.mB);
     }

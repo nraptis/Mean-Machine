@@ -22,7 +22,11 @@ enum class GOperType : std::uint8_t {
     kMul = 6,
     kXor = 7,
     kAnd = 8,
-    kRotL8 = 9
+    kRotL8 = 9,
+    kRotL32 = 10,
+    kShiftL = 11,
+    kShiftR = 12,
+    kOr = 13
 };
 
 enum class GExprType : std::uint8_t {
@@ -35,7 +39,11 @@ enum class GExprType : std::uint8_t {
     kMul = 6,
     kXor = 7,
     kAnd = 8,
-    kRotL8 = 9
+    kRotL8 = 9,
+    kRotL32 = 10,
+    kShiftL = 11,
+    kShiftR = 12,
+    kOr = 13
 };
 
 enum class GReadWrapType : std::uint8_t {
@@ -74,7 +82,11 @@ public:
     static GExpr                        Mul(const GExpr &a, const GExpr &b);
     static GExpr                        Xor(const GExpr &a, const GExpr &b);
     static GExpr                        And(const GExpr &a, const GExpr &b);
+    static GExpr                        Or(const GExpr &a, const GExpr &b);
     static GExpr                        RotL8(const GExpr &a, const GExpr &b);
+    static GExpr                        RotL32(const GExpr &a, const GExpr &b);
+    static GExpr                        ShiftL(const GExpr &a, const GExpr &b);
+    static GExpr                        ShiftR(const GExpr &a, const GExpr &b);
     
     // what this means.
     // in c++ code

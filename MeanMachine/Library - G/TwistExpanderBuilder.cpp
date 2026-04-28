@@ -163,12 +163,26 @@ bool IsKeyScalarName(const std::string &pName) {
     return pName.find("Key") != std::string::npos;
 }
 
+bool IsWideStateScalarName(const std::string &pName) {
+    if (pName.find("Nibble") != std::string::npos) {
+        return false;
+    }
+    return StartsWithText(pName, "aValue") ||
+           StartsWithText(pName, "aState") ||
+           StartsWithText(pName, "aCarry") ||
+           StartsWithText(pName, "aPermute") ||
+           StartsWithText(pName, "aHoldPermute");
+}
+
 std::string ScalarCppTypeForName(const std::string &pName) {
     if (StartsWithText(pName, "aOracle")) {
-        return "std::size_t";
+        return "std::uint32_t";
     }
     if (IsKeyScalarName(pName)) {
-        return "std::size_t";
+        return "std::uint32_t";
+    }
+    if (IsWideStateScalarName(pName)) {
+        return "std::uint32_t";
     }
     return "std::uint8_t";
 }
@@ -249,6 +263,29 @@ std::string NormalizeLegacyByteTypeLine(const std::string &pLine) {
     ReplaceAll("unsigned char*", "std::uint8_t*");
     ReplaceAll("unsigned char ", "std::uint8_t ");
 
+    const std::size_t aEquals = aLine.find('=');
+    if (aEquals == std::string::npos) {
+        return aLine;
+    }
+
+    const std::string aName = DeclaredIdentifierFromLine(aLine);
+    if (aName.empty()) {
+        return aLine;
+    }
+
+    const std::string aDesiredType = ScalarCppTypeForName(aName);
+    if (aDesiredType == "std::uint8_t") {
+        return aLine;
+    }
+
+    std::size_t aTypePos = aLine.find("std::uint8_t ");
+    if (aTypePos != std::string::npos) {
+        const std::size_t aStarPos = aLine.find('*', aTypePos);
+        if ((aStarPos == std::string::npos) || (aStarPos > aEquals)) {
+            aLine.replace(aTypePos, std::string("std::uint8_t").size(), aDesiredType);
+        }
+    }
+
     return aLine;
 }
 
@@ -304,10 +341,9 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
     const std::string aPrefix = "[[maybe_unused]] std::uint8_t *" + aAlias + " = ";
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource:
+            return "std::uint8_t *" + aAlias + " = pSource;";
         case TwistWorkSpaceSlot::kDest:
-            return aPrefix +
-                   "TwistWorkSpace::GetBuffer(pWorkspace, static_cast<TwistWorkSpaceSlot>(" +
-                   std::to_string(static_cast<int>(pSlot)) + "));";
+            return "std::uint8_t *" + aAlias + " = pDestination;";
 
         case TwistWorkSpaceSlot::kSaltA: return aPrefix + "pWorkspace->mSaltA;";
         case TwistWorkSpaceSlot::kSaltB: return aPrefix + "pWorkspace->mSaltB;";
@@ -376,7 +412,8 @@ bool ParseBatchJson(const std::string &pBatchJson,
 
 bool AppendBranchBody(const TwistProgramBranch &pBranch,
                       std::ostringstream *pStream,
-                      std::string *pError) {
+                      std::string *pError,
+                      const bool pSkipDestinationAlias) {
     if (pStream == nullptr) {
         SetError(pError, "Branch output stream was null.");
         return false;
@@ -424,6 +461,9 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     bool aWroteDeclaration = false;
     const std::vector<TwistWorkSpaceSlot> aAllSlots = FixedWorkspaceSlotOrder();
     for (TwistWorkSpaceSlot aSlot : aAllSlots) {
+        if (pSkipDestinationAlias && (aSlot == TwistWorkSpaceSlot::kDest)) {
+            continue;
+        }
         const std::string aAliasName = BufAliasName(aSlot);
         if (ContainsText(aDeclaredNames, aAliasName)) {
             continue;
@@ -562,7 +602,7 @@ void TwistProgramBranch::AddAssignByteLine(const std::string &pName,
 
     char aHex[8];
     std::snprintf(aHex, sizeof(aHex), "0x%02X", pValue);
-    AddLine("std::uint8_t " + pName + " = " + std::string(aHex) + ";");
+    AddLine(ScalarCppTypeForName(pName) + " " + pName + " = " + std::string(aHex) + ";");
 }
 
 void TwistProgramBranch::Clear() {
@@ -662,7 +702,7 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "                                 unsigned int pPasswordByteLength) {\n"
          << "    TwistExpander::Seed(pWorkspace, pSource, pPassword, pPasswordByteLength);\n"
          << "    if (pWorkspace == nullptr) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mSeeder, &aCpp, pError)) {
+    if (!AppendBranchBody(aSnapshot.mSeeder, &aCpp, pError, true)) {
         return false;
     }
     aCpp << "}\n"
@@ -672,7 +712,7 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "                                       std::uint8_t *pDestination) {\n"
          << "    TwistExpander::TwistBlock(pWorkspace, pSource, pDestination);\n"
          << "    if ((pWorkspace == nullptr) || (pDestination == nullptr)) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mTwister, &aCpp, pError)) {
+    if (!AppendBranchBody(aSnapshot.mTwister, &aCpp, pError, false)) {
         return false;
     }
     aCpp << "    std::memcpy(pDestination, pWorkspace->mWorkLaneD, S_BLOCK);\n"

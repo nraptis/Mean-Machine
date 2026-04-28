@@ -279,7 +279,7 @@
     
     std::vector<std::string> expected = {
         "aValue = aSaltA[i & 0x7FU];",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aValue ^= aSaltB[i & 0x7FU];",
     };
     
@@ -311,7 +311,7 @@
     std::vector<std::string> expected = {
         "aSaltAKeyA = i + 125U;",
         "aValue = aSaltA[aSaltAKeyA & 0x7FU];",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aSaltBKeyA = i + 127U;",
         "aValue ^= aSaltB[aSaltBKeyA & 0x7FU];"
     };
@@ -344,7 +344,7 @@
     std::vector<std::string> expected = {
         "aSaltAByteA = aSaltA[i & 0x7FU] ^ 55U;",
         "aValue = aSaltAByteA;",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aSaltBByteA = aSaltB[i & 0x7FU] * 199U;",
         "aValue ^= aSaltBByteA;"
     };
@@ -375,7 +375,7 @@
     
     std::vector<std::string> expected = {
         "aValue = aSaltA[i & 0x7FU];",
-        "aSBoxAByteA = aSBoxA[aValue] * 121U;",
+        "aSBoxAByteA = aSBoxA[aValue & 0xFFU] * 121U;",
         "aValue = aSBoxAByteA;",
         "aValue ^= aSaltB[i & 0x7FU];"
     };
@@ -409,7 +409,7 @@
         "aSaltAKeyA = i + 125U;",
         "aSaltAByteA = aSaltA[aSaltAKeyA & 0x7FU] ^ 221U;",
         "aValue = aSaltAByteA;",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aSaltBKeyA = i + 127U;",
         "aSaltBByteA = aSaltB[aSaltBKeyA & 0x7FU] * 61U;",
         "aValue ^= aSaltBByteA;",
@@ -443,7 +443,7 @@
     
     std::vector<std::string> expected = {
         "aValue = aWorkLaneA[aValue] + aWorkLaneB[aValue];",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aValue += aWorkLaneA[aValue];"
     };
     
@@ -477,7 +477,7 @@
     std::vector<std::string> expected = {
         "aWorkLaneAByteA = aWorkLaneA[aCarry] * 113U;",
         "aValue = aWorkLaneAByteA + aWorkLaneB[aCarry];",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aWorkLaneAKeyA = aCarry + 21U;",
         "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
         "aValue += aWorkLaneA[aWorkLaneAKeyA] + aWorkLaneB[aCarry];",
@@ -584,9 +584,9 @@
     
     std::vector<std::string> expected = {
         "aValue = aCarry ^ aPermute;",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aValue ^= aWorkLaneA[i] ^ aWorkLaneB[i];",
-        "aValue = aSBoxB[aValue];"
+        "aValue = aSBoxB[aValue & 0xFFU];"
     };
     
     if (!StatementChecker::Eval(aStatements, expected)) {
@@ -622,13 +622,13 @@
         "aCarryByteA = (aCarry * 33U) - 21U;",
         "aPermuteByteA = RotL8(aPermute, 1U);",
         "aValue = aCarryByteA ^ aPermuteByteA;",
-        "aValue = aSBoxA[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
         "aWorkLaneAKeyA = aValue + 10U;",
         "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
         "aWorkLaneBKeyA = aValue + 20U;",
         "if (aWorkLaneBKeyA >= S_BLOCK) { aWorkLaneBKeyA -= S_BLOCK; }",
         "aValue ^= aWorkLaneA[aWorkLaneAKeyA] ^ aWorkLaneB[aWorkLaneBKeyA];",
-        "aValue = aSBoxB[aValue];",
+        "aValue = aSBoxB[aValue & 0xFFU];",
         "aValue ^= aCarry;"
     };
     
@@ -669,8 +669,8 @@
         "aSBoxAKeyA = aValue + 10U;",
         "aSBoxAByteA = aSBoxA[aSBoxAKeyA & 0xFFU] ^ 221U;",
         "aValue = aSaltAByteA + aSBoxAByteA;",
-        "aValue = aSBoxA[aValue];",
-        "aValue = aSBoxB[aValue];",
+        "aValue = aSBoxA[aValue & 0xFFU];",
+        "aValue = aSBoxB[aValue & 0xFFU];",
         "aSaltAKeyB = aValue + 15U;",
         "aSaltAByteB = aSaltA[aSaltAKeyB & 0x7FU] - 20U;",
         "aSBoxAKeyB = aValue + 20U;",
@@ -717,14 +717,14 @@
         "aSaltAKeyB = aValue + 5U;",
         "aSaltAByteB = aSaltA[i & 0x7FU] * 29U;",
         "aCarry = ((aSaltAByteA + aSaltA[aSaltAKeyB & 0x7FU]) + aSaltAByteB) + aSaltA[i & 0x7FU];",
-        "aCarry = aSBoxA[aCarry];",
+        "aCarry = aSBoxA[aCarry & 0xFFU];",
         "aCarryByteA = RotL8((aCarry + 17U), 1U);",
         "aCarry += aCarryByteA;",
-        "aCarry = aSBoxA[aCarry];",
+        "aCarry = aSBoxA[aCarry & 0xFFU];",
         "aCarryByteB = aCarry + 1U;",
         "aCarryByteC = aCarry + 1U;",
         "aCarry += aCarryByteB + aCarryByteC;",
-        "aCarry = aSBoxA[aCarry];",
+        "aCarry = aSBoxA[aCarry & 0xFFU];",
     };
     
     if (!StatementChecker::Eval(aStatements, expected)) {
@@ -846,8 +846,8 @@
     }
     
     std::vector<std::string> expected = {
-        "aValue = (aSBoxA[i & 0xFFU] + aSBoxA[aValue]) + aSBoxA[aCarry];",
-        "aSBoxDByteA = aSBoxD[aValue] * 33U;",
+        "aValue = (aSBoxA[i & 0xFFU] + aSBoxA[aValue & 0xFFU]) + aSBoxA[aCarry & 0xFFU];",
+        "aSBoxDByteA = aSBoxD[aValue & 0xFFU] * 33U;",
         "aValue = aSBoxDByteA;",
     };
     
@@ -881,9 +881,9 @@
     }
     
     std::vector<std::string> expected = {
-        "aSBoxAByteA = (aSBoxA[aCarry] * 47U) + 211U;",
-        "aValue = (aSBoxA[i & 0xFFU] + aSBoxA[aValue]) + aSBoxAByteA;",
-        "aSBoxDByteA = RotL8(aSBoxD[aValue], 7U) - 111U;",
+        "aSBoxAByteA = (aSBoxA[aCarry & 0xFFU] * 47U) + 211U;",
+        "aValue = (aSBoxA[i & 0xFFU] + aSBoxA[aValue & 0xFFU]) + aSBoxAByteA;",
+        "aSBoxDByteA = RotL8(aSBoxD[aValue & 0xFFU], 7U) - 111U;",
         "aValue = aSBoxDByteA;",
         "aValue += aCarry;"
     };
@@ -1067,6 +1067,114 @@
         "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
         "aSaltAKeyA = aWorkLaneA[aWorkLaneAKeyA] + 108U;",
         "aValue = aSaltA[aSaltAKeyA & 0x7FU];"
+    };
+
+    if (!StatementChecker::Eval(aStatements, expected)) {
+        XCTFail("statement checker failed");
+        return;
+    }
+}
+
+- (void)testTransformSchemeQuadBoxNibbles {
+    Varz aVars;
+    GLoopFragmentComposer aComposer(aVars.mLoopIndex);
+
+    aComposer.ResetSetEqual(aVars.mValue);
+    aComposer.Transform().TransformSchemeQuadBoxNibbles(aVars.mSBoxA,
+                                                        aVars.mSBoxB,
+                                                        aVars.mSBoxC,
+                                                        aVars.mSBoxD);
+    
+    
+
+    std::vector<GStatement> aStatements;
+    std::string err;
+    if (!aComposer.BakeStatements(&aStatements, &err)) {
+        printf("bake statements failed: %s\n", err.c_str());
+        XCTFail("bake statements failed");
+        return;
+    }
+
+    std::vector<std::string> expected = {
+        "aValueNibbleA = aValue & 255U;",
+        "aValueNibbleB = (static_cast<std::uint32_t>(aValue) >> 8U) & 255U;",
+        "aValueNibbleC = (static_cast<std::uint32_t>(aValue) >> 16U) & 255U;",
+        "aValueNibbleD = (static_cast<std::uint32_t>(aValue) >> 24U) & 255U;",
+        "aValueNibbleA = aSBoxA[(aValueNibbleA ^ aValueNibbleC) & 0xFFU];",
+        "aValueNibbleB = aSBoxB[(aValueNibbleB ^ aValueNibbleD) & 0xFFU];",
+        "aValueNibbleC = aSBoxC[(aValueNibbleC ^ aValueNibbleA) & 0xFFU];",
+        "aValueNibbleD = aSBoxD[(aValueNibbleD ^ aValueNibbleB) & 0xFFU];",
+        "aValue = ((aValueNibbleA | (static_cast<std::uint32_t>(aValueNibbleB) << 8U)) | (static_cast<std::uint32_t>(aValueNibbleC) << 16U)) |\n\t\t(static_cast<std::uint32_t>(aValueNibbleD) << 24U);"
+    };
+
+    if (!StatementChecker::Eval(aStatements, expected)) {
+        XCTFail("statement checker failed");
+        return;
+    }
+}
+
+- (void)testTransformSchemeQuadBoxNibblesCustomLaneMix {
+    Varz aVars;
+    GLoopFragmentComposer aComposer(aVars.mLoopIndex);
+
+    aComposer.ResetSetEqual(aVars.mValue);
+    aComposer.Transform().TransformSchemeQuadBoxNibbles(aVars.mSBoxA,
+                                                        aVars.mSBoxB,
+                                                        aVars.mSBoxC,
+                                                        aVars.mSBoxD,
+                                                        VarSymbol("aValueNibbleC"),
+                                                        VarSymbol("aValueNibbleD"),
+                                                        VarSymbol("aValueNibbleA"),
+                                                        VarSymbol("aValueNibbleB"),
+                                                        true,
+                                                        false,
+                                                        true,
+                                                        false);
+
+    std::vector<GStatement> aStatements;
+    std::string err;
+    if (!aComposer.BakeStatements(&aStatements, &err)) {
+        printf("bake statements failed: %s\n", err.c_str());
+        XCTFail("bake statements failed");
+        return;
+    }
+
+    std::vector<std::string> expected = {
+        "aValueNibbleA = aValue & 255U;",
+        "aValueNibbleB = (static_cast<std::uint32_t>(aValue) >> 8U) & 255U;",
+        "aValueNibbleC = (static_cast<std::uint32_t>(aValue) >> 16U) & 255U;",
+        "aValueNibbleD = (static_cast<std::uint32_t>(aValue) >> 24U) & 255U;",
+        "aValueNibbleC = aSBoxB[(aValueNibbleC + aValueNibbleA) & 0xFFU];",
+        "aValueNibbleD = aSBoxA[(aValueNibbleD ^ aValueNibbleB) & 0xFFU];",
+        "aValueNibbleA = aSBoxC[(aValueNibbleA + aValueNibbleD) & 0xFFU];",
+        "aValueNibbleB = aSBoxD[(aValueNibbleB ^ aValueNibbleC) & 0xFFU];",
+        "aValue = ((aValueNibbleA | (static_cast<std::uint32_t>(aValueNibbleB) << 8U)) | (static_cast<std::uint32_t>(aValueNibbleC) << 16U)) |\n\t\t(static_cast<std::uint32_t>(aValueNibbleD) << 24U);"
+    };
+
+    if (!StatementChecker::Eval(aStatements, expected)) {
+        XCTFail("statement checker failed");
+        return;
+    }
+}
+
+- (void)testTransformSchemeSingleBoxRotate {
+    Varz aVars;
+    GLoopFragmentComposer aComposer(aVars.mLoopIndex);
+
+    aComposer.ResetSetEqual(aVars.mPermute);
+    aComposer.Transform().TransformSchemeSingleBoxRotate(aVars.mSBoxA, 3U);
+
+    std::vector<GStatement> aStatements;
+    std::string err;
+    if (!aComposer.BakeStatements(&aStatements, &err)) {
+        printf("bake statements failed: %s\n", err.c_str());
+        XCTFail("bake statements failed");
+        return;
+    }
+
+    std::vector<std::string> expected = {
+        "aPermute = aSBoxA[aPermute & 0xFFU] | (static_cast<std::uint32_t>(aPermute) << 8U);",
+        "aPermute = RotL32(aPermute, 3U);"
     };
 
     if (!StatementChecker::Eval(aStatements, expected)) {

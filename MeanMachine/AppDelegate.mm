@@ -202,7 +202,7 @@ void ExportSBoxesAsHeader() {
     GBatch aBatch;
     GSimpleLoopExampleRecipe aRecipeSimple;
     if (!aRecipeSimple.Plan(aErrorString)) {
-        printf("{real seeder flow} work lane recipe failed to plan.");
+        printf("{real seeder flow} simple recipe plan failed: %s\n", aErrorString.c_str());
         return;
     }
     
@@ -218,7 +218,7 @@ void ExportSBoxesAsHeader() {
                             aOrderCarry,
                             true,
                             aErrorString)) {
-        printf("{real seeder flow} work lane recipe failed to plan.");
+        printf("{real seeder flow} simple recipe bake failed: %s\n", aErrorString.c_str());
         return;
     }
     
@@ -241,27 +241,27 @@ void ExportSBoxesAsHeader() {
 
     GBatch aBatch1;
     if (!aRecipeSpace.Plan(false, aErrorString)) {
-        printf("{real seeder flow} work lane recipe failed to plan.");
+        printf("{real seeder flow} stepA pass1 plan failed: %s\n", aErrorString.c_str());
         return;
     }
     
     
    
     if (!aRecipeSpace.Bake(aBatch1.mLoops, aErrorString)) {
-        printf("{real seeder flow} work lane recipe failed to plan.");
+        printf("{real seeder flow} stepA pass1 bake failed: %s\n", aErrorString.c_str());
         return;
     }
     
     GBatch aBatch2;
     if (!aRecipeSpace.Plan(true, aErrorString)) {
-        printf("{real seeder flow} work lane recipe failed to plan.");
+        printf("{real seeder flow} stepA pass2 plan failed: %s\n", aErrorString.c_str());
         return;
     }
     
     
    
     if (!aRecipeSpace.Bake(aBatch2.mLoops, aErrorString)) {
-        printf("{real seeder flow} work lane recipe failed to plan.");
+        printf("{real seeder flow} stepA pass2 bake failed: %s\n", aErrorString.c_str());
         return;
     }
     
@@ -283,13 +283,19 @@ void ExportSBoxesAsHeader() {
     aExpander.mSeeder.AddBatch(aBatch1);
     aExpander.mSeeder.AddBatch(aBatch2);
     
-    aExpander.mSeeder.AddAssignByteLine("aValue", Random::Get(256));
-    aExpander.mSeeder.AddAssignByteLine("aCarry", Random::Get(256));
+    aExpander.mSeeder.AddAssignByteLine("aValue", Random::Get(200000000));
+    aExpander.mSeeder.AddAssignByteLine("aCarry", Random::Get(200000000));
+    aExpander.mSeeder.AddAssignByteLine("aPermute", Random::Get(200000000));
     
-    aExpander.mNameBase = "FrodoBaggins";
+    aExpander.mNameBase = "FrodoShire";
     
-    aExpander.ExportCPPProjectRoot("aaa/bbb/ccc");
-    aExpander.ExportJSONProjectRoot("aaa/bbb/ccc");
+    if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aErrorString) ||
+        !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aErrorString) ||
+        !aExpander.ExportCPPProjectRoot("aaa/bbb/ccc", &aErrorString) ||
+        !aExpander.ExportJSONProjectRoot("aaa/bbb/ccc", &aErrorString)) {
+        printf("expander export failed: %s\n", aErrorString.c_str());
+        return;
+    }
     
     
 }

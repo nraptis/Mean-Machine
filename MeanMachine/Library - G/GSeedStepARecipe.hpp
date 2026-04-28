@@ -62,6 +62,7 @@ struct GSeedStepARecipeLoopContract {
     
     LoopSaltBehavior                        mValueSaltBehavior;
     SeedConsumeOrder                        mValueConsumeOrder_Carry;
+    SeedConsumeOrder                        mValueConsumeOrder_SourceA;
     SeedConsumeOrder                        mValueConsumeOrder_SourceB;
     SeedConsumeOrder                        mValueConsumeOrder_Salt;
     
@@ -85,13 +86,13 @@ struct GSeedStepARecipeLoopContract {
     LoopSecondSourceMode                    mSecondSourceMode;
     
     GSymbol                                 mValueSalt;
-    GSymbol                                 mValueSBox;
     
     GSymbol                                 mCarrySalt;
     GSymbol                                 mCarrySBox;
     
     GSymbol                                 mPermuteSalt;
-    GSymbol                                 mPermuteSBox;
+    GSymbol                                 mPermuteSBoxA;
+    GSymbol                                 mPermuteSBoxB;
     
     GSymbol                                 mSourceA;
     GSymbol                                 mSourceB;
@@ -100,6 +101,18 @@ struct GSeedStepARecipeLoopContract {
     
     SeedLoopOrder                           mLoopOrder;
     
+    
+    
+    GSymbol                                 mValueTransformSBoxA;
+    GSymbol                                 mValueTransformSBoxB;
+    GSymbol                                 mValueTransformSBoxC;
+    GSymbol                                 mValueTransformSBoxD;
+    
+    bool                                    mValueTransformPlusA;
+    bool                                    mValueTransformPlusB;
+    bool                                    mValueTransformPlusC;
+    bool                                    mValueTransformPlusD;
+
 };
 
 struct GSeedStepARecipeWorkSpace {
@@ -133,6 +146,14 @@ public:
     GSymbol                                 mWorkerB;
     GSymbol                                 mWorkerC;
     GSymbol                                 mWorkerD;
+    
+    bool                                    mSecondPass;
+    
+    GSymbol                                 mValueNibbleA;
+    GSymbol                                 mValueNibbleB;
+    GSymbol                                 mValueNibbleC;
+    GSymbol                                 mValueNibbleD;
+    
 };
 
 
