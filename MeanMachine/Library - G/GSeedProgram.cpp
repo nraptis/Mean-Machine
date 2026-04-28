@@ -485,13 +485,13 @@ bool IsWideStateScalarName(const std::string &pName) {
 
 std::string ScalarCppTypeForName(const std::string &pName) {
     if (StartsWithText(pName, "aOracle")) {
-        return "std::uint32_t";
+        return "std::uint16_t";
     }
     if (IsKeyScalarName(pName)) {
-        return "std::uint32_t";
+        return "std::uint16_t";
     }
     if (IsWideStateScalarName(pName)) {
-        return "std::uint32_t";
+        return "std::uint16_t";
     }
     return "std::uint8_t";
 }
@@ -499,13 +499,13 @@ std::string ScalarCppTypeForName(const std::string &pName) {
 int NormalizeScalarValueForName(const std::string &pName,
                                 const int pValue) {
     if (StartsWithText(pName, "aOracle")) {
-        return static_cast<int>(static_cast<std::uint32_t>(pValue));
+        return static_cast<int>(static_cast<std::uint16_t>(pValue));
     }
     if (IsKeyScalarName(pName)) {
-        return static_cast<int>(static_cast<std::uint32_t>(pValue));
+        return static_cast<int>(static_cast<std::uint16_t>(pValue));
     }
     if (IsWideStateScalarName(pName)) {
-        return static_cast<int>(static_cast<std::uint32_t>(pValue));
+        return static_cast<int>(static_cast<std::uint16_t>(pValue));
     }
     return static_cast<int>(static_cast<unsigned int>(pValue) & 0xFFU);
 }
@@ -551,18 +551,10 @@ std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
 
 unsigned int ReadWrapTrimMaskForType(const GReadWrapType pType) {
     switch (pType) {
+        case GReadWrapType::kBlock: return 0x1FFFU;
         case GReadWrapType::kSBox: return 0xFFU;
         case GReadWrapType::kSalt: return 0x7FU;
         default: return 0U;
-    }
-}
-
-int ReadWrapLimitForType(const GReadWrapType pType) {
-    switch (pType) {
-        case GReadWrapType::kBlock: return S_BLOCK;
-        case GReadWrapType::kSBox: return S_SBOX;
-        case GReadWrapType::kSalt: return S_SALT;
-        default: return 0;
     }
 }
 
@@ -1088,21 +1080,34 @@ std::string CppExpr(const GExpr &pExpr) {
                    CppIndexForSlot(pExpr.mSymbol.mSlot, pExpr.mIndex.get(), aIndexText) + "]";
         }
         case GExprType::kAdd:
-        case GExprType::kSub:
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
         case GExprType::kOr:
             return "(" + CppExpr(*pExpr.mA) + " " + ScalarOperatorText(pExpr.mType) +
                    " " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kSub:
+            if ((pExpr.mA != nullptr) &&
+                (pExpr.mB != nullptr) &&
+                (pExpr.mA->mType == GExprType::kConst) &&
+                (pExpr.mA->mConstVal == (S_BLOCK - 1)) &&
+                (pExpr.mB->mType == GExprType::kSymbol) &&
+                pExpr.mB->mSymbol.IsVar()) {
+                const std::string &aName = pExpr.mB->mSymbol.mName;
+                if ((aName == "i") || (aName.find("LoopIndex") != std::string::npos)) {
+                    return "((S_BLOCK - 1) - " + CppExpr(*pExpr.mB) + ")";
+                }
+            }
+            return "(" + CppExpr(*pExpr.mA) + " " + ScalarOperatorText(pExpr.mType) +
+                   " " + CppExpr(*pExpr.mB) + ")";
         case GExprType::kShiftL:
-            return "(static_cast<std::uint32_t>(" + CppExpr(*pExpr.mA) + ") << " + CppExpr(*pExpr.mB) + ")";
+            return "(static_cast<std::uint16_t>(" + CppExpr(*pExpr.mA) + ") << " + CppExpr(*pExpr.mB) + ")";
         case GExprType::kShiftR:
-            return "(static_cast<std::uint32_t>(" + CppExpr(*pExpr.mA) + ") >> " + CppExpr(*pExpr.mB) + ")";
+            return "(" + CppExpr(*pExpr.mA) + " >> " + CppExpr(*pExpr.mB) + ")";
         case GExprType::kRotL8:
             return "RotL8(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
         case GExprType::kRotL32:
-            return "RotL32(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
+            return "RotL16(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
         default:
             return "0";
     }
@@ -1181,17 +1186,9 @@ std::string CppSymbolText(const GSymbol &pSymbol) {
     return pSymbol.mName;
 }
 
-std::string CppReadWrapLimitToken(const GReadWrapType pType) {
-    switch (pType) {
-        case GReadWrapType::kBlock: return "S_BLOCK";
-        case GReadWrapType::kSBox: return "S_SBOX";
-        case GReadWrapType::kSalt: return "S_SALT";
-        default: return "S_BLOCK";
-    }
-}
-
 std::string CppReadWrapTrimMaskToken(const GReadWrapType pType) {
     switch (pType) {
+        case GReadWrapType::kBlock: return "0x1FFFU";
         case GReadWrapType::kSBox: return "0xFFU";
         case GReadWrapType::kSalt: return "0x7FU";
         default: return "";
@@ -1206,15 +1203,12 @@ std::vector<std::string> CppReadWrapPreludeLines(const GStatement &pStatement) {
     for (const CppReadWrapMetadata &aWrap : aMetadata) {
         const std::string aOracleName = CppSymbolText(aWrap.mOracleSymbol);
         const std::string aIndexName = CppSymbolText(aWrap.mIndexSymbol);
-        const std::string aLimitToken = CppReadWrapLimitToken(aWrap.mType);
         const std::string aTrimMaskToken = CppReadWrapTrimMaskToken(aWrap.mType);
         const int aOffsetMagnitude = (aWrap.mOffset < 0) ? -aWrap.mOffset : aWrap.mOffset;
         const std::string aOffsetOp = (aWrap.mOffset < 0) ? " - " : " + ";
 
         aLines.push_back(aOracleName + " = " + aIndexName +
                          aOffsetOp + std::to_string(aOffsetMagnitude) + "U;");
-        aLines.push_back("if (" + aOracleName + " >= " + aLimitToken + ") { " +
-                         aOracleName + " -= " + aLimitToken + "; }");
         if (!aTrimMaskToken.empty()) {
             aLines.push_back(aOracleName + " &= " + aTrimMaskToken + ";");
         }
@@ -1251,18 +1245,74 @@ std::string StripOuterParens(const std::string &pText) {
     return pText.substr(1U, pText.size() - 2U);
 }
 
+bool SplitTopLevelOr(const std::string &pText,
+                     std::string *pLeft,
+                     std::string *pRight) {
+    if ((pLeft == nullptr) || (pRight == nullptr)) {
+        return false;
+    }
+
+    int aDepth = 0;
+    for (std::size_t i = 0U; (i + 2U) <= pText.size(); ++i) {
+        const char aChar = pText[i];
+        if (aChar == '(') {
+            aDepth += 1;
+            continue;
+        }
+        if (aChar == ')') {
+            aDepth -= 1;
+            continue;
+        }
+
+        if ((aDepth == 0) &&
+            (pText[i] == ' ') &&
+            (i + 2U < pText.size()) &&
+            (pText[i + 1U] == '|') &&
+            (pText[i + 2U] == ' ')) {
+            *pLeft = pText.substr(0U, i);
+            *pRight = pText.substr(i + 3U);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void FlattenTopLevelOrTerms(const std::string &pText,
+                            std::vector<std::string> *pTerms) {
+    if (pTerms == nullptr) {
+        return;
+    }
+
+    std::string aLeft;
+    std::string aRight;
+    const std::string aCandidate = StripOuterParens(pText);
+    if (SplitTopLevelOr(aCandidate, &aLeft, &aRight)) {
+        FlattenTopLevelOrTerms(aLeft, pTerms);
+        FlattenTopLevelOrTerms(aRight, pTerms);
+        return;
+    }
+
+    pTerms->push_back(aCandidate);
+}
+
 std::string FormatExpressionForCppStatement(const std::string &pExpressionText) {
     std::string aText = pExpressionText;
 
     // Keep packed nibble rebuild statements readable in generated C++.
-    // Split before the final high-byte term with a continuation indent.
+    // Render as one OR term per line.
     if ((aText.find("NibbleA") != std::string::npos) &&
+        (aText.find("NibbleB") != std::string::npos) &&
+        (aText.find("NibbleC") != std::string::npos) &&
         (aText.find("NibbleD") != std::string::npos) &&
         (aText.find("<< 24U") != std::string::npos)) {
-        const std::string kSplitToken = ") << 16U)) | ";
-        const std::size_t aSplitIndex = aText.find(kSplitToken);
-        if (aSplitIndex != std::string::npos) {
-            aText.replace(aSplitIndex, kSplitToken.size(), ") << 16U)) |\n\t\t");
+        std::vector<std::string> aTerms;
+        FlattenTopLevelOrTerms(aText, &aTerms);
+        if (aTerms.size() == 4U) {
+            aText = StripOuterParens(aTerms[0]) +
+                    " |\n\t\t" + StripOuterParens(aTerms[1]) +
+                    " |\n\t\t" + StripOuterParens(aTerms[2]) +
+                    " |\n\t\t" + StripOuterParens(aTerms[3]);
         }
     }
 
@@ -1367,10 +1417,6 @@ bool EvaluateExpr(const GExpr &pExpr,
                 }
 
                 int aOracleValue = aBaseIndexValue + pExpr.mReadWrapOffset;
-                const int aWrapLimit = ReadWrapLimitForType(pExpr.mReadWrapType);
-                if ((aWrapLimit > 0) && (aOracleValue >= aWrapLimit)) {
-                    aOracleValue -= aWrapLimit;
-                }
                 const unsigned int aWrapTrimMask = ReadWrapTrimMaskForType(pExpr.mReadWrapType);
                 if (aWrapTrimMask != 0U) {
                     aOracleValue = static_cast<int>(static_cast<unsigned int>(aOracleValue) & aWrapTrimMask);
@@ -1424,16 +1470,16 @@ bool EvaluateExpr(const GExpr &pExpr,
                 case GExprType::kOr: *pValue = aLeft | aRight; return true;
                 case GExprType::kRotL8: *pValue = RotL8(aLeft, aRight); return true;
                 case GExprType::kRotL32:
-                    *pValue = static_cast<int>(RotL32(static_cast<std::uint32_t>(aLeft),
-                                                      static_cast<std::uint32_t>(aRight)));
+                    *pValue = static_cast<int>(RotL16(static_cast<std::uint16_t>(aLeft),
+                                                      static_cast<std::uint16_t>(aRight)));
                     return true;
                 case GExprType::kShiftL:
-                    *pValue = static_cast<int>(static_cast<std::uint32_t>(aLeft) <<
-                                               (static_cast<std::uint32_t>(aRight) & 31U));
+                    *pValue = static_cast<int>(static_cast<std::uint16_t>(aLeft) <<
+                                               (static_cast<std::uint16_t>(aRight) & 15U));
                     return true;
                 case GExprType::kShiftR:
-                    *pValue = static_cast<int>(static_cast<std::uint32_t>(aLeft) >>
-                                               (static_cast<std::uint32_t>(aRight) & 31U));
+                    *pValue = static_cast<int>(static_cast<std::uint16_t>(aLeft) >>
+                                               (static_cast<std::uint16_t>(aRight) & 15U));
                     return true;
                 default: break;
             }
@@ -2137,9 +2183,9 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
             }
         }
         if (LoopUsesUint32(aLoop)) {
-            aLines.push_back(Indent(1) + "for (std::uint32_t " + aLoop.mLoopVariableName + " = " +
+            aLines.push_back(Indent(1) + "for (std::uint16_t " + aLoop.mLoopVariableName + " = " +
                              std::to_string(aLoop.mLoopBegin) + "U; " +
-                             aLoop.mLoopVariableName + " < static_cast<std::uint32_t>(" + aLoop.mLoopEndText + "); " +
+                             aLoop.mLoopVariableName + " < " + aLoop.mLoopEndText + "; " +
                              aLoop.mLoopVariableName + " += " + std::to_string(aLoop.mLoopStep) + "U) {");
         } else {
             aLines.push_back(Indent(1) + "for (int " + aLoop.mLoopVariableName + " = " +

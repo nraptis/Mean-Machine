@@ -44,10 +44,12 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
         return gSBoxTables;
     }
 
+    /*
     if (IsRunningUnderXCTest()) {
         gSBoxTablesDidLoad = true;
         return gSBoxTables;
     }
+    */
 
     const std::string aDirectory = FileIO::ProjectRoot("Assets/data_s_box");
     const std::vector<std::string> aFilePaths = FileIO::GetAllFiles(aDirectory);
@@ -57,6 +59,23 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
         if (!FileIO::Load(aFilePath, aFileData)) {
             continue;
         }
+        
+        printf("this is the file patj: %s\n", aFilePath.c_str());
+        
+        // --- Check 1: filename must contain "sbox"
+            std::size_t pos = aFilePath.find_last_of("/\\");
+            std::string aName = (pos == std::string::npos) ? aFilePath : aFilePath.substr(pos + 1);
+            
+            if (aName.find("sbox") == std::string::npos) {
+                printf("INVALID FILE (name): %s\n", aFilePath.c_str());
+                continue;
+            }
+
+            // --- Check 2: size must be multiple of S_SBOX (256)
+            if (aFileData.size() % static_cast<std::size_t>(S_SBOX) != 0) {
+                printf("INVALID FILE (size): %s (size=%zu)\n", aFilePath.c_str(), aFileData.size());
+                continue;
+            }
 
         for (std::size_t aOffset = 0U; (aOffset + static_cast<std::size_t>(S_SBOX)) <= aFileData.size(); aOffset += static_cast<std::size_t>(S_SBOX)) {
             std::vector<std::uint8_t> aTable(aFileData.begin() + static_cast<long>(aOffset),
@@ -64,6 +83,14 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
             gSBoxTables.push_back(aTable);
         }
     }
+    
+    if (gSBoxTables.empty()) {
+        printf("ERROR: No S-box tables loaded from %s\n", aDirectory.c_str());
+    
+    }
+    
+    printf("This was the directory: %s\n", aDirectory.c_str());
+
 
     gSBoxTablesDidLoad = true;
     return gSBoxTables;

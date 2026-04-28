@@ -176,13 +176,13 @@ bool IsWideStateScalarName(const std::string &pName) {
 
 std::string ScalarCppTypeForName(const std::string &pName) {
     if (StartsWithText(pName, "aOracle")) {
-        return "std::uint32_t";
+        return "std::uint16_t";
     }
     if (IsKeyScalarName(pName)) {
-        return "std::uint32_t";
+        return "std::uint16_t";
     }
     if (IsWideStateScalarName(pName)) {
-        return "std::uint32_t";
+        return "std::uint16_t";
     }
     return "std::uint8_t";
 }

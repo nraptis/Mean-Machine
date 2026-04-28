@@ -21,13 +21,6 @@ void SetError(std::string *pErrorString,
     }
 }
 
-bool IsLoopIndexLike(const GSymbol &pSymbol) {
-    if (!pSymbol.IsVar()) {
-        return false;
-    }
-    return pSymbol.mName.find("LoopIndex") != std::string::npos;
-}
-
 bool IsSBoxSlot(const TwistWorkSpaceSlot pSlot) {
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSBoxA:
@@ -906,9 +899,6 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
             return false;
         }
 
-        constexpr int kMaxByteValue = 255;
-        const int aMaxSafeBlockOffset = std::max(0, S_BLOCK - (kMaxByteValue + 1));
-
         int aBaseBufferIndexOffset = pNode.mBaseBufferIndexOffset;
         if (pNode.mBaseBufferIndexOffsetIsRandom) {
             if (IsSBoxSlot(pNode.mBaseBufferSymbol.mSlot)) {
@@ -916,9 +906,7 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
             } else if (IsSaltSlot(pNode.mBaseBufferSymbol.mSlot)) {
                 aBaseBufferIndexOffset = Random::Get(S_SALT);
             } else {
-                const bool aBaseIsLoopIndex = IsLoopIndexLike(pNode.mBaseBufferIndexSymbol);
-                aBaseBufferIndexOffset = aBaseIsLoopIndex ? Random::Get(S_BLOCK)
-                                                          : Random::Get(aMaxSafeBlockOffset + 1);
+                aBaseBufferIndexOffset = Random::Get(S_BLOCK);
             }
         }
 
@@ -1147,15 +1135,13 @@ bool GLoopFragmentComposer::EmitTransformScheme(const Node &pNode,
             }
             if (!AddStatement(pStatementList,
                               GStatement::Assign(GTarget::Symbol(aNibbleC),
-                                                 GExpr::And(GExpr::ShiftR(GExpr::Symbol(mTarget), GExpr::Const(16)),
-                                                           GExpr::Const(0xFF))),
+                                                 GExpr::Symbol(aNibbleB)),
                               pErrorString)) {
                 return false;
             }
             if (!AddStatement(pStatementList,
                               GStatement::Assign(GTarget::Symbol(aNibbleD),
-                                                 GExpr::And(GExpr::ShiftR(GExpr::Symbol(mTarget), GExpr::Const(24)),
-                                                           GExpr::Const(0xFF))),
+                                                 GExpr::Symbol(aNibbleA)),
                               pErrorString)) {
                 return false;
             }
@@ -1241,11 +1227,8 @@ bool GLoopFragmentComposer::EmitTransformScheme(const Node &pNode,
             }
 
             const GExpr aPackedValueExpr = GExpr::Or(
-                GExpr::Or(
-                    GExpr::Or(GExpr::Symbol(aNibbleA),
-                              GExpr::ShiftL(GExpr::Symbol(aNibbleB), GExpr::Const(8))),
-                    GExpr::ShiftL(GExpr::Symbol(aNibbleC), GExpr::Const(16))),
-                GExpr::ShiftL(GExpr::Symbol(aNibbleD), GExpr::Const(24)));
+                GExpr::Symbol(aNibbleA),
+                GExpr::ShiftL(GExpr::Symbol(aNibbleB), GExpr::Const(8)));
 
             if (!AddStatement(pStatementList,
                               GStatement::Assign(GTarget::Symbol(mTarget), aPackedValueExpr),
@@ -1307,9 +1290,7 @@ int GLoopFragmentComposer::ResolveOffset(const Node &pNode,
                                          const GSymbol &pBaseSymbol,
                                          GLoopFragmentDomain pDomain,
                                          std::string *pErrorString) const {
-    constexpr int kMaxByteValue = 255;
-    const bool aBaseIsLoopIndex = IsLoopIndexLike(pBaseSymbol);
-    const int aMaxSafeBlockOffset = std::max(0, S_BLOCK - (kMaxByteValue + 1));
+    (void)pBaseSymbol;
 
     if (pNode.mOffsetIsDebugMax) {
         switch (pDomain) {
@@ -1319,7 +1300,7 @@ int GLoopFragmentComposer::ResolveOffset(const Node &pNode,
                 return S_SALT - 1;
             case GLoopFragmentDomain::kBlock:
             default:
-                return aBaseIsLoopIndex ? (S_BLOCK - 1) : aMaxSafeBlockOffset;
+                return S_BLOCK - 1;
         }
     }
 
@@ -1333,8 +1314,7 @@ int GLoopFragmentComposer::ResolveOffset(const Node &pNode,
 
             case GLoopFragmentDomain::kBlock:
             default:
-                return aBaseIsLoopIndex ? Random::Get(S_BLOCK)
-                                        : Random::Get(aMaxSafeBlockOffset + 1);
+                return Random::Get(S_BLOCK);
         }
     }
 
@@ -1352,16 +1332,7 @@ int GLoopFragmentComposer::ResolveOffset(const Node &pNode,
 
         case GLoopFragmentDomain::kBlock:
         default:
-            if (aBaseIsLoopIndex) {
-                return PositiveMod(pNode.mOffset, S_BLOCK);
-            }
-            if (pNode.mOffset > aMaxSafeBlockOffset) {
-                SetError(pErrorString,
-                         "Composer block offset overflowed non-loop base safety envelope (max " +
-                         std::to_string(aMaxSafeBlockOffset) + ").");
-                return -1;
-            }
-            return pNode.mOffset;
+            return PositiveMod(pNode.mOffset, S_BLOCK);
     }
 }
 

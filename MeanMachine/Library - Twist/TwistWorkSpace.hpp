@@ -9,10 +9,11 @@
 #include <cstdint>
 #include <vector>
 
-#define S_BLOCK 7680 // 3,840 // 1,920
+#define S_BLOCK 8192 // 4,096 // 2,048
 
 #define S_SBOX 256
 #define S_SALT 128
+
 
 #define W_KEY_A 96
 #define H_KEY_A 10

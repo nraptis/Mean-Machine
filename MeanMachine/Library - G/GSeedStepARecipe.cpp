@@ -192,13 +192,14 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
         aScopeRules.SetReadPreferredMaximum(aSalts[i], 3);
     }
     
-    
+    /*
     for (int i=0;i<SEED_WORK_LANE_COUNT;i++) {
         mLoopContracts[i].mValueTransformPlusA = Random::Bool();
         mLoopContracts[i].mValueTransformPlusB = Random::Bool();
         mLoopContracts[i].mValueTransformPlusC = Random::Bool();
         mLoopContracts[i].mValueTransformPlusD = Random::Bool();
     }
+    */
     
     
     if (pSecondPass == false) {
@@ -342,10 +343,12 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
         aBoxList.push_back(mSBoxD);
         Random::Shuffle(&aBoxList);
         
+        /*
         mLoopContracts[aWhich].mValueTransformSBoxA = aBoxList[0];
         mLoopContracts[aWhich].mValueTransformSBoxB = aBoxList[1];
         mLoopContracts[aWhich].mValueTransformSBoxC = aBoxList[2];
         mLoopContracts[aWhich].mValueTransformSBoxD = aBoxList[3];
+        */
     }
     
     // Pick sources
@@ -409,18 +412,18 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
         }
         
         if (mLoopContracts[aWhich].mSourceB.IsInvalid() == false) {
-            std::vector<LoopSecondSourceMode> aSecondSourceOptions = {
-                LoopSecondSourceMode::kValue,
+            std::vector<LoopAdditionalSourceMode> aSecondSourceOptions = {
+                LoopAdditionalSourceMode::kValue,
             };
             if (aUseCarry[aWhich] == true) {
-                aSecondSourceOptions.push_back(LoopSecondSourceMode::kCarry);
+                aSecondSourceOptions.push_back(LoopAdditionalSourceMode::kCarry);
             }
             if (aUsePermute[aWhich] == true) {
-                aSecondSourceOptions.push_back(LoopSecondSourceMode::kPermute);
+                aSecondSourceOptions.push_back(LoopAdditionalSourceMode::kPermute);
             }
             mLoopContracts[aWhich].mSecondSourceMode = Random::Choice(aSecondSourceOptions);
         } else {
-            mLoopContracts[aWhich].mSecondSourceMode = LoopSecondSourceMode::kInv;
+            mLoopContracts[aWhich].mSecondSourceMode = LoopAdditionalSourceMode::kInv;
         }
     }
     
@@ -686,12 +689,14 @@ bool GSeedStepARecipeWorkSpace::Plan(bool pSecondPass, std::string &pErrorString
             mLoopContracts[aWhich].mValueSalt = aFetchedSalts[0];
             aLocalLaneState.Consume(aFetchedSalts[0]);
             
+            /*
             if (mLoopContracts[aWhich].mCarryEnabled) {
                 mLoopContracts[aWhich].mCarrySalt = aFetchedSalts[1];
                 mLoopContracts[aWhich].mCarrySBox = aFetchedSBoxes[0];
                 aLocalLaneState.Consume(aFetchedSalts[1]);
                 aLocalLaneState.Consume(aFetchedSBoxes[0]);
             }
+            */
             
             if (mLoopContracts[aWhich].mPermuteEnabled) {
                 mLoopContracts[aWhich].mPermuteSalt = aFetchedSalts[2];
@@ -776,7 +781,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
         
         // source b before
         if (aContract.mSecondSourceEnabled == true) {
-            if (aContract.mSecondSourceMode == LoopSecondSourceMode::kValue) {
+            if (aContract.mSecondSourceMode == LoopAdditionalSourceMode::kValue) {
                 if (aContract.mValueConsumeOrder_SourceB == SeedConsumeOrder::kBeforeSBox) {
                     aComposerValue.MixBuffer(aContract.mSourceB).Offset().Expand(50, true);
                 }
@@ -829,6 +834,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                                                                  aContract.mValueTransformPlusD);
         */
         
+        /*
         aComposerValue.Transform().TransformSchemeQuadBoxNibbles(aContract.mValueTransformSBoxA,
                                                                  aContract.mValueTransformSBoxB,
                                                                  aContract.mValueTransformSBoxC,
@@ -841,6 +847,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                                                                  aContract.mValueTransformPlusB,
                                                                  aContract.mValueTransformPlusC,
                                                                  aContract.mValueTransformPlusD);
+        */
 
         // a = s[a ^ c]
         // b = s[b ^ d]
@@ -862,7 +869,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
         
         // source b after
         if (aContract.mSecondSourceEnabled == true) {
-            if (aContract.mSecondSourceMode == LoopSecondSourceMode::kValue) {
+            if (aContract.mSecondSourceMode == LoopAdditionalSourceMode::kValue) {
                 if (aContract.mValueConsumeOrder_SourceB == SeedConsumeOrder::kAfterSBox) {
                     aComposerValue.MixBuffer(aContract.mSourceB).Offset().Expand(50, true);
                 }
@@ -919,7 +926,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             // source b before
             if (aContract.mSecondSourceEnabled == true) {
-                if (aContract.mSecondSourceMode == LoopSecondSourceMode::kCarry) {
+                if (aContract.mSecondSourceMode == LoopAdditionalSourceMode::kCarry) {
                     if (aContract.mCarryConsumeOrder_SourceB == SeedConsumeOrder::kBeforeSBox) {
                         aComposerCarry.MixBuffer(aContract.mSourceB).Offset().Expand(50, true);
                     }
@@ -943,6 +950,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                 }
             }
             
+            /*
             switch (aContract.mCarrySBoxBehavior) {
                 case LoopSBoxBehavior::kMixWithLoopIndex:
                     aComposerCarry.MixBuffer(aContract.mCarrySBox).Key(mLoopIndex).Offset();
@@ -953,6 +961,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                 default:
                     break;
             }
+            */
             
             // value after
             if (aContract.mCarryConsumeOrder_Value == SeedConsumeOrder::kAfterSBox) {
@@ -961,7 +970,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             // source b after
             if (aContract.mSecondSourceEnabled == true) {
-                if (aContract.mSecondSourceMode == LoopSecondSourceMode::kCarry) {
+                if (aContract.mSecondSourceMode == LoopAdditionalSourceMode::kCarry) {
                     if (aContract.mCarryConsumeOrder_SourceB == SeedConsumeOrder::kAfterSBox) {
                         aComposerCarry.MixBuffer(aContract.mSourceB).Offset().Expand(50, true);
                     }
@@ -1021,7 +1030,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             // source b before
             if (aContract.mSecondSourceEnabled == true) {
-                if (aContract.mSecondSourceMode == LoopSecondSourceMode::kPermute) {
+                if (aContract.mSecondSourceMode == LoopAdditionalSourceMode::kPermute) {
                     if (aContract.mPermuteConsumeOrder_SourceB == SeedConsumeOrder::kBeforeSBox) {
                         aComposerPermute.MixBuffer(aContract.mSourceB).Offset().Expand(50, true);
                     }
@@ -1048,6 +1057,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                 }
             }
             
+            /*
             switch (aContract.mPermuteSBoxBehavior) {
                 case LoopSBoxBehavior::kMixWithLoopIndex:
                     aComposerPermute.MixBuffer(aContract.mPermuteSBoxA).Key(mLoopIndex).Offset();
@@ -1057,6 +1067,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
                 default:
                     break;
             }
+            */
             
             aComposerPermute.Transform().TransformSchemeSingleBoxRotate(aContract.mPermuteSBoxB, Random::Get(1, 4));
             
@@ -1076,7 +1087,7 @@ bool GSeedStepARecipeWorkSpace::Bake(std::vector<GLoop> &pResult, std::string &p
             
             // source b after
             if (aContract.mSecondSourceEnabled == true) {
-                if (aContract.mSecondSourceMode == LoopSecondSourceMode::kPermute) {
+                if (aContract.mSecondSourceMode == LoopAdditionalSourceMode::kPermute) {
                     if (aContract.mPermuteConsumeOrder_SourceB == SeedConsumeOrder::kAfterSBox) {
                         aComposerPermute.MixBuffer(aContract.mSourceB).Offset().Expand(50, true);
                     }

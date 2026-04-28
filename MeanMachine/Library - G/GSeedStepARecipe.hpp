@@ -38,8 +38,8 @@ enum class SeedConsumeOrder : std::uint8_t {
 enum class LoopSBoxBehavior : std::uint8_t {
     kInv = 0,
     kMixWithLoopIndex = 1,
-    kPassSelfThrough = 2,
-    
+    kPassSelfThroughLowBit = 2,
+    kPassSelfThroughHighBit = 2,
 };
 
 enum class LoopSaltBehavior : std::uint8_t {
@@ -47,12 +47,13 @@ enum class LoopSaltBehavior : std::uint8_t {
     kLoopIndex = 1,
     kSourceA = 2,
     kSourceB = 3,
-    kValue = 4,
-    kCarry = 5
+    kSourceC = 4,
+    kValue = 5,
+    kCarry = 6
 };
 
-enum class LoopSecondSourceMode : std::uint8_t {
-    kInv = 0, // not enabled
+enum class LoopAdditionalSourceMode : std::uint8_t {
+    kInv = 0,
     kValue = 1,
     kCarry = 2,
     kPermute = 3
@@ -64,6 +65,7 @@ struct GSeedStepARecipeLoopContract {
     SeedConsumeOrder                        mValueConsumeOrder_Carry;
     SeedConsumeOrder                        mValueConsumeOrder_SourceA;
     SeedConsumeOrder                        mValueConsumeOrder_SourceB;
+    SeedConsumeOrder                        mValueConsumeOrder_SourceC;
     SeedConsumeOrder                        mValueConsumeOrder_Salt;
     
     bool                                    mCarryEnabled;
@@ -71,6 +73,7 @@ struct GSeedStepARecipeLoopContract {
     LoopSBoxBehavior                        mCarrySBoxBehavior;
     SeedConsumeOrder                        mCarryConsumeOrder_Value;
     SeedConsumeOrder                        mCarryConsumeOrder_SourceB;
+    SeedConsumeOrder                        mCarryConsumeOrder_SourceC;
     SeedConsumeOrder                        mCarryConsumeOrder_Salt;
     
     bool                                    mPermuteEnabled;
@@ -80,15 +83,32 @@ struct GSeedStepARecipeLoopContract {
     SeedConsumeOrder                        mPermuteConsumeOrder_Value;
     SeedConsumeOrder                        mPermuteConsumeOrder_Salt;
     SeedConsumeOrder                        mPermuteConsumeOrder_SourceB;
+    SeedConsumeOrder                        mPermuteConsumeOrder_SourceC;
     bool                                    mPermuteUseCarry;
     
+    bool                                    HasValueSourceA();
+    bool                                    HasValueSourceB();
+    bool                                    HasValueSourceC();
+    
+    bool                                    HasCarrySourceA();
+    bool                                    HasCarrySourceB();
+    bool                                    HasCarrySourceC();
+    
+    bool                                    HasPermuteSourceA();
+    bool                                    HasPermuteSourceB();
+    bool                                    HasPermuteSourceC();
+    
+    
     bool                                    mSecondSourceEnabled;
-    LoopSecondSourceMode                    mSecondSourceMode;
+    LoopAdditionalSourceMode                mSecondSourceMode;
     
     GSymbol                                 mValueSalt;
+    GSymbol                                 mValueSBoxA;
+    GSymbol                                 mValueSBoxB;
     
     GSymbol                                 mCarrySalt;
-    GSymbol                                 mCarrySBox;
+    GSymbol                                 mCarrySBoxA;
+    GSymbol                                 mCarrySBoxB;
     
     GSymbol                                 mPermuteSalt;
     GSymbol                                 mPermuteSBoxA;
@@ -96,23 +116,12 @@ struct GSeedStepARecipeLoopContract {
     
     GSymbol                                 mSourceA;
     GSymbol                                 mSourceB;
+    GSymbol                                 mSourceC;
     
     GSymbol                                 mDest;
     
     SeedLoopOrder                           mLoopOrder;
     
-    
-    
-    GSymbol                                 mValueTransformSBoxA;
-    GSymbol                                 mValueTransformSBoxB;
-    GSymbol                                 mValueTransformSBoxC;
-    GSymbol                                 mValueTransformSBoxD;
-    
-    bool                                    mValueTransformPlusA;
-    bool                                    mValueTransformPlusB;
-    bool                                    mValueTransformPlusC;
-    bool                                    mValueTransformPlusD;
-
 };
 
 struct GSeedStepARecipeWorkSpace {

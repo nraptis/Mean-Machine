@@ -30,6 +30,9 @@
 #include "GSimpleLoopExampleRecipe.hpp"
 #include "GSeedStepARecipe.hpp"
 #include "GTwistExpander.hpp"
+#include "SBoxAnalyzer.hpp"
+#include "SBoxMaterial.hpp"
+#include "SBoxGenerator.hpp"
 
 namespace {
 
@@ -192,6 +195,120 @@ void ExportSBoxesAsHeader() {
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
     
+    /*
+    SBoxGenerator aGen;
+     SBoxAnalyzer aAnalyzer;
+
+    std::uint8_t aSource[S_BLOCK];
+    for (int i=0;i<S_BLOCK;i++) {
+        aSource[i] = Random::Get(256);
+    }
+
+    ByteString aBoxA; aBoxA.Size(256); aBoxA.mLength = 256;
+    ByteString aBoxB; aBoxB.Size(256); aBoxB.mLength = 256;
+    ByteString aBoxC; aBoxC.Size(256); aBoxC.mLength = 256;
+    ByteString aBoxD; aBoxD.Size(256); aBoxD.mLength = 256;
+
+
+    aGen.Make(aSource, aBoxA.mData, aBoxB.mData, aBoxC.mData, aBoxD.mData);
+
+    ByteString aTest;
+    aTest.Size(256);
+
+    
+
+    std::vector<ByteString> aList;
+    aList.push_back(aBoxA);
+    aList.push_back(aBoxB);
+    aList.push_back(aBoxC);
+    aList.push_back(aBoxD);
+    for (int aBox=0;aBox<aList.size();aBox++) {
+        
+        aTest.Set(aList[aBox].mData, 256);
+        
+        int aDDTMax = aAnalyzer.ComputeDifferenceDistributionTableMax_256(aTest.mData, aTest.mLength);
+        int aWalsh = aAnalyzer.ComputeLinearCorrelationMax_256(aTest.mData, aTest.mLength);
+        int aMinComponentDegree = aAnalyzer.ComputeMinimumComponentAlgebraicDegree_256(aTest.mData, aTest.mLength);
+        int aMaxComponentDegree = aAnalyzer.ComputeMaximumComponentAlgebraicDegree_256(aTest.mData, aTest.mLength);
+        int aSacMaxBias = aAnalyzer.ComputeSacMaxBias_256(aTest.mData, aTest.mLength);
+        double aSacAverageBias = aAnalyzer.ComputeSacAverageBias_256(aTest.mData, aTest.mLength);
+        int aBicMaxBias = aAnalyzer.ComputeBicMaxBias_256(aTest.mData, aTest.mLength);
+        double aBicAverageBias = aAnalyzer.ComputeBicAverageBias_256(aTest.mData, aTest.mLength);
+        
+        
+        
+        printf("Hex Head %d: ", aBox);
+        for (int k = 0; k < 16; k++) {
+            printf("%02X ", aList[aBox].mData[k]);
+        }
+        printf("\n");
+        
+        printf("Final Box %d [%d, %d] (%d %d) (%f %d) [%f %d]\n", aBox,
+               aDDTMax, aWalsh, aMaxComponentDegree, aMinComponentDegree, aSacAverageBias, aSacMaxBias, aBicAverageBias, aBicMaxBias);
+        
+        
+    }
+    */
+     
+    /*
+    SBoxMaterial aMaterial;
+    SBoxAnalyzer aAnalyzer;
+
+    std::vector<std::vector<std::uint8_t>> aSBoxes = SBoxTables::Get();
+
+    auto aListOfBoxes = SBoxTables::Get();
+
+    int aChunksDone = 0;
+    for (auto &aSBox: aListOfBoxes) {
+        
+        
+        ByteString aByteString(aSBox);
+        int aDDTMax = aAnalyzer.ComputeDifferenceDistributionTableMax_256(aByteString.mData, aByteString.mLength);
+        int aWalsh = aAnalyzer.ComputeLinearCorrelationMax_256(aByteString.mData, aByteString.mLength);
+        int aMinComponentDegree = aAnalyzer.ComputeMinimumComponentAlgebraicDegree_256(aByteString.mData, aByteString.mLength);
+        int aMaxComponentDegree = aAnalyzer.ComputeMaximumComponentAlgebraicDegree_256(aByteString.mData, aByteString.mLength);
+        int aSacMaxBias = aAnalyzer.ComputeSacMaxBias_256(aByteString.mData, aByteString.mLength);
+        double aSacAverageBias = aAnalyzer.ComputeSacAverageBias_256(aByteString.mData, aByteString.mLength);
+        int aBicMaxBias = aAnalyzer.ComputeBicMaxBias_256(aByteString.mData, aByteString.mLength);
+        double aBicAverageBias = aAnalyzer.ComputeBicAverageBias_256(aByteString.mData, aByteString.mLength);
+
+        aChunksDone++;
+
+        if (aDDTMax <= 4) {
+            if (aWalsh <= 32) {
+            
+                if (aSacAverageBias <= 5.20) {
+                    if (aSacMaxBias <= 16) {
+                        
+                        if (aBicAverageBias <= 6.35) {
+                            
+                            if (aBicMaxBias <= 16) {
+                                
+                                // print first 16 entries as hex
+                                printf("SBox[%02d] head: ", aChunksDone);
+                                for (int k = 0; k < 16 && k < (int)aSBox.size(); k++) {
+                                    printf("%02X ", aByteString.mData[k]);
+                                }
+                                printf("\n");
+                                
+                                printf("done with chunk %d\n", (int)aChunksDone);
+                                printf("aSacAverageBias gate passed, %f\n", aSacAverageBias);
+                                printf("aBicAverageBias gate passed, %f\n", aBicAverageBias);
+                                printf("aSacMaxBias gate passed, %d\n", aSacMaxBias);
+                                printf("aBicMaxBias gate passed, %d\n", aBicMaxBias);
+                                printf("-----\n");
+                                
+                                //aMaterial.AddPasser(aByteString);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        }
+    */
+    
     
     if (IsRunningUnderXCTest()) { return; }
     
@@ -287,7 +404,7 @@ void ExportSBoxesAsHeader() {
     aExpander.mSeeder.AddAssignByteLine("aCarry", Random::Get(200000000));
     aExpander.mSeeder.AddAssignByteLine("aPermute", Random::Get(200000000));
     
-    aExpander.mNameBase = "FrodoShire";
+    aExpander.mNameBase = "Froyo";
     
     if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aErrorString) ||
         !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aErrorString) ||

@@ -166,9 +166,9 @@
     
     std::vector<std::string> expected = {
         "aWorkLaneAKeyA = aValue + 765U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aWorkLaneAKeyB = aValue + 432U;",
-        "if (aWorkLaneAKeyB >= S_BLOCK) { aWorkLaneAKeyB -= S_BLOCK; }",
+        "aWorkLaneAKeyB &= 0x1FFFU;",
         "aValue = aWorkLaneA[aWorkLaneAKeyA] + aWorkLaneA[aWorkLaneAKeyB];"
     };
     
@@ -249,7 +249,7 @@
     
     std::vector<std::string> expected = {
         "aWorkLaneAKeyA = i + 1U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aValue = aWorkLaneA[aWorkLaneAKeyA];"
     };
     
@@ -479,7 +479,7 @@
         "aValue = aWorkLaneAByteA + aWorkLaneB[aCarry];",
         "aValue = aSBoxA[aValue & 0xFFU];",
         "aWorkLaneAKeyA = aCarry + 21U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aValue += aWorkLaneA[aWorkLaneAKeyA] + aWorkLaneB[aCarry];",
     };
     
@@ -541,15 +541,15 @@
     
     std::vector<std::string> expected = {
         "aWorkLaneAKeyA = i + 20U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aWorkLaneAByteA = aWorkLaneA[aWorkLaneAKeyA] + 25U;",
         
         "aWorkLaneAKeyB = i + 120U;",
-        "if (aWorkLaneAKeyB >= S_BLOCK) { aWorkLaneAKeyB -= S_BLOCK; }",
+        "aWorkLaneAKeyB &= 0x1FFFU;",
         "aWorkLaneAByteB = aWorkLaneA[aWorkLaneAKeyB] + 125U;",
         
         "aWorkLaneAKeyC = i + 220U;",
-        "if (aWorkLaneAKeyC >= S_BLOCK) { aWorkLaneAKeyC -= S_BLOCK; }",
+        "aWorkLaneAKeyC &= 0x1FFFU;",
         "aWorkLaneAByteC = aWorkLaneA[aWorkLaneAKeyC] + 225U;",
         
         "aValue = (aWorkLaneAByteA ^ aWorkLaneAByteB) ^ aWorkLaneAByteC;",
@@ -624,9 +624,9 @@
         "aValue = aCarryByteA ^ aPermuteByteA;",
         "aValue = aSBoxA[aValue & 0xFFU];",
         "aWorkLaneAKeyA = aValue + 10U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aWorkLaneBKeyA = aValue + 20U;",
-        "if (aWorkLaneBKeyA >= S_BLOCK) { aWorkLaneBKeyA -= S_BLOCK; }",
+        "aWorkLaneBKeyA &= 0x1FFFU;",
         "aValue ^= aWorkLaneA[aWorkLaneAKeyA] ^ aWorkLaneB[aWorkLaneBKeyA];",
         "aValue = aSBoxB[aValue & 0xFFU];",
         "aValue ^= aCarry;"
@@ -760,10 +760,10 @@
     
     std::vector<std::string> expected = {
         "aWorkLaneAKeyA = aValue + 5U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aWorkLaneAByteA = aWorkLaneA[aWorkLaneAKeyA] + 7U;",
         "aWorkLaneAKeyB = aValue + 5U;",
-        "if (aWorkLaneAKeyB >= S_BLOCK) { aWorkLaneAKeyB -= S_BLOCK; }",
+        "aWorkLaneAKeyB &= 0x1FFFU;",
         "aWorkLaneAByteB = aWorkLaneA[aWorkLaneAKeyB] + 7U;",
         "aValue = aWorkLaneAByteA + aWorkLaneAByteB;",
     };
@@ -1031,7 +1031,7 @@
 
     std::vector<std::string> expected = {
         "aWorkLaneAKeyA = i + 112U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aSaltAKeyA = aWorkLaneA[aWorkLaneAKeyA] + 108U;",
         "aValue = aSaltA[aSaltAKeyA & 0x7FU];"
     };
@@ -1064,7 +1064,7 @@
 
     std::vector<std::string> expected = {
         "aWorkLaneAKeyA = i + " + std::to_string(aExpectedOffset) + "U;",
-        "if (aWorkLaneAKeyA >= S_BLOCK) { aWorkLaneAKeyA -= S_BLOCK; }",
+        "aWorkLaneAKeyA &= 0x1FFFU;",
         "aSaltAKeyA = aWorkLaneA[aWorkLaneAKeyA] + 108U;",
         "aValue = aSaltA[aSaltAKeyA & 0x7FU];"
     };
@@ -1097,14 +1097,14 @@
 
     std::vector<std::string> expected = {
         "aValueNibbleA = aValue & 255U;",
-        "aValueNibbleB = (static_cast<std::uint32_t>(aValue) >> 8U) & 255U;",
-        "aValueNibbleC = (static_cast<std::uint32_t>(aValue) >> 16U) & 255U;",
-        "aValueNibbleD = (static_cast<std::uint32_t>(aValue) >> 24U) & 255U;",
+        "aValueNibbleB = (aValue >> 8U) & 255U;",
+        "aValueNibbleC = aValueNibbleB;",
+        "aValueNibbleD = aValueNibbleA;",
         "aValueNibbleA = aSBoxA[(aValueNibbleA ^ aValueNibbleC) & 0xFFU];",
         "aValueNibbleB = aSBoxB[(aValueNibbleB ^ aValueNibbleD) & 0xFFU];",
         "aValueNibbleC = aSBoxC[(aValueNibbleC ^ aValueNibbleA) & 0xFFU];",
         "aValueNibbleD = aSBoxD[(aValueNibbleD ^ aValueNibbleB) & 0xFFU];",
-        "aValue = ((aValueNibbleA | (static_cast<std::uint32_t>(aValueNibbleB) << 8U)) | (static_cast<std::uint32_t>(aValueNibbleC) << 16U)) |\n\t\t(static_cast<std::uint32_t>(aValueNibbleD) << 24U);"
+        "aValue = aValueNibbleA | (static_cast<std::uint16_t>(aValueNibbleB) << 8U);"
     };
 
     if (!StatementChecker::Eval(aStatements, expected)) {
@@ -1141,14 +1141,14 @@
 
     std::vector<std::string> expected = {
         "aValueNibbleA = aValue & 255U;",
-        "aValueNibbleB = (static_cast<std::uint32_t>(aValue) >> 8U) & 255U;",
-        "aValueNibbleC = (static_cast<std::uint32_t>(aValue) >> 16U) & 255U;",
-        "aValueNibbleD = (static_cast<std::uint32_t>(aValue) >> 24U) & 255U;",
+        "aValueNibbleB = (aValue >> 8U) & 255U;",
+        "aValueNibbleC = aValueNibbleB;",
+        "aValueNibbleD = aValueNibbleA;",
         "aValueNibbleC = aSBoxB[(aValueNibbleC + aValueNibbleA) & 0xFFU];",
         "aValueNibbleD = aSBoxA[(aValueNibbleD ^ aValueNibbleB) & 0xFFU];",
         "aValueNibbleA = aSBoxC[(aValueNibbleA + aValueNibbleD) & 0xFFU];",
         "aValueNibbleB = aSBoxD[(aValueNibbleB ^ aValueNibbleC) & 0xFFU];",
-        "aValue = ((aValueNibbleA | (static_cast<std::uint32_t>(aValueNibbleB) << 8U)) | (static_cast<std::uint32_t>(aValueNibbleC) << 16U)) |\n\t\t(static_cast<std::uint32_t>(aValueNibbleD) << 24U);"
+        "aValue = aValueNibbleA | (static_cast<std::uint16_t>(aValueNibbleB) << 8U);"
     };
 
     if (!StatementChecker::Eval(aStatements, expected)) {
@@ -1173,8 +1173,8 @@
     }
 
     std::vector<std::string> expected = {
-        "aPermute = aSBoxA[aPermute & 0xFFU] | (static_cast<std::uint32_t>(aPermute) << 8U);",
-        "aPermute = RotL32(aPermute, 3U);"
+        "aPermute = aSBoxA[aPermute & 0xFFU] | (static_cast<std::uint16_t>(aPermute) << 8U);",
+        "aPermute = RotL16(aPermute, 3U);"
     };
 
     if (!StatementChecker::Eval(aStatements, expected)) {

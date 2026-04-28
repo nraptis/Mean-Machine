@@ -93,7 +93,7 @@ public:
     // before this statement
     // we need:
     // pIndexOracle = pIndex + pOffset;
-    // if (pIndexOracle >= S_BLOCK) { pIndexOracle -= S_BLOCK; }
+    // pIndexOracle &= 0x1FFFU;
     //
     // then, the inbuilt twist library does not do the if-statement injection, or the extra assignment.
     //

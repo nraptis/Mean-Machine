@@ -18,6 +18,12 @@ inline std::uint8_t RotL8(std::uint8_t pValue, std::uint8_t pAmount) {
     return static_cast<std::uint8_t>((pValue << a) | (pValue >> (8U - a)));
 }
 
+inline std::uint16_t RotL16(std::uint16_t pValue, std::uint16_t pAmount) {
+    std::uint16_t a = static_cast<std::uint16_t>(pAmount & 15U);
+    if (a == 0U) { return pValue; }
+    return static_cast<std::uint16_t>((pValue << a) | (pValue >> (16U - a)));
+}
+
 inline std::uint32_t RotL32(std::uint32_t pValue, std::uint32_t pAmount) {
     std::uint32_t a = pAmount & 31U;
     if (a == 0U) { return pValue; }
