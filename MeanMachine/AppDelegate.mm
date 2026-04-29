@@ -12,27 +12,23 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <string>
 #include <vector>
 #include <unordered_set>
-
-
 #include "TwistWorkSpace.hpp"
-#include "TwistSeeder.hpp"
-#include "GStatementRecipe.hpp"
 #include "TwistFunctional.hpp"
 #include "GTermExpander.hpp"
 #include "FastMatrix8.hpp"
 #include "Random.hpp"
-#include "GSimpleLoopExampleRecipe.hpp"
-#include "GSeedStepARecipe.hpp"
 #include "GTwistExpander.hpp"
-#include "SBoxAnalyzer.hpp"
-#include "SBoxMaterial.hpp"
-#include "SBoxGenerator.hpp"
+#include "TwistCryptoScoring.hpp"
+#include "TwistCryptoGenerator.hpp"
+#include "GSeedWorkerBuilder.hpp"
+#include "GSeedDeriveMaterial.hpp"
 
 namespace {
 
@@ -44,8 +40,10 @@ bool IsRunningUnderXCTest() {
     (std::getenv("XCTestBundlePath") != nullptr);
 }
 
-
 }
+
+void TwistWorkSpaceBindExternalBuffers(std::uint8_t *pSource,
+                                       std::uint8_t *pDest);
 
 /*
 namespace {
@@ -195,64 +193,149 @@ void ExportSBoxesAsHeader() {
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
     
+    TwistCryptoGenerator aGen;
+    TwistCryptoScoring aAnalyzer;
+
+    std::uint8_t aSource[S_BLOCK];
+    for (int i=0;i<S_BLOCK;i++) {
+        aSource[i] = Random::Get(256);
+    }
+    
+    std::uint8_t aBox1[256];
+    std::uint8_t aBox2[256];
+    std::uint8_t aBox3[256];
+    std::uint8_t aBox4[256];
+    aGen.Make(aSource, aBox1, aBox2, aBox3, aBox4);
+    
+    std::uint8_t aSalt1[128];
+    std::uint8_t aSalt2[128];
+    std::uint8_t aSalt3[128];
+    std::uint8_t aSalt4[128];
+    
+    aGen.Salt(aSource,
+              aSalt1,
+              aSalt2,
+              aSalt3,
+              aSalt4,
+              aBox1,
+              aBox2,
+              aBox3,
+              aBox4);
+    
+    std::uint8_t aBox5[256];
+    std::uint8_t aBox6[256];
+    std::uint8_t aBox7[256];
+    std::uint8_t aBox8[256];
+    aGen.Make(aSource, aBox5, aBox6, aBox7, aBox8);
+    
+    std::uint8_t aSalt5[128];
+    std::uint8_t aSalt6[128];
+    std::uint8_t aSalt7[128];
+    std::uint8_t aSalt8[128];
+    
+    aGen.Salt(aSource,
+              aSalt5,
+              aSalt6,
+              aSalt7,
+              aSalt8,
+              aSalt1,
+              aSalt2,
+              aSalt3,
+              aSalt4,
+              aBox1,
+              aBox2,
+              aBox3,
+              aBox4,
+              aBox5,
+              aBox6,
+              aBox7,
+              aBox8);
+    printf("slow crunch... done\n");
+    
+    
     /*
-    SBoxGenerator aGen;
-     SBoxAnalyzer aAnalyzer;
+    TwistCryptoGenerator aGen;
+     TwistCryptoScoring aAnalyzer;
 
     std::uint8_t aSource[S_BLOCK];
     for (int i=0;i<S_BLOCK;i++) {
         aSource[i] = Random::Get(256);
     }
 
-    ByteString aBoxA; aBoxA.Size(256); aBoxA.mLength = 256;
-    ByteString aBoxB; aBoxB.Size(256); aBoxB.mLength = 256;
-    ByteString aBoxC; aBoxC.Size(256); aBoxC.mLength = 256;
-    ByteString aBoxD; aBoxD.Size(256); aBoxD.mLength = 256;
-
-
-    aGen.Make(aSource, aBoxA.mData, aBoxB.mData, aBoxC.mData, aBoxD.mData);
-
-    ByteString aTest;
-    aTest.Size(256);
-
+    
+    std::uint8_t aBox1[256];
+    std::uint8_t aBox2[256];
+    std::uint8_t aBox3[256];
+    std::uint8_t aBox4[256];
     
 
-    std::vector<ByteString> aList;
-    aList.push_back(aBoxA);
-    aList.push_back(aBoxB);
-    aList.push_back(aBoxC);
-    aList.push_back(aBoxD);
+    aGen.Make(aSource, aBox1, aBox2, aBox3, aBox4);
+    
+    
+    std::uint8_t aBox5[256];
+    std::uint8_t aBox6[256];
+    std::uint8_t aBox7[256];
+    std::uint8_t aBox8[256];
+    
+    aGen.Make(aSource,
+              aBox5, aBox6, aBox7, aBox8,
+              aBox1, aBox2, aBox3, aBox4);
+    
+    printf("\n================ S-BOX SET 1 ================\n");
+
+    aAnalyzer.PrintBox_256("Box1", aBox1);
+    aAnalyzer.PrintBox_256("Box2", aBox2);
+    aAnalyzer.PrintBox_256("Box3", aBox3);
+    aAnalyzer.PrintBox_256("Box4", aBox4);
+
+    printf("\n================ S-BOX SET 2 ================\n");
+
+    aAnalyzer.PrintBox_256("Box5", aBox5);
+    aAnalyzer.PrintBox_256("Box6", aBox6);
+    aAnalyzer.PrintBox_256("Box7", aBox7);
+    aAnalyzer.PrintBox_256("Box8", aBox8);
+
+    printf("\n=============================================\n");
+
+    printf("\n=============================================\n");
+    printf("\n=============================================\n");
+    */
+    
+    /*
+    
+    std::vector<std::uint8_t *> aList;
+    aList.push_back(aBox1);
+    aList.push_back(aBox2);
+    aList.push_back(aBox3);
+    aList.push_back(aBox4);
+    
     for (int aBox=0;aBox<aList.size();aBox++) {
         
-        aTest.Set(aList[aBox].mData, 256);
+        std::uint8_t *aData = aList[aBox];
+        int aLength = 256;
         
-        int aDDTMax = aAnalyzer.ComputeDifferenceDistributionTableMax_256(aTest.mData, aTest.mLength);
-        int aWalsh = aAnalyzer.ComputeLinearCorrelationMax_256(aTest.mData, aTest.mLength);
-        int aMinComponentDegree = aAnalyzer.ComputeMinimumComponentAlgebraicDegree_256(aTest.mData, aTest.mLength);
-        int aMaxComponentDegree = aAnalyzer.ComputeMaximumComponentAlgebraicDegree_256(aTest.mData, aTest.mLength);
-        int aSacMaxBias = aAnalyzer.ComputeSacMaxBias_256(aTest.mData, aTest.mLength);
-        double aSacAverageBias = aAnalyzer.ComputeSacAverageBias_256(aTest.mData, aTest.mLength);
-        int aBicMaxBias = aAnalyzer.ComputeBicMaxBias_256(aTest.mData, aTest.mLength);
-        double aBicAverageBias = aAnalyzer.ComputeBicAverageBias_256(aTest.mData, aTest.mLength);
+        int aDDTMax = aAnalyzer.ComputeDifferenceDistributionTableMax_256(aByteString.mData, aByteString.mLength);
+        int aWalsh = aAnalyzer.ComputeLinearCorrelationMax_256(aByteString.mData, aByteString.mLength);
+        int aMinComponentDegree = aAnalyzer.ComputeMinimumComponentAlgebraicDegree_256(aByteString.mData, aByteString.mLength);
+        int aMaxComponentDegree = aAnalyzer.ComputeMaximumComponentAlgebraicDegree_256(aByteString.mData, aByteString.mLength);
+        int aSacMaxBias = aAnalyzer.ComputeSacMaxBias_256(aByteString.mData, aByteString.mLength);
+        float aSacAverageBias = aAnalyzer.ComputeSacAverageBias_256(aByteString.mData, aByteString.mLength);
+        int aBicMaxBias = aAnalyzer.ComputeBicMaxBias_256(aByteString.mData, aByteString.mLength);
+        float aBicAverageBias = aAnalyzer.ComputeBicAverageBias_256(aByteString.mData, aByteString.mLength);
         
-        
-        
-        printf("Hex Head %d: ", aBox);
-        for (int k = 0; k < 16; k++) {
-            printf("%02X ", aList[aBox].mData[k]);
-        }
-        printf("\n");
-        
-        printf("Final Box %d [%d, %d] (%d %d) (%f %d) [%f %d]\n", aBox,
-               aDDTMax, aWalsh, aMaxComponentDegree, aMinComponentDegree, aSacAverageBias, aSacMaxBias, aBicAverageBias, aBicMaxBias);
-        
+        printf("Final Box %d (%d %d) [%d + %d] (%f| %d) [%f| %d]\n", aBox,
+               aDDTMax, aWalsh,
+               aMinComponentDegree, aMaxComponentDegree,
+               aSacAverageBias, aSacMaxBias,
+               aBicAverageBias, aBicMaxBias);
         
     }
+    
     */
      
     /*
+    
     SBoxMaterial aMaterial;
-    SBoxAnalyzer aAnalyzer;
 
     std::vector<std::vector<std::uint8_t>> aSBoxes = SBoxTables::Get();
 
@@ -271,12 +354,12 @@ void ExportSBoxesAsHeader() {
         double aSacAverageBias = aAnalyzer.ComputeSacAverageBias_256(aByteString.mData, aByteString.mLength);
         int aBicMaxBias = aAnalyzer.ComputeBicMaxBias_256(aByteString.mData, aByteString.mLength);
         double aBicAverageBias = aAnalyzer.ComputeBicAverageBias_256(aByteString.mData, aByteString.mLength);
-
+        
         aChunksDone++;
-
+        
         if (aDDTMax <= 4) {
             if (aWalsh <= 32) {
-            
+                
                 if (aSacAverageBias <= 5.20) {
                     if (aSacMaxBias <= 16) {
                         
@@ -305,58 +388,146 @@ void ExportSBoxesAsHeader() {
                 }
             }
         }
-
-        }
+    }
+    
     */
+    
     
     
     if (IsRunningUnderXCTest()) { return; }
     
-    
-    std::string aErrorString;
-    
-    
-    GBatch aBatch;
-    GSimpleLoopExampleRecipe aRecipeSimple;
-    if (!aRecipeSimple.Plan(aErrorString)) {
-        printf("{real seeder flow} simple recipe plan failed: %s\n", aErrorString.c_str());
-        return;
-    }
-    
-    bool aOrderValue[4];
-    bool aOrderCarry[4];
-    
-    memset(aOrderValue, 0, sizeof(aOrderValue));
-    memset(aOrderCarry, 0, sizeof(aOrderValue));
-    
-    if (!aRecipeSimple.Bake(aBatch.mLoops,
-                            aOrderValue,
-                            true,
-                            aOrderCarry,
-                            true,
-                            aErrorString)) {
-        printf("{real seeder flow} simple recipe bake failed: %s\n", aErrorString.c_str());
-        return;
-    }
-    
-    printf("Getting Ready A...\n");
-    printf("Getting Ready B...\n");
-    
-    
-    printf("%s\n", aBatch.ToPrettyString().c_str());
-    
-    printf("So Steady A...\n");
-    printf("So Steady B...\n");
-    
-    
-    
-    
-    
-    
-    GSeedStepARecipeWorkSpace aRecipeSpace;
-    
 
-    GBatch aBatch1;
+    
+    
+    /*
+    
+    std::string aError;
+    GSeedWorkerBuilder aSeedWorkerBuilder;
+    TwistProgramBranch aSeedBranch;
+
+    if (!aSeedWorkerBuilder.BuildPhaseA(aSeedBranch, aError)) {
+        printf("error on GSeedWorkerBuilder\n");
+        printf("%s\n", aError.c_str());
+        return;
+    }
+
+    printf("\n===== Seed Branch (C++) =====\n");
+    const std::vector<TwistProgramBranchStep> &aSteps = aSeedBranch.GetSteps();
+    if (aSteps.empty()) {
+        for (const std::string &aLine : aSeedBranch.GetStringLines()) {
+            printf("%s\n", aLine.c_str());
+        }
+        for (const std::string &aBatchJson : aSeedBranch.GetBatchJsonText()) {
+            GBatch aBatch;
+            std::string aBatchError;
+            if (!GBatch::FromJson(aBatchJson, &aBatch, &aBatchError)) {
+                printf("error parsing seed branch batch JSON\n");
+                printf("%s\n", aBatchError.c_str());
+                return;
+            }
+            const std::string aScopeText = aBatch.BuildCppScopeBlock(&aBatchError, false);
+            if (aScopeText.empty()) {
+                printf("error generating seed branch C++ scope block\n");
+                printf("%s\n", aBatchError.c_str());
+                return;
+            }
+            printf("%s\n", aScopeText.c_str());
+        }
+    } else {
+        for (const TwistProgramBranchStep &aStep : aSteps) {
+            if (aStep.mType == TwistProgramBranchStepType::kLine) {
+                if (aStep.mIndex >= aSeedBranch.GetStringLines().size()) {
+                    printf("error: seed branch line step index out of range\n");
+                    return;
+                }
+                printf("%s\n", aSeedBranch.GetStringLines()[aStep.mIndex].c_str());
+                continue;
+            }
+
+            if (aStep.mType == TwistProgramBranchStepType::kBatch) {
+                if (aStep.mIndex >= aSeedBranch.GetBatchJsonText().size()) {
+                    printf("error: seed branch batch step index out of range\n");
+                    return;
+                }
+
+                GBatch aBatch;
+                std::string aBatchError;
+                if (!GBatch::FromJson(aSeedBranch.GetBatchJsonText()[aStep.mIndex], &aBatch, &aBatchError)) {
+                    printf("error parsing seed branch batch JSON\n");
+                    printf("%s\n", aBatchError.c_str());
+                    return;
+                }
+                const std::string aScopeText = aBatch.BuildCppScopeBlock(&aBatchError, false);
+                if (aScopeText.empty()) {
+                    printf("error generating seed branch C++ scope block\n");
+                    printf("%s\n", aBatchError.c_str());
+                    return;
+                }
+                printf("%s\n", aScopeText.c_str());
+                continue;
+            }
+
+            printf("error: invalid seed branch step type\n");
+            return;
+        }
+    }
+    printf("===== End Seed Branch =====\n\n");
+
+    std::uint8_t aSource[S_BLOCK];
+    for (int aIndex = 0; aIndex < S_BLOCK; aIndex++) {
+        aSource[aIndex] = static_cast<std::uint8_t>(Random::Get(256));
+    }
+
+    TwistWorkSpace aWorkspace;
+    std::memcpy(aWorkspace.mExpandLaneA, aSource, static_cast<std::size_t>(S_BLOCK));
+    TwistWorkSpaceBindExternalBuffers(aSource, nullptr);
+
+    if (!aSeedWorkerBuilder.ExecuteBranch(&aWorkspace, aSeedBranch, aError)) {
+        printf("error on ExecuteBranch\n");
+        printf("%s\n", aError.c_str());
+        return;
+    }
+
+    printf("GSeedWorkerBuilder demo completed.\n");
+    
+    */
+    
+    
+    
+    //aWBWB.BuildPhaseA(aSeedBranch, <#std::string &pError#>)
+    
+    GSeedDeriveMaterial aDer;
+    std::string aError;
+    GTwistExpander aExpander;
+    
+    if (!aDer.PlanPhaseA(aError)) {
+        printf("error on GSeedDeriveMaterial.PlanPhaseA\n");
+        printf("%s\n", aError.c_str());
+        return;
+    }
+    
+    if (!aDer.BuildPhaseA(aExpander.mSeeder, aError)) {
+        printf("error on GSeedDeriveMaterial.BuildPhaseA\n");
+        printf("%s\n", aError.c_str());
+        return;
+    }
+    
+    if (//!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
+        //!aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError) ||
+        !aExpander.ExportCPPProjectRoot("aaa/bbb/ccc", &aError) ||
+        !aExpander.ExportJSONProjectRoot("aaa/bbb/ccc", &aError)) {
+        printf("expander export failed: %s\n", aError.c_str());
+        return;
+    }
+    
+    printf("process finished\n");
+    
+    /*
+    if (!aSeedWorkerBuilder.BuildPhaseA(aSeedBranch, aError)) {
+        
+    }
+    
+    
     if (!aRecipeSpace.Plan(false, aErrorString)) {
         printf("{real seeder flow} stepA pass1 plan failed: %s\n", aErrorString.c_str());
         return;
@@ -414,6 +585,7 @@ void ExportSBoxesAsHeader() {
         return;
     }
     
+    */
     
 }
 

@@ -16,6 +16,7 @@
 struct GStatement;
 struct GLoop;
 
+
 struct GScopeRules {
     std::unordered_map<std::string, int>        mReadPreferredMinimum;
     std::unordered_map<std::string, int>        mReadPreferredMaximum;

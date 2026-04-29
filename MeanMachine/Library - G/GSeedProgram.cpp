@@ -7,6 +7,7 @@
 
 #include "GJson.hpp"
 #include "TwistFunctional.hpp"
+#include "TwistMix16.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -203,6 +204,7 @@ std::string ExprTypeToken(const GExprType pType) {
         case GExprType::kShiftL: return "shiftl";
         case GExprType::kShiftR: return "shiftr";
         case GExprType::kOr: return "or";
+        case GExprType::kMix161: return "mix161";
         default: return "invalid";
     }
 }
@@ -225,6 +227,7 @@ bool ExprTypeFromToken(const std::string &pToken,
     if (pToken == "shiftl") { *pType = GExprType::kShiftL; return true; }
     if (pToken == "shiftr") { *pType = GExprType::kShiftR; return true; }
     if (pToken == "or") { *pType = GExprType::kOr; return true; }
+    if (pToken == "mix161") { *pType = GExprType::kMix161; return true; }
     return false;
 }
 
@@ -267,6 +270,105 @@ bool AssignTypeFromToken(const std::string &pToken,
     if (pToken == "add_assign") { *pType = GAssignType::kAddAssign; return true; }
     if (pToken == "xor_assign") { *pType = GAssignType::kXorAssign; return true; }
     return false;
+}
+
+std::string Mix161TypeToken(const Mix161Type pType) {
+    switch (pType) {
+        case Mix161Type::kMix161_000: return "kMix161_000";
+        case Mix161Type::kMix161_001: return "kMix161_001";
+        case Mix161Type::kMix161_002: return "kMix161_002";
+        case Mix161Type::kMix161_003: return "kMix161_003";
+        case Mix161Type::kMix161_004: return "kMix161_004";
+        case Mix161Type::kMix161_005: return "kMix161_005";
+        case Mix161Type::kMix161_006: return "kMix161_006";
+        case Mix161Type::kMix161_007: return "kMix161_007";
+        default: return "kInv";
+    }
+}
+
+bool Mix161TypeFromToken(const std::string &pToken,
+                         Mix161Type *pType) {
+    if (pType == NULL) {
+        return false;
+    }
+    if (pToken == "kMix161_000") { *pType = Mix161Type::kMix161_000; return true; }
+    if (pToken == "kMix161_001") { *pType = Mix161Type::kMix161_001; return true; }
+    if (pToken == "kMix161_002") { *pType = Mix161Type::kMix161_002; return true; }
+    if (pToken == "kMix161_003") { *pType = Mix161Type::kMix161_003; return true; }
+    if (pToken == "kMix161_004") { *pType = Mix161Type::kMix161_004; return true; }
+    if (pToken == "kMix161_005") { *pType = Mix161Type::kMix161_005; return true; }
+    if (pToken == "kMix161_006") { *pType = Mix161Type::kMix161_006; return true; }
+    if (pToken == "kMix161_007") { *pType = Mix161Type::kMix161_007; return true; }
+    return false;
+}
+
+std::string Mix161CallToken(const Mix161Type pType) {
+    switch (pType) {
+        case Mix161Type::kMix161_000: return "TwistMix16::Mix161_000";
+        case Mix161Type::kMix161_001: return "TwistMix16::Mix161_001";
+        case Mix161Type::kMix161_002: return "TwistMix16::Mix161_002";
+        case Mix161Type::kMix161_003: return "TwistMix16::Mix161_003";
+        case Mix161Type::kMix161_004: return "TwistMix16::Mix161_004";
+        case Mix161Type::kMix161_005: return "TwistMix16::Mix161_005";
+        case Mix161Type::kMix161_006: return "TwistMix16::Mix161_006";
+        case Mix161Type::kMix161_007: return "TwistMix16::Mix161_007";
+        default: return "";
+    }
+}
+
+std::uint16_t EvaluateMix161Local(const Mix161Type pType,
+                                  const std::uint16_t pValue,
+                                  const std::uint8_t *pSBox) {
+    if (pSBox == NULL) {
+        return pValue;
+    }
+
+    const int aIndex = static_cast<int>(pType) - 1;
+    if (aIndex < 0 || aIndex > 11) {
+        return pValue;
+    }
+
+    struct LocalConfig {
+        bool mOracleAUsesRotate = false;
+        bool mOracleBUsesRotate = false;
+        bool mUseAddIndex = false;
+        int  mTempRotateAmount = 3;
+        bool mByteAUsesRotatedTemp = false;
+    };
+
+    static const LocalConfig kConfigs[12] = {
+        { true,  false, false, 3, false }, // 000
+        { true,  false, false, 3, true  }, // 001
+        { true,  false, false, 5, false }, // 002
+        { true,  false, false, 5, true  }, // 003
+        { true,  false, true,  3, false }, // 004
+        { true,  false, true,  3, true  }, // 005
+        { true,  false, true,  5, false }, // 006
+        { true,  false, true,  5, true  }, // 007
+        { false, true,  false, 3, false }, // 008
+        { false, true,  false, 5, false }, // 009
+        { false, true,  true,  3, false }, // 010
+        { false, true,  true,  5, false }, // 011
+    };
+
+    const LocalConfig &aConfig = kConfigs[aIndex];
+
+    std::uint8_t aByteA = static_cast<std::uint8_t>(pValue & 0xFFU);
+    std::uint8_t aByteB = static_cast<std::uint8_t>((pValue >> 8U) & 0xFFU);
+
+    const std::uint8_t aOracleA = aConfig.mOracleAUsesRotate ? RotL8(aByteA, 1U) : aByteA;
+    const std::uint8_t aOracleB = aConfig.mOracleBUsesRotate ? RotL8(aByteB, 1U) : aByteB;
+    const std::uint8_t aIndexByte = aConfig.mUseAddIndex
+        ? static_cast<std::uint8_t>((aOracleA + aOracleB) & 0xFFU)
+        : static_cast<std::uint8_t>((aOracleA ^ aOracleB) & 0xFFU);
+
+    std::uint8_t aTemp = pSBox[aIndexByte];
+    aTemp = RotL8(aTemp, static_cast<std::uint8_t>(aConfig.mTempRotateAmount));
+
+    aByteB ^= aTemp;
+    aByteA ^= aConfig.mByteAUsesRotatedTemp ? RotL8(aTemp, 1U) : aTemp;
+
+    return static_cast<std::uint16_t>(aByteA | (static_cast<std::uint16_t>(aByteB) << 8U));
 }
 
 bool ParseInt64(const JsonValue &pValue,
@@ -352,6 +454,12 @@ void CollectVariablesFromExpr(const GExpr &pExpr,
         }
         return;
     }
+    if (pExpr.mType == GExprType::kMix161) {
+        if (pExpr.mA != nullptr) {
+            CollectVariablesFromExpr(*pExpr.mA, pNames);
+        }
+        return;
+    }
     if (pExpr.mA != nullptr) {
         CollectVariablesFromExpr(*pExpr.mA, pNames);
     }
@@ -375,6 +483,15 @@ void CollectSlotsFromExpr(const GExpr &pExpr,
         }
         return;
     }
+    if (pExpr.mType == GExprType::kMix161) {
+        if (pExpr.mMix161SBoxSymbol.IsBuf()) {
+            AppendUnique(pSlots, pExpr.mMix161SBoxSymbol.mSlot);
+        }
+        if (pExpr.mA != nullptr) {
+            CollectSlotsFromExpr(*pExpr.mA, pSlots);
+        }
+        return;
+    }
     if (pExpr.mA != nullptr) {
         CollectSlotsFromExpr(*pExpr.mA, pSlots);
     }
@@ -389,6 +506,11 @@ int CountExprReads(const GExpr &pExpr,
     if ((pExpr.mType == GExprType::kSymbol || pExpr.mType == GExprType::kRead) &&
         pExpr.mSymbol.IsBuf() &&
         pExpr.mSymbol.mSlot == pSlot) {
+        ++aCount;
+    }
+    if ((pExpr.mType == GExprType::kMix161) &&
+        pExpr.mMix161SBoxSymbol.IsBuf() &&
+        (pExpr.mMix161SBoxSymbol.mSlot == pSlot)) {
         ++aCount;
     }
     if (pExpr.mIndex != nullptr) {
@@ -520,6 +642,14 @@ bool IsSBoxSlot(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSBoxB:
         case TwistWorkSpaceSlot::kSBoxC:
         case TwistWorkSpaceSlot::kSBoxD:
+        case TwistWorkSpaceSlot::kDerivedSBoxA:
+        case TwistWorkSpaceSlot::kDerivedSBoxB:
+        case TwistWorkSpaceSlot::kDerivedSBoxC:
+        case TwistWorkSpaceSlot::kDerivedSBoxD:
+        case TwistWorkSpaceSlot::kDerivedSBoxE:
+        case TwistWorkSpaceSlot::kDerivedSBoxF:
+        case TwistWorkSpaceSlot::kDerivedSBoxG:
+        case TwistWorkSpaceSlot::kDerivedSBoxH:
             return true;
         default:
             return false;
@@ -532,6 +662,14 @@ bool IsSaltSlot(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB:
         case TwistWorkSpaceSlot::kSaltC:
         case TwistWorkSpaceSlot::kSaltD:
+        case TwistWorkSpaceSlot::kDerivedSaltA:
+        case TwistWorkSpaceSlot::kDerivedSaltB:
+        case TwistWorkSpaceSlot::kDerivedSaltC:
+        case TwistWorkSpaceSlot::kDerivedSaltD:
+        case TwistWorkSpaceSlot::kDerivedSaltE:
+        case TwistWorkSpaceSlot::kDerivedSaltF:
+        case TwistWorkSpaceSlot::kDerivedSaltG:
+        case TwistWorkSpaceSlot::kDerivedSaltH:
             return true;
         default:
             return false;
@@ -673,6 +811,10 @@ JsonValue ExprToJsonValue(const GExpr &pExpr) {
         aObject["read_wrap_oracle_symbol"] = SymbolToJsonValue(pExpr.mReadWrapOracleSymbol);
         aObject["read_wrap_offset"] = JsonValue::Number(static_cast<double>(pExpr.mReadWrapOffset));
     }
+    if (pExpr.mType == GExprType::kMix161) {
+        aObject["mix161_type"] = JsonValue::String(Mix161TypeToken(pExpr.mMix161Type));
+        aObject["mix161_sbox_symbol"] = SymbolToJsonValue(pExpr.mMix161SBoxSymbol);
+    }
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
@@ -810,6 +952,34 @@ bool ExprFromJsonValue(const JsonValue &pValue,
                 case GExprType::kShiftR: aExpr = GExpr::ShiftR(aLeft, aRight); break;
                 default: break;
             }
+            break;
+        }
+        case GExprType::kMix161: {
+            const JsonValue *aValue = pValue.find("a");
+            const JsonValue *aMixType = pValue.find("mix161_type");
+            const JsonValue *aSBox = pValue.find("mix161_sbox_symbol");
+            if ((aValue == NULL) || (aMixType == NULL) || !aMixType->is_string() || (aSBox == NULL)) {
+                SetError(pError, "Mix161 expression was incomplete.");
+                return false;
+            }
+
+            GExpr aValueExpr;
+            if (!ExprFromJsonValue(*aValue, &aValueExpr, pError)) {
+                return false;
+            }
+
+            Mix161Type aParsedMixType = Mix161Type::kInv;
+            if (!Mix161TypeFromToken(aMixType->as_string(), &aParsedMixType)) {
+                SetError(pError, "Mix161 type token was invalid.");
+                return false;
+            }
+
+            GSymbol aParsedSBox;
+            if (!SymbolFromJsonValue(*aSBox, &aParsedSBox, pError)) {
+                return false;
+            }
+
+            aExpr = GExpr::Mix161(aValueExpr, aParsedMixType, aParsedSBox);
             break;
         }
         default:
@@ -1026,6 +1196,9 @@ std::string PrettyExpr(const GExpr &pExpr) {
             return "rotl8(" + PrettyExpr(*pExpr.mA) + ", " + PrettyExpr(*pExpr.mB) + ")";
         case GExprType::kRotL32:
             return "rotl32(" + PrettyExpr(*pExpr.mA) + ", " + PrettyExpr(*pExpr.mB) + ")";
+        case GExprType::kMix161:
+            return Mix161CallToken(pExpr.mMix161Type) +
+                   "(" + PrettyExpr(*pExpr.mA) + ", " + pExpr.mMix161SBoxSymbol.mName + ")";
         default:
             return "invalid_expr";
     }
@@ -1108,6 +1281,14 @@ std::string CppExpr(const GExpr &pExpr) {
             return "RotL8(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
         case GExprType::kRotL32:
             return "RotL16(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kMix161: {
+            const std::string aCall = Mix161CallToken(pExpr.mMix161Type);
+            if (aCall.empty() || !pExpr.mMix161SBoxSymbol.IsBuf()) {
+                return "0";
+            }
+            return aCall + "(" + CppExpr(*pExpr.mA) + ", " +
+                   BufAliasName(pExpr.mMix161SBoxSymbol.mSlot) + ")";
+        }
         default:
             return "0";
     }
@@ -1440,6 +1621,31 @@ bool EvaluateExpr(const GExpr &pExpr,
             }
             const std::size_t aIndex = RuntimeIndexForSlot(pExpr.mSymbol.mSlot, aIndexValue);
             *pValue = static_cast<int>(aBuffer[aIndex]);
+            return true;
+        }
+
+        case GExprType::kMix161: {
+            if ((pExpr.mA == NULL) || !pExpr.mMix161SBoxSymbol.IsBuf()) {
+                SetError(pError, "Mix161 expression metadata was invalid.");
+                return false;
+            }
+
+            int aInputValue = 0;
+            if (!EvaluateExpr(*pExpr.mA, pWorkspace, pVariables, &aInputValue, pError)) {
+                SetError(pError, "Mix161 input expression was invalid.");
+                return false;
+            }
+
+            std::uint8_t *aSBox = TwistWorkSpace::GetBuffer(pWorkspace, pExpr.mMix161SBoxSymbol.mSlot);
+            if (aSBox == NULL) {
+                SetError(pError, "Mix161 S-box buffer resolved to null.");
+                return false;
+            }
+
+            *pValue = static_cast<int>(
+                EvaluateMix161Local(pExpr.mMix161Type,
+                                    static_cast<std::uint16_t>(aInputValue),
+                                    aSBox));
             return true;
         }
 

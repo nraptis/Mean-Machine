@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include "GSymbol.hpp"
+#include "TwistMix16.hpp"
 
 enum class GOperType : std::uint8_t {
     kInv = 0,
@@ -43,7 +44,9 @@ enum class GExprType : std::uint8_t {
     kRotL32 = 10,
     kShiftL = 11,
     kShiftR = 12,
-    kOr = 13
+    kOr = 13,
+    kMix161 = 14,
+    kMix162 = 15
 };
 
 enum class GReadWrapType : std::uint8_t {
@@ -64,6 +67,12 @@ public:
     GSymbol                             mReadWrapIndexSymbol;
     GSymbol                             mReadWrapOracleSymbol;
     int                                 mReadWrapOffset;
+
+    Mix161Type                          mMix161Type;
+    GSymbol                             mMix161SBoxSymbol;
+    Mix162Type                          mMix162Type;
+    GSymbol                             mMix162SBoxASymbol;
+    GSymbol                             mMix162SBoxBSymbol;
     
     // buffer reads use mSymbol as the source and mIndex as the wrapped index.
     std::shared_ptr<GExpr>              mIndex;
@@ -87,6 +96,13 @@ public:
     static GExpr                        RotL32(const GExpr &a, const GExpr &b);
     static GExpr                        ShiftL(const GExpr &a, const GExpr &b);
     static GExpr                        ShiftR(const GExpr &a, const GExpr &b);
+    static GExpr                        Mix161(const GExpr &pValue,
+                                              Mix161Type pMixType,
+                                              GSymbol pSBox);
+    static GExpr                        Mix162(const GExpr &pValue,
+                                              Mix162Type pMixType,
+                                              const GSymbol &pSBoxA,
+                                              const GSymbol &pSBoxB);
     
     // what this means.
     // in c++ code

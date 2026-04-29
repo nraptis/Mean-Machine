@@ -87,16 +87,16 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "6234641B-B418-4890-9BE7-B41D248DFDA2"
+            uuid = "953F99AB-CF14-47FB-AC79-55680CC331C4"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "MeanMachine/SaltTables.cpp"
+            filePath = "MeanMachine/AppDelegate.mm"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "65"
-            endingLineNumber = "65"
-            landmarkName = "SaltTables::Get()"
+            startingLineNumber = "523"
+            endingLineNumber = "523"
+            landmarkName = "-applicationDidFinishLaunching:"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

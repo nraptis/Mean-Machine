@@ -84,11 +84,27 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return "salt_b";
         case TwistWorkSpaceSlot::kSaltC: return "salt_c";
         case TwistWorkSpaceSlot::kSaltD: return "salt_d";
+        case TwistWorkSpaceSlot::kDerivedSaltA: return "derived_salt_a";
+        case TwistWorkSpaceSlot::kDerivedSaltB: return "derived_salt_b";
+        case TwistWorkSpaceSlot::kDerivedSaltC: return "derived_salt_c";
+        case TwistWorkSpaceSlot::kDerivedSaltD: return "derived_salt_d";
+        case TwistWorkSpaceSlot::kDerivedSaltE: return "derived_salt_e";
+        case TwistWorkSpaceSlot::kDerivedSaltF: return "derived_salt_f";
+        case TwistWorkSpaceSlot::kDerivedSaltG: return "derived_salt_g";
+        case TwistWorkSpaceSlot::kDerivedSaltH: return "derived_salt_h";
 
         case TwistWorkSpaceSlot::kSBoxA: return "sbox_a";
         case TwistWorkSpaceSlot::kSBoxB: return "sbox_b";
         case TwistWorkSpaceSlot::kSBoxC: return "sbox_c";
         case TwistWorkSpaceSlot::kSBoxD: return "sbox_d";
+        case TwistWorkSpaceSlot::kDerivedSBoxA: return "derived_sbox_a";
+        case TwistWorkSpaceSlot::kDerivedSBoxB: return "derived_sbox_b";
+        case TwistWorkSpaceSlot::kDerivedSBoxC: return "derived_sbox_c";
+        case TwistWorkSpaceSlot::kDerivedSBoxD: return "derived_sbox_d";
+        case TwistWorkSpaceSlot::kDerivedSBoxE: return "derived_sbox_e";
+        case TwistWorkSpaceSlot::kDerivedSBoxF: return "derived_sbox_f";
+        case TwistWorkSpaceSlot::kDerivedSBoxG: return "derived_sbox_g";
+        case TwistWorkSpaceSlot::kDerivedSBoxH: return "derived_sbox_h";
 
         case TwistWorkSpaceSlot::kSeedExpansionLaneA: return "seed_a";
         case TwistWorkSpaceSlot::kSeedExpansionLaneB: return "seed_b";
@@ -133,11 +149,27 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return "aSaltB";
         case TwistWorkSpaceSlot::kSaltC: return "aSaltC";
         case TwistWorkSpaceSlot::kSaltD: return "aSaltD";
+        case TwistWorkSpaceSlot::kDerivedSaltA: return "aDerivedSaltA";
+        case TwistWorkSpaceSlot::kDerivedSaltB: return "aDerivedSaltB";
+        case TwistWorkSpaceSlot::kDerivedSaltC: return "aDerivedSaltC";
+        case TwistWorkSpaceSlot::kDerivedSaltD: return "aDerivedSaltD";
+        case TwistWorkSpaceSlot::kDerivedSaltE: return "aDerivedSaltE";
+        case TwistWorkSpaceSlot::kDerivedSaltF: return "aDerivedSaltF";
+        case TwistWorkSpaceSlot::kDerivedSaltG: return "aDerivedSaltG";
+        case TwistWorkSpaceSlot::kDerivedSaltH: return "aDerivedSaltH";
 
         case TwistWorkSpaceSlot::kSBoxA: return "aSBoxA";
         case TwistWorkSpaceSlot::kSBoxB: return "aSBoxB";
         case TwistWorkSpaceSlot::kSBoxC: return "aSBoxC";
         case TwistWorkSpaceSlot::kSBoxD: return "aSBoxD";
+        case TwistWorkSpaceSlot::kDerivedSBoxA: return "aDerivedSBoxA";
+        case TwistWorkSpaceSlot::kDerivedSBoxB: return "aDerivedSBoxB";
+        case TwistWorkSpaceSlot::kDerivedSBoxC: return "aDerivedSBoxC";
+        case TwistWorkSpaceSlot::kDerivedSBoxD: return "aDerivedSBoxD";
+        case TwistWorkSpaceSlot::kDerivedSBoxE: return "aDerivedSBoxE";
+        case TwistWorkSpaceSlot::kDerivedSBoxF: return "aDerivedSBoxF";
+        case TwistWorkSpaceSlot::kDerivedSBoxG: return "aDerivedSBoxG";
+        case TwistWorkSpaceSlot::kDerivedSBoxH: return "aDerivedSBoxH";
 
         case TwistWorkSpaceSlot::kSeedExpansionLaneA: return "aExpandLaneA";
         case TwistWorkSpaceSlot::kSeedExpansionLaneB: return "aExpandLaneB";

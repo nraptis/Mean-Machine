@@ -13,6 +13,16 @@
 #include <string>
 #include <vector>
 
+enum class TwistProgramBranchStepType : std::uint8_t {
+    kBatch = 0,
+    kLine = 1
+};
+
+struct TwistProgramBranchStep {
+    TwistProgramBranchStepType              mType = TwistProgramBranchStepType::kBatch;
+    std::size_t                             mIndex = 0U;
+};
+
 class TwistProgramBranch {
 public:
     void                                AddBatch(const GBatch &pBatch);
@@ -24,10 +34,12 @@ public:
     void                                Clear();
     const std::vector<std::string>&     GetBatchJsonText() const;
     const std::vector<std::string>&     GetStringLines() const;
+    const std::vector<TwistProgramBranchStep>& GetSteps() const;
 
 private:
     std::vector<std::string>            mBatchJsonText;
     std::vector<std::string>            mStringLines;
+    std::vector<TwistProgramBranchStep> mSteps;
 
     friend class GTwistExpander;
 };

@@ -4,6 +4,7 @@
 //
 
 #include "TwistExpander.hpp"
+#include "TwistCryptoGenerator.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -92,6 +93,9 @@ TwistExpander::TwistExpander() {
 }
 
 TwistExpander::~TwistExpander() {
+
+    
+    
 }
 
 void TwistExpander::Seed(TwistWorkSpace *pWorkspace,

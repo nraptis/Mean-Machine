@@ -43,26 +43,45 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kSaltC=12,
     kSaltD=13,
     
-    kSBoxA=20,
-    kSBoxB=21,
-    kSBoxC=22,
-    kSBoxD=23,
+    kDerivedSaltA=20,
+    kDerivedSaltB=21,
+    kDerivedSaltC=22,
+    kDerivedSaltD=23,
+    kDerivedSaltE=24,
+    kDerivedSaltF=25,
+    kDerivedSaltG=26,
+    kDerivedSaltH=27,
     
-    kSeedExpansionLaneA=40,
-    kSeedExpansionLaneB=41,
-    kSeedExpansionLaneC=42,
-    kSeedExpansionLaneD=43,
+    kSBoxA=30,
+    kSBoxB=31,
+    kSBoxC=32,
+    kSBoxD=33,
     
-    kWorkLaneA=50,
-    kWorkLaneB=51,
-    kWorkLaneC=52,
-    kWorkLaneD=53,
+    kDerivedSBoxA=40,
+    kDerivedSBoxB=41,
+    kDerivedSBoxC=42,
+    kDerivedSBoxD=43,
+    kDerivedSBoxE=44,
+    kDerivedSBoxF=45,
+    kDerivedSBoxG=46,
+    kDerivedSBoxH=47,
     
-    kOperationLaneA=70,
-    kOperationLaneB=71,
     
-    kMaskLaneA=80,
-    kMaskLaneB=81,
+    kSeedExpansionLaneA=80,
+    kSeedExpansionLaneB=81,
+    kSeedExpansionLaneC=82,
+    kSeedExpansionLaneD=83,
+    
+    kWorkLaneA=90,
+    kWorkLaneB=91,
+    kWorkLaneC=92,
+    kWorkLaneD=93,
+    
+    kOperationLaneA=100,
+    kOperationLaneB=101,
+    
+    kMaskLaneA=110,
+    kMaskLaneB=111,
     
     
     // These are confusing.
@@ -71,19 +90,19 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     // 3.) Before writing, we Shift, evicting last row and duplicating first row
     // 4.) We "write", after a twist, from "kKeyRowWriteA" or "kKeyRowWriteB", which is the 'first row'.
     
-    kKeyBoxUnrolledA=100, // size is S_KEY_A
-    kKeyBoxUnrolledB=101, // size is S_KEY_B
-    kKeyRowReadA=110, // size is W_KEY_A
-    kKeyRowReadB=111, // size is W_KEY_B
-    kKeyRowWriteA=120, // size is S_KEY_A
-    kKeyRowWriteB=121, // size is S_KEY_B
+    kKeyBoxUnrolledA=120, // size is S_KEY_A
+    kKeyBoxUnrolledB=121, // size is S_KEY_B
+    kKeyRowReadA=122, // size is W_KEY_A
+    kKeyRowReadB=123, // size is W_KEY_B
+    kKeyRowWriteA=124, // size is S_KEY_A
+    kKeyRowWriteB=125, // size is S_KEY_B
     
     kMaskBoxUnrolledA=130, // size is S_MASK_A
     kMaskBoxUnrolledB=131, // size is S_MASK_B
-    kMaskRowReadA=140, // size is W_MASK_A
-    kMaskRowReadB=141, // size is W_MASK_B
-    kMaskRowWriteA=150, // size is S_MASK_A
-    kMaskRowWriteB=151, // size is S_MASK_B
+    kMaskRowReadA=132, // size is W_MASK_A
+    kMaskRowReadB=133, // size is W_MASK_B
+    kMaskRowWriteA=134, // size is S_MASK_A
+    kMaskRowWriteB=135, // size is S_MASK_B
 };
 
 
@@ -104,10 +123,28 @@ public:
     std::uint8_t                            mSaltC[S_SALT];
     std::uint8_t                            mSaltD[S_SALT];
     
+    std::uint8_t                            mDerivedSaltA[S_SALT];
+    std::uint8_t                            mDerivedSaltB[S_SALT];
+    std::uint8_t                            mDerivedSaltC[S_SALT];
+    std::uint8_t                            mDerivedSaltD[S_SALT];
+    std::uint8_t                            mDerivedSaltE[S_SALT];
+    std::uint8_t                            mDerivedSaltF[S_SALT];
+    std::uint8_t                            mDerivedSaltG[S_SALT];
+    std::uint8_t                            mDerivedSaltH[S_SALT];
+    
     std::uint8_t                            mSBoxA[S_SBOX];
     std::uint8_t                            mSBoxB[S_SBOX];
     std::uint8_t                            mSBoxC[S_SBOX];
     std::uint8_t                            mSBoxD[S_SBOX];
+    
+    std::uint8_t                            mDerivedSBoxA[S_SBOX];
+    std::uint8_t                            mDerivedSBoxB[S_SBOX];
+    std::uint8_t                            mDerivedSBoxC[S_SBOX];
+    std::uint8_t                            mDerivedSBoxD[S_SBOX];
+    std::uint8_t                            mDerivedSBoxE[S_SBOX];
+    std::uint8_t                            mDerivedSBoxF[S_SBOX];
+    std::uint8_t                            mDerivedSBoxG[S_SBOX];
+    std::uint8_t                            mDerivedSBoxH[S_SBOX];
     
     uint8_t                                 mKeyBoxA[H_KEY_A][W_KEY_A];
     uint8_t                                 mKeyBoxB[H_KEY_B][W_KEY_B];

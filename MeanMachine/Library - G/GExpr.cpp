@@ -20,6 +20,8 @@ GOperType OperTypeForExprType(const GExprType pType) {
         case GExprType::kShiftL: return GOperType::kShiftL;
         case GExprType::kShiftR: return GOperType::kShiftR;
         case GExprType::kOr: return GOperType::kOr;
+        case GExprType::kMix161: return GOperType::kInv;
+        case GExprType::kMix162: return GOperType::kInv;
         default: return GOperType::kInv;
     }
 }
@@ -87,6 +89,21 @@ void AppendSymbols(const GExpr &pExpr,
             }
             return;
 
+        case GExprType::kMix161:
+            if (pExpr.mA != nullptr) {
+                AppendSymbols(*pExpr.mA, pSymbols);
+            }
+            pSymbols->push_back(pExpr.mMix161SBoxSymbol);
+            return;
+
+        case GExprType::kMix162:
+            if (pExpr.mA != nullptr) {
+                AppendSymbols(*pExpr.mA, pSymbols);
+            }
+            pSymbols->push_back(pExpr.mMix162SBoxASymbol);
+            pSymbols->push_back(pExpr.mMix162SBoxBSymbol);
+            return;
+
         case GExprType::kAdd:
         case GExprType::kSub:
         case GExprType::kMul:
@@ -143,6 +160,18 @@ void AppendOps(const GExpr &pExpr,
             pOps->push_back(OperTypeForExprType(pExpr.mType));
             return;
 
+        case GExprType::kMix161:
+            if (pExpr.mA != nullptr) {
+                AppendOps(*pExpr.mA, pOps);
+            }
+            return;
+
+        case GExprType::kMix162:
+            if (pExpr.mA != nullptr) {
+                AppendOps(*pExpr.mA, pOps);
+            }
+            return;
+
         default:
             return;
     }
@@ -180,6 +209,17 @@ std::string ExprKeyInner(const GExpr &pExpr) {
                    ",base=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapIndexSymbol)) +
                    ",oracle=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapOracleSymbol)) +
                    ",offset=" + std::to_string(pExpr.mReadWrapOffset) + ")";
+
+        case GExprType::kMix161:
+            return "mix161(type=" + std::to_string(static_cast<int>(pExpr.mMix161Type)) +
+                   ",sbox=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix161SBoxSymbol)) +
+                   ",value=" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
+
+        case GExprType::kMix162:
+            return "mix162(type=" + std::to_string(static_cast<int>(pExpr.mMix162Type)) +
+                   ",sbox_a=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix162SBoxASymbol)) +
+                   ",sbox_b=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix162SBoxBSymbol)) +
+                   ",value=" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
 
         case GExprType::kAdd:
         case GExprType::kSub:
@@ -272,6 +312,30 @@ GExpr GExpr::ShiftR(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kShiftR, a, b);
 }
 
+GExpr GExpr::Mix161(const GExpr &pValue,
+                    Mix161Type pMixType,
+                    GSymbol pSBox) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kMix161;
+    aExpr.mA = std::make_shared<GExpr>(pValue);
+    aExpr.mMix161Type = pMixType;
+    aExpr.mMix161SBoxSymbol = pSBox;
+    return aExpr;
+}
+
+GExpr GExpr::Mix162(const GExpr &pValue,
+                    Mix162Type pMixType,
+                    const GSymbol &pSBoxA,
+                    const GSymbol &pSBoxB) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kMix162;
+    aExpr.mA = std::make_shared<GExpr>(pValue);
+    aExpr.mMix162Type = pMixType;
+    aExpr.mMix162SBoxASymbol = pSBoxA;
+    aExpr.mMix162SBoxBSymbol = pSBoxB;
+    return aExpr;
+}
+
 GExpr GExpr::ReadBlockWrap(const GSymbol &pSymbol,
                            const GSymbol &pIndex,
                            const GSymbol &pIndexOracle,
@@ -304,6 +368,11 @@ void GExpr::Set(const GExpr &pOther) {
     mReadWrapIndexSymbol = pOther.mReadWrapIndexSymbol;
     mReadWrapOracleSymbol = pOther.mReadWrapOracleSymbol;
     mReadWrapOffset = pOther.mReadWrapOffset;
+    mMix161Type = pOther.mMix161Type;
+    mMix161SBoxSymbol = pOther.mMix161SBoxSymbol;
+    mMix162Type = pOther.mMix162Type;
+    mMix162SBoxASymbol = pOther.mMix162SBoxASymbol;
+    mMix162SBoxBSymbol = pOther.mMix162SBoxBSymbol;
 }
 
 void GExpr::Invalidate() {
@@ -317,6 +386,11 @@ void GExpr::Invalidate() {
     mReadWrapIndexSymbol.Invalidate();
     mReadWrapOracleSymbol.Invalidate();
     mReadWrapOffset = 0;
+    mMix161Type = Mix161Type::kInv;
+    mMix161SBoxSymbol.Invalidate();
+    mMix162Type = Mix162Type::kInv;
+    mMix162SBoxASymbol.Invalidate();
+    mMix162SBoxBSymbol.Invalidate();
 }
 
 bool GExpr::IsInvalid() const {
@@ -344,6 +418,17 @@ bool GExpr::IsInvalid() const {
         case GExprType::kShiftR:
             return (mA == nullptr) || (mB == nullptr) ||
                    mA->IsInvalid() || mB->IsInvalid();
+
+        case GExprType::kMix161:
+            return (mA == nullptr) || mA->IsInvalid() ||
+                   (!mMix161SBoxSymbol.IsBuf()) ||
+                   (mMix161Type == Mix161Type::kInv);
+
+        case GExprType::kMix162:
+            return (mA == nullptr) || mA->IsInvalid() ||
+                   (!mMix162SBoxASymbol.IsBuf()) ||
+                   (!mMix162SBoxBSymbol.IsBuf()) ||
+                   (mMix162Type == Mix162Type::kInv);
 
         default:
             return true;
@@ -409,6 +494,17 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
         case GExprType::kShiftR:
             return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
                    ExprPtrEqual(pLHS.mB, pRHS.mB);
+
+        case GExprType::kMix161:
+            return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
+                   (pLHS.mMix161Type == pRHS.mMix161Type) &&
+                   (pLHS.mMix161SBoxSymbol == pRHS.mMix161SBoxSymbol);
+
+        case GExprType::kMix162:
+            return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
+                   (pLHS.mMix162Type == pRHS.mMix162Type) &&
+                   (pLHS.mMix162SBoxASymbol == pRHS.mMix162SBoxASymbol) &&
+                   (pLHS.mMix162SBoxBSymbol == pRHS.mMix162SBoxBSymbol);
     }
 
     return false;

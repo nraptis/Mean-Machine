@@ -43,14 +43,12 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
     if (gSBoxTablesDidLoad) {
         return gSBoxTables;
     }
-
-    /*
+    
     if (IsRunningUnderXCTest()) {
         gSBoxTablesDidLoad = true;
         return gSBoxTables;
     }
-    */
-
+    
     const std::string aDirectory = FileIO::ProjectRoot("Assets/data_s_box");
     const std::vector<std::string> aFilePaths = FileIO::GetAllFiles(aDirectory);
 

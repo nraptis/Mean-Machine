@@ -27,6 +27,14 @@ bool IsSBoxSlot(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSBoxB:
         case TwistWorkSpaceSlot::kSBoxC:
         case TwistWorkSpaceSlot::kSBoxD:
+        case TwistWorkSpaceSlot::kDerivedSBoxA:
+        case TwistWorkSpaceSlot::kDerivedSBoxB:
+        case TwistWorkSpaceSlot::kDerivedSBoxC:
+        case TwistWorkSpaceSlot::kDerivedSBoxD:
+        case TwistWorkSpaceSlot::kDerivedSBoxE:
+        case TwistWorkSpaceSlot::kDerivedSBoxF:
+        case TwistWorkSpaceSlot::kDerivedSBoxG:
+        case TwistWorkSpaceSlot::kDerivedSBoxH:
             return true;
         default:
             return false;
@@ -39,6 +47,14 @@ bool IsSaltSlot(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB:
         case TwistWorkSpaceSlot::kSaltC:
         case TwistWorkSpaceSlot::kSaltD:
+        case TwistWorkSpaceSlot::kDerivedSaltA:
+        case TwistWorkSpaceSlot::kDerivedSaltB:
+        case TwistWorkSpaceSlot::kDerivedSaltC:
+        case TwistWorkSpaceSlot::kDerivedSaltD:
+        case TwistWorkSpaceSlot::kDerivedSaltE:
+        case TwistWorkSpaceSlot::kDerivedSaltF:
+        case TwistWorkSpaceSlot::kDerivedSaltG:
+        case TwistWorkSpaceSlot::kDerivedSaltH:
             return true;
         default:
             return false;
@@ -204,74 +220,6 @@ GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::ExpandDebug(
     return *this;
 }
 
-GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::TransformSchemeQuadBoxNibbles() {
-    if (IsValid()) {
-        mComposer->ConfigureNodeTransformScheme(mNodeIndex, GLoopFragmentComposer::TransformScheme::kQuadBoxNibbles);
-    }
-    return *this;
-}
-
-GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::TransformSchemeQuadBoxNibbles(
-    GSymbol pSBoxA,
-    GSymbol pSBoxB,
-    GSymbol pSBoxC,
-    GSymbol pSBoxD) {
-    if (IsValid()) {
-        mComposer->ConfigureNodeTransformScheme(mNodeIndex, GLoopFragmentComposer::TransformScheme::kQuadBoxNibbles);
-        mComposer->ConfigureNodeTransformQuadBoxes(mNodeIndex, pSBoxA, pSBoxB, pSBoxC, pSBoxD);
-    }
-    return *this;
-}
-
-GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::TransformSchemeQuadBoxNibbles(
-    GSymbol pSBoxA,
-    GSymbol pSBoxB,
-    GSymbol pSBoxC,
-    GSymbol pSBoxD,
-    GSymbol pReadA,
-    GSymbol pReadB,
-    GSymbol pReadC,
-    GSymbol pReadD,
-    bool pPlusA,
-    bool pPlusB,
-    bool pPlusC,
-    bool pPlusD) {
-    if (IsValid()) {
-        mComposer->ConfigureNodeTransformScheme(mNodeIndex, GLoopFragmentComposer::TransformScheme::kQuadBoxNibbles);
-        mComposer->ConfigureNodeTransformQuadBoxes(mNodeIndex, pSBoxA, pSBoxB, pSBoxC, pSBoxD);
-        mComposer->ConfigureNodeTransformQuadReadMix(mNodeIndex,
-                                                     pReadA,
-                                                     pReadB,
-                                                     pReadC,
-                                                     pReadD,
-                                                     pPlusA,
-                                                     pPlusB,
-                                                     pPlusC,
-                                                     pPlusD);
-    }
-    return *this;
-}
-
-
-
-GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::TransformSchemeSingleBoxRotate(std::uint8_t pRotateAmount) {
-    if (IsValid()) {
-        mComposer->ConfigureNodeTransformScheme(mNodeIndex, GLoopFragmentComposer::TransformScheme::kSingleBoxRotate);
-        mComposer->ConfigureNodeTransformRotateAmount(mNodeIndex, pRotateAmount);
-    }
-    return *this;
-}
-
-GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::TransformSchemeSingleBoxRotate(GSymbol pSBox,
-                                                                                                    std::uint8_t pRotateAmount) {
-    if (IsValid()) {
-        mComposer->ConfigureNodeTransformBuffer(mNodeIndex, pSBox);
-        mComposer->ConfigureNodeTransformScheme(mNodeIndex, GLoopFragmentComposer::TransformScheme::kSingleBoxRotate);
-        mComposer->ConfigureNodeTransformRotateAmount(mNodeIndex, pRotateAmount);
-    }
-    return *this;
-}
-
 bool GLoopFragmentComposerInputBuffer::IsValid() const {
     return (mComposer != nullptr) && (mNodeIndex < mComposer->mNodes.size());
 }
@@ -324,6 +272,10 @@ void GLoopFragmentComposer::Clear() {
 
 void GLoopFragmentComposer::SetTarget(GSymbol pTarget) {
     mTarget = pTarget;
+}
+
+GSymbol GLoopFragmentComposer::GetTarget() const {
+    return mTarget;
 }
 
 void GLoopFragmentComposer::ResetSetEqual(GSymbol pTarget) {
@@ -410,26 +362,6 @@ GLoopFragmentComposerInputVariable GLoopFragmentComposer::MixVariable(GSymbol pV
         SetConfigError("MixVariable expected a variable symbol.");
     }
     return GLoopFragmentComposerInputVariable(this, mNodes.size() - 1U);
-}
-
-GLoopFragmentComposerInputBuffer GLoopFragmentComposer::Transform() {
-    Node aNode;
-    aNode.mType = NodeType::kTransform;
-    aNode.mBaseSymbol = mTarget.IsInvalid() ? mLoopIndex : mTarget;
-    mNodes.push_back(aNode);
-    return GLoopFragmentComposerInputBuffer(this, mNodes.size() - 1U);
-}
-
-GLoopFragmentComposerInputBuffer GLoopFragmentComposer::Transform(GSymbol pBuffer) {
-    Node aNode;
-    aNode.mType = NodeType::kTransform;
-    aNode.mSymbol = pBuffer;
-    aNode.mBaseSymbol = mTarget.IsInvalid() ? mLoopIndex : mTarget;
-    mNodes.push_back(aNode);
-    if (!pBuffer.IsBuf() && !pBuffer.IsVar()) {
-        SetConfigError("Transform expected a buffer or variable symbol.");
-    }
-    return GLoopFragmentComposerInputBuffer(this, mNodes.size() - 1U);
 }
 
 bool GLoopFragmentComposer::ConfigureNodeBase(std::size_t pNodeIndex,
@@ -570,129 +502,6 @@ bool GLoopFragmentComposer::ConfigureNodeExpandDebug(std::size_t pNodeIndex,
     mNodes[pNodeIndex].mDebugExpandConstantA = pConstantA;
     mNodes[pNodeIndex].mDebugExpandConstantB = pConstantB;
     mNodes[pNodeIndex].mExpandProbability = 100U;
-    return true;
-}
-
-bool GLoopFragmentComposer::ConfigureNodeTransformScheme(std::size_t pNodeIndex,
-                                                         TransformScheme pScheme) {
-    if (pNodeIndex >= mNodes.size()) {
-        SetConfigError("Composer node index was out of range while setting transform scheme.");
-        return false;
-    }
-    if (mNodes[pNodeIndex].mType != NodeType::kTransform) {
-        SetConfigError("Transform schemes can only be attached to transform nodes.");
-        return false;
-    }
-    mNodes[pNodeIndex].mTransformScheme = pScheme;
-    return true;
-}
-
-bool GLoopFragmentComposer::ConfigureNodeTransformRotateAmount(std::size_t pNodeIndex,
-                                                               std::uint8_t pRotateAmount) {
-    if (pNodeIndex >= mNodes.size()) {
-        SetConfigError("Composer node index was out of range while setting single-box rotate amount.");
-        return false;
-    }
-    if (mNodes[pNodeIndex].mType != NodeType::kTransform) {
-        SetConfigError("Single-box rotate amount can only be attached to transform nodes.");
-        return false;
-    }
-
-    mNodes[pNodeIndex].mTransformRotateAmount = static_cast<std::uint8_t>(pRotateAmount & 31U);
-    return true;
-}
-
-bool GLoopFragmentComposer::ConfigureNodeTransformBuffer(std::size_t pNodeIndex,
-                                                         GSymbol pBuffer) {
-    if (pNodeIndex >= mNodes.size()) {
-        SetConfigError("Composer node index was out of range while setting transform buffer symbol.");
-        return false;
-    }
-    if (mNodes[pNodeIndex].mType != NodeType::kTransform) {
-        SetConfigError("Transform buffer symbol can only be attached to transform nodes.");
-        return false;
-    }
-    if (!pBuffer.IsBuf()) {
-        SetConfigError("Transform buffer symbol must be a buffer.");
-        return false;
-    }
-    Node &aNode = mNodes[pNodeIndex];
-    aNode.mSymbol = pBuffer;
-    aNode.mHasExplicitTransformBoxes = false;
-    aNode.mTransformBoxA.Invalidate();
-    aNode.mTransformBoxB.Invalidate();
-    aNode.mTransformBoxC.Invalidate();
-    aNode.mTransformBoxD.Invalidate();
-    aNode.mHasQuadReadMix = false;
-    aNode.mQuadReadA.Invalidate();
-    aNode.mQuadReadB.Invalidate();
-    aNode.mQuadReadC.Invalidate();
-    aNode.mQuadReadD.Invalidate();
-    return true;
-}
-
-bool GLoopFragmentComposer::ConfigureNodeTransformQuadBoxes(std::size_t pNodeIndex,
-                                                            GSymbol pSBoxA,
-                                                            GSymbol pSBoxB,
-                                                            GSymbol pSBoxC,
-                                                            GSymbol pSBoxD) {
-    if (pNodeIndex >= mNodes.size()) {
-        SetConfigError("Composer node index was out of range while setting quad-box transform symbols.");
-        return false;
-    }
-    if (mNodes[pNodeIndex].mType != NodeType::kTransform) {
-        SetConfigError("Quad-box transform symbols can only be attached to transform nodes.");
-        return false;
-    }
-    if (!pSBoxA.IsBuf() || !pSBoxB.IsBuf() || !pSBoxC.IsBuf() || !pSBoxD.IsBuf()) {
-        SetConfigError("Quad-box transform symbols must be buffers.");
-        return false;
-    }
-
-    Node &aNode = mNodes[pNodeIndex];
-    aNode.mTransformBoxA = pSBoxA;
-    aNode.mTransformBoxB = pSBoxB;
-    aNode.mTransformBoxC = pSBoxC;
-    aNode.mTransformBoxD = pSBoxD;
-    aNode.mHasExplicitTransformBoxes = true;
-    return true;
-}
-
-bool GLoopFragmentComposer::ConfigureNodeTransformQuadReadMix(std::size_t pNodeIndex,
-                                                              GSymbol pReadA,
-                                                              GSymbol pReadB,
-                                                              GSymbol pReadC,
-                                                              GSymbol pReadD,
-                                                              bool pPlusA,
-                                                              bool pPlusB,
-                                                              bool pPlusC,
-                                                              bool pPlusD) {
-    if (pNodeIndex >= mNodes.size()) {
-        SetConfigError("Composer node index was out of range while setting quad-box read-order mix symbols.");
-        return false;
-    }
-    if (mNodes[pNodeIndex].mType != NodeType::kTransform) {
-        SetConfigError("Quad-box read-order mix symbols can only be attached to transform nodes.");
-        return false;
-    }
-    if (!pReadA.IsVar() ||
-        !pReadB.IsVar() ||
-        !pReadC.IsVar() ||
-        !pReadD.IsVar()) {
-        SetConfigError("Quad-box read-order mix symbols must be variables.");
-        return false;
-    }
-
-    Node &aNode = mNodes[pNodeIndex];
-    aNode.mHasQuadReadMix = true;
-    aNode.mQuadReadA = pReadA;
-    aNode.mQuadReadB = pReadB;
-    aNode.mQuadReadC = pReadC;
-    aNode.mQuadReadD = pReadD;
-    aNode.mQuadReadPlusA = pPlusA;
-    aNode.mQuadReadPlusB = pPlusB;
-    aNode.mQuadReadPlusC = pPlusC;
-    aNode.mQuadReadPlusD = pPlusD;
     return true;
 }
 
@@ -842,15 +651,11 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
                                            std::unordered_map<std::string, int> *pByteNameCounters,
                                            std::vector<GStatement> *pStatementList,
                                            std::string *pErrorString) {
-    const bool aIsTransformSchemeNode = (pNode.mType == NodeType::kTransform) &&
-                                        (pNode.mTransformScheme != TransformScheme::kDefault);
-    const bool aIsBufferTransform = pNode.mSymbol.IsBuf();
-    const bool aIsVariableTransform = (pNode.mType == NodeType::kTransform) && pNode.mSymbol.IsVar();
-    if (!aIsTransformSchemeNode && !aIsBufferTransform && !aIsVariableTransform) {
-        SetError(pErrorString, "Composer node had an invalid symbol for buffer/transform emission.");
+    if (!pNode.mSymbol.IsBuf()) {
+        SetError(pErrorString, "Composer buffer node had an invalid buffer symbol.");
         return false;
     }
-    if (pNode.mType != NodeType::kMixBuffer && pNode.mType != NodeType::kTransform) {
+    if (pNode.mType != NodeType::kMixBuffer) {
         SetError(pErrorString, "Composer buffer node had an invalid type.");
         return false;
     }
@@ -862,30 +667,9 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
         aShouldExpand = true;
     }
 
-    if (aIsVariableTransform) {
-        const GExpr aBaseExpr = GExpr::Symbol(pNode.mSymbol);
-        const GExpr aTransformExpr = aShouldExpand
-            ? (pNode.mHasDebugExpand
-               ? BuildExpandedExpressionDebug(pNode, aBaseExpr)
-               : BuildExpandedExpression(aBaseExpr, pNode.mAllowMultiply))
-            : aBaseExpr;
-        if (pTargetInitialized != nullptr) {
-            *pTargetInitialized = true;
-        }
-        return AddStatement(pStatementList,
-                            GStatement::Assign(GTarget::Symbol(mTarget), aTransformExpr),
-                            pErrorString);
-    }
-
-    if (aIsTransformSchemeNode) {
-        return EmitTransformScheme(pNode, pTargetInitialized, pStatementList, pErrorString);
-    }
-
     const GLoopFragmentDomain aDomain = ResolveDomain(pNode);
     GSymbol aBaseSymbol = pNode.mBaseSymbol.IsInvalid()
-        ? ((pNode.mType == NodeType::kTransform)
-           ? mTarget
-           : (mLoopIndex.IsInvalid() ? mTarget : mLoopIndex))
+        ? (mLoopIndex.IsInvalid() ? mTarget : mLoopIndex)
         : pNode.mBaseSymbol;
 
     GExpr aBaseExpr;
@@ -1020,21 +804,6 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
         }
     }
 
-    if (pNode.mType == NodeType::kTransform) {
-        if (pTargetInitialized != nullptr) {
-            *pTargetInitialized = true;
-        }
-        if (!aNeedByte) {
-            return AddStatement(pStatementList,
-                                GStatement::Assign(GTarget::Symbol(mTarget), aReadExpr),
-                                pErrorString);
-        }
-        return AddStatement(pStatementList,
-                            GStatement::Assign(GTarget::Symbol(mTarget),
-                                               GExpr::Symbol(aTemp.mByteSymbol)),
-                            pErrorString);
-    }
-
     if (!aNeedByte) {
         return EmitTargetCombine(aReadExpr, pTargetInitialized, pStatementList, pErrorString);
     }
@@ -1074,201 +843,6 @@ bool GLoopFragmentComposer::EmitVariableNode(const Node &pNode,
                              pTargetInitialized,
                              pStatementList,
                              pErrorString);
-}
-
-bool GLoopFragmentComposer::EmitTransformScheme(const Node &pNode,
-                                                bool *pTargetInitialized,
-                                                std::vector<GStatement> *pStatementList,
-                                                std::string *pErrorString) {
-    if (!mTarget.IsVar()) {
-        SetError(pErrorString, "Transform scheme requires a variable target.");
-        return false;
-    }
-
-    if (pNode.mBaseFromBuffer ||
-        pNode.mOffsetIsRandom ||
-        pNode.mOffsetIsDebugMax ||
-        (pNode.mOffset != 0)) {
-        SetError(pErrorString, "Transform schemes do not support custom key/offset configuration.");
-        return false;
-    }
-
-    switch (pNode.mTransformScheme) {
-        case TransformScheme::kQuadBoxNibbles: {
-            GSymbol aSBoxA;
-            GSymbol aSBoxB;
-            GSymbol aSBoxC;
-            GSymbol aSBoxD;
-            if (pNode.mHasExplicitTransformBoxes) {
-                aSBoxA = pNode.mTransformBoxA;
-                aSBoxB = pNode.mTransformBoxB;
-                aSBoxC = pNode.mTransformBoxC;
-                aSBoxD = pNode.mTransformBoxD;
-            } else if (pNode.mSymbol.IsBuf()) {
-                aSBoxA = pNode.mSymbol;
-                aSBoxB = pNode.mSymbol;
-                aSBoxC = pNode.mSymbol;
-                aSBoxD = pNode.mSymbol;
-            } else {
-                SetError(pErrorString, "Quad-box transform requires either Transform(buffer) or explicit scheme S-box symbols.");
-                return false;
-            }
-
-            const std::string &aTargetName = mTarget.mName;
-            const GSymbol aNibbleA = VarSymbol(aTargetName + "NibbleA");
-            const GSymbol aNibbleB = VarSymbol(aTargetName + "NibbleB");
-            const GSymbol aNibbleC = VarSymbol(aTargetName + "NibbleC");
-            const GSymbol aNibbleD = VarSymbol(aTargetName + "NibbleD");
-
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aNibbleA),
-                                                 GExpr::And(GExpr::Symbol(mTarget), GExpr::Const(0xFF))),
-                              pErrorString)) {
-                return false;
-            }
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aNibbleB),
-                                                 GExpr::And(GExpr::ShiftR(GExpr::Symbol(mTarget), GExpr::Const(8)),
-                                                           GExpr::Const(0xFF))),
-                              pErrorString)) {
-                return false;
-            }
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aNibbleC),
-                                                 GExpr::Symbol(aNibbleB)),
-                              pErrorString)) {
-                return false;
-            }
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aNibbleD),
-                                                 GExpr::Symbol(aNibbleA)),
-                              pErrorString)) {
-                return false;
-            }
-
-            const auto BuildMixExpr = [](const GSymbol &pLHS,
-                                         const bool pPlus,
-                                         const GSymbol &pRHS) -> GExpr {
-                if (pPlus) {
-                    return GExpr::Add(GExpr::Symbol(pLHS), GExpr::Symbol(pRHS));
-                }
-                return GExpr::Xor(GExpr::Symbol(pLHS), GExpr::Symbol(pRHS));
-            };
-
-            GSymbol aWriteA = aNibbleA;
-            GSymbol aWriteB = aNibbleB;
-            GSymbol aWriteC = aNibbleC;
-            GSymbol aWriteD = aNibbleD;
-            GSymbol aRhsA = aNibbleC;
-            GSymbol aRhsB = aNibbleD;
-            GSymbol aRhsC = aNibbleA;
-            GSymbol aRhsD = aNibbleB;
-            bool aPlusA = false;
-            bool aPlusB = false;
-            bool aPlusC = false;
-            bool aPlusD = false;
-            GSymbol aSBoxHitA = aSBoxA;
-            GSymbol aSBoxHitB = aSBoxB;
-            GSymbol aSBoxHitC = aSBoxC;
-            GSymbol aSBoxHitD = aSBoxD;
-
-            if (pNode.mHasQuadReadMix) {
-                // Token-substitution pattern:
-                //   A = SBoxB[(A op C) & 0xFF]
-                //   B = SBoxA[(B op D) & 0xFF]
-                //   C = SBoxC[(C op B) & 0xFF]
-                //   D = SBoxD[(D op A) & 0xFF]
-                // where A/B/C/D are replaced by pReadA/pReadB/pReadC/pReadD.
-                aWriteA = pNode.mQuadReadA;
-                aWriteB = pNode.mQuadReadB;
-                aWriteC = pNode.mQuadReadC;
-                aWriteD = pNode.mQuadReadD;
-                aRhsA = pNode.mQuadReadC;
-                aRhsB = pNode.mQuadReadD;
-                aRhsC = pNode.mQuadReadB;
-                aRhsD = pNode.mQuadReadA;
-                aPlusA = pNode.mQuadReadPlusA;
-                aPlusB = pNode.mQuadReadPlusB;
-                aPlusC = pNode.mQuadReadPlusC;
-                aPlusD = pNode.mQuadReadPlusD;
-                aSBoxHitA = aSBoxB;
-                aSBoxHitB = aSBoxA;
-                aSBoxHitC = aSBoxC;
-                aSBoxHitD = aSBoxD;
-            }
-            GExpr aMixExprA = BuildMixExpr(aWriteA, aPlusA, aRhsA);
-            GExpr aMixExprB = BuildMixExpr(aWriteB, aPlusB, aRhsB);
-            GExpr aMixExprC = BuildMixExpr(aWriteC, aPlusC, aRhsC);
-            GExpr aMixExprD = BuildMixExpr(aWriteD, aPlusD, aRhsD);
-
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aWriteA),
-                                                 GExpr::Read(aSBoxHitA, aMixExprA)),
-                              pErrorString)) {
-                return false;
-            }
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aWriteB),
-                                                 GExpr::Read(aSBoxHitB, aMixExprB)),
-                              pErrorString)) {
-                return false;
-            }
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aWriteC),
-                                                 GExpr::Read(aSBoxHitC, aMixExprC)),
-                              pErrorString)) {
-                return false;
-            }
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(aWriteD),
-                                                 GExpr::Read(aSBoxHitD, aMixExprD)),
-                              pErrorString)) {
-                return false;
-            }
-
-            const GExpr aPackedValueExpr = GExpr::Or(
-                GExpr::Symbol(aNibbleA),
-                GExpr::ShiftL(GExpr::Symbol(aNibbleB), GExpr::Const(8)));
-
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(mTarget), aPackedValueExpr),
-                              pErrorString)) {
-                return false;
-            }
-            if (pTargetInitialized != nullptr) {
-                *pTargetInitialized = true;
-            }
-            return true;
-        }
-        case TransformScheme::kSingleBoxRotate: {
-            if (!pNode.mSymbol.IsBuf()) {
-                SetError(pErrorString, "Single-box rotate transform requires a buffer symbol.");
-                return false;
-            }
-            const GExpr aPackedPermuteExpr = GExpr::Or(
-                GExpr::Read(pNode.mSymbol, GExpr::Symbol(mTarget)),
-                GExpr::ShiftL(GExpr::Symbol(mTarget), GExpr::Const(8)));
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(mTarget), aPackedPermuteExpr),
-                              pErrorString)) {
-                return false;
-            }
-            if (!AddStatement(pStatementList,
-                              GStatement::Assign(GTarget::Symbol(mTarget),
-                                                 GExpr::RotL32(GExpr::Symbol(mTarget),
-                                                               GExpr::Const(static_cast<int>(pNode.mTransformRotateAmount)))),
-                              pErrorString)) {
-                return false;
-            }
-            if (pTargetInitialized != nullptr) {
-                *pTargetInitialized = true;
-            }
-            return true;
-        }
-        default:
-            SetError(pErrorString, "Composer transform scheme was invalid.");
-            return false;
-    }
 }
 
 GLoopFragmentDomain GLoopFragmentComposer::ResolveDomain(const Node &pNode) const {
@@ -1573,15 +1147,8 @@ bool GLoopFragmentComposer::BakeStatements(std::vector<GStatement> *pStatementLi
     mDeferredCombineAssignType = GAssignType::kInvalid;
 
     for (const Node &aNode : mNodes) {
-        if (mDeferCombine && (aNode.mType == NodeType::kTransform)) {
-            if (!FlushDeferredCombine(pStatementList, pErrorString)) {
-                return false;
-            }
-        }
-
         switch (aNode.mType) {
             case NodeType::kMixBuffer:
-            case NodeType::kTransform:
                 if (!EmitBufferNode(aNode,
                                     &aTargetInitialized,
                                     &aKeyNameCounters,

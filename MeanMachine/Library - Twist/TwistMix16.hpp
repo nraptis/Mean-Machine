@@ -11,6 +11,38 @@
 #include "TwistWorkSpace.hpp"
 #include "TwistFunctional.hpp"
 
+enum class Mix161Type : std::uint8_t {
+    kInv = 0,
+    kMix161_000 = 1,
+    kMix161_001 = 2,
+    kMix161_002 = 3,
+    kMix161_003 = 4,
+    kMix161_004 = 5,
+    kMix161_005 = 6,
+    kMix161_006 = 7,
+    kMix161_007 = 8
+};
+
+enum class Mix162Type : std::uint8_t {
+    kInv = 0,
+    kMix162_000 = 1,
+    kMix162_001 = 2,
+    kMix162_002 = 3,
+    kMix162_003 = 4,
+    kMix162_004 = 5,
+    kMix162_005 = 6,
+    kMix162_006 = 7,
+    kMix162_007 = 8,
+    kMix162_008 = 9,
+    kMix162_009 = 10,
+    kMix162_010 = 11,
+    kMix162_011 = 12,
+    kMix162_012 = 13,
+    kMix162_013 = 14,
+    kMix162_014 = 15,
+    kMix162_015 = 16
+};
+
 /*
  
  Mix161
@@ -42,11 +74,11 @@
  │   │
  │   └── temp = SBox[OracleA + OracleB]
  │       ├── Rot 3
- │       │   ├── A ^= RotL(temp,1) -> Mix161_004
- │       │   └── A ^= temp         -> Mix161_005
+ │       │   ├── A ^= RotL(temp,1) -> Mix161_004  X This was found to be weak
+ │       │   └── A ^= temp         -> Mix161_005  X This was found to be weak
  │       └── Rot 5
- │           ├── A ^= RotL(temp,1) -> Mix161_006
- │           └── A ^= temp         -> Mix161_007
+ │           ├── A ^= RotL(temp,1) -> Mix161_006  X This was found to be weak
+ │           └── A ^= temp         -> Mix161_007  X This was found to be weak
  │
  └── Root 3: A / RotL(B,1)
      ├── temp = SBox[OracleA ^ OracleB]
@@ -73,8 +105,8 @@
  │   ├── C0: temp = SBoxA[OracleA ^ OracleB], B = SBoxB[B + temp]
  │   │   ├── A ^= RotL(B,3) -> Mix162_000  X This was found to be weak
  │   │   ├── A ^= RotL(B,5) -> Mix162_001  X This was found to be weak
- │   │   ├── A += RotL(B,3) -> Mix162_000
- │   │   └── A += RotL(B,5) -> Mix162_001
+ │   │   ├── A += RotL(B,3) -> Mix162_000  - This was decided for lazy elimination
+ │   │   └── A += RotL(B,5) -> Mix162_001  - This was decided for lazy elimination
  │   ├── C1: temp = SBoxA[OracleA ^ OracleB], B = SBoxB[B ^ RotL(temp,3)]
  │   │   ├── A += RotL(B,3) -> Mix162_002
  │   │   └── A += RotL(B,5) -> Mix162_003
@@ -111,8 +143,8 @@
  │   ├── C0: temp = SBoxA[OracleA ^ OracleB], B = SBoxB[B + temp]
  │   │   ├── A ^= RotL(B,3) -> Mix162_024  X This was found to be weak
  │   │   ├── A ^= RotL(B,5) -> Mix162_025  X This was found to be weak
- │   │   ├── A += RotL(B,3) -> Mix162_010
- │   │   └── A += RotL(B,5) -> Mix162_011
+ │   │   ├── A += RotL(B,3) -> Mix162_010 - This was decided for lazy elimination
+ │   │   └── A += RotL(B,5) -> Mix162_011 - This was decided for lazy elimination
  │   ├── C1: temp = SBoxA[OracleA ^ OracleB], B = SBoxB[B ^ RotL(temp,3)]
  │   │   ├── A += RotL(B,3) -> Mix162_012
  │   │   └── A += RotL(B,5) -> Mix162_013
@@ -151,144 +183,105 @@ class TwistMix16 {
     
 public:
     
-    static std::uint16_t Mix162(int pFunction, // if 0, call Mix162_000, etc
-                                          const std::uint16_t aValue,
-                                           const std::uint8_t *pSBoxA,
-                                           const std::uint8_t *pSBoxB);
+    static std::uint16_t Mix161(const Mix161Type pType,
+                                       const std::uint16_t pValue,
+                                       const std::uint8_t *pSBox);
+    static std::uint16_t Mix162(const Mix162Type pType,
+                                       const std::uint16_t pValue,
+                                       const std::uint8_t *pSBoxA,
+                                       const std::uint8_t *pSBoxB);
     
-    static std::uint16_t Mix161(int pFunction, // if 0, call Mix161_000, etc
-                                       const std::uint16_t aValue,
+    
+    static std::uint16_t Mix161_000(const std::uint16_t pValue,
                                            const std::uint8_t *pSBox);
-
     
-
-    static inline std::uint16_t Mix161_000(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
+    static std::uint16_t Mix161_001(const std::uint16_t pValue,
+                                           const std::uint8_t *pSBox);
     
-
-    static inline std::uint16_t Mix161_001(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
+    static std::uint16_t Mix161_002(const std::uint16_t pValue,
+                                           const std::uint8_t *pSBox);
     
-
-    static inline std::uint16_t Mix161_002(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
+    static std::uint16_t Mix161_003(const std::uint16_t pValue,
+                                           const std::uint8_t *pSBox);
     
-
-    static inline std::uint16_t Mix161_003(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
+   
+    static std::uint16_t Mix161_004(const std::uint16_t pValue,
+                                           const std::uint8_t *pSBox);
     
-
-    static inline std::uint16_t Mix161_004(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
+    static std::uint16_t Mix161_005(const std::uint16_t pValue,
+                                           const std::uint8_t *pSBox);
     
-
-    static inline std::uint16_t Mix161_005(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
+    static std::uint16_t Mix161_006(const std::uint16_t pValue,
+                                           const std::uint8_t *pSBox);
     
-
-    static inline std::uint16_t Mix161_006(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
-    
-
-    static inline std::uint16_t Mix161_007(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
-    
-
-    static inline std::uint16_t Mix161_008(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
-    
-
-    static inline std::uint16_t Mix161_009(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
-    
-
-    static inline std::uint16_t Mix161_010(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
-
-    static inline std::uint16_t Mix161_011(const std::uint16_t aValue,
-                                         const std::uint8_t *pSBox);
-    
-
+    static std::uint16_t Mix161_007(const std::uint16_t pValue,
+                                           const std::uint8_t *pSBox);
     
     
     
-    static inline std::uint16_t Mix162_000(const std::uint16_t aValue,
+    
+    
+    static std::uint16_t Mix162_000(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_001(const std::uint16_t aValue,
+    static std::uint16_t Mix162_001(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_002(const std::uint16_t aValue,
+    static std::uint16_t Mix162_002(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_003(const std::uint16_t aValue,
+    static std::uint16_t Mix162_003(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_004(const std::uint16_t aValue,
+    static std::uint16_t Mix162_004(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_005(const std::uint16_t aValue,
+    static std::uint16_t Mix162_005(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_006(const std::uint16_t aValue,
+    static std::uint16_t Mix162_006(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_007(const std::uint16_t aValue,
+    static std::uint16_t Mix162_007(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_008(const std::uint16_t aValue,
+    static std::uint16_t Mix162_008(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_009(const std::uint16_t aValue,
+    static std::uint16_t Mix162_009(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_010(const std::uint16_t aValue,
+    static std::uint16_t Mix162_010(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_011(const std::uint16_t aValue,
+    static std::uint16_t Mix162_011(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_012(const std::uint16_t aValue,
+    static std::uint16_t Mix162_012(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_013(const std::uint16_t aValue,
+    static std::uint16_t Mix162_013(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_014(const std::uint16_t aValue,
+    static std::uint16_t Mix162_014(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     
-    static inline std::uint16_t Mix162_015(const std::uint16_t aValue,
-                                           const std::uint8_t *pSBoxA,
-                                           const std::uint8_t *pSBoxB);
-    
-    static inline std::uint16_t Mix162_016(const std::uint16_t aValue,
-                                           const std::uint8_t *pSBoxA,
-                                           const std::uint8_t *pSBoxB);
-    
-    static inline std::uint16_t Mix162_017(const std::uint16_t aValue,
-                                           const std::uint8_t *pSBoxA,
-                                           const std::uint8_t *pSBoxB);
-    
-    static inline std::uint16_t Mix162_018(const std::uint16_t aValue,
-                                           const std::uint8_t *pSBoxA,
-                                           const std::uint8_t *pSBoxB);
-    
-    static inline std::uint16_t Mix162_019(const std::uint16_t aValue,
+    static std::uint16_t Mix162_015(const std::uint16_t pValue,
                                            const std::uint8_t *pSBoxA,
                                            const std::uint8_t *pSBoxB);
     

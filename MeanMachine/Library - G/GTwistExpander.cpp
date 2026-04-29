@@ -10,9 +10,11 @@
 #include "Random.hpp"
 #include "SBoxTables.hpp"
 #include "SaltTables.hpp"
+#include "TwistCryptoGenerator.hpp"
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -144,6 +146,7 @@ bool ParseBranch(const JsonValue &pRoot,
 
     pBranch->Clear();
 
+    std::vector<GBatch> aParsedBatches;
     const JsonValue *aBatchesValue = aBranchValue->find("batches");
     if ((aBatchesValue != nullptr) && aBatchesValue->is_array()) {
         for (const JsonValue &aBatchValue : aBatchesValue->as_array()) {
@@ -158,10 +161,11 @@ bool ParseBranch(const JsonValue &pRoot,
                 SetError(pError, "failed to parse branch batch JSON: " + aBatchError);
                 return false;
             }
-            pBranch->AddBatch(aBatch);
+            aParsedBatches.push_back(aBatch);
         }
     }
 
+    std::vector<std::string> aParsedLines;
     const JsonValue *aStringLinesValue = aBranchValue->find("string_lines");
     if ((aStringLinesValue != nullptr) && aStringLinesValue->is_array()) {
         for (const JsonValue &aLineValue : aStringLinesValue->as_array()) {
@@ -169,8 +173,54 @@ bool ParseBranch(const JsonValue &pRoot,
                 SetError(pError, "branch '" + pBranchName + "' has non-string line entry.");
                 return false;
             }
-            pBranch->AddLine(aLineValue.as_string());
+            aParsedLines.push_back(aLineValue.as_string());
         }
+    }
+
+    const JsonValue *aSequenceValue = aBranchValue->find("sequence");
+    if ((aSequenceValue != nullptr) && aSequenceValue->is_array()) {
+        for (const JsonValue &aStepValue : aSequenceValue->as_array()) {
+            if (!aStepValue.is_object()) {
+                SetError(pError, "branch '" + pBranchName + "' has non-object sequence step.");
+                return false;
+            }
+
+            const JsonValue *aTypeValue = aStepValue.find("type");
+            const JsonValue *aIndexValue = aStepValue.find("index");
+            if ((aTypeValue == nullptr) || (aIndexValue == nullptr) ||
+                !aTypeValue->is_string() || !aIndexValue->is_number()) {
+                SetError(pError, "branch '" + pBranchName + "' has malformed sequence step.");
+                return false;
+            }
+
+            const std::string aType = aTypeValue->as_string();
+            const std::size_t aIndex = static_cast<std::size_t>(aIndexValue->as_number());
+            if (aType == "line") {
+                if (aIndex >= aParsedLines.size()) {
+                    SetError(pError, "branch '" + pBranchName + "' line sequence index out of range.");
+                    return false;
+                }
+                pBranch->AddLine(aParsedLines[aIndex]);
+            } else if (aType == "batch") {
+                if (aIndex >= aParsedBatches.size()) {
+                    SetError(pError, "branch '" + pBranchName + "' batch sequence index out of range.");
+                    return false;
+                }
+                pBranch->AddBatch(aParsedBatches[aIndex]);
+            } else {
+                SetError(pError, "branch '" + pBranchName + "' has unknown sequence step type.");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Legacy branch JSON used separate arrays with implicit order: lines, then batches.
+    for (const std::string &aLine : aParsedLines) {
+        pBranch->AddLine(aLine);
+    }
+    for (const GBatch &aBatch : aParsedBatches) {
+        pBranch->AddBatch(aBatch);
     }
 
     return true;
@@ -305,72 +355,349 @@ bool ParseIntLiteral(std::string pValueText,
     return true;
 }
 
-void ApplyBranchStringLines(const std::vector<std::string> &pLines,
-                            std::unordered_map<std::string, int> *pVariables) {
-    if (pVariables == nullptr) {
-        return;
+bool ResolveAliasSlot(const std::string &pAlias,
+                      TwistWorkSpaceSlot *pSlotOut) {
+    if (pSlotOut == nullptr) {
+        return false;
     }
 
-    for (const std::string &aRawLine : pLines) {
-        std::string aLine = aRawLine;
-        const std::size_t aComment = aLine.find("//");
-        if (aComment != std::string::npos) {
-            aLine = aLine.substr(0U, aComment);
+    static const TwistWorkSpaceSlot kKnownSlots[] = {
+        TwistWorkSpaceSlot::kSource,
+        TwistWorkSpaceSlot::kDest,
+
+        TwistWorkSpaceSlot::kSaltA,
+        TwistWorkSpaceSlot::kSaltB,
+        TwistWorkSpaceSlot::kSaltC,
+        TwistWorkSpaceSlot::kSaltD,
+        TwistWorkSpaceSlot::kDerivedSaltA,
+        TwistWorkSpaceSlot::kDerivedSaltB,
+        TwistWorkSpaceSlot::kDerivedSaltC,
+        TwistWorkSpaceSlot::kDerivedSaltD,
+        TwistWorkSpaceSlot::kDerivedSaltE,
+        TwistWorkSpaceSlot::kDerivedSaltF,
+        TwistWorkSpaceSlot::kDerivedSaltG,
+        TwistWorkSpaceSlot::kDerivedSaltH,
+
+        TwistWorkSpaceSlot::kSBoxA,
+        TwistWorkSpaceSlot::kSBoxB,
+        TwistWorkSpaceSlot::kSBoxC,
+        TwistWorkSpaceSlot::kSBoxD,
+        TwistWorkSpaceSlot::kDerivedSBoxA,
+        TwistWorkSpaceSlot::kDerivedSBoxB,
+        TwistWorkSpaceSlot::kDerivedSBoxC,
+        TwistWorkSpaceSlot::kDerivedSBoxD,
+        TwistWorkSpaceSlot::kDerivedSBoxE,
+        TwistWorkSpaceSlot::kDerivedSBoxF,
+        TwistWorkSpaceSlot::kDerivedSBoxG,
+        TwistWorkSpaceSlot::kDerivedSBoxH,
+
+        TwistWorkSpaceSlot::kSeedExpansionLaneA,
+        TwistWorkSpaceSlot::kSeedExpansionLaneB,
+        TwistWorkSpaceSlot::kSeedExpansionLaneC,
+        TwistWorkSpaceSlot::kSeedExpansionLaneD,
+
+        TwistWorkSpaceSlot::kWorkLaneA,
+        TwistWorkSpaceSlot::kWorkLaneB,
+        TwistWorkSpaceSlot::kWorkLaneC,
+        TwistWorkSpaceSlot::kWorkLaneD,
+
+        TwistWorkSpaceSlot::kOperationLaneA,
+        TwistWorkSpaceSlot::kOperationLaneB,
+
+        TwistWorkSpaceSlot::kMaskLaneA,
+        TwistWorkSpaceSlot::kMaskLaneB,
+
+        TwistWorkSpaceSlot::kKeyBoxUnrolledA,
+        TwistWorkSpaceSlot::kKeyBoxUnrolledB,
+        TwistWorkSpaceSlot::kKeyRowReadA,
+        TwistWorkSpaceSlot::kKeyRowReadB,
+        TwistWorkSpaceSlot::kKeyRowWriteA,
+        TwistWorkSpaceSlot::kKeyRowWriteB,
+
+        TwistWorkSpaceSlot::kMaskBoxUnrolledA,
+        TwistWorkSpaceSlot::kMaskBoxUnrolledB,
+        TwistWorkSpaceSlot::kMaskRowReadA,
+        TwistWorkSpaceSlot::kMaskRowReadB,
+        TwistWorkSpaceSlot::kMaskRowWriteA,
+        TwistWorkSpaceSlot::kMaskRowWriteB
+    };
+
+    for (TwistWorkSpaceSlot aSlot : kKnownSlots) {
+        if (BufAliasName(aSlot) == pAlias) {
+            *pSlotOut = aSlot;
+            return true;
         }
+    }
+    return false;
+}
+
+bool ParseCryptoMakeArguments(const std::string &pLine,
+                              std::vector<std::string> *pArgsOut) {
+    if (pArgsOut == nullptr) {
+        return false;
+    }
+
+    std::string aLine = TrimCopy(pLine);
+    if (aLine.empty()) {
+        return false;
+    }
+
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
         aLine = TrimCopy(aLine);
-        if (aLine.empty()) {
-            continue;
-        }
-
-        if (!aLine.empty() && aLine.back() == ';') {
-            aLine.pop_back();
-            aLine = TrimCopy(aLine);
-        }
-        if (aLine.empty()) {
-            continue;
-        }
-
-        const std::size_t aEqual = aLine.find('=');
-        if (aEqual == std::string::npos) {
-            continue;
-        }
-
-        std::string aLeft = TrimCopy(aLine.substr(0U, aEqual));
-        std::string aRight = TrimCopy(aLine.substr(aEqual + 1U));
-        if (aLeft.empty() || aRight.empty()) {
-            continue;
-        }
-
-        if ((aLeft.find('*') != std::string::npos) ||
-            (aLeft.find('[') != std::string::npos) ||
-            (aLeft.find('(') != std::string::npos) ||
-            (aLeft.find(')') != std::string::npos)) {
-            continue;
-        }
-
-        const std::size_t aLastSpace = aLeft.find_last_of(" \t");
-        const std::string aName = (aLastSpace == std::string::npos)
-            ? aLeft
-            : TrimCopy(aLeft.substr(aLastSpace + 1U));
-        if (!IsIdentifier(aName)) {
-            continue;
-        }
-
-        int aValue = 0;
-        if (!ParseIntLiteral(aRight, &aValue)) {
-            continue;
-        }
-
-        (*pVariables)[aName] = aValue;
     }
+
+    const std::size_t aCallPos = aLine.find(".Make(");
+    if (aCallPos == std::string::npos) {
+        return false;
+    }
+
+    const std::size_t aOpen = aCallPos + 6U;
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aClose == std::string::npos) || (aClose < aOpen)) {
+        return false;
+    }
+
+    const std::string aArgsText = aLine.substr(aOpen, aClose - aOpen);
+    std::vector<std::string> aArgs;
+
+    std::size_t aCursor = 0U;
+    while (aCursor < aArgsText.size()) {
+        const std::size_t aComma = aArgsText.find(',', aCursor);
+        std::string aToken = (aComma == std::string::npos)
+            ? aArgsText.substr(aCursor)
+            : aArgsText.substr(aCursor, aComma - aCursor);
+        aToken = TrimCopy(aToken);
+        if (!aToken.empty()) {
+            aArgs.push_back(aToken);
+        }
+        if (aComma == std::string::npos) {
+            break;
+        }
+        aCursor = aComma + 1U;
+    }
+
+    if (aArgs.empty()) {
+        return false;
+    }
+
+    *pArgsOut = std::move(aArgs);
+    return true;
+}
+
+bool ExecuteCryptoMakeLine(const std::string &pLine,
+                           TwistWorkSpace *pWorkspace,
+                           std::string *pError) {
+    std::vector<std::string> aArgs;
+    if (!ParseCryptoMakeArguments(pLine, &aArgs)) {
+        return false;
+    }
+
+    if ((aArgs.size() != 5U) && (aArgs.size() != 9U)) {
+        SetError(pError, "TwistCryptoGenerator::Make expects 5 or 9 arguments.");
+        return false;
+    }
+
+    std::vector<std::uint8_t *> aBuffers;
+    aBuffers.reserve(aArgs.size());
+    for (const std::string &aAlias : aArgs) {
+        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
+        if (!ResolveAliasSlot(aAlias, &aSlot)) {
+            SetError(pError, "Unknown buffer alias in TwistCryptoGenerator::Make call: " + aAlias);
+            return false;
+        }
+
+        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, aSlot);
+        if (aBuffer == nullptr) {
+            SetError(pError, "Resolved null buffer for alias: " + aAlias);
+            return false;
+        }
+        aBuffers.push_back(aBuffer);
+    }
+
+    TwistCryptoGenerator aGenerator;
+    if (aBuffers.size() == 5U) {
+        aGenerator.Make(aBuffers[0],
+                        aBuffers[1],
+                        aBuffers[2],
+                        aBuffers[3],
+                        aBuffers[4]);
+    } else {
+        aGenerator.Make(aBuffers[0],
+                        aBuffers[1],
+                        aBuffers[2],
+                        aBuffers[3],
+                        aBuffers[4],
+                        aBuffers[5],
+                        aBuffers[6],
+                        aBuffers[7],
+                        aBuffers[8]);
+    }
+
+    return true;
+}
+
+bool ApplyBranchStringLine(const std::string &pRawLine,
+                           TwistWorkSpace *pWorkspace,
+                           std::unordered_map<std::string, int> *pVariables,
+                           std::string *pError) {
+    if ((pWorkspace == nullptr) || (pVariables == nullptr)) {
+        SetError(pError, "Branch string-line execution had null inputs.");
+        return false;
+    }
+
+    std::string aLineError;
+    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, &aLineError);
+    if (!aLineError.empty()) {
+        SetError(pError, aLineError);
+        return false;
+    }
+
+    if (aExecutedCrypto) {
+        return true;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimCopy(aLine);
+    if (aLine.empty()) {
+        return true;
+    }
+
+    if (!aLine.empty() && aLine.back() == ';') {
+        aLine.pop_back();
+        aLine = TrimCopy(aLine);
+    }
+    if (aLine.empty()) {
+        return true;
+    }
+
+    const std::size_t aEqual = aLine.find('=');
+    if (aEqual == std::string::npos) {
+        return true;
+    }
+
+    std::string aLeft = TrimCopy(aLine.substr(0U, aEqual));
+    std::string aRight = TrimCopy(aLine.substr(aEqual + 1U));
+    if (aLeft.empty() || aRight.empty()) {
+        return true;
+    }
+
+    if ((aLeft.find('*') != std::string::npos) ||
+        (aLeft.find('[') != std::string::npos) ||
+        (aLeft.find('(') != std::string::npos) ||
+        (aLeft.find(')') != std::string::npos)) {
+        return true;
+    }
+
+    const std::size_t aLastSpace = aLeft.find_last_of(" \t");
+    const std::string aName = (aLastSpace == std::string::npos)
+        ? aLeft
+        : TrimCopy(aLeft.substr(aLastSpace + 1U));
+    if (!IsIdentifier(aName)) {
+        return true;
+    }
+
+    int aValue = 0;
+    if (!ParseIntLiteral(aRight, &aValue)) {
+        return true;
+    }
+
+    (*pVariables)[aName] = aValue;
+    return true;
+}
+
+bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
+                            TwistWorkSpace *pWorkspace,
+                            std::unordered_map<std::string, int> *pVariables,
+                            std::string *pError) {
+    for (const std::string &aRawLine : pLines) {
+        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pVariables, pError)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
+                             std::size_t pBatchIndex,
+                             TwistWorkSpace *pWorkspace,
+                             std::unordered_map<std::string, int> *pVariables,
+                             std::string *pError) {
+    if (pBatchIndex >= pBranch.GetBatchJsonText().size()) {
+        SetError(pError, "Branch batch step index was out of range during execution.");
+        return false;
+    }
+
+    GBatch aBatch;
+    if (!GBatch::FromJson(pBranch.GetBatchJsonText()[pBatchIndex], &aBatch, pError)) {
+        if ((pError != nullptr) && pError->empty()) {
+            *pError = "Failed to parse branch batch JSON.";
+        }
+        return false;
+    }
+
+    if (!aBatch.ExecuteWithVariables(pWorkspace, pVariables, pError)) {
+        if ((pError != nullptr) && pError->empty()) {
+            *pError = "Branch batch execution failed.";
+        }
+        return false;
+    }
+
+    return true;
 }
 
 bool ExecuteBranch(const TwistProgramBranch &pBranch,
                    TwistWorkSpace *pWorkspace,
                    std::string *pError) {
+    if (pWorkspace == nullptr) {
+        SetError(pError, "Branch execution received a null workspace.");
+        return false;
+    }
+
     std::unordered_map<std::string, int> aVariables;
-    ApplyBranchStringLines(pBranch.GetStringLines(), &aVariables);
-    return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkspace, &aVariables, pError);
+    const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
+    if (aSteps.empty()) {
+        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, &aVariables, pError)) {
+            return false;
+        }
+        return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkspace, &aVariables, pError);
+    }
+
+    for (const TwistProgramBranchStep &aStep : aSteps) {
+        if (aStep.mType == TwistProgramBranchStepType::kLine) {
+            if (aStep.mIndex >= pBranch.GetStringLines().size()) {
+                SetError(pError, "Branch line step index was out of range during execution.");
+                return false;
+            }
+            if (!ApplyBranchStringLine(pBranch.GetStringLines()[aStep.mIndex],
+                                       pWorkspace,
+                                       &aVariables,
+                                       pError)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (aStep.mType == TwistProgramBranchStepType::kBatch) {
+            if (!ExecuteBatchJsonByIndex(pBranch,
+                                         aStep.mIndex,
+                                         pWorkspace,
+                                         &aVariables,
+                                         pError)) {
+                return false;
+            }
+            continue;
+        }
+
+        SetError(pError, "Branch step type was invalid during execution.");
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace

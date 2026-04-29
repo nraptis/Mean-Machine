@@ -298,11 +298,27 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kSaltB,
         TwistWorkSpaceSlot::kSaltC,
         TwistWorkSpaceSlot::kSaltD,
+        TwistWorkSpaceSlot::kDerivedSaltA,
+        TwistWorkSpaceSlot::kDerivedSaltB,
+        TwistWorkSpaceSlot::kDerivedSaltC,
+        TwistWorkSpaceSlot::kDerivedSaltD,
+        TwistWorkSpaceSlot::kDerivedSaltE,
+        TwistWorkSpaceSlot::kDerivedSaltF,
+        TwistWorkSpaceSlot::kDerivedSaltG,
+        TwistWorkSpaceSlot::kDerivedSaltH,
 
         TwistWorkSpaceSlot::kSBoxA,
         TwistWorkSpaceSlot::kSBoxB,
         TwistWorkSpaceSlot::kSBoxC,
         TwistWorkSpaceSlot::kSBoxD,
+        TwistWorkSpaceSlot::kDerivedSBoxA,
+        TwistWorkSpaceSlot::kDerivedSBoxB,
+        TwistWorkSpaceSlot::kDerivedSBoxC,
+        TwistWorkSpaceSlot::kDerivedSBoxD,
+        TwistWorkSpaceSlot::kDerivedSBoxE,
+        TwistWorkSpaceSlot::kDerivedSBoxF,
+        TwistWorkSpaceSlot::kDerivedSBoxG,
+        TwistWorkSpaceSlot::kDerivedSBoxH,
 
         TwistWorkSpaceSlot::kSeedExpansionLaneA,
         TwistWorkSpaceSlot::kSeedExpansionLaneB,
@@ -349,11 +365,27 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return aPrefix + "pWorkspace->mSaltB;";
         case TwistWorkSpaceSlot::kSaltC: return aPrefix + "pWorkspace->mSaltC;";
         case TwistWorkSpaceSlot::kSaltD: return aPrefix + "pWorkspace->mSaltD;";
+        case TwistWorkSpaceSlot::kDerivedSaltA: return aPrefix + "pWorkspace->mDerivedSaltA;";
+        case TwistWorkSpaceSlot::kDerivedSaltB: return aPrefix + "pWorkspace->mDerivedSaltB;";
+        case TwistWorkSpaceSlot::kDerivedSaltC: return aPrefix + "pWorkspace->mDerivedSaltC;";
+        case TwistWorkSpaceSlot::kDerivedSaltD: return aPrefix + "pWorkspace->mDerivedSaltD;";
+        case TwistWorkSpaceSlot::kDerivedSaltE: return aPrefix + "pWorkspace->mDerivedSaltE;";
+        case TwistWorkSpaceSlot::kDerivedSaltF: return aPrefix + "pWorkspace->mDerivedSaltF;";
+        case TwistWorkSpaceSlot::kDerivedSaltG: return aPrefix + "pWorkspace->mDerivedSaltG;";
+        case TwistWorkSpaceSlot::kDerivedSaltH: return aPrefix + "pWorkspace->mDerivedSaltH;";
 
         case TwistWorkSpaceSlot::kSBoxA: return aPrefix + "pWorkspace->mSBoxA;";
         case TwistWorkSpaceSlot::kSBoxB: return aPrefix + "pWorkspace->mSBoxB;";
         case TwistWorkSpaceSlot::kSBoxC: return aPrefix + "pWorkspace->mSBoxC;";
         case TwistWorkSpaceSlot::kSBoxD: return aPrefix + "pWorkspace->mSBoxD;";
+        case TwistWorkSpaceSlot::kDerivedSBoxA: return aPrefix + "pWorkspace->mDerivedSBoxA;";
+        case TwistWorkSpaceSlot::kDerivedSBoxB: return aPrefix + "pWorkspace->mDerivedSBoxB;";
+        case TwistWorkSpaceSlot::kDerivedSBoxC: return aPrefix + "pWorkspace->mDerivedSBoxC;";
+        case TwistWorkSpaceSlot::kDerivedSBoxD: return aPrefix + "pWorkspace->mDerivedSBoxD;";
+        case TwistWorkSpaceSlot::kDerivedSBoxE: return aPrefix + "pWorkspace->mDerivedSBoxE;";
+        case TwistWorkSpaceSlot::kDerivedSBoxF: return aPrefix + "pWorkspace->mDerivedSBoxF;";
+        case TwistWorkSpaceSlot::kDerivedSBoxG: return aPrefix + "pWorkspace->mDerivedSBoxG;";
+        case TwistWorkSpaceSlot::kDerivedSBoxH: return aPrefix + "pWorkspace->mDerivedSBoxH;";
 
         case TwistWorkSpaceSlot::kSeedExpansionLaneA: return aPrefix + "pWorkspace->mExpandLaneA;";
         case TwistWorkSpaceSlot::kSeedExpansionLaneB: return aPrefix + "pWorkspace->mExpandLaneB;";
@@ -481,23 +513,52 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         *pStream << '\n';
     }
 
-    for (const std::string &aLine : pBranch.GetStringLines()) {
-        *pStream << "    " << NormalizeLegacyByteTypeLine(aLine) << '\n';
-    }
-    if (!pBranch.GetStringLines().empty()) {
-        *pStream << '\n';
+    const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
+    if (aSteps.empty()) {
+        for (const GBatch &aBatch : aBatches) {
+            const std::string aScopeBlock = aBatch.BuildCppScopeBlock(pError, false);
+            if (aScopeBlock.empty()) {
+                if ((pError != nullptr) && pError->empty()) {
+                    *pError = "Batch scope-block export returned empty text.";
+                }
+                return false;
+            }
+
+            *pStream << IndentBlock(aScopeBlock, 1) << '\n';
+        }
+        return true;
     }
 
-    for (const GBatch &aBatch : aBatches) {
-        const std::string aScopeBlock = aBatch.BuildCppScopeBlock(pError, false);
-        if (aScopeBlock.empty()) {
-            if ((pError != nullptr) && pError->empty()) {
-                *pError = "Batch scope-block export returned empty text.";
+    for (const TwistProgramBranchStep &aStep : aSteps) {
+        if (aStep.mType == TwistProgramBranchStepType::kLine) {
+            if (aStep.mIndex >= pBranch.GetStringLines().size()) {
+                SetError(pError, "Branch line step index was out of range.");
+                return false;
             }
-            return false;
+            *pStream << "    " << NormalizeLegacyByteTypeLine(pBranch.GetStringLines()[aStep.mIndex]) << '\n';
+            continue;
         }
 
-        *pStream << IndentBlock(aScopeBlock, 1) << '\n';
+        if (aStep.mType == TwistProgramBranchStepType::kBatch) {
+            if (aStep.mIndex >= aBatches.size()) {
+                SetError(pError, "Branch batch step index was out of range.");
+                return false;
+            }
+
+            const std::string aScopeBlock = aBatches[aStep.mIndex].BuildCppScopeBlock(pError, false);
+            if (aScopeBlock.empty()) {
+                if ((pError != nullptr) && pError->empty()) {
+                    *pError = "Batch scope-block export returned empty text.";
+                }
+                return false;
+            }
+
+            *pStream << IndentBlock(aScopeBlock, 1) << '\n';
+            continue;
+        }
+
+        SetError(pError, "Branch step type was invalid.");
+        return false;
     }
 
     return true;
@@ -525,6 +586,17 @@ JsonValue BranchToJsonValue(const TwistProgramBranch &pBranch,
     JsonValue::Object aObject;
     aObject["string_lines"] = JsonValue::ArrayValue(std::move(aLines));
     aObject["batches"] = JsonValue::ArrayValue(std::move(aBatches));
+
+    JsonValue::Array aSteps;
+    for (const TwistProgramBranchStep &aStep : pBranch.GetSteps()) {
+        JsonValue::Object aStepObject;
+        aStepObject["type"] = JsonValue::String(
+            (aStep.mType == TwistProgramBranchStepType::kLine) ? "line" : "batch");
+        aStepObject["index"] = JsonValue::Number(static_cast<double>(aStep.mIndex));
+        aSteps.push_back(JsonValue::ObjectValue(std::move(aStepObject)));
+    }
+    aObject["sequence"] = JsonValue::ArrayValue(std::move(aSteps));
+
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
@@ -576,6 +648,10 @@ void TwistProgramBranch::AddBatch(const GBatch &pBatch) {
     }
 
     mBatchJsonText.push_back(aBatchJson);
+    TwistProgramBranchStep aStep;
+    aStep.mType = TwistProgramBranchStepType::kBatch;
+    aStep.mIndex = mBatchJsonText.size() - 1U;
+    mSteps.push_back(aStep);
 }
 
 void TwistProgramBranch::AddLine(const std::string &pLine) {
@@ -583,6 +659,10 @@ void TwistProgramBranch::AddLine(const std::string &pLine) {
         return;
     }
     mStringLines.push_back(pLine);
+    TwistProgramBranchStep aStep;
+    aStep.mType = TwistProgramBranchStepType::kLine;
+    aStep.mIndex = mStringLines.size() - 1U;
+    mSteps.push_back(aStep);
 }
 
 void TwistProgramBranch::AddWorkspaceAliasLine(const std::string &pAliasName,
@@ -608,6 +688,7 @@ void TwistProgramBranch::AddAssignByteLine(const std::string &pName,
 void TwistProgramBranch::Clear() {
     mBatchJsonText.clear();
     mStringLines.clear();
+    mSteps.clear();
 }
 
 const std::vector<std::string>& TwistProgramBranch::GetBatchJsonText() const {
@@ -616,6 +697,10 @@ const std::vector<std::string>& TwistProgramBranch::GetBatchJsonText() const {
 
 const std::vector<std::string>& TwistProgramBranch::GetStringLines() const {
     return mStringLines;
+}
+
+const std::vector<TwistProgramBranchStep>& TwistProgramBranch::GetSteps() const {
+    return mSteps;
 }
 
 bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
@@ -665,6 +750,7 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     std::ostringstream aCpp;
     aCpp << "#include \"" << aClassName << ".hpp\"\n"
          << "#include \"TwistFunctional.hpp\"\n"
+         << "#include \"TwistCryptoGenerator.hpp\"\n"
          << "\n"
          << "#include <cstring>\n"
          << "\n"
