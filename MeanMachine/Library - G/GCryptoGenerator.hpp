@@ -23,18 +23,18 @@ public:
                                          const GSymbol &pSBoxB,
                                          const GSymbol &pSBoxC,
                                          const GSymbol &pSBoxD,
-                                         std::string *pError = nullptr) {
+                                         std::string *pErrorMessage = nullptr) {
         std::uint8_t *aSource = nullptr;
         std::uint8_t *aSBoxA = nullptr;
         std::uint8_t *aSBoxB = nullptr;
         std::uint8_t *aSBoxC = nullptr;
         std::uint8_t *aSBoxD = nullptr;
 
-        if (!ResolveRequiredBuffer(pWorkspace, pSource, "source", &aSource, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxA, "sbox A", &aSBoxA, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxB, "sbox B", &aSBoxB, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxC, "sbox C", &aSBoxC, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxD, "sbox D", &aSBoxD, pError)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSource, "source", &aSource, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
         aGenerator.Make(aSource, aSBoxA, aSBoxB, aSBoxC, aSBoxD);
@@ -51,7 +51,7 @@ public:
                                          const GSymbol &pExistingSBoxB,
                                          const GSymbol &pExistingSBoxC,
                                          const GSymbol &pExistingSBoxD,
-                                         std::string *pError = nullptr) {
+                                         std::string *pErrorMessage = nullptr) {
         std::uint8_t *aSource = nullptr;
         std::uint8_t *aSBoxA = nullptr;
         std::uint8_t *aSBoxB = nullptr;
@@ -62,15 +62,15 @@ public:
         std::uint8_t *aExistingSBoxC = nullptr;
         std::uint8_t *aExistingSBoxD = nullptr;
 
-        if (!ResolveRequiredBuffer(pWorkspace, pSource, "source", &aSource, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxA, "sbox A", &aSBoxA, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxB, "sbox B", &aSBoxB, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxC, "sbox C", &aSBoxC, pError)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxD, "sbox D", &aSBoxD, pError)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxA, "existing sbox A", &aExistingSBoxA, pError)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxB, "existing sbox B", &aExistingSBoxB, pError)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxC, "existing sbox C", &aExistingSBoxC, pError)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxD, "existing sbox D", &aExistingSBoxD, pError)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSource, "source", &aSource, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxA, "existing sbox A", &aExistingSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxB, "existing sbox B", &aExistingSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxC, "existing sbox C", &aExistingSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxD, "existing sbox D", &aExistingSBoxD, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
         aGenerator.Make(aSource,
@@ -86,10 +86,10 @@ public:
     }
 
 private:
-    static void                     SetError(std::string *pError,
+    static void                     SetError(std::string *pErrorMessage,
                                              const std::string &pMessage) {
-        if (pError != nullptr) {
-            *pError = pMessage;
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = pMessage;
         }
     }
 
@@ -97,26 +97,26 @@ private:
                                                           const GSymbol &pSymbol,
                                                           const std::string &pLabel,
                                                           std::uint8_t **pBufferOut,
-                                                          std::string *pError) {
+                                                          std::string *pErrorMessage) {
         if (pBufferOut == nullptr) {
-            SetError(pError, "GCryptoGenerator output buffer pointer was null.");
+            SetError(pErrorMessage, "GCryptoGenerator output buffer pointer was null.");
             return false;
         }
         *pBufferOut = nullptr;
 
         if (pWorkspace == nullptr) {
-            SetError(pError, "GCryptoGenerator workspace was null.");
+            SetError(pErrorMessage, "GCryptoGenerator workspace was null.");
             return false;
         }
 
         if (!pSymbol.IsBuf()) {
-            SetError(pError, "GCryptoGenerator expected a buffer symbol for " + pLabel + ".");
+            SetError(pErrorMessage, "GCryptoGenerator expected a buffer symbol for " + pLabel + ".");
             return false;
         }
 
         std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pSymbol.mSlot);
         if (aBuffer == nullptr) {
-            SetError(pError, "GCryptoGenerator resolved null buffer for " + pLabel + ".");
+            SetError(pErrorMessage, "GCryptoGenerator resolved null buffer for " + pLabel + ".");
             return false;
         }
 
@@ -128,9 +128,9 @@ private:
                                                           const GSymbol &pSymbol,
                                                           const std::string &pLabel,
                                                           std::uint8_t **pBufferOut,
-                                                          std::string *pError) {
+                                                          std::string *pErrorMessage) {
         if (pBufferOut == nullptr) {
-            SetError(pError, "GCryptoGenerator optional output buffer pointer was null.");
+            SetError(pErrorMessage, "GCryptoGenerator optional output buffer pointer was null.");
             return false;
         }
         *pBufferOut = nullptr;
@@ -139,7 +139,7 @@ private:
             return true;
         }
 
-        return ResolveRequiredBuffer(pWorkspace, pSymbol, pLabel, pBufferOut, pError);
+        return ResolveRequiredBuffer(pWorkspace, pSymbol, pLabel, pBufferOut, pErrorMessage);
     }
 };
 

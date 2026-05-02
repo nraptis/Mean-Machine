@@ -1,38 +1,26 @@
 //
-//  GQuick.cpp
+//  GQuickStatement.cpp
 //  MeanMachine
 //
-//  Created by John Snow on 4/24/26.
+//  Created by Dragon on 5/1/26.
 //
 
 #include "GQuick.hpp"
-#include "Random.hpp"
 
-GExpr GQuick::BufferRead(GSymbol pSymbol, GSymbol pSlotSymbol) {
-    GExpr aIndexExpression = GExpr::Symbol(pSlotSymbol);
-    return GExpr::Read(pSymbol, aIndexExpression);
+
+GStatement GQuick::MakeAssignDestStatement(const GSymbol pDest, const GSymbol pIndex, const GSymbol pValue) {
+    GExpr aIndexExpr = GExpr::Symbol(pIndex);
+    GExpr aValueExpr = GExpr::Symbol(pValue);
+    GTarget aDestTarget = GTarget::Write(pDest, aIndexExpr);
+    return GStatement::Assign(aDestTarget, aValueExpr);
 }
 
-GExpr GQuick::BufferReadRandomOffset(GSymbol pSymbol,
-                                     GSymbol pSlotSymbol,
-                                     GSymbol pOracleSymbol) {
-    int aBufferLength = TwistWorkSpace::GetBuferLength(pSymbol.mSlot);
-    if (aBufferLength <= 0) {
-        return BufferRead(pSymbol, pSlotSymbol);
-    }
-    int aOffset = (int)Random::Get(aBufferLength);
-
-    if (!pOracleSymbol.IsInvalid() && (pSymbol.mSlot != TwistWorkSpaceSlot::kInvalid)) {
-        return GExpr::ReadBlockWrap(pSymbol, pSlotSymbol, pOracleSymbol, aOffset);
-    }
-
-    GExpr aIndexExpression = GExpr::Symbol(pSlotSymbol);
-    if (aOffset != 0) {
-        aIndexExpression = GExpr::Add(aIndexExpression, GExpr::Const(aOffset));
-    }
-    return GExpr::Read(pSymbol, aIndexExpression);
-}
-
-GExpr GQuick::BufferReadRandomOffset(GSymbol pSymbol, GSymbol pSlotSymbol) {
-    return BufferReadRandomOffset(pSymbol, pSlotSymbol, GSymbol());
+GStatement GQuick::MakeAssignOffsetByteStatement(const GSymbol pTarget,
+                                                 const GSymbol pSource,
+                                                 const GSymbol pIndex,
+                                                 const int pOffset) {
+    GTarget aDestTarget = GTarget::Symbol(pTarget);
+    GExpr aIndexPlusOffsetExpr = GExpr::Add(GExpr::Symbol(pIndex), GExpr::Const(pOffset));
+    GExpr aSourceIndexExpr = GExpr::Read(pSource, aIndexPlusOffsetExpr);
+    return GStatement::Assign(aDestTarget, aSourceIndexExpr);
 }

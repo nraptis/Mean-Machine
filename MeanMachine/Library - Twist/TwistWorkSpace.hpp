@@ -10,9 +10,15 @@
 #include <vector>
 
 #define S_BLOCK 8192 // 4,096 // 2,048
-
 #define S_SBOX 256
 #define S_SALT 128
+
+
+#define S_BLOCK1 8191
+#define S_SBOX1 255
+#define S_SALT1 127
+
+
 
 
 #define W_KEY_A 96
@@ -30,6 +36,8 @@
 #define W_MASK_B 64
 #define H_MASK_B 15
 #define S_MASK_B (W_MASK_B * H_MASK_B)
+
+class TwistExpander;
 
 enum class TwistWorkSpaceSlot : std::uint8_t {
     
@@ -71,15 +79,15 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kSeedExpansionLaneB=81,
     kSeedExpansionLaneC=82,
     kSeedExpansionLaneD=83,
-    
+
     kWorkLaneA=90,
     kWorkLaneB=91,
     kWorkLaneC=92,
     kWorkLaneD=93,
-    
+
     kOperationLaneA=100,
     kOperationLaneB=101,
-    
+
     kMaskLaneA=110,
     kMaskLaneB=111,
     
@@ -96,7 +104,7 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kKeyRowReadB=123, // size is W_KEY_B
     kKeyRowWriteA=124, // size is S_KEY_A
     kKeyRowWriteB=125, // size is S_KEY_B
-    
+
     kMaskBoxUnrolledA=130, // size is S_MASK_A
     kMaskBoxUnrolledB=131, // size is S_MASK_B
     kMaskRowReadA=132, // size is W_MASK_A
@@ -117,12 +125,6 @@ public:
     // We stop storing dest here.
     //std::uint8_t                            *mDest;
     
-    // We keep these as clones
-    std::uint8_t                            mSaltA[S_SALT];
-    std::uint8_t                            mSaltB[S_SALT];
-    std::uint8_t                            mSaltC[S_SALT];
-    std::uint8_t                            mSaltD[S_SALT];
-    
     std::uint8_t                            mDerivedSaltA[S_SALT];
     std::uint8_t                            mDerivedSaltB[S_SALT];
     std::uint8_t                            mDerivedSaltC[S_SALT];
@@ -131,11 +133,6 @@ public:
     std::uint8_t                            mDerivedSaltF[S_SALT];
     std::uint8_t                            mDerivedSaltG[S_SALT];
     std::uint8_t                            mDerivedSaltH[S_SALT];
-    
-    std::uint8_t                            mSBoxA[S_SBOX];
-    std::uint8_t                            mSBoxB[S_SBOX];
-    std::uint8_t                            mSBoxC[S_SBOX];
-    std::uint8_t                            mSBoxD[S_SBOX];
     
     std::uint8_t                            mDerivedSBoxA[S_SBOX];
     std::uint8_t                            mDerivedSBoxB[S_SBOX];
@@ -173,12 +170,15 @@ public:
     static void                             ShiftMaskBoxA(std::uint8_t *pBox); //
     static void                             ShiftMaskBoxB(std::uint8_t *pBox); //
     
-    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkspace, TwistWorkSpaceSlot pSlot); //
+    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkspace,
+                                                       TwistExpander *pExpander,
+                                                       TwistWorkSpaceSlot pSlot);
+    
     static int                              GetBufferLength(TwistWorkSpaceSlot pSlot); //
-
-    // Legacy misspellings retained while the rest of the project catches up.
-    static std::uint8_t                     *GetBufer(TwistWorkSpace *pWorkspace, TwistWorkSpaceSlot pSlot); //
-    static int                              GetBuferLength(TwistWorkSpaceSlot pSlot); //
+    
+    static bool                             IsSBox(TwistWorkSpaceSlot pSlot);
+    static bool                             IsSalt(TwistWorkSpaceSlot pSlot);
+    
     
 };
 

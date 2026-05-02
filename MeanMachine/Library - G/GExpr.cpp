@@ -20,8 +20,9 @@ GOperType OperTypeForExprType(const GExprType pType) {
         case GExprType::kShiftL: return GOperType::kShiftL;
         case GExprType::kShiftR: return GOperType::kShiftR;
         case GExprType::kOr: return GOperType::kOr;
-        case GExprType::kMix161: return GOperType::kInv;
-        case GExprType::kMix162: return GOperType::kInv;
+        case GExprType::kMix64_1: return GOperType::kInv;
+        case GExprType::kMix64_4: return GOperType::kInv;
+        case GExprType::kMix64_8: return GOperType::kInv;
         default: return GOperType::kInv;
     }
 }
@@ -44,6 +45,54 @@ GExpr BinaryExpr(const GExprType pType,
 
 bool HasReadWrap(const GExpr &pExpr) {
     return pExpr.mReadWrapType != GReadWrapType::kNone;
+}
+
+bool Mix64Type1NeedsAmount(const Mix64Type_1 pType) {
+    switch (pType) {
+        case Mix64Type_1::kGatePrism_1_8:
+            return false;
+        case Mix64Type_1::kGateRoll_1_1:
+        case Mix64Type_1::kGateRoll_1_4:
+        case Mix64Type_1::kGateRoll_1_8:
+        case Mix64Type_1::kGateTurn_1_1:
+        case Mix64Type_1::kGateTurn_1_4:
+        case Mix64Type_1::kGateTurn_1_8:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Mix64Type4NeedsAmount(const Mix64Type_4 pType) {
+    switch (pType) {
+        case Mix64Type_4::kGatePrismA_4_8:
+        case Mix64Type_4::kGatePrismB_4_8:
+        case Mix64Type_4::kGatePrismC_4_8:
+            return false;
+        case Mix64Type_4::kGateRoll_4_4:
+        case Mix64Type_4::kGateRollA_4_8:
+        case Mix64Type_4::kGateRollB_4_8:
+        case Mix64Type_4::kGateRollC_4_8:
+        case Mix64Type_4::kGateTurn_4_4:
+        case Mix64Type_4::kGateTurnA_4_8:
+        case Mix64Type_4::kGateTurnB_4_8:
+        case Mix64Type_4::kGateTurnC_4_8:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Mix64Type8NeedsAmount(const Mix64Type_8 pType) {
+    switch (pType) {
+        case Mix64Type_8::kGatePrism_8_8:
+            return false;
+        case Mix64Type_8::kGateRoll_8_8:
+        case Mix64Type_8::kGateTurn_8_8:
+            return true;
+        default:
+            return false;
+    }
 }
 
 GExpr BuildWrappedRead(const GReadWrapType pWrapType,
@@ -88,20 +137,35 @@ void AppendSymbols(const GExpr &pExpr,
                 pSymbols->push_back(pExpr.mReadWrapOracleSymbol);
             }
             return;
-
-        case GExprType::kMix161:
+        case GExprType::kMix64_1:
             if (pExpr.mA != nullptr) {
                 AppendSymbols(*pExpr.mA, pSymbols);
             }
-            pSymbols->push_back(pExpr.mMix161SBoxSymbol);
+            pSymbols->push_back(pExpr.mMix64SBoxA);
             return;
 
-        case GExprType::kMix162:
+        case GExprType::kMix64_4:
             if (pExpr.mA != nullptr) {
                 AppendSymbols(*pExpr.mA, pSymbols);
             }
-            pSymbols->push_back(pExpr.mMix162SBoxASymbol);
-            pSymbols->push_back(pExpr.mMix162SBoxBSymbol);
+            pSymbols->push_back(pExpr.mMix64SBoxA);
+            pSymbols->push_back(pExpr.mMix64SBoxB);
+            pSymbols->push_back(pExpr.mMix64SBoxC);
+            pSymbols->push_back(pExpr.mMix64SBoxD);
+            return;
+
+        case GExprType::kMix64_8:
+            if (pExpr.mA != nullptr) {
+                AppendSymbols(*pExpr.mA, pSymbols);
+            }
+            pSymbols->push_back(pExpr.mMix64SBoxA);
+            pSymbols->push_back(pExpr.mMix64SBoxB);
+            pSymbols->push_back(pExpr.mMix64SBoxC);
+            pSymbols->push_back(pExpr.mMix64SBoxD);
+            pSymbols->push_back(pExpr.mMix64SBoxE);
+            pSymbols->push_back(pExpr.mMix64SBoxF);
+            pSymbols->push_back(pExpr.mMix64SBoxG);
+            pSymbols->push_back(pExpr.mMix64SBoxH);
             return;
 
         case GExprType::kAdd:
@@ -159,14 +223,9 @@ void AppendOps(const GExpr &pExpr,
             }
             pOps->push_back(OperTypeForExprType(pExpr.mType));
             return;
-
-        case GExprType::kMix161:
-            if (pExpr.mA != nullptr) {
-                AppendOps(*pExpr.mA, pOps);
-            }
-            return;
-
-        case GExprType::kMix162:
+        case GExprType::kMix64_1:
+        case GExprType::kMix64_4:
+        case GExprType::kMix64_8:
             if (pExpr.mA != nullptr) {
                 AppendOps(*pExpr.mA, pOps);
             }
@@ -209,16 +268,36 @@ std::string ExprKeyInner(const GExpr &pExpr) {
                    ",base=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapIndexSymbol)) +
                    ",oracle=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapOracleSymbol)) +
                    ",offset=" + std::to_string(pExpr.mReadWrapOffset) + ")";
-
-        case GExprType::kMix161:
-            return "mix161(type=" + std::to_string(static_cast<int>(pExpr.mMix161Type)) +
-                   ",sbox=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix161SBoxSymbol)) +
+            
+        case GExprType::kMix64_1:
+            return "mix64_1(type=" + std::to_string(static_cast<int>(pExpr.mMix64Type1)) +
+                   ",amount=" + std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) +
+                   ",has_amount=" + std::to_string(pExpr.mMix64UseAmount ? 1 : 0) +
+                   ",sbox_a=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxA)) +
                    ",value=" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
 
-        case GExprType::kMix162:
-            return "mix162(type=" + std::to_string(static_cast<int>(pExpr.mMix162Type)) +
-                   ",sbox_a=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix162SBoxASymbol)) +
-                   ",sbox_b=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix162SBoxBSymbol)) +
+        case GExprType::kMix64_4:
+            return "mix64_4(type=" + std::to_string(static_cast<int>(pExpr.mMix64Type4)) +
+                   ",amount=" + std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) +
+                   ",has_amount=" + std::to_string(pExpr.mMix64UseAmount ? 1 : 0) +
+                   ",sbox_a=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxA)) +
+                   ",sbox_b=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxB)) +
+                   ",sbox_c=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxC)) +
+                   ",sbox_d=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxD)) +
+                   ",value=" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
+
+        case GExprType::kMix64_8:
+            return "mix64_8(type=" + std::to_string(static_cast<int>(pExpr.mMix64Type8)) +
+                   ",amount=" + std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) +
+                   ",has_amount=" + std::to_string(pExpr.mMix64UseAmount ? 1 : 0) +
+                   ",sbox_a=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxA)) +
+                   ",sbox_b=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxB)) +
+                   ",sbox_c=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxC)) +
+                   ",sbox_d=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxD)) +
+                   ",sbox_e=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxE)) +
+                   ",sbox_f=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxF)) +
+                   ",sbox_g=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxG)) +
+                   ",sbox_h=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxH)) +
                    ",value=" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
 
         case GExprType::kAdd:
@@ -312,27 +391,102 @@ GExpr GExpr::ShiftR(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kShiftR, a, b);
 }
 
-GExpr GExpr::Mix161(const GExpr &pValue,
-                    Mix161Type pMixType,
-                    GSymbol pSBox) {
+GExpr GExpr::Mix64_1(const GExpr &pValue,
+                     Mix64Type_1 pMixType,
+                     const GSymbol &pSBoxA) {
     GExpr aExpr;
-    aExpr.mType = GExprType::kMix161;
+    aExpr.mType = GExprType::kMix64_1;
     aExpr.mA = std::make_shared<GExpr>(pValue);
-    aExpr.mMix161Type = pMixType;
-    aExpr.mMix161SBoxSymbol = pSBox;
+    aExpr.mMix64Type1 = pMixType;
+    aExpr.mMix64UseAmount = false;
+    aExpr.mMix64Amount = 0U;
+    aExpr.mMix64SBoxA = pSBoxA;
     return aExpr;
 }
 
-GExpr GExpr::Mix162(const GExpr &pValue,
-                    Mix162Type pMixType,
-                    const GSymbol &pSBoxA,
-                    const GSymbol &pSBoxB) {
+GExpr GExpr::Mix64_4(const GExpr &pValue,
+                     Mix64Type_4 pMixType,
+                     const GSymbol &pSBoxA,
+                     const GSymbol &pSBoxB,
+                     const GSymbol &pSBoxC,
+                     const GSymbol &pSBoxD) {
     GExpr aExpr;
-    aExpr.mType = GExprType::kMix162;
+    aExpr.mType = GExprType::kMix64_4;
     aExpr.mA = std::make_shared<GExpr>(pValue);
-    aExpr.mMix162Type = pMixType;
-    aExpr.mMix162SBoxASymbol = pSBoxA;
-    aExpr.mMix162SBoxBSymbol = pSBoxB;
+    aExpr.mMix64Type4 = pMixType;
+    aExpr.mMix64UseAmount = false;
+    aExpr.mMix64Amount = 0U;
+    aExpr.mMix64SBoxA = pSBoxA;
+    aExpr.mMix64SBoxB = pSBoxB;
+    aExpr.mMix64SBoxC = pSBoxC;
+    aExpr.mMix64SBoxD = pSBoxD;
+    return aExpr;
+}
+
+GExpr GExpr::Mix64_8(const GExpr &pValue,
+                     Mix64Type_8 pMixType,
+                     const GSymbol &pSBoxA,
+                     const GSymbol &pSBoxB,
+                     const GSymbol &pSBoxC,
+                     const GSymbol &pSBoxD,
+                     const GSymbol &pSBoxE,
+                     const GSymbol &pSBoxF,
+                     const GSymbol &pSBoxG,
+                     const GSymbol &pSBoxH) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kMix64_8;
+    aExpr.mA = std::make_shared<GExpr>(pValue);
+    aExpr.mMix64Type8 = pMixType;
+    aExpr.mMix64UseAmount = false;
+    aExpr.mMix64Amount = 0U;
+    aExpr.mMix64SBoxA = pSBoxA;
+    aExpr.mMix64SBoxB = pSBoxB;
+    aExpr.mMix64SBoxC = pSBoxC;
+    aExpr.mMix64SBoxD = pSBoxD;
+    aExpr.mMix64SBoxE = pSBoxE;
+    aExpr.mMix64SBoxF = pSBoxF;
+    aExpr.mMix64SBoxG = pSBoxG;
+    aExpr.mMix64SBoxH = pSBoxH;
+    return aExpr;
+}
+
+GExpr GExpr::Mix64_1(const GExpr &pValue,
+                     Mix64Type_1 pMixType,
+                     std::uint64_t pAmount,
+                     const GSymbol &pSBoxA) {
+    GExpr aExpr = Mix64_1(pValue, pMixType, pSBoxA);
+    aExpr.mMix64UseAmount = true;
+    aExpr.mMix64Amount = pAmount;
+    return aExpr;
+}
+
+GExpr GExpr::Mix64_4(const GExpr &pValue,
+                     Mix64Type_4 pMixType,
+                     std::uint64_t pAmount,
+                     const GSymbol &pSBoxA,
+                     const GSymbol &pSBoxB,
+                     const GSymbol &pSBoxC,
+                     const GSymbol &pSBoxD) {
+    GExpr aExpr = Mix64_4(pValue, pMixType, pSBoxA, pSBoxB, pSBoxC, pSBoxD);
+    aExpr.mMix64UseAmount = true;
+    aExpr.mMix64Amount = pAmount;
+    return aExpr;
+}
+
+GExpr GExpr::Mix64_8(const GExpr &pValue,
+                     Mix64Type_8 pMixType,
+                     std::uint64_t pAmount,
+                     const GSymbol &pSBoxA,
+                     const GSymbol &pSBoxB,
+                     const GSymbol &pSBoxC,
+                     const GSymbol &pSBoxD,
+                     const GSymbol &pSBoxE,
+                     const GSymbol &pSBoxF,
+                     const GSymbol &pSBoxG,
+                     const GSymbol &pSBoxH) {
+    GExpr aExpr = Mix64_8(pValue, pMixType, pSBoxA, pSBoxB, pSBoxC, pSBoxD, pSBoxE, pSBoxF, pSBoxG, pSBoxH);
+    aExpr.mMix64UseAmount = true;
+    aExpr.mMix64Amount = pAmount;
     return aExpr;
 }
 
@@ -368,11 +522,19 @@ void GExpr::Set(const GExpr &pOther) {
     mReadWrapIndexSymbol = pOther.mReadWrapIndexSymbol;
     mReadWrapOracleSymbol = pOther.mReadWrapOracleSymbol;
     mReadWrapOffset = pOther.mReadWrapOffset;
-    mMix161Type = pOther.mMix161Type;
-    mMix161SBoxSymbol = pOther.mMix161SBoxSymbol;
-    mMix162Type = pOther.mMix162Type;
-    mMix162SBoxASymbol = pOther.mMix162SBoxASymbol;
-    mMix162SBoxBSymbol = pOther.mMix162SBoxBSymbol;
+    mMix64Type1 = pOther.mMix64Type1;
+    mMix64Type4 = pOther.mMix64Type4;
+    mMix64Type8 = pOther.mMix64Type8;
+    mMix64UseAmount = pOther.mMix64UseAmount;
+    mMix64Amount = pOther.mMix64Amount;
+    mMix64SBoxA = pOther.mMix64SBoxA;
+    mMix64SBoxB = pOther.mMix64SBoxB;
+    mMix64SBoxC = pOther.mMix64SBoxC;
+    mMix64SBoxD = pOther.mMix64SBoxD;
+    mMix64SBoxE = pOther.mMix64SBoxE;
+    mMix64SBoxF = pOther.mMix64SBoxF;
+    mMix64SBoxG = pOther.mMix64SBoxG;
+    mMix64SBoxH = pOther.mMix64SBoxH;
 }
 
 void GExpr::Invalidate() {
@@ -386,11 +548,19 @@ void GExpr::Invalidate() {
     mReadWrapIndexSymbol.Invalidate();
     mReadWrapOracleSymbol.Invalidate();
     mReadWrapOffset = 0;
-    mMix161Type = Mix161Type::kInv;
-    mMix161SBoxSymbol.Invalidate();
-    mMix162Type = Mix162Type::kInv;
-    mMix162SBoxASymbol.Invalidate();
-    mMix162SBoxBSymbol.Invalidate();
+    mMix64Type1 = Mix64Type_1::kInv;
+    mMix64Type4 = Mix64Type_4::kInv;
+    mMix64Type8 = Mix64Type_8::kInv;
+    mMix64UseAmount = false;
+    mMix64Amount = 0U;
+    mMix64SBoxA.Invalidate();
+    mMix64SBoxB.Invalidate();
+    mMix64SBoxC.Invalidate();
+    mMix64SBoxD.Invalidate();
+    mMix64SBoxE.Invalidate();
+    mMix64SBoxF.Invalidate();
+    mMix64SBoxG.Invalidate();
+    mMix64SBoxH.Invalidate();
 }
 
 bool GExpr::IsInvalid() const {
@@ -418,17 +588,33 @@ bool GExpr::IsInvalid() const {
         case GExprType::kShiftR:
             return (mA == nullptr) || (mB == nullptr) ||
                    mA->IsInvalid() || mB->IsInvalid();
-
-        case GExprType::kMix161:
+        case GExprType::kMix64_1:
             return (mA == nullptr) || mA->IsInvalid() ||
-                   (!mMix161SBoxSymbol.IsBuf()) ||
-                   (mMix161Type == Mix161Type::kInv);
+                   (!mMix64SBoxA.IsBuf()) ||
+                   (mMix64Type1 == Mix64Type_1::kInv) ||
+                   (Mix64Type1NeedsAmount(mMix64Type1) && !mMix64UseAmount);
 
-        case GExprType::kMix162:
+        case GExprType::kMix64_4:
             return (mA == nullptr) || mA->IsInvalid() ||
-                   (!mMix162SBoxASymbol.IsBuf()) ||
-                   (!mMix162SBoxBSymbol.IsBuf()) ||
-                   (mMix162Type == Mix162Type::kInv);
+                   (!mMix64SBoxA.IsBuf()) ||
+                   (!mMix64SBoxB.IsBuf()) ||
+                   (!mMix64SBoxC.IsBuf()) ||
+                   (!mMix64SBoxD.IsBuf()) ||
+                   (mMix64Type4 == Mix64Type_4::kInv) ||
+                   (Mix64Type4NeedsAmount(mMix64Type4) && !mMix64UseAmount);
+
+        case GExprType::kMix64_8:
+            return (mA == nullptr) || mA->IsInvalid() ||
+                   (!mMix64SBoxA.IsBuf()) ||
+                   (!mMix64SBoxB.IsBuf()) ||
+                   (!mMix64SBoxC.IsBuf()) ||
+                   (!mMix64SBoxD.IsBuf()) ||
+                   (!mMix64SBoxE.IsBuf()) ||
+                   (!mMix64SBoxF.IsBuf()) ||
+                   (!mMix64SBoxG.IsBuf()) ||
+                   (!mMix64SBoxH.IsBuf()) ||
+                   (mMix64Type8 == Mix64Type_8::kInv) ||
+                   (Mix64Type8NeedsAmount(mMix64Type8) && !mMix64UseAmount);
 
         default:
             return true;
@@ -494,17 +680,37 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
         case GExprType::kShiftR:
             return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
                    ExprPtrEqual(pLHS.mB, pRHS.mB);
-
-        case GExprType::kMix161:
+            
+        case GExprType::kMix64_1:
             return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
-                   (pLHS.mMix161Type == pRHS.mMix161Type) &&
-                   (pLHS.mMix161SBoxSymbol == pRHS.mMix161SBoxSymbol);
+                   (pLHS.mMix64Type1 == pRHS.mMix64Type1) &&
+                   (pLHS.mMix64UseAmount == pRHS.mMix64UseAmount) &&
+                   (pLHS.mMix64Amount == pRHS.mMix64Amount) &&
+                   (pLHS.mMix64SBoxA == pRHS.mMix64SBoxA);
 
-        case GExprType::kMix162:
+        case GExprType::kMix64_4:
             return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
-                   (pLHS.mMix162Type == pRHS.mMix162Type) &&
-                   (pLHS.mMix162SBoxASymbol == pRHS.mMix162SBoxASymbol) &&
-                   (pLHS.mMix162SBoxBSymbol == pRHS.mMix162SBoxBSymbol);
+                   (pLHS.mMix64Type4 == pRHS.mMix64Type4) &&
+                   (pLHS.mMix64UseAmount == pRHS.mMix64UseAmount) &&
+                   (pLHS.mMix64Amount == pRHS.mMix64Amount) &&
+                   (pLHS.mMix64SBoxA == pRHS.mMix64SBoxA) &&
+                   (pLHS.mMix64SBoxB == pRHS.mMix64SBoxB) &&
+                   (pLHS.mMix64SBoxC == pRHS.mMix64SBoxC) &&
+                   (pLHS.mMix64SBoxD == pRHS.mMix64SBoxD);
+
+        case GExprType::kMix64_8:
+            return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
+                   (pLHS.mMix64Type8 == pRHS.mMix64Type8) &&
+                   (pLHS.mMix64UseAmount == pRHS.mMix64UseAmount) &&
+                   (pLHS.mMix64Amount == pRHS.mMix64Amount) &&
+                   (pLHS.mMix64SBoxA == pRHS.mMix64SBoxA) &&
+                   (pLHS.mMix64SBoxB == pRHS.mMix64SBoxB) &&
+                   (pLHS.mMix64SBoxC == pRHS.mMix64SBoxC) &&
+                   (pLHS.mMix64SBoxD == pRHS.mMix64SBoxD) &&
+                   (pLHS.mMix64SBoxE == pRHS.mMix64SBoxE) &&
+                   (pLHS.mMix64SBoxF == pRHS.mMix64SBoxF) &&
+                   (pLHS.mMix64SBoxG == pRHS.mMix64SBoxG) &&
+                   (pLHS.mMix64SBoxH == pRHS.mMix64SBoxH);
     }
 
     return false;

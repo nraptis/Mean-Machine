@@ -29,6 +29,11 @@ bool Random::Chance(std::uint8_t pProbability) {
     return Get(100) < static_cast<int>(pProbability);
 }
 
+std::uint8_t Random::GetByte() {
+    std::uniform_int_distribution<int> aDist(0, std::numeric_limits<std::uint8_t>::max());
+    return aDist(cRandomGenerator);
+}
+
 int Random::Get() {
     std::uniform_int_distribution<int> aDist(0, std::numeric_limits<int>::max());
     return aDist(cRandomGenerator);

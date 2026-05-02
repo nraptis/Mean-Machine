@@ -4,21 +4,8 @@
 //
 
 #include "TwistWorkSpace.hpp"
-
+#include "TwistExpander.hpp"
 #include <cstring>
-
-namespace {
-
-thread_local std::uint8_t *gExternalSource = nullptr;
-thread_local std::uint8_t *gExternalDest = nullptr;
-
-} // namespace
-
-void TwistWorkSpaceBindExternalBuffers(std::uint8_t *pSource,
-                                       std::uint8_t *pDest) {
-    gExternalSource = pSource;
-    gExternalDest = pDest;
-}
 
 TwistWorkSpace::TwistWorkSpace() {
     std::memset(this, 0, sizeof(*this));
@@ -64,27 +51,20 @@ void TwistWorkSpace::ShiftMaskBoxB(std::uint8_t *pBox) {
     }
 }
 
-std::uint8_t *TwistWorkSpace::GetBufer(TwistWorkSpace *pWorkspace,
-                                       TwistWorkSpaceSlot pSlot) {
-    return GetBuffer(pWorkspace, pSlot);
-}
-
 std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
+                                        TwistExpander *pExpander,
                                         TwistWorkSpaceSlot pSlot) {
     if (pWorkspace == nullptr) {
         return nullptr;
     }
 
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource:
-            return (gExternalSource != nullptr) ? gExternalSource : pWorkspace->mExpandLaneA;
-        case TwistWorkSpaceSlot::kDest:
-            return (gExternalDest != nullptr) ? gExternalDest : pWorkspace->mOperationLaneA;
-            
-        case TwistWorkSpaceSlot::kSaltA: return pWorkspace->mSaltA;
-        case TwistWorkSpaceSlot::kSaltB: return pWorkspace->mSaltB;
-        case TwistWorkSpaceSlot::kSaltC: return pWorkspace->mSaltC;
-        case TwistWorkSpaceSlot::kSaltD: return pWorkspace->mSaltD;
+        case TwistWorkSpaceSlot::kSource: return pExpander->mSource;
+        case TwistWorkSpaceSlot::kDest: return pExpander->mDest;
+        case TwistWorkSpaceSlot::kSaltA: return pExpander->mSaltA;
+        case TwistWorkSpaceSlot::kSaltB: return pExpander->mSaltB;
+        case TwistWorkSpaceSlot::kSaltC: return pExpander->mSaltC;
+        case TwistWorkSpaceSlot::kSaltD: return pExpander->mSaltD;
         case TwistWorkSpaceSlot::kDerivedSaltA: return pWorkspace->mDerivedSaltA;
         case TwistWorkSpaceSlot::kDerivedSaltB: return pWorkspace->mDerivedSaltB;
         case TwistWorkSpaceSlot::kDerivedSaltC: return pWorkspace->mDerivedSaltC;
@@ -93,11 +73,10 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
         case TwistWorkSpaceSlot::kDerivedSaltF: return pWorkspace->mDerivedSaltF;
         case TwistWorkSpaceSlot::kDerivedSaltG: return pWorkspace->mDerivedSaltG;
         case TwistWorkSpaceSlot::kDerivedSaltH: return pWorkspace->mDerivedSaltH;
-            
-        case TwistWorkSpaceSlot::kSBoxA: return pWorkspace->mSBoxA;
-        case TwistWorkSpaceSlot::kSBoxB: return pWorkspace->mSBoxB;
-        case TwistWorkSpaceSlot::kSBoxC: return pWorkspace->mSBoxC;
-        case TwistWorkSpaceSlot::kSBoxD: return pWorkspace->mSBoxD;
+        case TwistWorkSpaceSlot::kSBoxA: return pExpander->mSBoxA;
+        case TwistWorkSpaceSlot::kSBoxB: return pExpander->mSBoxB;
+        case TwistWorkSpaceSlot::kSBoxC: return pExpander->mSBoxC;
+        case TwistWorkSpaceSlot::kSBoxD: return pExpander->mSBoxD;
         case TwistWorkSpaceSlot::kDerivedSBoxA: return pWorkspace->mDerivedSBoxA;
         case TwistWorkSpaceSlot::kDerivedSBoxB: return pWorkspace->mDerivedSBoxB;
         case TwistWorkSpaceSlot::kDerivedSBoxC: return pWorkspace->mDerivedSBoxC;
@@ -106,29 +85,24 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
         case TwistWorkSpaceSlot::kDerivedSBoxF: return pWorkspace->mDerivedSBoxF;
         case TwistWorkSpaceSlot::kDerivedSBoxG: return pWorkspace->mDerivedSBoxG;
         case TwistWorkSpaceSlot::kDerivedSBoxH: return pWorkspace->mDerivedSBoxH;
-            
         case TwistWorkSpaceSlot::kSeedExpansionLaneA: return pWorkspace->mExpandLaneA;
         case TwistWorkSpaceSlot::kSeedExpansionLaneB: return pWorkspace->mExpandLaneB;
         case TwistWorkSpaceSlot::kSeedExpansionLaneC: return pWorkspace->mExpandLaneC;
         case TwistWorkSpaceSlot::kSeedExpansionLaneD: return pWorkspace->mExpandLaneD;
-            
         case TwistWorkSpaceSlot::kWorkLaneA: return pWorkspace->mWorkLaneA;
         case TwistWorkSpaceSlot::kWorkLaneB: return pWorkspace->mWorkLaneB;
         case TwistWorkSpaceSlot::kWorkLaneC: return pWorkspace->mWorkLaneC;
         case TwistWorkSpaceSlot::kWorkLaneD: return pWorkspace->mWorkLaneD;
-            
         case TwistWorkSpaceSlot::kOperationLaneA: return pWorkspace->mOperationLaneA;
         case TwistWorkSpaceSlot::kOperationLaneB: return pWorkspace->mOperationLaneB;
         case TwistWorkSpaceSlot::kMaskLaneA: return pWorkspace->mMaskLaneA;
         case TwistWorkSpaceSlot::kMaskLaneB: return pWorkspace->mMaskLaneB;
-            
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return &(pWorkspace->mKeyBoxA[0][0]);
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return &(pWorkspace->mKeyBoxB[0][0]);
         case TwistWorkSpaceSlot::kKeyRowReadA: return &(pWorkspace->mKeyBoxA[H_KEY_A - 1][0]);
         case TwistWorkSpaceSlot::kKeyRowReadB: return &(pWorkspace->mKeyBoxB[H_KEY_B - 1][0]);
         case TwistWorkSpaceSlot::kKeyRowWriteA: return &(pWorkspace->mKeyBoxA[0][0]);
         case TwistWorkSpaceSlot::kKeyRowWriteB: return &(pWorkspace->mKeyBoxB[0][0]);
-            
         case TwistWorkSpaceSlot::kMaskBoxUnrolledA: return &(pWorkspace->mMaskBoxA[0][0]);
         case TwistWorkSpaceSlot::kMaskBoxUnrolledB: return &(pWorkspace->mMaskBoxB[0][0]);
         case TwistWorkSpaceSlot::kMaskRowReadA: return &(pWorkspace->mMaskBoxA[H_MASK_A - 1][0]);
@@ -139,10 +113,6 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
         default:
             return pWorkspace->mWorkLaneA;
     }
-}
-
-int TwistWorkSpace::GetBuferLength(TwistWorkSpaceSlot pSlot) {
-    return GetBufferLength(pSlot);
 }
 
 int TwistWorkSpace::GetBufferLength(TwistWorkSpaceSlot pSlot) {
@@ -190,5 +160,45 @@ int TwistWorkSpace::GetBufferLength(TwistWorkSpaceSlot pSlot) {
 
         default:
             return S_BLOCK;
+    }
+}
+
+bool TwistWorkSpace::IsSBox(TwistWorkSpaceSlot pSlot) {
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kSBoxA:
+        case TwistWorkSpaceSlot::kSBoxB:
+        case TwistWorkSpaceSlot::kSBoxC:
+        case TwistWorkSpaceSlot::kSBoxD:
+        case TwistWorkSpaceSlot::kDerivedSBoxA:
+        case TwistWorkSpaceSlot::kDerivedSBoxB:
+        case TwistWorkSpaceSlot::kDerivedSBoxC:
+        case TwistWorkSpaceSlot::kDerivedSBoxD:
+        case TwistWorkSpaceSlot::kDerivedSBoxE:
+        case TwistWorkSpaceSlot::kDerivedSBoxF:
+        case TwistWorkSpaceSlot::kDerivedSBoxG:
+        case TwistWorkSpaceSlot::kDerivedSBoxH:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool TwistWorkSpace::IsSalt(TwistWorkSpaceSlot pSlot) {
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kSaltA:
+        case TwistWorkSpaceSlot::kSaltB:
+        case TwistWorkSpaceSlot::kSaltC:
+        case TwistWorkSpaceSlot::kSaltD:
+        case TwistWorkSpaceSlot::kDerivedSaltA:
+        case TwistWorkSpaceSlot::kDerivedSaltB:
+        case TwistWorkSpaceSlot::kDerivedSaltC:
+        case TwistWorkSpaceSlot::kDerivedSaltD:
+        case TwistWorkSpaceSlot::kDerivedSaltE:
+        case TwistWorkSpaceSlot::kDerivedSaltF:
+        case TwistWorkSpaceSlot::kDerivedSaltG:
+        case TwistWorkSpaceSlot::kDerivedSaltH:
+            return true;
+        default:
+            return false;
     }
 }

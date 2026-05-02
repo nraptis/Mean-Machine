@@ -6,10 +6,11 @@
 //
 
 #include "TwistCryptoScoring.hpp"
+#include "TwistWorkSpace.hpp"
+
 #include <algorithm>
 #include <bit>
 #include <cstring>
-#include "TwistMix16.hpp"
 
 TwistCryptoScoring::TwistCryptoScoring() {
     
@@ -439,26 +440,18 @@ int TwistCryptoScoring::ComputeSaltByteSpread_128(const std::uint8_t *pData) {
 }
 
 int TwistCryptoScoring::ComputeSaltAdjacencyPenalty_128(const std::uint8_t *pData) {
-    
     int aPenalty = 0;
-    
-    for (int i = 1; i < 128; i++) {
-        
-        std::uint8_t a = pData[i];
-        std::uint8_t b = pData[i - 1];
-        
-        // exact repeat (bad)
-        if (a == b) {
+    for (int i=1; i<128; i++) {
+        std::uint8_t aValueA = pData[i];
+        std::uint8_t aValueB = pData[i - 1];
+        if (aValueA == aValueB) {
             aPenalty += 4;
         }
-        
-        // very small difference (also bad)
-        else if ((a ^ b) < 4) {
+        else if ((aValueA ^ aValueB) < 4) {
             aPenalty += 2;
         }
     }
-    
-    return aPenalty; // lower is better
+    return aPenalty;
 }
 
 
@@ -466,15 +459,15 @@ int TwistCryptoScoring::ComputeSaltXorDrift_128(const std::uint8_t *pData) {
     
     int aScore = 0;
     
-    for (int i = 1; i < 128; i++) {
+    for (int i=1; i<128; i++) {
         
-        std::uint8_t a = pData[i];
-        std::uint8_t b = pData[i - 1];
+        std::uint8_t aValueA = pData[i];
+        std::uint8_t aValueB = pData[i - 1];
         
-        std::uint8_t d = a ^ b;
+        std::uint8_t aXor = aValueA ^ aValueB;
         
         // count changed bits
-        int aBits = __builtin_popcount(d);
+        int aBits = __builtin_popcount(aXor);
         
         aScore += aBits;
     }
@@ -537,6 +530,7 @@ std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamilt(cons
                 
                 std::uint8_t *pBox = aList[aSBoxIndexA];
                 
+                /*
                 // --- 000 ---
                 aValue = aBaseValue;
                 for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
@@ -608,11 +602,13 @@ std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamilt(cons
                     aValue = TwistMix16::Mix161_007(aValue, pBox);
                     aScore += __builtin_popcount(aBefore ^ aValue);
                 }
+                */
             }
             
             for (int aSBoxIndexA = 0; aSBoxIndexA < aListCount; aSBoxIndexA++) {
                 for (int aSBoxIndexB = 0; aSBoxIndexB < aListCount; aSBoxIndexB++) {
                     
+                    /*
                     std::uint8_t *pBoxA = aList[aSBoxIndexA];
                     std::uint8_t *pBoxB = aList[aSBoxIndexB];
                     
@@ -759,6 +755,7 @@ std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamilt(cons
                         aValue = TwistMix16::Mix162_015(aValue, pBoxA, pBoxB);
                         aScore += __builtin_popcount(aBefore ^ aValue);
                     }
+                    */
                 }
             }
             
@@ -766,4 +763,110 @@ std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamilt(cons
     }
     
     return aScore;
+}
+
+std::int32_t TwistCryptoScoring::ComputeMinimumCycle_256(const std::uint8_t *pData,
+                                                         const int pLength) {
+    
+    if ((pData == nullptr) || (pLength < 256)) {
+        return 0;
+    }
+    
+    std::int32_t aResult = 256;
+    
+    for (int aStart = 0; aStart < 256; aStart++) {
+        
+        std::int32_t aSeen[256];
+        std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
+        
+        std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
+        std::int32_t aStep = 0;
+        
+        while (aSeen[aValue] < 0) {
+            
+            aSeen[aValue] = aStep;
+            aValue = pData[aValue];
+            aStep += 1;
+        }
+        
+        const std::int32_t aCycleLength = aStep - aSeen[aValue];
+        
+        if (aCycleLength < aResult) {
+            aResult = aCycleLength;
+        }
+    }
+    
+    return aResult;
+}
+
+std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL3AfterGate_256(const std::uint8_t *pData,
+                                                                       const int pLength) {
+    
+    if ((pData == nullptr) || (pLength < 256)) {
+        return 0;
+    }
+    
+    std::int32_t aResult = 256;
+    
+    for (int aStart = 0; aStart < 256; aStart++) {
+        
+        std::int32_t aSeen[256];
+        std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
+        
+        std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
+        std::int32_t aStep = 0;
+        
+        while (aSeen[aValue] < 0) {
+            
+            aSeen[aValue] = aStep;
+            
+            aValue = pData[aValue];
+            aValue = static_cast<std::uint8_t>((aValue << 3U) | (aValue >> 5U));
+            
+            aStep += 1;
+        }
+        
+        const std::int32_t aCycleLength = aStep - aSeen[aValue];
+        
+        if (aCycleLength < aResult) {
+            aResult = aCycleLength;
+        }
+    }
+    
+    return aResult;
+}
+
+std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL5AfterGate_256(const std::uint8_t *pData,
+                                                                       const int pLength) {
+    
+    if ((pData == nullptr) || (pLength < 256)) {
+        return 0;
+    }
+    
+    std::int32_t aResult = 256;
+    for (int aStart = 0; aStart < 256; aStart++) {
+        
+        std::int32_t aSeen[256];
+        std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
+        
+        std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
+        std::int32_t aStep = 0;
+        
+        while (aSeen[aValue] < 0) {
+            
+            aSeen[aValue] = aStep;
+            
+            aValue = pData[aValue];
+            aValue = static_cast<std::uint8_t>((aValue << 5U) | (aValue >> 3U));
+            
+            aStep += 1;
+        }
+        
+        const std::int32_t aCycleLength = aStep - aSeen[aValue];
+        
+        if (aCycleLength < aResult) {
+            aResult = aCycleLength;
+        }
+    }
+    return aResult;
 }

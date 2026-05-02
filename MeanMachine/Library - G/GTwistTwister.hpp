@@ -17,7 +17,7 @@ public:
     ~GTwistTwister() override;
 
     bool                                LoadProjectRoot(const std::string &pJsonPath,
-                                                        std::string *pError = nullptr);
+                                                        std::string *pErrorMessage = nullptr);
 };
 
 #endif /* GTwistTwister_hpp */

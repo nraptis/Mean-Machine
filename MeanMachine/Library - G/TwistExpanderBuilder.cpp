@@ -20,19 +20,19 @@ using MeanMachine_json::JsonValue;
 
 namespace {
 
-void SetError(std::string *pError,
+void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
-    if (pError != nullptr) {
-        *pError = pMessage;
+    if (pErrorMessage != nullptr) {
+        *pErrorMessage = pMessage;
     }
 }
 
 bool SaveTextFile(const std::string &pPath,
                   const std::string &pText,
-                  std::string *pError) {
+                  std::string *pErrorMessage) {
     const std::vector<std::uint8_t> aData(pText.begin(), pText.end());
     if (!FileIO::Save(pPath, aData)) {
-        SetError(pError, "Failed to save file: " + pPath);
+        SetError(pErrorMessage, "Failed to save file: " + pPath);
         return false;
     }
     return true;
@@ -99,26 +99,6 @@ std::string ResolveJsonOutputPath(const std::string &pRootPath,
     return ResolveOutputPathFromProjectRoot(FileIO::Join(pRootPath, aFileName));
 }
 
-std::string IndentBlock(const std::string &pText,
-                        const int pIndentLevel) {
-    const std::string aIndent(static_cast<std::size_t>(pIndentLevel * 4), ' ');
-
-    std::istringstream aSource(pText);
-    std::ostringstream aResult;
-    std::string aLine;
-    bool aFirstLine = true;
-
-    while (std::getline(aSource, aLine)) {
-        if (!aFirstLine) {
-            aResult << '\n';
-        }
-        aFirstLine = false;
-        aResult << aIndent << aLine;
-    }
-
-    return aResult.str();
-}
-
 template <typename T>
 void AppendUniqueValue(std::vector<T> *pList,
                        const T &pValue) {
@@ -143,8 +123,8 @@ bool ContainsText(const std::vector<std::string> &pList,
     return false;
 }
 
-bool EndsWithText(const std::string &pText,
-                  const std::string &pSuffix) {
+[[maybe_unused]] bool EndsWithText(const std::string &pText,
+                                   const std::string &pSuffix) {
     if (pSuffix.size() > pText.size()) {
         return false;
     }
@@ -157,6 +137,34 @@ bool StartsWithText(const std::string &pText,
         return false;
     }
     return pText.compare(0U, pPrefix.size(), pPrefix) == 0;
+}
+
+bool IsIdentifierChar(const char pChar) {
+    return (std::isalnum(static_cast<unsigned char>(pChar)) != 0) || (pChar == '_');
+}
+
+bool ContainsIdentifierToken(const std::string &pText,
+                             const std::string &pToken) {
+    if (pToken.empty()) {
+        return false;
+    }
+
+    std::size_t aSearchPos = 0U;
+    while (true) {
+        const std::size_t aMatchPos = pText.find(pToken, aSearchPos);
+        if (aMatchPos == std::string::npos) {
+            return false;
+        }
+
+        const bool aLeftOk = (aMatchPos == 0U) || !IsIdentifierChar(pText[aMatchPos - 1U]);
+        const std::size_t aAfterPos = aMatchPos + pToken.size();
+        const bool aRightOk = (aAfterPos >= pText.size()) || !IsIdentifierChar(pText[aAfterPos]);
+        if (aLeftOk && aRightOk) {
+            return true;
+        }
+
+        aSearchPos = aMatchPos + 1U;
+    }
 }
 
 bool IsKeyScalarName(const std::string &pName) {
@@ -176,13 +184,13 @@ bool IsWideStateScalarName(const std::string &pName) {
 
 std::string ScalarCppTypeForName(const std::string &pName) {
     if (StartsWithText(pName, "aOracle")) {
-        return "std::uint16_t";
+        return "std::uint64_t";
     }
     if (IsKeyScalarName(pName)) {
-        return "std::uint16_t";
+        return "std::size_t";
     }
     if (IsWideStateScalarName(pName)) {
-        return "std::uint16_t";
+        return "std::uint64_t";
     }
     return "std::uint8_t";
 }
@@ -361,10 +369,10 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kDest:
             return "std::uint8_t *" + aAlias + " = pDestination;";
 
-        case TwistWorkSpaceSlot::kSaltA: return aPrefix + "pWorkspace->mSaltA;";
-        case TwistWorkSpaceSlot::kSaltB: return aPrefix + "pWorkspace->mSaltB;";
-        case TwistWorkSpaceSlot::kSaltC: return aPrefix + "pWorkspace->mSaltC;";
-        case TwistWorkSpaceSlot::kSaltD: return aPrefix + "pWorkspace->mSaltD;";
+        case TwistWorkSpaceSlot::kSaltA: return "";
+        case TwistWorkSpaceSlot::kSaltB: return "";
+        case TwistWorkSpaceSlot::kSaltC: return "";
+        case TwistWorkSpaceSlot::kSaltD: return "";
         case TwistWorkSpaceSlot::kDerivedSaltA: return aPrefix + "pWorkspace->mDerivedSaltA;";
         case TwistWorkSpaceSlot::kDerivedSaltB: return aPrefix + "pWorkspace->mDerivedSaltB;";
         case TwistWorkSpaceSlot::kDerivedSaltC: return aPrefix + "pWorkspace->mDerivedSaltC;";
@@ -374,10 +382,10 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kDerivedSaltG: return aPrefix + "pWorkspace->mDerivedSaltG;";
         case TwistWorkSpaceSlot::kDerivedSaltH: return aPrefix + "pWorkspace->mDerivedSaltH;";
 
-        case TwistWorkSpaceSlot::kSBoxA: return aPrefix + "pWorkspace->mSBoxA;";
-        case TwistWorkSpaceSlot::kSBoxB: return aPrefix + "pWorkspace->mSBoxB;";
-        case TwistWorkSpaceSlot::kSBoxC: return aPrefix + "pWorkspace->mSBoxC;";
-        case TwistWorkSpaceSlot::kSBoxD: return aPrefix + "pWorkspace->mSBoxD;";
+        case TwistWorkSpaceSlot::kSBoxA: return "";
+        case TwistWorkSpaceSlot::kSBoxB: return "";
+        case TwistWorkSpaceSlot::kSBoxC: return "";
+        case TwistWorkSpaceSlot::kSBoxD: return "";
         case TwistWorkSpaceSlot::kDerivedSBoxA: return aPrefix + "pWorkspace->mDerivedSBoxA;";
         case TwistWorkSpaceSlot::kDerivedSBoxB: return aPrefix + "pWorkspace->mDerivedSBoxB;";
         case TwistWorkSpaceSlot::kDerivedSBoxC: return aPrefix + "pWorkspace->mDerivedSBoxC;";
@@ -426,15 +434,15 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
 
 bool ParseBatchJson(const std::string &pBatchJson,
                     GBatch *pBatch,
-                    std::string *pError) {
+                    std::string *pErrorMessage) {
     if (pBatch == nullptr) {
-        SetError(pError, "Batch output was null.");
+        SetError(pErrorMessage, "Batch output was null.");
         return false;
     }
 
-    if (!GBatch::FromJson(pBatchJson, pBatch, pError)) {
-        if ((pError != nullptr) && pError->empty()) {
-            *pError = "Failed to parse branch batch JSON.";
+    if (!GBatch::FromJson(pBatchJson, pBatch, pErrorMessage)) {
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "Failed to parse branch batch JSON.";
         }
         return false;
     }
@@ -442,19 +450,111 @@ bool ParseBatchJson(const std::string &pBatchJson,
     return true;
 }
 
+bool ScopeBlockToFlatBody(const std::string &pScopeBlock,
+                          std::string *pBody,
+                          std::string *pErrorMessage) {
+    if (pBody == nullptr) {
+        SetError(pErrorMessage, "Batch scope-block body output was null.");
+        return false;
+    }
+
+    std::vector<std::string> aLines;
+    std::istringstream aStream(pScopeBlock);
+    std::string aLine;
+    while (std::getline(aStream, aLine)) {
+        aLines.push_back(aLine);
+    }
+
+    std::size_t aFirst = 0U;
+    while ((aFirst < aLines.size()) && TrimText(aLines[aFirst]).empty()) {
+        ++aFirst;
+    }
+
+    std::size_t aLast = aLines.size();
+    while ((aLast > aFirst) && TrimText(aLines[aLast - 1U]).empty()) {
+        --aLast;
+    }
+
+    if ((aFirst >= aLast) ||
+        (TrimText(aLines[aFirst]) != "{") ||
+        (TrimText(aLines[aLast - 1U]) != "}")) {
+        SetError(pErrorMessage, "Batch scope-block had unexpected format.");
+        return false;
+    }
+
+    std::ostringstream aBody;
+    bool aFirstLine = true;
+    for (std::size_t aIndex = aFirst + 1U; aIndex + 1U < aLast; ++aIndex) {
+        std::string aBodyLine = aLines[aIndex];
+        if (StartsWithText(aBodyLine, "    ")) {
+            aBodyLine.erase(0U, 4U);
+        } else if (!aBodyLine.empty() && (aBodyLine.front() == '\t')) {
+            aBodyLine.erase(aBodyLine.begin());
+        }
+
+        if (!aFirstLine) {
+            aBody << '\n';
+        }
+        aFirstLine = false;
+        aBody << aBodyLine;
+    }
+
+    *pBody = aBody.str();
+    return true;
+}
+
+bool AppendBatchBlock(const GBatch &pBatch,
+                      std::ostringstream *pStream,
+                      std::string *pErrorMessage,
+                      int pBatchNumber,
+                      bool pInsertLeadingBlankLine) {
+    if (pStream == nullptr) {
+        SetError(pErrorMessage, "Batch output stream was null.");
+        return false;
+    }
+
+    const std::string aScopeBlock = pBatch.BuildCppScopeBlock(pErrorMessage, false);
+    if (aScopeBlock.empty()) {
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "Batch scope-block export returned empty text.";
+        }
+        return false;
+    }
+
+    std::string aFlatBody;
+    if (!ScopeBlockToFlatBody(aScopeBlock, &aFlatBody, pErrorMessage)) {
+        return false;
+    }
+
+    if (pInsertLeadingBlankLine) {
+        *pStream << '\n';
+    }
+
+    *pStream << "    //\n"
+             << "    // Batch " << pBatchNumber << "\n"
+             << "    //\n\n";
+
+    if (!aFlatBody.empty()) {
+        *pStream << aFlatBody << '\n';
+    }
+
+    *pStream << '\n';
+    return true;
+}
+
 bool AppendBranchBody(const TwistProgramBranch &pBranch,
                       std::ostringstream *pStream,
-                      std::string *pError,
+                      std::string *pErrorMessage,
                       const bool pSkipDestinationAlias) {
     if (pStream == nullptr) {
-        SetError(pError, "Branch output stream was null.");
+        SetError(pErrorMessage, "Branch output stream was null.");
         return false;
     }
 
     std::vector<GBatch> aBatches;
     for (const std::string &aBatchJson : pBranch.GetBatchJsonText()) {
         GBatch aBatch;
-        if (!ParseBatchJson(aBatchJson, &aBatch, pError)) {
+        if (!ParseBatchJson(aBatchJson, &aBatch, pErrorMessage)) {
             return false;
         }
         aBatches.push_back(aBatch);
@@ -468,9 +568,13 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
             AppendUniqueValue(&aDeclaredNames, aDeclaredName);
         }
     }
+    // Function parameters are already declared by signature.
+    AppendUniqueValue(&aDeclaredNames, std::string("pSource"));
+    AppendUniqueValue(&aDeclaredNames, std::string("pDestination"));
 
     std::vector<std::string> aLoopVariables;
     std::vector<std::string> aScalarVariables;
+    std::vector<TwistWorkSpaceSlot> aReferencedSlots;
     for (const GBatch &aBatch : aBatches) {
         for (const GLoop &aLoop : aBatch.mLoops) {
             if (!aLoop.mLoopVariableName.empty()) {
@@ -479,6 +583,9 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         }
         for (const std::string &aName : aBatch.CollectVariableNames()) {
             AppendUniqueValue(&aScalarVariables, aName);
+        }
+        for (const TwistWorkSpaceSlot aSlot : aBatch.CollectReferencedSlots()) {
+            AppendUniqueValue(&aReferencedSlots, aSlot);
         }
     }
 
@@ -500,7 +607,29 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         if (ContainsText(aDeclaredNames, aAliasName)) {
             continue;
         }
-        *pStream << "    " << WorkspaceAliasDeclaration(aSlot) << '\n';
+
+        const bool aReferencedByBatch =
+            (std::find(aReferencedSlots.begin(), aReferencedSlots.end(), aSlot) != aReferencedSlots.end());
+
+        bool aReferencedByLine = false;
+        if (!aReferencedByBatch) {
+            for (const std::string &aLine : pBranch.GetStringLines()) {
+                if (ContainsIdentifierToken(aLine, aAliasName)) {
+                    aReferencedByLine = true;
+                    break;
+                }
+            }
+        }
+
+        if (!aReferencedByBatch && !aReferencedByLine) {
+            continue;
+        }
+
+        const std::string aDeclaration = WorkspaceAliasDeclaration(aSlot);
+        if (aDeclaration.empty()) {
+            continue;
+        }
+        *pStream << "    " << aDeclaration << '\n';
         aWroteDeclaration = true;
     }
 
@@ -513,18 +642,22 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         *pStream << '\n';
     }
 
+    int aBatchNumber = 0;
+    bool aEmittedBatch = false;
+
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
         for (const GBatch &aBatch : aBatches) {
-            const std::string aScopeBlock = aBatch.BuildCppScopeBlock(pError, false);
-            if (aScopeBlock.empty()) {
-                if ((pError != nullptr) && pError->empty()) {
-                    *pError = "Batch scope-block export returned empty text.";
-                }
+            ++aBatchNumber;
+            const bool aInsertLeadingBlankLine = (!aEmittedBatch && !aWroteDeclaration);
+            if (!AppendBatchBlock(aBatch,
+                                  pStream,
+                                  pErrorMessage,
+                                  aBatchNumber,
+                                  aInsertLeadingBlankLine)) {
                 return false;
             }
-
-            *pStream << IndentBlock(aScopeBlock, 1) << '\n';
+            aEmittedBatch = true;
         }
         return true;
     }
@@ -532,7 +665,7 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     for (const TwistProgramBranchStep &aStep : aSteps) {
         if (aStep.mType == TwistProgramBranchStepType::kLine) {
             if (aStep.mIndex >= pBranch.GetStringLines().size()) {
-                SetError(pError, "Branch line step index was out of range.");
+                SetError(pErrorMessage, "Branch line step index was out of range.");
                 return false;
             }
             *pStream << "    " << NormalizeLegacyByteTypeLine(pBranch.GetStringLines()[aStep.mIndex]) << '\n';
@@ -541,23 +674,24 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
 
         if (aStep.mType == TwistProgramBranchStepType::kBatch) {
             if (aStep.mIndex >= aBatches.size()) {
-                SetError(pError, "Branch batch step index was out of range.");
+                SetError(pErrorMessage, "Branch batch step index was out of range.");
                 return false;
             }
 
-            const std::string aScopeBlock = aBatches[aStep.mIndex].BuildCppScopeBlock(pError, false);
-            if (aScopeBlock.empty()) {
-                if ((pError != nullptr) && pError->empty()) {
-                    *pError = "Batch scope-block export returned empty text.";
-                }
+            ++aBatchNumber;
+            const bool aInsertLeadingBlankLine = (!aEmittedBatch && !aWroteDeclaration);
+            if (!AppendBatchBlock(aBatches[aStep.mIndex],
+                                  pStream,
+                                  pErrorMessage,
+                                  aBatchNumber,
+                                  aInsertLeadingBlankLine)) {
                 return false;
             }
-
-            *pStream << IndentBlock(aScopeBlock, 1) << '\n';
+            aEmittedBatch = true;
             continue;
         }
 
-        SetError(pError, "Branch step type was invalid.");
+        SetError(pErrorMessage, "Branch step type was invalid.");
         return false;
     }
 
@@ -565,7 +699,7 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
 }
 
 JsonValue BranchToJsonValue(const TwistProgramBranch &pBranch,
-                            std::string *pError) {
+                            std::string *pErrorMessage) {
     JsonValue::Array aLines;
     for (const std::string &aLine : pBranch.GetStringLines()) {
         aLines.push_back(JsonValue::String(NormalizeLegacyByteTypeLine(aLine)));
@@ -573,10 +707,10 @@ JsonValue BranchToJsonValue(const TwistProgramBranch &pBranch,
 
     JsonValue::Array aBatches;
     for (const std::string &aBatchJson : pBranch.GetBatchJsonText()) {
-        auto aParsed = JsonValue::Parse(aBatchJson, pError);
+        auto aParsed = JsonValue::Parse(aBatchJson, pErrorMessage);
         if (!aParsed.has_value() || !aParsed->is_object()) {
-            if ((pError != nullptr) && pError->empty()) {
-                *pError = "Failed to parse branch batch JSON for program export.";
+            if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+                *pErrorMessage = "Failed to parse branch batch JSON for program export.";
             }
             return JsonValue::ObjectValue({});
         }
@@ -671,7 +805,13 @@ void TwistProgramBranch::AddWorkspaceAliasLine(const std::string &pAliasName,
         return;
     }
 
-    AddLine("std::uint8_t *" + pAliasName + " = pWorkspace->" + pWorkspaceFieldName + ";");
+    const bool aInternalExpanderTable = StartsWithText(pWorkspaceFieldName, "mSalt") ||
+                                        StartsWithText(pWorkspaceFieldName, "mSBox");
+    if (aInternalExpanderTable) {
+        AddLine("std::uint8_t *" + pAliasName + " = " + pWorkspaceFieldName + ";");
+    } else {
+        AddLine("std::uint8_t *" + pAliasName + " = pWorkspace->" + pWorkspaceFieldName + ";");
+    }
 }
 
 void TwistProgramBranch::AddAssignByteLine(const std::string &pName,
@@ -704,7 +844,7 @@ const std::vector<TwistProgramBranchStep>& TwistProgramBranch::GetSteps() const 
 }
 
 bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
-                                          std::string *pError) const {
+                                          std::string *pErrorMessage) const {
     const std::string aBaseInput = mNameBase.empty() ? "Generated" : mNameBase;
     const std::string aBaseName = SanitizeIdentifier(aBaseInput, "Generated");
     const std::string aClassName = "TwistExpander_" + aBaseName;
@@ -750,6 +890,9 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     std::ostringstream aCpp;
     aCpp << "#include \"" << aClassName << ".hpp\"\n"
          << "#include \"TwistFunctional.hpp\"\n"
+         << "#include \"TwistMasking.hpp\"\n"
+         << "#include \"TwistMix64.hpp\"\n"
+         << "#include \"TwistSnow.hpp\"\n"
          << "#include \"TwistCryptoGenerator.hpp\"\n"
          << "\n"
          << "#include <cstring>\n"
@@ -772,14 +915,14 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << '\n'
          << aClassName << "::" << aClassName << "()\n"
          << ": TwistExpander() {\n"
-         << "    mSBoxA = const_cast<std::uint8_t*>(kSBoxA);\n"
-         << "    mSBoxB = const_cast<std::uint8_t*>(kSBoxB);\n"
-         << "    mSBoxC = const_cast<std::uint8_t*>(kSBoxC);\n"
-         << "    mSBoxD = const_cast<std::uint8_t*>(kSBoxD);\n"
-         << "    mSaltA = const_cast<std::uint8_t*>(kSaltA);\n"
-         << "    mSaltB = const_cast<std::uint8_t*>(kSaltB);\n"
-         << "    mSaltC = const_cast<std::uint8_t*>(kSaltC);\n"
-         << "    mSaltD = const_cast<std::uint8_t*>(kSaltD);\n"
+         << "    std::memcpy(mSBoxA, kSBoxA, sizeof(mSBoxA));\n"
+         << "    std::memcpy(mSBoxB, kSBoxB, sizeof(mSBoxB));\n"
+         << "    std::memcpy(mSBoxC, kSBoxC, sizeof(mSBoxC));\n"
+         << "    std::memcpy(mSBoxD, kSBoxD, sizeof(mSBoxD));\n"
+         << "    std::memcpy(mSaltA, kSaltA, sizeof(mSaltA));\n"
+         << "    std::memcpy(mSaltB, kSaltB, sizeof(mSaltB));\n"
+         << "    std::memcpy(mSaltC, kSaltC, sizeof(mSaltC));\n"
+         << "    std::memcpy(mSaltD, kSaltD, sizeof(mSaltD));\n"
          << "}\n"
          << "\n"
          << "void " << aClassName << "::Seed(TwistWorkSpace *pWorkspace,\n"
@@ -788,7 +931,7 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "                                 unsigned int pPasswordByteLength) {\n"
          << "    TwistExpander::Seed(pWorkspace, pSource, pPassword, pPasswordByteLength);\n"
          << "    if (pWorkspace == nullptr) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mSeeder, &aCpp, pError, true)) {
+    if (!AppendBranchBody(aSnapshot.mSeeder, &aCpp, pErrorMessage, true)) {
         return false;
     }
     aCpp << "}\n"
@@ -798,16 +941,16 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "                                       std::uint8_t *pDestination) {\n"
          << "    TwistExpander::TwistBlock(pWorkspace, pSource, pDestination);\n"
          << "    if ((pWorkspace == nullptr) || (pDestination == nullptr)) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mTwister, &aCpp, pError, false)) {
+    if (!AppendBranchBody(aSnapshot.mTwister, &aCpp, pErrorMessage, false)) {
         return false;
     }
     aCpp << "    std::memcpy(pDestination, pWorkspace->mWorkLaneD, S_BLOCK);\n"
          << "}\n";
 
-    if (!SaveTextFile(aHeaderPath, aHeader.str(), pError)) {
+    if (!SaveTextFile(aHeaderPath, aHeader.str(), pErrorMessage)) {
         return false;
     }
-    if (!SaveTextFile(aCppPath, aCpp.str(), pError)) {
+    if (!SaveTextFile(aCppPath, aCpp.str(), pErrorMessage)) {
         return false;
     }
 
@@ -815,7 +958,7 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
 }
 
 bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
-                                           std::string *pError) const {
+                                           std::string *pErrorMessage) const {
     GTwistExpander aSnapshot = *this;
     aSnapshot.RefreshTablePointers();
 
@@ -824,13 +967,13 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
 
     JsonValue::Object aRootObject;
     aRootObject["name_base"] = JsonValue::String(aBaseInput);
-    aRootObject["seed"] = BranchToJsonValue(aSnapshot.mSeeder, pError);
-    if ((pError != nullptr) && !pError->empty()) {
+    aRootObject["seed"] = BranchToJsonValue(aSnapshot.mSeeder, pErrorMessage);
+    if ((pErrorMessage != nullptr) && !pErrorMessage->empty()) {
         return false;
     }
 
-    aRootObject["twist"] = BranchToJsonValue(aSnapshot.mTwister, pError);
-    if ((pError != nullptr) && !pError->empty()) {
+    aRootObject["twist"] = BranchToJsonValue(aSnapshot.mTwister, pErrorMessage);
+    if ((pErrorMessage != nullptr) && !pErrorMessage->empty()) {
         return false;
     }
 
@@ -849,5 +992,5 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
     const std::string aRoot = pRootPath.empty() ? "generated/json" : pRootPath;
     const std::string aOutputPath = ResolveJsonOutputPath(aRoot, aBaseName);
 
-    return SaveTextFile(aOutputPath, aJsonText, pError);
+    return SaveTextFile(aOutputPath, aJsonText, pErrorMessage);
 }

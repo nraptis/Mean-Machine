@@ -142,13 +142,13 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
 
 std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource: return "aSource";
-        case TwistWorkSpaceSlot::kDest: return "aDestination";
+        case TwistWorkSpaceSlot::kSource: return "pSource";
+        case TwistWorkSpaceSlot::kDest: return "pDestination";
 
-        case TwistWorkSpaceSlot::kSaltA: return "aSaltA";
-        case TwistWorkSpaceSlot::kSaltB: return "aSaltB";
-        case TwistWorkSpaceSlot::kSaltC: return "aSaltC";
-        case TwistWorkSpaceSlot::kSaltD: return "aSaltD";
+        case TwistWorkSpaceSlot::kSaltA: return "mSaltA";
+        case TwistWorkSpaceSlot::kSaltB: return "mSaltB";
+        case TwistWorkSpaceSlot::kSaltC: return "mSaltC";
+        case TwistWorkSpaceSlot::kSaltD: return "mSaltD";
         case TwistWorkSpaceSlot::kDerivedSaltA: return "aDerivedSaltA";
         case TwistWorkSpaceSlot::kDerivedSaltB: return "aDerivedSaltB";
         case TwistWorkSpaceSlot::kDerivedSaltC: return "aDerivedSaltC";
@@ -158,10 +158,10 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kDerivedSaltG: return "aDerivedSaltG";
         case TwistWorkSpaceSlot::kDerivedSaltH: return "aDerivedSaltH";
 
-        case TwistWorkSpaceSlot::kSBoxA: return "aSBoxA";
-        case TwistWorkSpaceSlot::kSBoxB: return "aSBoxB";
-        case TwistWorkSpaceSlot::kSBoxC: return "aSBoxC";
-        case TwistWorkSpaceSlot::kSBoxD: return "aSBoxD";
+        case TwistWorkSpaceSlot::kSBoxA: return "mSBoxA";
+        case TwistWorkSpaceSlot::kSBoxB: return "mSBoxB";
+        case TwistWorkSpaceSlot::kSBoxC: return "mSBoxC";
+        case TwistWorkSpaceSlot::kSBoxD: return "mSBoxD";
         case TwistWorkSpaceSlot::kDerivedSBoxA: return "aDerivedSBoxA";
         case TwistWorkSpaceSlot::kDerivedSBoxB: return "aDerivedSBoxB";
         case TwistWorkSpaceSlot::kDerivedSBoxC: return "aDerivedSBoxC";

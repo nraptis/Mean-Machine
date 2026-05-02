@@ -58,11 +58,11 @@ public:
                                                    std::uint8_t *pDestination) override;
 
     bool                                ExportCPPProjectRoot(const std::string &pRootPath,
-                                                             std::string *pError = nullptr) const;
+                                                             std::string *pErrorMessage = nullptr) const;
     bool                                ExportJSONProjectRoot(const std::string &pRootPath,
-                                                              std::string *pError = nullptr) const;
+                                                              std::string *pErrorMessage = nullptr) const;
     bool                                LoadJSONProjectRoot(const std::string &pJsonPath,
-                                                            std::string *pError = nullptr);
+                                                            std::string *pErrorMessage = nullptr);
 
     void                                RefreshTablePointers();
 

@@ -25,11 +25,28 @@ enum class GLoopFragmentDomain : std::uint8_t {
     kSalt = 3
 };
 
+enum class GLoopFragmentComposerCombineOp : std::uint8_t {
+    kAdd = 0,
+    kMul = 1,
+    kXor = 2,
+    kSub = 3
+};
+
+enum class GLoopFragmentComposerInputType : std::uint8_t {
+    kInv = 0,
+    kBuffer = 1,
+    kVariable = 2
+};
+
 class GLoopFragmentComposer;
+class GLoopFragmentComposerInput;
 
 class GLoopFragmentComposerInputBuffer {
 public:
     GLoopFragmentComposerInputBuffer();
+    explicit GLoopFragmentComposerInputBuffer(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer(GSymbol pBuffer,
+                                     GLoopFragmentComposerCombineOp pCombineOp);
     
     GLoopFragmentComposerInputBuffer        &Base(GSymbol pBaseIndex);
     GLoopFragmentComposerInputBuffer        &Key();
@@ -43,12 +60,16 @@ public:
     GLoopFragmentComposerInputBuffer        &Domain(GLoopFragmentDomain pDomain);
     GLoopFragmentComposerInputBuffer        &Offset();
     GLoopFragmentComposerInputBuffer        &Offset(int pOffset);
+    GLoopFragmentComposerInputBuffer        &OffsetIverted(int pOffset);
     
     GLoopFragmentComposerInputBuffer        &OffsetDebugMax();
     GLoopFragmentComposerInputBuffer        &Expand(std::uint8_t pExpandProbability,
                                                    bool pAllowMultiply);
     
     GLoopFragmentComposerInputBuffer        &ExpandDebug(GTermPattern pPattern, int pConstantA, int pConstantB);
+    GLoopFragmentComposerInputBuffer        &Combine(GLoopFragmentComposerCombineOp pCombineOp);
+    GLoopFragmentComposerCombineOp          GetCombine() const;
+    GLoopFragmentComposerInput              ToInput() const;
 
     bool                                    IsValid() const;
 
@@ -58,17 +79,45 @@ private:
     GLoopFragmentComposerInputBuffer(GLoopFragmentComposer *pComposer,
                                      std::size_t pNodeIndex);
 
+    void                                    InitializeDetached(GSymbol pBuffer,
+                                                               GLoopFragmentComposerCombineOp pCombineOp);
+
     GLoopFragmentComposer                 *mComposer = nullptr;
     std::size_t                            mNodeIndex = 0U;
+    GSymbol                                mSymbol;
+    GLoopFragmentComposerCombineOp         mCombineOp = GLoopFragmentComposerCombineOp::kAdd;
+    GSymbol                                mBaseSymbol;
+    bool                                   mBaseFromBuffer = false;
+    GSymbol                                mBaseBufferSymbol;
+    GSymbol                                mBaseBufferIndexSymbol;
+    bool                                   mBaseBufferIndexOffsetIsRandom = false;
+    int                                    mBaseBufferIndexOffset = 0;
+    GLoopFragmentDomain                    mDomain = GLoopFragmentDomain::kAuto;
+    bool                                   mOffsetIsRandom = false;
+    bool                                   mOffsetIsDebugMax = false;
+    bool                                   mOffsetIsInverted = false;
+    int                                    mOffset = 0;
+    std::uint8_t                           mExpandProbability = 0U;
+    bool                                   mAllowMultiply = true;
+    bool                                   mHasDebugExpand = false;
+    GTermPattern                           mDebugExpandPattern = GTermPattern::kAdd;
+    int                                    mDebugExpandConstantA = 0;
+    int                                    mDebugExpandConstantB = 0;
 };
 
 class GLoopFragmentComposerInputVariable {
 public:
     GLoopFragmentComposerInputVariable();
+    explicit GLoopFragmentComposerInputVariable(GSymbol pVariable);
+    GLoopFragmentComposerInputVariable(GSymbol pVariable,
+                                       GLoopFragmentComposerCombineOp pCombineOp);
 
     GLoopFragmentComposerInputVariable      &Expand(std::uint8_t pExpandProbability,
                                                    bool pAllowMultiply);
     GLoopFragmentComposerInputVariable      &ExpandDebug(GTermPattern pPattern, int pConstantA, int pConstantB);
+    GLoopFragmentComposerInputVariable      &Combine(GLoopFragmentComposerCombineOp pCombineOp);
+    GLoopFragmentComposerCombineOp          GetCombine() const;
+    GLoopFragmentComposerInput              ToInput() const;
 
     bool                                    IsValid() const;
 
@@ -78,8 +127,32 @@ private:
     GLoopFragmentComposerInputVariable(GLoopFragmentComposer *pComposer,
                                        std::size_t pNodeIndex);
 
+    void                                    InitializeDetached(GSymbol pVariable,
+                                                               GLoopFragmentComposerCombineOp pCombineOp);
+
     GLoopFragmentComposer                 *mComposer = nullptr;
     std::size_t                            mNodeIndex = 0U;
+    GSymbol                                mSymbol;
+    GLoopFragmentComposerCombineOp         mCombineOp = GLoopFragmentComposerCombineOp::kAdd;
+    std::uint8_t                           mExpandProbability = 0U;
+    bool                                   mAllowMultiply = true;
+    bool                                   mHasDebugExpand = false;
+    GTermPattern                           mDebugExpandPattern = GTermPattern::kAdd;
+    int                                    mDebugExpandConstantA = 0;
+    int                                    mDebugExpandConstantB = 0;
+};
+
+class GLoopFragmentComposerInput {
+public:
+    GLoopFragmentComposerInput() = default;
+    explicit GLoopFragmentComposerInput(const GLoopFragmentComposerInputBuffer &pInputBuffer);
+    explicit GLoopFragmentComposerInput(const GLoopFragmentComposerInputVariable &pInputVariable);
+
+    bool                                    IsValid() const;
+
+    GLoopFragmentComposerInputType          mType = GLoopFragmentComposerInputType::kInv;
+    GLoopFragmentComposerInputBuffer        mInputBuffer;
+    GLoopFragmentComposerInputVariable      mInputVariable;
 };
 
 class GLoopFragmentComposer {
@@ -99,21 +172,30 @@ public:
     void                                    ResetAddEqual(GSymbol pTarget);
     void                                    ResetXorEqual(GSymbol pTarget);
     
-    void                                    EnableDebugMixAllAdd(); // there is no disable debug.
-    void                                    EnableDebugMixAllXor();
-    void                                    EnableDebugAddXor(const std::vector<bool> &pIsAdd);
-    
-    void                                    DisableDebug();
     void                                    SetLoopIndex(GSymbol pLoopIndex);
-    void                                    SetDefaultCombineWeights(int pXorWeight,
-                                                                     int pAddWeight);
 
     GLoopFragmentComposerInputBuffer        MixBuffer(GSymbol pBuffer);
-    GLoopFragmentComposerInputVariable      MixVariable(GSymbol pVariable);
-    
+    GLoopFragmentComposerInputBuffer        MixBufferAdd(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer        MixBufferMul(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer        MixBufferXor(GSymbol pBuffer);
 
-    bool                                    BakeStatements(std::vector<GStatement> *pStatementList,
-                                                          std::string *pErrorString);
+    GLoopFragmentComposerInputVariable      MixVariable(GSymbol pVariable);
+    GLoopFragmentComposerInputVariable      MixVariableAdd(GSymbol pVariable);
+    GLoopFragmentComposerInputVariable      MixVariableMul(GSymbol pVariable);
+    GLoopFragmentComposerInputVariable      MixVariableXor(GSymbol pVariable);
+
+    bool                                    AddInput(const GLoopFragmentComposerInputBuffer &pInputBuffer);
+    bool                                    AddInput(const GLoopFragmentComposerInputVariable &pInputVariable);
+    bool                                    AddInput(const GLoopFragmentComposerInput &pInput);
+    bool                                    AddInputs(const std::vector<GLoopFragmentComposerInput> &pInputs);
+
+    bool                                    Bake(std::vector<GStatement> *pStatements,
+                                                          std::string *pErrorMessage);
+    
+    bool                                    ResolveToStatementsAndExpression(std::vector<GStatement> *pStatements,
+                                                                             GExpr &pExpr,
+                                                                             std::string *pErrorMessage);
+    
 
 private:
     enum class NodeType : std::uint8_t {
@@ -125,12 +207,15 @@ private:
     enum class DeferredCombineOp : std::uint8_t {
         kNone = 0,
         kAdd = 1,
-        kXor = 2
+        kMul = 2,
+        kXor = 3,
+        kSub = 4
     };
 
     struct Node {
         NodeType                         mType = NodeType::kInvalid;
         GSymbol                          mSymbol;
+        GLoopFragmentComposerCombineOp   mCombineOp = GLoopFragmentComposerCombineOp::kAdd;
         GSymbol                          mBaseSymbol;
         bool                             mBaseFromBuffer = false;
         GSymbol                          mBaseBufferSymbol;
@@ -140,6 +225,7 @@ private:
         GLoopFragmentDomain              mDomain = GLoopFragmentDomain::kAuto;
         bool                             mOffsetIsRandom = false;
         bool                             mOffsetIsDebugMax = false;
+        bool                             mOffsetIsInverted = false;
         int                              mOffset = 0;
         std::uint8_t                     mExpandProbability = 0U;
         bool                             mAllowMultiply = true;
@@ -172,6 +258,8 @@ private:
     bool                                   ConfigureNodeRandomOffset(std::size_t pNodeIndex);
     bool                                   ConfigureNodeFixedOffset(std::size_t pNodeIndex,
                                                                     int pOffset);
+    bool                                   ConfigureNodeInvertedOffset(std::size_t pNodeIndex,
+                                                                       int pOffset);
     bool                                   ConfigureNodeOffsetDebugMax(std::size_t pNodeIndex);
     bool                                   ConfigureNodeExpand(std::size_t pNodeIndex,
                                                                std::uint8_t pExpandProbability,
@@ -181,32 +269,39 @@ private:
                                                                     int pConstantA,
                                                                     int pConstantB);
 
-    void                                   SetConfigError(const std::string &pErrorString);
+    void                                   SetConfigError(const std::string &pErrorMessage);
 
-    bool                                   AddStatement(std::vector<GStatement> *pStatementList,
+    bool                                   AddStatement(std::vector<GStatement> *pStatements,
                                                         const GStatement &pStatement,
-                                                        std::string *pErrorString) const;
+                                                        std::string *pErrorMessage) const;
     bool                                   EmitTargetCombine(const GExpr &pOperandExpr,
+                                                            GLoopFragmentComposerCombineOp pCombineOp,
                                                             bool *pTargetInitialized,
-                                                            std::vector<GStatement> *pStatementList,
-                                                            std::string *pErrorString);
+                                                            std::vector<GStatement> *pStatements,
+                                                            std::string *pErrorMessage);
     bool                                   EmitBufferNode(const Node &pNode,
                                                           bool *pTargetInitialized,
                                                           std::unordered_map<std::string, int> *pKeyNameCounters,
                                                           std::unordered_map<std::string, int> *pByteNameCounters,
-                                                          std::vector<GStatement> *pStatementList,
-                                                          std::string *pErrorString);
+                                                          std::vector<GStatement> *pStatements,
+                                                          std::string *pErrorMessage);
     bool                                   EmitVariableNode(const Node &pNode,
                                                             bool *pTargetInitialized,
                                                             std::unordered_map<std::string, int> *pVariableTempCounters,
-                                                            std::vector<GStatement> *pStatementList,
-                                                            std::string *pErrorString);
+                                                            std::vector<GStatement> *pStatements,
+                                                            std::string *pErrorMessage);
+    bool                                   FillNodeFromInputBuffer(const GLoopFragmentComposerInputBuffer &pInputBuffer,
+                                                                   Node *pNode,
+                                                                   std::string *pErrorMessage) const;
+    bool                                   FillNodeFromInputVariable(const GLoopFragmentComposerInputVariable &pInputVariable,
+                                                                     Node *pNode,
+                                                                     std::string *pErrorMessage) const;
 
     GLoopFragmentDomain                    ResolveDomain(const Node &pNode) const;
     int                                    ResolveOffset(const Node &pNode,
                                                          const GSymbol &pBaseSymbol,
                                                          GLoopFragmentDomain pDomain,
-                                                         std::string *pErrorString) const;
+                                                         std::string *pErrorMessage) const;
     BufferTemp                             BuildBufferTemp(const Node &pNode,
                                                           bool pNeedKey,
                                                           bool pNeedByte,
@@ -220,18 +315,10 @@ private:
                                                                         const GExpr &pBaseExpr) const;
     bool                                   ShouldDeferCombine() const;
     GExpr                                  BuildDeferredExpression() const;
-    bool                                   FlushDeferredCombine(std::vector<GStatement> *pStatementList,
-                                                               std::string *pErrorString);
-    bool                                   ConsumeDebugAddXorIsAdd() const;
+    bool                                   FlushDeferredCombine(std::vector<GStatement> *pStatements,
+                                                               std::string *pErrorMessage);
 
-    int                                    mCombineXorWeight = 55;
-    int                                    mCombineAddWeight = 45;
     GAssignType                            mInitialAssignType = GAssignType::kSet;
-    bool                                   mDebugMixAllAdd = false;
-    bool                                   mDebugMixAllXor = false;
-    bool                                   mDebugAddXorEnabled = false;
-    std::vector<bool>                      mDebugAddXorPattern;
-    mutable std::size_t                    mDebugAddXorCursor = 0U;
     bool                                   mDeferCombine = false;
     GSymbol                                mTarget;
     GSymbol                                mLoopIndex;
@@ -239,6 +326,7 @@ private:
     GAssignType                            mDeferredCombineAssignType = GAssignType::kInvalid;
     std::vector<GExpr>                     mDeferredCombineOperands;
     std::vector<DeferredCombineOp>         mDeferredCombineOps;
+    GLoopFragmentComposerCombineOp         mDeferredNextCombineOp = GLoopFragmentComposerCombineOp::kAdd;
     std::string                            mConfigError;
 };
 

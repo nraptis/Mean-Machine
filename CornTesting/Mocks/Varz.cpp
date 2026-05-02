@@ -12,12 +12,22 @@ Varz::Varz() {
     mLoopIndex = VarSymbol("i");
     
     mValue = VarSymbol("aValue");
+    mValueMix = VarSymbol("aValueMix");
+    
     mCarry = VarSymbol("aCarry");
+    mCarryMix = VarSymbol("aCarryMix");
+    
     
     mPermute = VarSymbol("aPermute");
     mMutate = VarSymbol("aMutate");
     mSelect = VarSymbol("aSelect");
     
+    a = VarSymbol("a");
+    b = VarSymbol("b");
+    c = VarSymbol("c");
+    d = VarSymbol("d");
+    e = VarSymbol("e");
+    f = VarSymbol("f");
     
     mSBoxA = BufSymbol(TwistWorkSpaceSlot::kSBoxA);
     mSBoxB = BufSymbol(TwistWorkSpaceSlot::kSBoxB);

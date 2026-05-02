@@ -18,22 +18,22 @@ public:
     explicit Parser(std::string_view pText)
     : mText(pText) {}
 
-    std::optional<JsonValue> ParseValue(std::string *pError) {
+    std::optional<JsonValue> ParseValue(std::string *pErrorMessage) {
         SkipWhitespace();
         if (AtEnd()) {
-            return Fail("unexpected end of JSON", pError);
+            return Fail("unexpected end of JSON", pErrorMessage);
         }
 
         const char aCh = Peek();
-        if (aCh == 'n') { return ParseNull(pError); }
-        if (aCh == 't' || aCh == 'f') { return ParseBool(pError); }
-        if (aCh == '"') { return ParseString(pError); }
-        if (aCh == '[') { return ParseArray(pError); }
-        if (aCh == '{') { return ParseObject(pError); }
+        if (aCh == 'n') { return ParseNull(pErrorMessage); }
+        if (aCh == 't' || aCh == 'f') { return ParseBool(pErrorMessage); }
+        if (aCh == '"') { return ParseString(pErrorMessage); }
+        if (aCh == '[') { return ParseArray(pErrorMessage); }
+        if (aCh == '{') { return ParseObject(pErrorMessage); }
         if (aCh == '-' || std::isdigit(static_cast<unsigned char>(aCh)) != 0) {
-            return ParseNumber(pError);
+            return ParseNumber(pErrorMessage);
         }
-        return Fail("unexpected token in JSON", pError);
+        return Fail("unexpected token in JSON", pErrorMessage);
     }
 
     bool Finished() {
@@ -64,22 +64,22 @@ private:
     }
 
     std::optional<JsonValue> Fail(const std::string &pMessage,
-                                  std::string *pError) {
-        if (pError != NULL) {
-            *pError = pMessage;
+                                  std::string *pErrorMessage) {
+        if (pErrorMessage != NULL) {
+            *pErrorMessage = pMessage;
         }
         return std::nullopt;
     }
 
-    std::optional<JsonValue> ParseNull(std::string *pError) {
+    std::optional<JsonValue> ParseNull(std::string *pErrorMessage) {
         if (mText.substr(mCursor, 4U) != "null") {
-            return Fail("invalid null literal", pError);
+            return Fail("invalid null literal", pErrorMessage);
         }
         mCursor += 4U;
         return JsonValue::Null();
     }
 
-    std::optional<JsonValue> ParseBool(std::string *pError) {
+    std::optional<JsonValue> ParseBool(std::string *pErrorMessage) {
         if (mText.substr(mCursor, 4U) == "true") {
             mCursor += 4U;
             return JsonValue::Bool(true);
@@ -88,12 +88,12 @@ private:
             mCursor += 5U;
             return JsonValue::Bool(false);
         }
-        return Fail("invalid bool literal", pError);
+        return Fail("invalid bool literal", pErrorMessage);
     }
 
-    std::optional<JsonValue> ParseString(std::string *pError) {
+    std::optional<JsonValue> ParseString(std::string *pErrorMessage) {
         if (Take() != '"') {
-            return Fail("expected string quote", pError);
+            return Fail("expected string quote", pErrorMessage);
         }
 
         std::string aValue;
@@ -108,7 +108,7 @@ private:
             }
 
             if (AtEnd()) {
-                return Fail("unterminated escape", pError);
+                return Fail("unterminated escape", pErrorMessage);
             }
             const char aEscaped = Take();
             switch (aEscaped) {
@@ -120,14 +120,14 @@ private:
                 case 'n': aValue.push_back('\n'); break;
                 case 'r': aValue.push_back('\r'); break;
                 case 't': aValue.push_back('\t'); break;
-                default: return Fail("unsupported escape sequence", pError);
+                default: return Fail("unsupported escape sequence", pErrorMessage);
             }
         }
 
-        return Fail("unterminated string", pError);
+        return Fail("unterminated string", pErrorMessage);
     }
 
-    std::optional<JsonValue> ParseNumber(std::string *pError) {
+    std::optional<JsonValue> ParseNumber(std::string *pErrorMessage) {
         const std::size_t aStart = mCursor;
         if (Peek() == '-') {
             ++mCursor;
@@ -155,14 +155,14 @@ private:
         char *aEndPtr = NULL;
         const double aValue = std::strtod(aToken.c_str(), &aEndPtr);
         if ((aEndPtr == NULL) || (*aEndPtr != '\0')) {
-            return Fail("invalid number", pError);
+            return Fail("invalid number", pErrorMessage);
         }
         return JsonValue::Number(aValue);
     }
 
-    std::optional<JsonValue> ParseArray(std::string *pError) {
+    std::optional<JsonValue> ParseArray(std::string *pErrorMessage) {
         if (Take() != '[') {
-            return Fail("expected '['", pError);
+            return Fail("expected '['", pErrorMessage);
         }
 
         JsonValue::Array aValues;
@@ -173,30 +173,30 @@ private:
         }
 
         while (true) {
-            auto aValue = ParseValue(pError);
+            auto aValue = ParseValue(pErrorMessage);
             if (!aValue.has_value()) {
                 return std::nullopt;
             }
             aValues.push_back(std::move(*aValue));
             SkipWhitespace();
             if (AtEnd()) {
-                return Fail("unterminated array", pError);
+                return Fail("unterminated array", pErrorMessage);
             }
             const char aSeparator = Take();
             if (aSeparator == ']') {
                 break;
             }
             if (aSeparator != ',') {
-                return Fail("expected ',' or ']'", pError);
+                return Fail("expected ',' or ']'", pErrorMessage);
             }
             SkipWhitespace();
         }
         return JsonValue::ArrayValue(std::move(aValues));
     }
 
-    std::optional<JsonValue> ParseObject(std::string *pError) {
+    std::optional<JsonValue> ParseObject(std::string *pErrorMessage) {
         if (Take() != '{') {
-            return Fail("expected '{'", pError);
+            return Fail("expected '{'", pErrorMessage);
         }
 
         JsonValue::Object aFields;
@@ -207,30 +207,30 @@ private:
         }
 
         while (true) {
-            auto aKey = ParseString(pError);
+            auto aKey = ParseString(pErrorMessage);
             if (!aKey.has_value() || !aKey->is_string()) {
-                return Fail("object key must be a string", pError);
+                return Fail("object key must be a string", pErrorMessage);
             }
             SkipWhitespace();
             if (AtEnd() || (Take() != ':')) {
-                return Fail("expected ':' after object key", pError);
+                return Fail("expected ':' after object key", pErrorMessage);
             }
             SkipWhitespace();
-            auto aValue = ParseValue(pError);
+            auto aValue = ParseValue(pErrorMessage);
             if (!aValue.has_value()) {
                 return std::nullopt;
             }
             aFields[aKey->as_string()] = std::move(*aValue);
             SkipWhitespace();
             if (AtEnd()) {
-                return Fail("unterminated object", pError);
+                return Fail("unterminated object", pErrorMessage);
             }
             const char aSeparator = Take();
             if (aSeparator == '}') {
                 break;
             }
             if (aSeparator != ',') {
-                return Fail("expected ',' or '}'", pError);
+                return Fail("expected ',' or '}'", pErrorMessage);
             }
             SkipWhitespace();
         }
@@ -363,15 +363,15 @@ std::string JsonValue::Serialize() const {
 }
 
 std::optional<JsonValue> JsonValue::Parse(const std::string& pText,
-                                          std::string *pError) {
+                                          std::string *pErrorMessage) {
     Parser aParser(pText);
-    auto aValue = aParser.ParseValue(pError);
+    auto aValue = aParser.ParseValue(pErrorMessage);
     if (!aValue.has_value()) {
         return std::nullopt;
     }
     if (!aParser.Finished()) {
-        if (pError != NULL) {
-            *pError = "unexpected trailing JSON content";
+        if (pErrorMessage != NULL) {
+            *pErrorMessage = "unexpected trailing JSON content";
         }
         return std::nullopt;
     }

@@ -1,32 +1,26 @@
 //
-//  GQuick.hpp
+//  GQuickStatement.hpp
 //  MeanMachine
 //
-//  Created by John Snow on 4/24/26.
+//  Created by Dragon on 5/1/26.
 //
 
-#ifndef GQuick_hpp
-#define GQuick_hpp
+#ifndef GQuickStatement_hpp
+#define GQuickStatement_hpp
 
 #include "TwistWorkSpace.hpp"
 #include "TwistFunctional.hpp"
 #include "GSymbol.hpp"
-#include "GExpr.hpp"
 #include "GSeedProgram.hpp"
-#include <string>
-#include <vector>
 
 class GQuick {
-
 public:
-
-    static GExpr                BufferRead(GSymbol pSymbol, GSymbol pSlotSymbol);
-    static GExpr                BufferReadRandomOffset(GSymbol pSymbol,
-                                                       GSymbol pSlotSymbol,
-                                                       GSymbol pOracleSymbol);
-    static GExpr                BufferReadRandomOffset(GSymbol pSymbol, GSymbol pSlotSymbol);
     
+    static GStatement                               MakeAssignDestStatement(const GSymbol pDest, const GSymbol pIndex, const GSymbol pValue);
+    
+    static GStatement                               MakeAssignOffsetByteStatement(const GSymbol pTarget, const GSymbol pSource,
+                                                                                  const GSymbol pIndex, const int pOffset);
     
 };
 
-#endif /* GQuick_hpp */
+#endif /* GQuickStatement_hpp */

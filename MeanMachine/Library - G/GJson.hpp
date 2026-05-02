@@ -63,7 +63,7 @@ public:
     const JsonValue* find(const std::string& pKey) const;
 
     std::string Serialize() const;
-    static std::optional<JsonValue> Parse(const std::string& pText, std::string *pError);
+    static std::optional<JsonValue> Parse(const std::string& pText, std::string *pErrorMessage);
 
 private:
     Type mType = Type::kNull;

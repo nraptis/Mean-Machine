@@ -2,10 +2,10 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_Froyo : public TwistExpander {
+class TwistExpander_CorvusCorvax : public TwistExpander {
 public:
-    TwistExpander_Froyo();
-    ~TwistExpander_Froyo() override = default;
+    TwistExpander_CorvusCorvax();
+    ~TwistExpander_CorvusCorvax() override = default;
 
     void Seed(TwistWorkSpace *pWorkspace,
               std::uint8_t *pSource,

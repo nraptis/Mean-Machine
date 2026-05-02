@@ -19,7 +19,11 @@ public:
     GSymbol         mLoopIndex;
     
     GSymbol         mValue;
+    GSymbol         mValueMix;
+    
     GSymbol         mCarry;
+    GSymbol         mCarryMix;
+    
     GSymbol         mPermute;
     GSymbol         mMutate;
     GSymbol         mSelect;
@@ -39,6 +43,13 @@ public:
     GSymbol         mWorkerB;
     GSymbol         mWorkerC;
     GSymbol         mWorkerD;
+    
+    GSymbol         a;
+    GSymbol         b;
+    GSymbol         c;
+    GSymbol         d;
+    GSymbol         e;
+    GSymbol         f;
     
     
 };

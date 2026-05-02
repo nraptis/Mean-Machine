@@ -13,8 +13,14 @@
 #include "TwistFunctional.hpp"
 #include "GTermExpander.hpp"
 #include "GTwistExpander.hpp"
-#include "TwistCryptoScoring.hpp"
-#include "TwistMix16.hpp"
+#include "TwistMix64.hpp"
+#include "GSelect.hpp"
+#include "GLoopMixBrew.hpp"
+#include "GQuick.hpp"
+#include "GFastMatrix.hpp"
+#include "GSnow.hpp"
+#include "GMasking.hpp"
+
 
 
 #define SEED_WORK_LANE_COUNT 4
@@ -26,9 +32,11 @@ public:
     GSeedDeriveMaterial();
     ~GSeedDeriveMaterial();
     
-    bool                                    PlanPhaseA(std::string &pError);
-    bool                                    BuildPhaseA(TwistProgramBranch &pBranch,
-                                                        std::string &pError);
+    bool                                    PlanPhaseA(std::string *pErrorMessage);
+    bool                                    BuildPhaseA(TwistProgramBranch &pBranch, std::string *pErrorMessage);
+    
+    bool                                    BuildSnow(TwistProgramBranch &pBranch, std::string *pErrorMessage);
+    
     
     GSymbol                                 mLoopIndex;
     
@@ -38,6 +46,10 @@ public:
     GSymbol                                 mValueMix;
     
     GSymbol                                 mCarry;
+    GSymbol                                 mCarryMix;
+    
+    GSymbol                                 mSelect;
+    GSymbol                                 mMultiplex;
     
     GSymbol                                 mSBoxA;
     GSymbol                                 mSBoxB;
@@ -64,13 +76,19 @@ public:
     GSymbol                                 mWorkerC;
     GSymbol                                 mWorkerD;
     
+    GSymbol                                 mExpansionA;
+    GSymbol                                 mExpansionB;
+    GSymbol                                 mExpansionC;
+    GSymbol                                 mExpansionD;
+    
+    GSymbol                                 mUnrollByte;
+    
 private:
-    
-    
     
     std::vector<GSymbol>                    mListSBoxes;
     std::vector<GSymbol>                    mListSalts;
     std::vector<GSymbol>                    mListWorkers;
+    std::vector<GSymbol>                    mListExpansion;
     
     std::vector<GSymbol>                    mListDerivedSBoxes;
     std::vector<GSymbol>                    mListDerivedSalts;
@@ -93,12 +111,16 @@ private:
     GSymbol                                 mValueSourceB[SEED_WORK_LANE_COUNT];
     bool                                    mValueSourceBEnabled[SEED_WORK_LANE_COUNT];
     bool                                    mValueSourceBBefore[SEED_WORK_LANE_COUNT];
-
-    Mix161Type                              mValueMix161Type[SEED_WORK_LANE_COUNT];
-    Mix162Type                              mValueMix162Type[SEED_WORK_LANE_COUNT];
-    bool                                    mValueMixChoice[SEED_WORK_LANE_COUNT];
     
-    //
+    GSymbol                                 mValueSourceC[SEED_WORK_LANE_COUNT];
+    bool                                    mValueSourceCEnabled[SEED_WORK_LANE_COUNT];
+    bool                                    mValueSourceCBefore[SEED_WORK_LANE_COUNT];
+    
+
+    Mix64Type_1                             mValueMix64Type_1[SEED_WORK_LANE_COUNT];
+    Mix64Type_4                             mValueMix64Type_4[SEED_WORK_LANE_COUNT];
+    Mix64Type_8                             mValueMix64Type_8[SEED_WORK_LANE_COUNT];
+    bool                                    mValueMixChoice[SEED_WORK_LANE_COUNT];
     
     bool                                    mCarryValueEnabled[SEED_WORK_LANE_COUNT];
     bool                                    mCarryValueBefore[SEED_WORK_LANE_COUNT];
@@ -115,14 +137,14 @@ private:
     bool                                    mCarrySourceBEnabled[SEED_WORK_LANE_COUNT];
     bool                                    mCarrySourceBBefore[SEED_WORK_LANE_COUNT];
     
-    
-    //
-
     GSymbol                                 mDestBuffer[SEED_WORK_LANE_COUNT];
     bool                                    mDestReverse[SEED_WORK_LANE_COUNT];
     
-    Mix161Type                              RandomMix161Type();
-    Mix162Type                              RandomMix162Type();
+    Mix64Type_1                             RandomMix64Type_1();
+    Mix64Type_4                             RandomMix64Type_4();
+    Mix64Type_8                             RandomMix64Type_8();
+    
+    
     
 };
 

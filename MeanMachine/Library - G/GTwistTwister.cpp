@@ -13,6 +13,6 @@ GTwistTwister::~GTwistTwister() {
 }
 
 bool GTwistTwister::LoadProjectRoot(const std::string &pJsonPath,
-                                    std::string *pError) {
-    return LoadJSONProjectRoot(pJsonPath, pError);
+                                    std::string *pErrorMessage) {
+    return LoadJSONProjectRoot(pJsonPath, pErrorMessage);
 }

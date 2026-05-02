@@ -49,7 +49,11 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
         return gSBoxTables;
     }
     
-    const std::string aDirectory = FileIO::ProjectRoot("Assets/data_s_box");
+    //const std::string aDirectory = FileIO::ProjectRoot("Assets/data_s_box");
+    const std::string aDirectory = FileIO::ProjectRoot("Assets/large_list_sboxes");
+    
+    
+    
     const std::vector<std::string> aFilePaths = FileIO::GetAllFiles(aDirectory);
 
     for (const std::string &aFilePath : aFilePaths) {

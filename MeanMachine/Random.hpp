@@ -19,6 +19,8 @@ public:
     
     static void                         Seed(int pSeed);
     
+    static std::uint8_t                 GetByte();
+    
     static int                          Get();
     static int                          Get(int pMax);
     static int                          Get(int pMin, int pMax);

@@ -13,7 +13,8 @@
 #include <string>
 #include <vector>
 #include "GSymbol.hpp"
-#include "TwistMix16.hpp"
+#include "TwistMix64.hpp"
+#include "TwistMix64.hpp"
 
 enum class GOperType : std::uint8_t {
     kInv = 0,
@@ -45,8 +46,9 @@ enum class GExprType : std::uint8_t {
     kShiftL = 11,
     kShiftR = 12,
     kOr = 13,
-    kMix161 = 14,
-    kMix162 = 15
+    kMix64_1 = 14,
+    kMix64_4 = 15,
+    kMix64_8 = 16
 };
 
 enum class GReadWrapType : std::uint8_t {
@@ -68,11 +70,19 @@ public:
     GSymbol                             mReadWrapOracleSymbol;
     int                                 mReadWrapOffset;
 
-    Mix161Type                          mMix161Type;
-    GSymbol                             mMix161SBoxSymbol;
-    Mix162Type                          mMix162Type;
-    GSymbol                             mMix162SBoxASymbol;
-    GSymbol                             mMix162SBoxBSymbol;
+    Mix64Type_1                         mMix64Type1;
+    Mix64Type_4                         mMix64Type4;
+    Mix64Type_8                         mMix64Type8;
+    bool                                mMix64UseAmount;
+    std::uint64_t                       mMix64Amount;
+    GSymbol                             mMix64SBoxA;
+    GSymbol                             mMix64SBoxB;
+    GSymbol                             mMix64SBoxC;
+    GSymbol                             mMix64SBoxD;
+    GSymbol                             mMix64SBoxE;
+    GSymbol                             mMix64SBoxF;
+    GSymbol                             mMix64SBoxG;
+    GSymbol                             mMix64SBoxH;
     
     // buffer reads use mSymbol as the source and mIndex as the wrapped index.
     std::shared_ptr<GExpr>              mIndex;
@@ -96,13 +106,48 @@ public:
     static GExpr                        RotL32(const GExpr &a, const GExpr &b);
     static GExpr                        ShiftL(const GExpr &a, const GExpr &b);
     static GExpr                        ShiftR(const GExpr &a, const GExpr &b);
-    static GExpr                        Mix161(const GExpr &pValue,
-                                              Mix161Type pMixType,
-                                              GSymbol pSBox);
-    static GExpr                        Mix162(const GExpr &pValue,
-                                              Mix162Type pMixType,
-                                              const GSymbol &pSBoxA,
-                                              const GSymbol &pSBoxB);
+    
+    static GExpr                        Mix64_1(const GExpr &pValue,
+                                                Mix64Type_1 pMixType,
+                                                const GSymbol &pSBoxA);
+    static GExpr                        Mix64_4(const GExpr &pValue,
+                                                Mix64Type_4 pMixType,
+                                                const GSymbol &pSBoxA,
+                                                const GSymbol &pSBoxB,
+                                                const GSymbol &pSBoxC,
+                                                const GSymbol &pSBoxD);
+    static GExpr                        Mix64_8(const GExpr &pValue,
+                                                Mix64Type_8 pMixType,
+                                                const GSymbol &pSBoxA,
+                                                const GSymbol &pSBoxB,
+                                                const GSymbol &pSBoxC,
+                                                const GSymbol &pSBoxD,
+                                                const GSymbol &pSBoxE,
+                                                const GSymbol &pSBoxF,
+                                                const GSymbol &pSBoxG,
+                                                const GSymbol &pSBoxH);
+    static GExpr                        Mix64_1(const GExpr &pValue,
+                                                Mix64Type_1 pMixType,
+                                                std::uint64_t pAmount,
+                                                const GSymbol &pSBoxA);
+    static GExpr                        Mix64_4(const GExpr &pValue,
+                                                Mix64Type_4 pMixType,
+                                                std::uint64_t pAmount,
+                                                const GSymbol &pSBoxA,
+                                                const GSymbol &pSBoxB,
+                                                const GSymbol &pSBoxC,
+                                                const GSymbol &pSBoxD);
+    static GExpr                        Mix64_8(const GExpr &pValue,
+                                                Mix64Type_8 pMixType,
+                                                std::uint64_t pAmount,
+                                                const GSymbol &pSBoxA,
+                                                const GSymbol &pSBoxB,
+                                                const GSymbol &pSBoxC,
+                                                const GSymbol &pSBoxD,
+                                                const GSymbol &pSBoxE,
+                                                const GSymbol &pSBoxF,
+                                                const GSymbol &pSBoxG,
+                                                const GSymbol &pSBoxH);
     
     // what this means.
     // in c++ code

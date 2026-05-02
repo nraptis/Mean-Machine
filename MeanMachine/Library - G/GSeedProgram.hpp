@@ -77,10 +77,18 @@ enum class GAssignType : std::uint8_t {
     kXorAssign = 3
 };
 
+enum class GStatementType : std::uint8_t {
+    kAssign = 0,
+    kRawLine = 1
+};
+
 struct GStatement {
+    GStatementType                      mType;
     GTarget                             mTarget;
     GAssignType                         mAssignType;
     GExpr                               mExpression;
+    std::string                         mRawLine;
+    std::string                         mOutputPrefix;
 
     GStatement();
 
@@ -90,10 +98,12 @@ struct GStatement {
                                                const GExpr &pExpression);
     static GStatement                   XorAssign(const GTarget &pTarget,
                                                const GExpr &pExpression);
+    static GStatement                   RawLine(const std::string &pRawLine);
 
     void                                Set(const GStatement &pOther);
     void                                Invalidate();
     bool                                IsInvalid() const;
+    bool                                IsRawLine() const;
     
     GSymbol                             GetAssignSymbol(int pIndex) const;
     bool                                HasAssignSymbol(int pIndex) const;
@@ -119,6 +129,17 @@ struct GStatement {
 };
 
 struct GLoop {
+    struct BodyDecoration {
+        enum class Type : std::uint8_t {
+            kComment = 0,
+            kEmptyLine = 1
+        };
+
+        Type                                mType = Type::kComment;
+        std::string                         mText;
+        std::size_t                         mStatementIndex = 0U;
+    };
+
     GSymbol                             mLoopVariable;
     std::string                         mLoopVariableName;
     int                                 mLoopBegin;
@@ -126,26 +147,53 @@ struct GLoop {
     int                                 mLoopStep;
     std::vector<GStatement>             mInitializationStatements;
     std::vector<GStatement>             mBodyStatements;
+    std::vector<BodyDecoration>         mBodyDecorations;
     
     GLoop();
     
     bool                                IsInvalid() const;
 
-    void                                AddBody(GStatement &pStatemet);
-    void                                AddInitialization(GStatement &pStatemet);
+    void                                AddBodyComment(std::string);
+    void                                AddBodyEmptyLine();
+    void                                AddBody(GStatement *pStatement);
+    void                                AddBody(std::vector<GStatement> *pStatements);
     
+    void                                AddInitialization(GStatement *pStatement);
+    
+};
+
+enum class GBatchWorkItemType : std::uint8_t {
+    kLoop = 0,
+    kStatements = 1
+};
+
+struct GBatchWorkItem {
+    GBatchWorkItemType                  mType;
+    GLoop                               mLoop;
+    std::vector<GStatement>             mStatements;
+
+    GBatchWorkItem();
+
+    static GBatchWorkItem               Loop(const GLoop &pLoop);
+    static GBatchWorkItem               Statements(std::vector<GStatement> *pStatements);
+
+    bool                                IsLoop() const;
+    bool                                IsStatements() const;
+    bool                                IsInvalid() const;
 };
 
 struct GBatch {
     std::string                         mName;
     std::vector<GLoop>                  mLoops;
+    std::vector<GBatchWorkItem>         mWorkItems;
     GScopeState                         mScopeStateGlobal;
     GScopeState                         mScopeStateLocal;
 
     GBatch();
 
     bool                                IsInvalid() const;
-    void                                CommitLoop(const GLoop &pLoop);
+    void                                CommitLoop(GLoop *pLoop);
+    void                                CommitStatements(std::vector<GStatement> *pStatements);
 
     int                                 CountReads(TwistWorkSpaceSlot pSlot) const;
     int                                 CountWrites(TwistWorkSpaceSlot pSlot) const;
@@ -156,22 +204,24 @@ struct GBatch {
     std::vector<TwistWorkSpaceSlot>     CollectReferencedSlots() const;
 
     std::string                         ToPrettyString() const;
-    std::string                         ToJson(std::string *pError = nullptr) const;
+    std::string                         ToJson(std::string *pErrorMessage = nullptr) const;
     static bool                         FromJson(const std::string &pJsonText,
                                                  GBatch *pBatch,
-                                                 std::string *pError = nullptr);
+                                                 std::string *pErrorMessage = nullptr);
 
     std::string                         BuildCpp(const std::string &pFunctionName = "GeneratedTwistSeed",
-                                                 std::string *pError = nullptr,
+                                                 std::string *pErrorMessage = nullptr,
                                                  bool pEmitDeclarations = true) const;
-    std::string                         BuildCppScopeBlock(std::string *pError = nullptr,
+    std::string                         BuildCppScopeBlock(std::string *pErrorMessage = nullptr,
                                                            bool pEmitDeclarations = true) const;
 
     bool                                Execute(TwistWorkSpace *pWorkspace,
-                                                std::string *pError = nullptr) const;
+                                                TwistExpander *pExpander,
+                                                std::string *pErrorMessage = nullptr) const;
     bool                                ExecuteWithVariables(TwistWorkSpace *pWorkspace,
+                                                             TwistExpander *pExpander,
                                                              std::unordered_map<std::string, int> *pVariables,
-                                                             std::string *pError = nullptr) const;
+                                                             std::string *pErrorMessage = nullptr) const;
 };
 
 #endif /* GSeedProgram_hpp */

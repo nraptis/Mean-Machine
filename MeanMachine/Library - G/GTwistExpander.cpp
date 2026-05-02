@@ -21,15 +21,12 @@
 
 using MeanMachine_json::JsonValue;
 
-void TwistWorkSpaceBindExternalBuffers(std::uint8_t *pSource,
-                                       std::uint8_t *pDest);
-
 namespace {
 
-void SetError(std::string *pError,
+void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
-    if (pError != nullptr) {
-        *pError = pMessage;
+    if (pErrorMessage != nullptr) {
+        *pErrorMessage = pMessage;
     }
 }
 
@@ -49,15 +46,15 @@ std::string ResolveInputPath(const std::string &pPath) {
 
 bool LoadTextFile(const std::string &pPath,
                   std::string *pText,
-                  std::string *pError) {
+                  std::string *pErrorMessage) {
     if (pText == nullptr) {
-        SetError(pError, "output text pointer was null.");
+        SetError(pErrorMessage, "output text pointer was null.");
         return false;
     }
 
     std::vector<std::uint8_t> aBytes;
     if (!FileIO::Load(pPath, aBytes)) {
-        SetError(pError, "failed to read JSON file: " + pPath);
+        SetError(pErrorMessage, "failed to read JSON file: " + pPath);
         return false;
     }
 
@@ -87,9 +84,9 @@ void EnsureTableSize(std::vector<std::uint8_t> *pTable,
 
 bool ParseByteArray(const JsonValue *pArrayValue,
                     std::vector<std::uint8_t> *pOut,
-                    std::string *pError) {
+                    std::string *pErrorMessage) {
     if (pOut == nullptr) {
-        SetError(pError, "byte-array output argument was null.");
+        SetError(pErrorMessage, "byte-array output argument was null.");
         return false;
     }
     if (pArrayValue == nullptr) {
@@ -97,7 +94,7 @@ bool ParseByteArray(const JsonValue *pArrayValue,
         return true;
     }
     if (!pArrayValue->is_array()) {
-        SetError(pError, "expected byte table to be an array.");
+        SetError(pErrorMessage, "expected byte table to be an array.");
         return false;
     }
 
@@ -111,16 +108,16 @@ bool ParseByteArray(const JsonValue *pArrayValue,
             try {
                 aByte = std::stoi(aValue.as_string());
             } catch (...) {
-                SetError(pError, "byte table had invalid string value.");
+                SetError(pErrorMessage, "byte table had invalid string value.");
                 return false;
             }
         } else {
-            SetError(pError, "byte table had non-numeric entry.");
+            SetError(pErrorMessage, "byte table had non-numeric entry.");
             return false;
         }
 
         if ((aByte < 0) || (aByte > 255)) {
-            SetError(pError, "byte table entry outside [0,255].");
+            SetError(pErrorMessage, "byte table entry outside [0,255].");
             return false;
         }
         aOut.push_back(static_cast<std::uint8_t>(aByte));
@@ -133,9 +130,9 @@ bool ParseByteArray(const JsonValue *pArrayValue,
 bool ParseBranch(const JsonValue &pRoot,
                  const std::string &pBranchName,
                  TwistProgramBranch *pBranch,
-                 std::string *pError) {
+                 std::string *pErrorMessage) {
     if (pBranch == nullptr) {
-        SetError(pError, "branch output was null.");
+        SetError(pErrorMessage, "branch output was null.");
         return false;
     }
 
@@ -151,14 +148,14 @@ bool ParseBranch(const JsonValue &pRoot,
     if ((aBatchesValue != nullptr) && aBatchesValue->is_array()) {
         for (const JsonValue &aBatchValue : aBatchesValue->as_array()) {
             if (!aBatchValue.is_object()) {
-                SetError(pError, "branch '" + pBranchName + "' has non-object batch entry.");
+                SetError(pErrorMessage, "branch '" + pBranchName + "' has non-object batch entry.");
                 return false;
             }
 
             GBatch aBatch;
             std::string aBatchError;
             if (!GBatch::FromJson(aBatchValue.Serialize(), &aBatch, &aBatchError)) {
-                SetError(pError, "failed to parse branch batch JSON: " + aBatchError);
+                SetError(pErrorMessage, "failed to parse branch batch JSON: " + aBatchError);
                 return false;
             }
             aParsedBatches.push_back(aBatch);
@@ -170,7 +167,7 @@ bool ParseBranch(const JsonValue &pRoot,
     if ((aStringLinesValue != nullptr) && aStringLinesValue->is_array()) {
         for (const JsonValue &aLineValue : aStringLinesValue->as_array()) {
             if (!aLineValue.is_string()) {
-                SetError(pError, "branch '" + pBranchName + "' has non-string line entry.");
+                SetError(pErrorMessage, "branch '" + pBranchName + "' has non-string line entry.");
                 return false;
             }
             aParsedLines.push_back(aLineValue.as_string());
@@ -181,7 +178,7 @@ bool ParseBranch(const JsonValue &pRoot,
     if ((aSequenceValue != nullptr) && aSequenceValue->is_array()) {
         for (const JsonValue &aStepValue : aSequenceValue->as_array()) {
             if (!aStepValue.is_object()) {
-                SetError(pError, "branch '" + pBranchName + "' has non-object sequence step.");
+                SetError(pErrorMessage, "branch '" + pBranchName + "' has non-object sequence step.");
                 return false;
             }
 
@@ -189,7 +186,7 @@ bool ParseBranch(const JsonValue &pRoot,
             const JsonValue *aIndexValue = aStepValue.find("index");
             if ((aTypeValue == nullptr) || (aIndexValue == nullptr) ||
                 !aTypeValue->is_string() || !aIndexValue->is_number()) {
-                SetError(pError, "branch '" + pBranchName + "' has malformed sequence step.");
+                SetError(pErrorMessage, "branch '" + pBranchName + "' has malformed sequence step.");
                 return false;
             }
 
@@ -197,18 +194,18 @@ bool ParseBranch(const JsonValue &pRoot,
             const std::size_t aIndex = static_cast<std::size_t>(aIndexValue->as_number());
             if (aType == "line") {
                 if (aIndex >= aParsedLines.size()) {
-                    SetError(pError, "branch '" + pBranchName + "' line sequence index out of range.");
+                    SetError(pErrorMessage, "branch '" + pBranchName + "' line sequence index out of range.");
                     return false;
                 }
                 pBranch->AddLine(aParsedLines[aIndex]);
             } else if (aType == "batch") {
                 if (aIndex >= aParsedBatches.size()) {
-                    SetError(pError, "branch '" + pBranchName + "' batch sequence index out of range.");
+                    SetError(pErrorMessage, "branch '" + pBranchName + "' batch sequence index out of range.");
                     return false;
                 }
                 pBranch->AddBatch(aParsedBatches[aIndex]);
             } else {
-                SetError(pError, "branch '" + pBranchName + "' has unknown sequence step type.");
+                SetError(pErrorMessage, "branch '" + pBranchName + "' has unknown sequence step type.");
                 return false;
             }
         }
@@ -228,9 +225,9 @@ bool ParseBranch(const JsonValue &pRoot,
 
 bool ParseTables(const JsonValue &pRoot,
                  GTwistExpander *pExpander,
-                 std::string *pError) {
+                 std::string *pErrorMessage) {
     if (pExpander == nullptr) {
-        SetError(pError, "expander output was null.");
+        SetError(pErrorMessage, "expander output was null.");
         return false;
     }
 
@@ -239,40 +236,41 @@ bool ParseTables(const JsonValue &pRoot,
         return true;
     }
 
-    if (!ParseByteArray(aTables->find("sbox_a"), &pExpander->_mSBoxA, pError)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_b"), &pExpander->_mSBoxB, pError)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_c"), &pExpander->_mSBoxC, pError)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_d"), &pExpander->_mSBoxD, pError)) { return false; }
+    if (!ParseByteArray(aTables->find("sbox_a"), &pExpander->_mSBoxA, pErrorMessage)) { return false; }
+    if (!ParseByteArray(aTables->find("sbox_b"), &pExpander->_mSBoxB, pErrorMessage)) { return false; }
+    if (!ParseByteArray(aTables->find("sbox_c"), &pExpander->_mSBoxC, pErrorMessage)) { return false; }
+    if (!ParseByteArray(aTables->find("sbox_d"), &pExpander->_mSBoxD, pErrorMessage)) { return false; }
 
-    if (!ParseByteArray(aTables->find("salt_a"), &pExpander->_mSaltA, pError)) { return false; }
-    if (!ParseByteArray(aTables->find("salt_b"), &pExpander->_mSaltB, pError)) { return false; }
-    if (!ParseByteArray(aTables->find("salt_c"), &pExpander->_mSaltC, pError)) { return false; }
-    if (!ParseByteArray(aTables->find("salt_d"), &pExpander->_mSaltD, pError)) { return false; }
+    if (!ParseByteArray(aTables->find("salt_a"), &pExpander->_mSaltA, pErrorMessage)) { return false; }
+    if (!ParseByteArray(aTables->find("salt_b"), &pExpander->_mSaltB, pErrorMessage)) { return false; }
+    if (!ParseByteArray(aTables->find("salt_c"), &pExpander->_mSaltC, pErrorMessage)) { return false; }
+    if (!ParseByteArray(aTables->find("salt_d"), &pExpander->_mSaltD, pErrorMessage)) { return false; }
 
     return true;
 }
 
 bool ExecuteBatchJsonText(const std::vector<std::string> &pBatchJsonText,
                           TwistWorkSpace *pWorkspace,
+                          TwistExpander *pExpander,
                           std::unordered_map<std::string, int> *pVariables,
-                          std::string *pError) {
+                          std::string *pErrorMessage) {
     if (pVariables == nullptr) {
-        SetError(pError, "batch variable map was null.");
+        SetError(pErrorMessage, "batch variable map was null.");
         return false;
     }
 
     for (const std::string &aBatchJson : pBatchJsonText) {
         GBatch aBatch;
-        if (!GBatch::FromJson(aBatchJson, &aBatch, pError)) {
-            if ((pError != nullptr) && pError->empty()) {
-                *pError = "failed to parse batch JSON.";
+        if (!GBatch::FromJson(aBatchJson, &aBatch, pErrorMessage)) {
+            if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+                *pErrorMessage = "failed to parse batch JSON.";
             }
             return false;
         }
 
-        if (!aBatch.ExecuteWithVariables(pWorkspace, pVariables, pError)) {
-            if ((pError != nullptr) && pError->empty()) {
-                *pError = "batch execution failed.";
+        if (!aBatch.ExecuteWithVariables(pWorkspace, pExpander, pVariables, pErrorMessage)) {
+            if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+                *pErrorMessage = "batch execution failed.";
             }
             return false;
         }
@@ -487,14 +485,15 @@ bool ParseCryptoMakeArguments(const std::string &pLine,
 
 bool ExecuteCryptoMakeLine(const std::string &pLine,
                            TwistWorkSpace *pWorkspace,
-                           std::string *pError) {
+                           TwistExpander *pExpander,
+                           std::string *pErrorMessage) {
     std::vector<std::string> aArgs;
     if (!ParseCryptoMakeArguments(pLine, &aArgs)) {
         return false;
     }
 
     if ((aArgs.size() != 5U) && (aArgs.size() != 9U)) {
-        SetError(pError, "TwistCryptoGenerator::Make expects 5 or 9 arguments.");
+        SetError(pErrorMessage, "TwistCryptoGenerator::Make expects 5 or 9 arguments.");
         return false;
     }
 
@@ -503,13 +502,15 @@ bool ExecuteCryptoMakeLine(const std::string &pLine,
     for (const std::string &aAlias : aArgs) {
         TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
         if (!ResolveAliasSlot(aAlias, &aSlot)) {
-            SetError(pError, "Unknown buffer alias in TwistCryptoGenerator::Make call: " + aAlias);
+            SetError(pErrorMessage, "Unknown buffer alias in TwistCryptoGenerator::Make call: " + aAlias);
             return false;
         }
 
-        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, aSlot);
+        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace,
+                                                          pExpander,
+                                                          aSlot);
         if (aBuffer == nullptr) {
-            SetError(pError, "Resolved null buffer for alias: " + aAlias);
+            SetError(pErrorMessage, "Resolved null buffer for alias: " + aAlias);
             return false;
         }
         aBuffers.push_back(aBuffer);
@@ -539,17 +540,18 @@ bool ExecuteCryptoMakeLine(const std::string &pLine,
 
 bool ApplyBranchStringLine(const std::string &pRawLine,
                            TwistWorkSpace *pWorkspace,
+                           TwistExpander *pExpander,
                            std::unordered_map<std::string, int> *pVariables,
-                           std::string *pError) {
+                           std::string *pErrorMessage) {
     if ((pWorkspace == nullptr) || (pVariables == nullptr)) {
-        SetError(pError, "Branch string-line execution had null inputs.");
+        SetError(pErrorMessage, "Branch string-line execution had null inputs.");
         return false;
     }
 
     std::string aLineError;
-    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, &aLineError);
+    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, pExpander, &aLineError);
     if (!aLineError.empty()) {
-        SetError(pError, aLineError);
+        SetError(pErrorMessage, aLineError);
         return false;
     }
 
@@ -612,10 +614,11 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
 
 bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
                             TwistWorkSpace *pWorkspace,
+                            TwistExpander *pExpander,
                             std::unordered_map<std::string, int> *pVariables,
-                            std::string *pError) {
+                            std::string *pErrorMessage) {
     for (const std::string &aRawLine : pLines) {
-        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pVariables, pError)) {
+        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pExpander, pVariables, pErrorMessage)) {
             return false;
         }
     }
@@ -625,24 +628,25 @@ bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
 bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
                              std::size_t pBatchIndex,
                              TwistWorkSpace *pWorkspace,
+                             TwistExpander *pExpander,
                              std::unordered_map<std::string, int> *pVariables,
-                             std::string *pError) {
+                             std::string *pErrorMessage) {
     if (pBatchIndex >= pBranch.GetBatchJsonText().size()) {
-        SetError(pError, "Branch batch step index was out of range during execution.");
+        SetError(pErrorMessage, "Branch batch step index was out of range during execution.");
         return false;
     }
 
     GBatch aBatch;
-    if (!GBatch::FromJson(pBranch.GetBatchJsonText()[pBatchIndex], &aBatch, pError)) {
-        if ((pError != nullptr) && pError->empty()) {
-            *pError = "Failed to parse branch batch JSON.";
+    if (!GBatch::FromJson(pBranch.GetBatchJsonText()[pBatchIndex], &aBatch, pErrorMessage)) {
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "Failed to parse branch batch JSON.";
         }
         return false;
     }
 
-    if (!aBatch.ExecuteWithVariables(pWorkspace, pVariables, pError)) {
-        if ((pError != nullptr) && pError->empty()) {
-            *pError = "Branch batch execution failed.";
+    if (!aBatch.ExecuteWithVariables(pWorkspace, pExpander, pVariables, pErrorMessage)) {
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "Branch batch execution failed.";
         }
         return false;
     }
@@ -652,31 +656,33 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
 
 bool ExecuteBranch(const TwistProgramBranch &pBranch,
                    TwistWorkSpace *pWorkspace,
-                   std::string *pError) {
+                   TwistExpander *pExpander,
+                   std::string *pErrorMessage) {
     if (pWorkspace == nullptr) {
-        SetError(pError, "Branch execution received a null workspace.");
+        SetError(pErrorMessage, "Branch execution received a null workspace.");
         return false;
     }
 
     std::unordered_map<std::string, int> aVariables;
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
-        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, &aVariables, pError)) {
+        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, &aVariables, pErrorMessage)) {
             return false;
         }
-        return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkspace, &aVariables, pError);
+        return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkspace, pExpander, &aVariables, pErrorMessage);
     }
 
     for (const TwistProgramBranchStep &aStep : aSteps) {
         if (aStep.mType == TwistProgramBranchStepType::kLine) {
             if (aStep.mIndex >= pBranch.GetStringLines().size()) {
-                SetError(pError, "Branch line step index was out of range during execution.");
+                SetError(pErrorMessage, "Branch line step index was out of range during execution.");
                 return false;
             }
             if (!ApplyBranchStringLine(pBranch.GetStringLines()[aStep.mIndex],
                                        pWorkspace,
+                                       pExpander,
                                        &aVariables,
-                                       pError)) {
+                                       pErrorMessage)) {
                 return false;
             }
             continue;
@@ -686,14 +692,15 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
             if (!ExecuteBatchJsonByIndex(pBranch,
                                          aStep.mIndex,
                                          pWorkspace,
+                                         pExpander,
                                          &aVariables,
-                                         pError)) {
+                                         pErrorMessage)) {
                 return false;
             }
             continue;
         }
 
-        SetError(pError, "Branch step type was invalid during execution.");
+        SetError(pErrorMessage, "Branch step type was invalid during execution.");
         return false;
     }
 
@@ -716,6 +723,7 @@ GTwistExpander::GTwistExpander()
 }
 
 GTwistExpander::~GTwistExpander() {
+    
 }
 
 void GTwistExpander::RefreshTablePointers() {
@@ -729,15 +737,16 @@ void GTwistExpander::RefreshTablePointers() {
     EnsureTableSize(&_mSaltC, S_SALT, false);
     EnsureTableSize(&_mSaltD, S_SALT, false);
 
-    mSBoxA = _mSBoxA.data();
-    mSBoxB = _mSBoxB.data();
-    mSBoxC = _mSBoxC.data();
-    mSBoxD = _mSBoxD.data();
-
-    mSaltA = _mSaltA.data();
-    mSaltB = _mSaltB.data();
-    mSaltC = _mSaltC.data();
-    mSaltD = _mSaltD.data();
+    memcpy(mSBoxA, _mSBoxA.data(), S_SBOX);
+    memcpy(mSBoxB, _mSBoxB.data(), S_SBOX);
+    memcpy(mSBoxC, _mSBoxC.data(), S_SBOX);
+    memcpy(mSBoxD, _mSBoxD.data(), S_SBOX);
+    
+    memcpy(mSaltA, _mSaltA.data(), S_SALT);
+    memcpy(mSaltB, _mSaltB.data(), S_SALT);
+    memcpy(mSaltC, _mSaltC.data(), S_SALT);
+    memcpy(mSaltD, _mSaltD.data(), S_SALT);
+    
 }
 
 void GTwistExpander::Seed(TwistWorkSpace *pWorkspace,
@@ -751,10 +760,8 @@ void GTwistExpander::Seed(TwistWorkSpace *pWorkspace,
         return;
     }
 
-    TwistWorkSpaceBindExternalBuffers(pSource, nullptr);
-
     std::string aError;
-    if (!ExecuteBranch(mSeeder, pWorkspace, &aError)) {
+    if (!ExecuteBranch(mSeeder, pWorkspace, this, &aError)) {
         std::printf("fatal: GTwistExpander::Seed failed: %s\n", aError.c_str());
     }
 }
@@ -762,39 +769,26 @@ void GTwistExpander::Seed(TwistWorkSpace *pWorkspace,
 void GTwistExpander::TwistBlock(TwistWorkSpace *pWorkspace,
                                 std::uint8_t *pSource,
                                 std::uint8_t *pDestination) {
-    if ((pWorkspace == nullptr) || (pSource == nullptr) || (pDestination == nullptr)) {
-        return;
-    }
-
-    TwistWorkSpaceBindExternalBuffers(pSource, pDestination);
-    std::memcpy(pWorkspace->mWorkLaneD, pSource, static_cast<std::size_t>(S_BLOCK));
-
-    std::string aError;
-    if (!ExecuteBranch(mTwister, pWorkspace, &aError)) {
-        std::printf("fatal: GTwistExpander::TwistBlock failed: %s\n", aError.c_str());
-        return;
-    }
-
-    std::memcpy(pDestination, pWorkspace->mWorkLaneD, static_cast<std::size_t>(S_BLOCK));
+    
 }
 
 bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,
-                                         std::string *pError) {
+                                         std::string *pErrorMessage) {
     const std::string aResolvedPath = ResolveInputPath(pJsonPath);
     if (aResolvedPath.empty()) {
-        SetError(pError, "JSON path was empty.");
+        SetError(pErrorMessage, "JSON path was empty.");
         return false;
     }
 
     std::string aJsonText;
-    if (!LoadTextFile(aResolvedPath, &aJsonText, pError)) {
+    if (!LoadTextFile(aResolvedPath, &aJsonText, pErrorMessage)) {
         return false;
     }
 
-    auto aRoot = JsonValue::Parse(aJsonText, pError);
+    auto aRoot = JsonValue::Parse(aJsonText, pErrorMessage);
     if (!aRoot.has_value() || !aRoot->is_object()) {
-        if ((pError != nullptr) && pError->empty()) {
-            *pError = "program JSON root was invalid.";
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "program JSON root was invalid.";
         }
         return false;
     }
@@ -803,17 +797,17 @@ bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,
         mNameBase = aNameBase->as_string();
     }
 
-    bool aDidParseSeed = ParseBranch(*aRoot, "seed", &mSeeder, pError);
-    bool aDidParseTwist = ParseBranch(*aRoot, "twist", &mTwister, pError);
+    bool aDidParseSeed = ParseBranch(*aRoot, "seed", &mSeeder, pErrorMessage);
+    bool aDidParseTwist = ParseBranch(*aRoot, "twist", &mTwister, pErrorMessage);
 
     if (!aDidParseSeed) {
-        (void)ParseBranch(*aRoot, "seeder", &mSeeder, pError);
+        (void)ParseBranch(*aRoot, "seeder", &mSeeder, pErrorMessage);
     }
     if (!aDidParseTwist) {
-        (void)ParseBranch(*aRoot, "twister", &mTwister, pError);
+        (void)ParseBranch(*aRoot, "twister", &mTwister, pErrorMessage);
     }
 
-    if (!ParseTables(*aRoot, this, pError)) {
+    if (!ParseTables(*aRoot, this, pErrorMessage)) {
         return false;
     }
 
