@@ -171,17 +171,6 @@ bool IsKeyScalarName(const std::string &pName) {
     return pName.find("Key") != std::string::npos;
 }
 
-bool IsWideStateScalarName(const std::string &pName) {
-    if (pName.find("Nibble") != std::string::npos) {
-        return false;
-    }
-    return StartsWithText(pName, "aValue") ||
-           StartsWithText(pName, "aState") ||
-           StartsWithText(pName, "aCarry") ||
-           StartsWithText(pName, "aPermute") ||
-           StartsWithText(pName, "aHoldPermute");
-}
-
 std::string ScalarCppTypeForName(const std::string &pName) {
     if (StartsWithText(pName, "aOracle")) {
         return "std::uint64_t";
@@ -189,10 +178,7 @@ std::string ScalarCppTypeForName(const std::string &pName) {
     if (IsKeyScalarName(pName)) {
         return "std::size_t";
     }
-    if (IsWideStateScalarName(pName)) {
-        return "std::uint64_t";
-    }
-    return "std::uint8_t";
+    return "std::uint64_t";
 }
 
 std::string TrimText(const std::string &pText) {
@@ -306,6 +292,10 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kSaltB,
         TwistWorkSpaceSlot::kSaltC,
         TwistWorkSpaceSlot::kSaltD,
+        TwistWorkSpaceSlot::kScratchSaltA,
+        TwistWorkSpaceSlot::kScratchSaltB,
+        TwistWorkSpaceSlot::kScratchSaltC,
+        TwistWorkSpaceSlot::kScratchSaltD,
         TwistWorkSpaceSlot::kDerivedSaltA,
         TwistWorkSpaceSlot::kDerivedSaltB,
         TwistWorkSpaceSlot::kDerivedSaltC,
@@ -373,6 +363,10 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return "";
         case TwistWorkSpaceSlot::kSaltC: return "";
         case TwistWorkSpaceSlot::kSaltD: return "";
+        case TwistWorkSpaceSlot::kScratchSaltA: return "";
+        case TwistWorkSpaceSlot::kScratchSaltB: return "";
+        case TwistWorkSpaceSlot::kScratchSaltC: return "";
+        case TwistWorkSpaceSlot::kScratchSaltD: return "";
         case TwistWorkSpaceSlot::kDerivedSaltA: return aPrefix + "pWorkspace->mDerivedSaltA;";
         case TwistWorkSpaceSlot::kDerivedSaltB: return aPrefix + "pWorkspace->mDerivedSaltB;";
         case TwistWorkSpaceSlot::kDerivedSaltC: return aPrefix + "pWorkspace->mDerivedSaltC;";
@@ -506,7 +500,6 @@ bool ScopeBlockToFlatBody(const std::string &pScopeBlock,
 bool AppendBatchBlock(const GBatch &pBatch,
                       std::ostringstream *pStream,
                       std::string *pErrorMessage,
-                      int pBatchNumber,
                       bool pInsertLeadingBlankLine) {
     if (pStream == nullptr) {
         SetError(pErrorMessage, "Batch output stream was null.");
@@ -529,10 +522,6 @@ bool AppendBatchBlock(const GBatch &pBatch,
     if (pInsertLeadingBlankLine) {
         *pStream << '\n';
     }
-
-    *pStream << "    //\n"
-             << "    // Batch " << pBatchNumber << "\n"
-             << "    //\n\n";
 
     if (!aFlatBody.empty()) {
         *pStream << aFlatBody << '\n';
@@ -642,18 +631,15 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         *pStream << '\n';
     }
 
-    int aBatchNumber = 0;
     bool aEmittedBatch = false;
 
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
         for (const GBatch &aBatch : aBatches) {
-            ++aBatchNumber;
             const bool aInsertLeadingBlankLine = (!aEmittedBatch && !aWroteDeclaration);
             if (!AppendBatchBlock(aBatch,
                                   pStream,
                                   pErrorMessage,
-                                  aBatchNumber,
                                   aInsertLeadingBlankLine)) {
                 return false;
             }
@@ -678,12 +664,10 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
                 return false;
             }
 
-            ++aBatchNumber;
             const bool aInsertLeadingBlankLine = (!aEmittedBatch && !aWroteDeclaration);
             if (!AppendBatchBlock(aBatches[aStep.mIndex],
                                   pStream,
                                   pErrorMessage,
-                                  aBatchNumber,
                                   aInsertLeadingBlankLine)) {
                 return false;
             }
@@ -893,6 +877,7 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "#include \"TwistMasking.hpp\"\n"
          << "#include \"TwistMix64.hpp\"\n"
          << "#include \"TwistSnow.hpp\"\n"
+         << "#include \"TwistMemory.hpp\"\n"
          << "#include \"TwistCryptoGenerator.hpp\"\n"
          << "\n"
          << "#include <cstring>\n"

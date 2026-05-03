@@ -75,10 +75,11 @@
     }
     */
     
+    
     GSeedDeriveMaterial aDer;
     std::string aError;
     GTwistExpander aExpander;
-    aExpander.mNameBase = "CroVaxCro";
+    aExpander.mNameBase = "CrooooNNnnNN";
     
     if (!aDer.PlanPhaseA(&aError)) {
         printf("error on GSeedDeriveMaterial.PlanPhaseA\n");
@@ -91,6 +92,7 @@
         printf("%s\n", aError.c_str());
         return;
     }
+    
     
     if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
         !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError) ||

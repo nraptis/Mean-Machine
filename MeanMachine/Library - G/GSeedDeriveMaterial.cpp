@@ -8,78 +8,102 @@
 #include "GSeedDeriveMaterial.hpp"
 #include "Random.hpp"
 #include "TwistCryptoGenerator.hpp"
+#include "TwistArray.hpp"
 #include <cctype>
 #include <cstdlib>
 
 GSeedDeriveMaterial::GSeedDeriveMaterial() {
-    mLoopIndex = VarSymbol("aIndex");
-    mValue = VarSymbol("aValue");
-    mValueMix = VarSymbol("aValueMix");
-    mCarry = VarSymbol("aCarry");
-    mCarryMix = VarSymbol("aCarryMix");
-    mSelect = VarSymbol("aSelect");
-    mMultiplex = VarSymbol("aMultiplex");
-    mUnrollByte = VarSymbol("aUnrollByte");
-    
-    mSource = BufSymbol(TwistWorkSpaceSlot::kSource);
-
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxA));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxB));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxC));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxD));
-
-    mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltA));
-    mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltB));
-    mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltC));
-    mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltD));
-
-    mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxA));
-    mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxB));
-    mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxC));
-    mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxD));
-
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
-    
-    mListExpansion.push_back(BufSymbol(TwistWorkSpaceSlot::kSeedExpansionLaneA));
-    mListExpansion.push_back(BufSymbol(TwistWorkSpaceSlot::kSeedExpansionLaneB));
-    mListExpansion.push_back(BufSymbol(TwistWorkSpaceSlot::kSeedExpansionLaneC));
-    mListExpansion.push_back(BufSymbol(TwistWorkSpaceSlot::kSeedExpansionLaneD));
+    Reset();
 }
 
 GSeedDeriveMaterial::~GSeedDeriveMaterial() {
     
 }
 
-GSymbol GSeedDeriveMaterial::BuildMixSymbol(GSymbol pTarget) const {
-    if (!pTarget.IsVar()) {
-        return VarSymbol("aValueMix");
-    }
-    return VarSymbol(pTarget.mName + "Mix");
-}
 
 void GSeedDeriveMaterial::Reset() {
+    
+    mLoopIndex = VarSymbol("aIndex");
+    mValue = VarSymbol("aValue");
+    mValuePrevious = VarSymbol("aValuePrevious");
+    mValueMix = VarSymbol("aValueMix");
+    mCarry = VarSymbol("carry");
+    mCarryMix = VarSymbol("aCarryMix");
+    mCross = VarSymbol("cross");
+    
+    mHalfA = VarSymbol("aHalfA");
+    mHalfB = VarSymbol("aHalfB");
+    
+    
+    mSecureA = VarSymbol("sec_a");
+    mSecureB = VarSymbol("sec_b");
+    
+    mFreshByte = VarSymbol("e");
+    
+    mSelect = VarSymbol("aSelect");
+    mMultiplex = VarSymbol("aMultiplex");
+    mUnrollByte = VarSymbol("aUnrollByte");
+    
+    mWandererA = VarSymbol("s0");
+    mWandererB = VarSymbol("s1");
+    mWandererC = VarSymbol("s2");
+    mWandererD = VarSymbol("s3");
+    
+    mOrbitA = VarSymbol("a");
+    mOrbitB = VarSymbol("b");
+    mOrbitC = VarSymbol("c");
+    mOrbitD = VarSymbol("d");
+    
+    mSource = BufSymbol(TwistWorkSpaceSlot::kSource);
+    
+    
+    
+    std::vector<GHotPack> aHotPacks = GMagicNumbers::GetHotPacks(4);
+    
+    if ((aHotPacks.size() > 0)) { mHotPacks[0] = aHotPacks[0]; }
+    if ((aHotPacks.size() > 1)) { mHotPacks[1] = aHotPacks[1]; }
+    if ((aHotPacks.size() > 2)) { mHotPacks[2] = aHotPacks[2]; }
+    if ((aHotPacks.size() > 3)) { mHotPacks[3] = aHotPacks[3]; }
+    
+    
+    
+    /*
+    std::vector<TwistHotPair> aHotPairs = TwistNumerology::FetchHotPairs(32);
+    int aHotPairIndex = 0;
+    
+    for (int i=0; i<SEED_WORK_LANE_COUNT; i++) {
+        for (int n=0; n<3; n++) {
+            mHotPairs[i][n] = aHotPairs[aHotPairIndex++];
+        }
+    }
+    */
+    
     
     mListSBoxes.clear();
     mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxA));
     mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxB));
     mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxC));
     mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxD));
-
+    
     mListSalts.clear();
     mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltA));
     mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltB));
     mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltC));
     mListSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltD));
-
+    
+    mListScratchSalts.clear();
+    mListScratchSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kScratchSaltA));
+    mListScratchSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kScratchSaltB));
+    mListScratchSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kScratchSaltC));
+    mListScratchSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kScratchSaltD));
+    
+    
     mListDerivedSBoxes.clear();
     mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxA));
     mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxB));
     mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxC));
     mListDerivedSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kDerivedSBoxD));
-
+    
     mListWorkers.clear();
     mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
     mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
@@ -92,6 +116,15 @@ void GSeedDeriveMaterial::Reset() {
     mListExpansion.push_back(BufSymbol(TwistWorkSpaceSlot::kSeedExpansionLaneC));
     mListExpansion.push_back(BufSymbol(TwistWorkSpaceSlot::kSeedExpansionLaneD));
     
+    mSnowType[0] = GSnowType::kAES;
+    mSnowType[1] = GSnowType::kChaCha;
+    mSnowType[2] = GSnowType::kSha;
+    mSnowType[3] = GSnowType::kAria;
+    
+    for (int i = 3; i > 0; --i) {
+        const int j = Random::Get(i + 1); // 0...i
+        std::swap(mSnowType[i], mSnowType[j]);
+    }
     
     for (int i=0; i<SEED_WORK_LANE_COUNT; i++) {
         mValueCarryEnabled[i] = false;
@@ -113,7 +146,6 @@ void GSeedDeriveMaterial::Reset() {
         mValueSourceCEnabled[i] = false;
         mValueSourceCBefore[i] = false;
         
-        
         mValueMix64Type_1[i] = Mix64Type_1::kInv;
         mValueMix64Type_4[i] = Mix64Type_4::kInv;
         mValueMix64Type_8[i] = Mix64Type_8::kInv;
@@ -123,39 +155,30 @@ void GSeedDeriveMaterial::Reset() {
         mDestBuffer[i].Invalidate();
         mDestReverse[i] = false;
     }
+    
 }
+
 
 bool GSeedDeriveMaterial::PlanPhaseA(std::string *pErrorMessage) {
     
     Reset();
     
-    // mListExpansion shuffle
+    mBoxFamily.Build(mListSBoxes, 4);
+    mSaltFamily.Build(mListSalts, 4);
+    mScratchSaltFamily.Build(mListScratchSalts, 4);
+    mRotationFamily.Build(4);
     
     
-    mWorkerA = mListWorkers[0];
-    mWorkerB = mListWorkers[1];
-    mWorkerC = mListWorkers[2];
-    mWorkerD = mListWorkers[3];
-    
-    mSBoxA = mListSBoxes[0];
-    mSBoxB = mListSBoxes[1];
-    mSBoxC = mListSBoxes[2];
-    mSBoxD = mListSBoxes[3];
-    
-    mExpansionA = mListExpansion[0];
-    mExpansionB = mListExpansion[1];
-    mExpansionC = mListExpansion[2];
-    mExpansionD = mListExpansion[3];
+    std::vector<std::uint8_t> aMixOptions;
 
-    mSaltA = mListSalts[0];
-    mSaltB = mListSalts[1];
-    mSaltC = mListSalts[2];
-    mSaltD = mListSalts[3];
+    aMixOptions.push_back(static_cast<std::uint8_t>(Mix64Type_4::kGateRollA_4_8));
+    aMixOptions.push_back(static_cast<std::uint8_t>(Mix64Type_4::kGateRollB_4_8));
+    aMixOptions.push_back(static_cast<std::uint8_t>(Mix64Type_4::kGateRollC_4_8));
+    aMixOptions.push_back(static_cast<std::uint8_t>(Mix64Type_4::kGateTurnA_4_8));
+    aMixOptions.push_back(static_cast<std::uint8_t>(Mix64Type_4::kGateTurnB_4_8));
+    aMixOptions.push_back(static_cast<std::uint8_t>(Mix64Type_4::kGateTurnC_4_8));
     
-    mDerivedSBoxA = mListDerivedSBoxes[0];
-    mDerivedSBoxB = mListDerivedSBoxes[1];
-    mDerivedSBoxC = mListDerivedSBoxes[2];
-    mDerivedSBoxD = mListDerivedSBoxes[3];
+    mMixOperationFamily.Build(4, aMixOptions);
     
     
     for (int i=0; i<SEED_WORK_LANE_COUNT; i++) {
@@ -219,11 +242,11 @@ bool GSeedDeriveMaterial::PlanPhaseA(std::string *pErrorMessage) {
     mValueSourceA[2] = mListWorkers[1];
     mValueSourceAEnabled[2] = true;
     mValueSourceABefore[2] = Random::Bool();
-
+    
     mValueSourceB[2] = mListWorkers[0];
     mValueSourceBEnabled[2] = Random::Bool();
     mValueSourceBBefore[2] = Random::Bool();
-
+    
     mValueSourceC[2] = mListExpansion[2];
     mValueSourceCEnabled[2] = true;
     mValueSourceCBefore[2] = Random::Bool();
@@ -231,14 +254,16 @@ bool GSeedDeriveMaterial::PlanPhaseA(std::string *pErrorMessage) {
     mValueSourceA[3] = mListWorkers[2];
     mValueSourceAEnabled[3] = true;
     mValueSourceABefore[3] = Random::Bool();
-
+    
     mValueSourceB[3] = mListWorkers[1];
     mValueSourceBEnabled[3] = Random::Bool();
     mValueSourceBBefore[3] = Random::Bool();
-
+    
     mValueSourceC[3] = mListExpansion[3];
     mValueSourceCEnabled[3] = true;
     mValueSourceCBefore[3] = Random::Bool();
+    
+    
     
     return true;
 }
@@ -261,30 +286,260 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
     
     
     
-    
-    {
-        
-        
-        
-
-        
-        
-        mValueSourceA[0] = mSource;
-        
-        mValueSourceBEnabled[0] = false;
-        mValueSourceB[0] = mSource;
-        
-        mValueSourceA[0] = mExpansionA;
-        mValueSourceB[0] = mSource;
-    }
-    
-    
-    
     // aState ^= aChar + 0x9E3779B97F4A7C15ULL + (aState << 6) + (aState >> 2);
     // aState *= 0xD6E8FEB86659FD93ULL;
-    
+
+    // We need these to emit to the c++
     GBatch aBatchRoundOne;
+    std::vector<GStatement> aStatements;
+    GStatement aStatement;
     
+    GSymbol aSnowLaneA = mListExpansion[0];
+    GSymbol aSnowLaneB = mListExpansion[1];
+    
+    for (int i=0; i<4; i++) {
+        
+        GSnow aSnow;
+        switch (mSnowType[i]) {
+                
+            case GSnowType::kAES:
+                aBatchRoundOne.AddComment("Making snow counter: aes 256");
+                break;
+            case GSnowType::kChaCha:
+                aBatchRoundOne.AddComment("Making snow counter: cha cha 20");
+                break;
+            case GSnowType::kSha:
+                aBatchRoundOne.AddComment("Making snow counter: sha 256");
+                break;
+                break;
+            case GSnowType::kAria:
+                aBatchRoundOne.AddComment("Making snow counter: aria 256");
+                break;
+            default:
+                printf("bad snow type\n");
+                return false;
+        }
+        
+        if (!aSnow.Bake(mSnowType[i],
+                        mSource,
+                        aSnowLaneA, &aStatements, pErrorMessage)) {
+            printf("snow bake failed a: %s\n", pErrorMessage->c_str());
+            return false;
+        }
+        if (!aSnow.Bake(mSnowType[i],
+                        aSnowLaneA,
+                        aSnowLaneB, &aStatements, pErrorMessage)) {
+            printf("snow bake failed b: %s\n", pErrorMessage->c_str());
+            return false;
+        }
+        
+        aBatchRoundOne.CommitStatements(&aStatements);
+        
+        
+        
+        GMemory aMemory;
+        if (!aMemory.BakeGrow(mScratchSaltFamily.mBox[i][0],
+                              mSaltFamily.mBox[i][0],
+                              
+                              &aStatements,
+                              pErrorMessage)) {
+            printf("Bake memory copy failed a: %s\n", pErrorMessage->c_str());
+        }
+        if (!aMemory.BakeGrow(mScratchSaltFamily.mBox[i][1],
+                              mSaltFamily.mBox[i][1],
+                              
+                              &aStatements,
+                              pErrorMessage)) {
+            printf("Bake memory copy failed b: %s\n", pErrorMessage->c_str());
+        }
+        if (!aMemory.BakeGrow(mScratchSaltFamily.mBox[i][2],
+                              mSaltFamily.mBox[i][2],
+                              
+                              &aStatements,
+                              pErrorMessage)) {
+            printf("Bake memory copy failed c: %s\n", pErrorMessage->c_str());
+        }
+        if (!aMemory.BakeGrow(mScratchSaltFamily.mBox[i][3],
+                              mSaltFamily.mBox[i][3],
+                              
+                              &aStatements,
+                              pErrorMessage)) {
+            printf("Bake memory copy failed d: %s\n", pErrorMessage->c_str());
+        }
+        
+        aBatchRoundOne.CommitStatements(&aStatements);
+        
+        
+        GLoop aLoop;
+        aLoop.mLoopVariable = mLoopIndex;
+        aLoop.mLoopVariableName = mLoopIndex.mName;
+        aLoop.mLoopBegin = 0;
+        aLoop.mLoopEndText = "S_BLOCK";
+        aLoop.mLoopStep = 1;
+        
+        
+        // State goes into value
+        std::vector<GSymbol> aWandererers;
+        aWandererers.push_back(mWandererA);
+        aWandererers.push_back(mWandererB);
+        aWandererers.push_back(mWandererC);
+        aWandererers.push_back(mWandererD);
+        //Random::Shuffle(&aWandererers);
+        
+        
+        
+        aStatement = GQuick::MakeAssignVariableStatement(mValuePrevious, mFreshByte);
+        aLoop.AddBody(&aStatement);
+
+        bool aInvertedA = Random::Bool();
+        bool aInvertedB = Random::Bool();
+
+        GSymbol aPickA;
+        GSymbol aPickB;
+        GSymbol aPickC;
+        if (Random::Bool()) {
+            aPickA = aSnowLaneA;
+            aPickB = aSnowLaneB;
+        } else {
+            aPickA = aSnowLaneB;
+            aPickB = aSnowLaneA;
+        }
+
+
+        bool aCrossInverted;
+        bool aCrossFollowsA = Random::Bool();
+        if (aCrossFollowsA == true) {
+            aCrossInverted = !aInvertedA;
+            aPickC = aPickA;
+            
+        } else {
+            aCrossInverted = !aInvertedB;
+            aPickC = aPickB;
+            
+        }
+
+
+        if (aInvertedA) {
+            aStatement = GQuick::MakeAssignVariableStatementInverted(mSecureA, aPickA, mLoopIndex);
+            aLoop.AddBody(&aStatement);
+        } else {
+            aStatement = GQuick::MakeAssignVariableStatement(mSecureA, aPickA, mLoopIndex);
+            aLoop.AddBody(&aStatement);
+        }
+
+        if (aInvertedB) {
+            aStatement = GQuick::MakeAssignVariableStatementInverted(mSecureB, aPickB, mLoopIndex);
+            aLoop.AddBody(&aStatement);
+        } else {
+            aStatement = GQuick::MakeAssignVariableStatement(mSecureB, aPickB, mLoopIndex);
+            aLoop.AddBody(&aStatement);
+        }
+
+        if (aCrossInverted) {
+            aStatement = GQuick::MakeAssignVariableStatementInverted(mCross, aPickC, mLoopIndex);
+            aLoop.AddBody(&aStatement);
+        } else {
+            aStatement = GQuick::MakeAssignVariableStatement(mCross, aPickC, mLoopIndex);
+            aLoop.AddBody(&aStatement);
+        }
+
+        if (aCrossFollowsA == true) {
+            aStatement = GQuick::MakeAssignVariableStatement(mFreshByte, mSecureA);
+            aLoop.AddBody(&aStatement);
+        } else {
+            aStatement = GQuick::MakeAssignVariableStatement(mFreshByte, mSecureB);
+            aLoop.AddBody(&aStatement);
+        }
+        
+        
+        // a, b, c, d
+        std::vector<GSymbol> aOrbiters;
+        aOrbiters.push_back(mOrbitA);
+        aOrbiters.push_back(mOrbitB);
+        aOrbiters.push_back(mOrbitC);
+        aOrbiters.push_back(mOrbitD);
+        //Random::Shuffle(&aOrbiters);
+        
+        aLoop.AddBodyComment("__START_CSPRNG");
+        
+        if (!CSPRNG::Bake(mDestReverse[i],
+                          i,
+                          mDestBuffer[i],
+                          mLoopIndex,
+                          
+                          mFreshByte,
+                          
+                          mValue,
+                          mValuePrevious,
+                          mValueMix,
+                          mSecureA,
+                          mSecureB,
+                          mCross,
+                          
+                          mSelect,
+                          mCarry,
+                          
+                          mHalfA,
+                          mHalfB,
+                          
+                          mSaltFamily.mBox[i][0],
+                          mSaltFamily.mBox[i][1],
+                          mSaltFamily.mBox[i][2],
+                          mSaltFamily.mBox[i][3],
+                          
+                          mScratchSaltFamily.mBox[i][0],
+                          mScratchSaltFamily.mBox[i][1],
+                          mScratchSaltFamily.mBox[i][2],
+                          mScratchSaltFamily.mBox[i][3],
+                          
+                          mBoxFamily.mBox[i][0],
+                          mBoxFamily.mBox[i][1],
+                          mBoxFamily.mBox[i][2],
+                          mBoxFamily.mBox[i][3],
+                          aWandererers[0],
+                          aWandererers[1],
+                          aWandererers[2],
+                          aOrbiters[0],
+                          aOrbiters[1],
+                          aOrbiters[2],
+                          aOrbiters[3],
+                          static_cast<Mix64Type_4>(mMixOperationFamily.mOperation[i][0]),
+                          static_cast<Mix64Type_4>(mMixOperationFamily.mOperation[i][1]),
+                          static_cast<Mix64Type_4>(mMixOperationFamily.mOperation[i][2]),
+                          static_cast<Mix64Type_4>(mMixOperationFamily.mOperation[i][3]),
+                          mRotationFamily,
+                          mHotPacks[i],
+                          &aStatements,
+                          pErrorMessage)) {
+            printf("CSPRNG failed: %s\n", pErrorMessage->c_str());
+            return false;
+        }
+        
+        aLoop.AddBody(&aStatements);
+        aLoop.AddBodyComment("__END_CSPRNG");
+        
+        
+        
+        aBatchRoundOne.CommitLoop(&aLoop);
+        
+        if (!aMemory.BakeZero(aSnowLaneA,
+                              &aStatements,
+                              pErrorMessage)) {
+            printf("Bake memory zero failed a: %s\n", pErrorMessage->c_str());
+        }
+        
+        if (!aMemory.BakeZero(aSnowLaneB,
+                              &aStatements,
+                              pErrorMessage)) {
+            printf("Bake memory zero failed b: %s\n", pErrorMessage->c_str());
+        }
+        
+        aBatchRoundOne.AddComment("Secure zero on crypto buffer.");
+        aBatchRoundOne.CommitStatements(&aStatements);
+        
+    }
+    
+    /*
     for (int i=0; i<4; i++) {
         
         GLoop aLoop;
@@ -306,32 +561,38 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
         
         // We need .OffsetIverted() [ this picks random value]
         // We need .OffsetIvertedRandom() [this randomly chooses inverted or not inverted, then randomly chooses value]
-        aMixBrew.PutBufferXor(mListSalts[i], mValueSaltBefore[i]).OffsetIverted(99);
+        aMixBrew.PutBufferXor(mListSalts[i], mValueSaltBefore[i]).OffsetIverted();
         
         if ((mValueSourceAEnabled[i] == true) && (mValueSourceA[i].IsInvalid() == false)) {
             
             // We need "PutBufferRandom"
-            aMixBrew.PutBufferAdd(mValueSourceA[i], mValueSourceABefore[i]);
+            aMixBrew.PutBufferRandom(mValueSourceA[i], mValueSourceABefore[i]);
         }
         
         if ((mValueSourceBEnabled[i] == true) && (mValueSourceB[i].IsInvalid() == false)) {
             
             // We need "PutBufferRandom"
-            aMixBrew.PutBufferAdd(mValueSourceB[i], mValueSourceBBefore[i]);
+            aMixBrew.PutBufferRandom(mValueSourceB[i], mValueSourceBBefore[i]);
         }
         
         if ((mValueSourceCEnabled[i] == true) && (mValueSourceC[i].IsInvalid() == false)) {
             
             // We need "PutBufferRandom"
-            aMixBrew.PutBufferAdd(mValueSourceB[i], mValueSourceCBefore[i]);
+            aMixBrew.PutBufferRandom(mValueSourceB[i], mValueSourceCBefore[i]);
         }
 
-        if (!aMixBrew.Bake(GAssignType::kXorAssign, GAssignType::kAddAssign, &aStatements, pErrorMessage)) {
+        if (!aMixBrew.Bake(GLoopMixBrew::TargetCombineMode::kXor,
+                           GLoopMixBrew::TargetCombineMode::kAdd,
+                           &aStatements,
+                           pErrorMessage)) {
             printf("mix brew bake failed: %s\n", pErrorMessage->c_str());
             return false;
         }
         
+        // This comment doesn't land in the C++
+        aLoop.AddBodyComment("Hello Comment");
         aLoop.AddBody(&aStatements);
+        aLoop.AddBodyEmptyLine();
         
         // We need: MakeAssignDestStatementInverted
         GStatement aAssignDestStatement = GQuick::MakeAssignDestStatement(mDestBuffer[i], mLoopIndex, mValue);
@@ -341,10 +602,25 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
         
         aBatchRoundOne.CommitLoop(&aLoop);
     }
+    */
+    
     
     pBranch.AddBatch(aBatchRoundOne);
     
-
+    
+    
+    if (!BuildZero(mListExpansion[0], pBranch, pErrorMessage)) {
+        printf("zero failed: %s\n", pErrorMessage->c_str());
+        return false;
+    }
+    
+    if (!BuildZero(mListExpansion[1], pBranch, pErrorMessage)) {
+        printf("zero failed: %s\n", pErrorMessage->c_str());
+        return false;
+    }
+    
+    
+    
     
     /*
      GBatch aBatchExpansion;
@@ -405,7 +681,7 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
     pBranch.AddBatch(aBatchExpansion);
     */
     
-    
+    /*
     GBatch aBatchMatrix;
     aBatchMatrix.mName = "matrix_op_step";
 
@@ -455,10 +731,10 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
             GSymbol aVarB = VarSymbol(aByteB);
             
             aMatrix.Perform(s);
-            /*
-                            aVarA, mListWorkers[i], mLoopIndex, Random::Get(16),
-                            aVarB, mListWorkers[i], mLoopIndex, Random::Get(16));
-            */
+            
+            //                aVarA, mListWorkers[i], mLoopIndex, Random::Get(16),
+            //                aVarB, mListWorkers[i], mLoopIndex, Random::Get(16));
+            
             
         }
         
@@ -487,7 +763,9 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
         
     }
     pBranch.AddBatch(aBatchMatrix);
+    */
     
+    /*
     std::vector<GStatement> aStatements;
     GBatch aBatchMasks;
     aBatchMasks.mName = "masks step";
@@ -502,6 +780,7 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
     }
     aBatchMasks.CommitStatements(&aStatements);
     pBranch.AddBatch(aBatchMasks);
+    */
     
     //aBatchMaskez.CommitLoop(<#const GLoop &pLoop#>)
     
@@ -529,7 +808,10 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
     aMixBrewA.PutVariableAdd(mCarry, true).ExpandDebug(GTermPattern::kPostRotateAdd, 5, 115);
     aMixBrewA.PutBufferXor(mSource, false);
     std::vector<GStatement> aStatementsA;
-    if (!aMixBrewA.Bake(GAssignType::kXorAssign, GAssignType::kAddAssign, &aStatementsA, pErrorMessage)) {
+    if (!aMixBrewA.Bake(GLoopMixBrew::TargetCombineMode::kXor,
+                        GLoopMixBrew::TargetCombineMode::kAdd,
+                        &aStatementsA,
+                        pErrorMessage)) {
         printf("bake statements failed: %s\n", ((pErrorMessage != nullptr) ? pErrorMessage->c_str() : ""));
         return false;
     }
@@ -543,7 +825,10 @@ bool GSeedDeriveMaterial::BuildPhaseA(TwistProgramBranch &pBranch,
     aMixBrewB.PutVariableAdd(mCarry, true).ExpandDebug(GTermPattern::kPostRotateAdd, 5, 115);
     
     std::vector<GStatement> aStatementsB;
-    if (!aMixBrewB.Bake(GAssignType::kAddAssign, GAssignType::kAddAssign, &aStatementsB, pErrorMessage)) {
+    if (!aMixBrewB.Bake(GLoopMixBrew::TargetCombineMode::kAdd,
+                        GLoopMixBrew::TargetCombineMode::kAdd,
+                        &aStatementsB,
+                        pErrorMessage)) {
         printf("bake statements failed: %s\n", ((pErrorMessage != nullptr) ? pErrorMessage->c_str() : ""));
         return false;
     }
@@ -658,29 +943,52 @@ Mix64Type_8 GSeedDeriveMaterial::RandomMix64Type_8() {
 
 bool GSeedDeriveMaterial::BuildSnow(TwistProgramBranch &pBranch, std::string *pErrorMessage) {
     
-    GBatch aBatchSnow;
-    aBatchSnow.mName = "Snow";
+    /*
+    // We cannot add a comment line to batch
+    GBatch aBatch;
+    aBatch.mName = "Snow";
     GSnow aSnow;
-    
-    std::vector<GStatement> aSnowStatements;
-    if (!aSnow.BakeAES256(mSource, mListExpansion[0], &aSnowStatements, pErrorMessage)) {
+    std::vector<GStatement> aStatements;
+    if (!aSnow.BakeAES256(mSource, mListExpansion[0], &aStatements, pErrorMessage)) {
         printf("aes failed\n");
         return false;
     }
-    if (!aSnow.BakeChaCha20(mSource, mListExpansion[1], &aSnowStatements, pErrorMessage)) {
+    if (!aSnow.BakeChaCha20(mSource, mListExpansion[1], &aStatements, pErrorMessage)) {
         printf("cha cha failed\n");
         return false;
     }
-    if (!aSnow.BakeAria256(mSource, mListExpansion[2], &aSnowStatements, pErrorMessage)) {
+    if (!aSnow.BakeAria256(mSource, mListExpansion[2], &aStatements, pErrorMessage)) {
         printf("aria failed\n");
         return false;
     }
-    if (!aSnow.BakeSha256(mSource, mListExpansion[3], &aSnowStatements, pErrorMessage)) {
+    if (!aSnow.BakeSha256(mSource, mListExpansion[3], &aStatements, pErrorMessage)) {
         printf("sha failed\n");
         return false;
     }
-    aBatchSnow.CommitStatements(&aSnowStatements);
-    
+    aBatch.CommitStatements(&aStatements);
+    pBranch.AddBatch(aBatch);
+    */
     return true;
 }
 
+bool GSeedDeriveMaterial::BuildZero(GSymbol pSymbol, TwistProgramBranch &pBranch, std::string *pErrorMessage) {
+
+    // We cannot add a comment line to batch
+    GBatch aBatch;
+    aBatch.mName = "Zero";
+    GMemory aMemory;
+    
+    std::vector<GStatement> aStatements;
+    
+    if (!aMemory.BakeZero(pSymbol, &aStatements, pErrorMessage)) {
+        printf("zero failed\n");
+        return false;
+    }
+    
+    aBatch.AddComment("Secure Zero Out");
+    aBatch.CommitStatements(&aStatements);
+    pBranch.AddBatch(aBatch);
+    return true;
+    
+    return true;
+}

@@ -32,6 +32,12 @@ public:
 class GLoopMixBrew {
     
 public:
+    enum class TargetCombineMode : std::uint8_t {
+        kSet = 0,
+        kAdd = 1,
+        kXor = 2
+    };
+
     enum class Mix64Family : std::uint8_t {
         kInv = 0,
         k1 = 1,
@@ -45,13 +51,19 @@ public:
     GLoopFragmentComposerInputVariable          &PutVariableAdd(GSymbol pSymbol, bool pBefore);
     GLoopFragmentComposerInputVariable          &PutVariableMul(GSymbol pSymbol, bool pBefore);
     GLoopFragmentComposerInputVariable          &PutVariableXor(GSymbol pSymbol, bool pBefore);
+    GLoopFragmentComposerInputVariable          &PutVariableRandom(GSymbol pSymbol, bool pBefore);
     
     GLoopFragmentComposerInputBuffer            &PutBufferAdd(GSymbol pSymbol, bool pBefore);
     GLoopFragmentComposerInputBuffer            &PutBufferMul(GSymbol pSymbol, bool pBefore);
     GLoopFragmentComposerInputBuffer            &PutBufferXor(GSymbol pSymbol, bool pBefore);
+    GLoopFragmentComposerInputBuffer            &PutBufferRandom(GSymbol pSymbol, bool pBefore);
     
-    bool                                        Bake(GAssignType pAssignTypeBefore,
-                                                     GAssignType pAssignTypeAfter,
+    bool                                        Bake(std::vector<GStatement> *pStatements,
+                                                     std::string *pErrorMessage);
+    
+    
+    bool                                        Bake(TargetCombineMode pCombineModeBefore,
+                                                     TargetCombineMode pCombineModeAfter,
                                                      std::vector<GStatement> *pStatements,
                                                      std::string *pErrorMessage);
     

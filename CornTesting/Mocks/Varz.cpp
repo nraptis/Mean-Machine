@@ -43,5 +43,17 @@ Varz::Varz() {
     mWorkerB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneB);
     mWorkerC = BufSymbol(TwistWorkSpaceSlot::kWorkLaneC);
     mWorkerD = BufSymbol(TwistWorkSpaceSlot::kWorkLaneD);
+    
+    
+    
+    mKeyReadA = BufSymbol(TwistWorkSpaceSlot::kKeyRowReadA);
+    mKeyReadB = BufSymbol(TwistWorkSpaceSlot::kKeyRowReadB);
+    mMaskReadA = BufSymbol(TwistWorkSpaceSlot::kMaskRowReadA);
+    mMaskReadB = BufSymbol(TwistWorkSpaceSlot::kMaskRowReadB);
+    
+    mKeyWriteA = BufSymbol(TwistWorkSpaceSlot::kKeyRowWriteA);
+    mKeyWriteB = BufSymbol(TwistWorkSpaceSlot::kKeyRowWriteB);
+    mMaskWriteA = BufSymbol(TwistWorkSpaceSlot::kMaskRowWriteA);
+    mMaskWriteB = BufSymbol(TwistWorkSpaceSlot::kMaskRowWriteB);
+    
 }
-

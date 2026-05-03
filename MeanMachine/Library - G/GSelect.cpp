@@ -9,6 +9,7 @@
 #include "TwistSelect.hpp"
 #include "Random.hpp"
 
+#include <cstdio>
 #include <utility>
 
 namespace {
@@ -175,6 +176,10 @@ void GSelect::AddStatementA(GStatement *pStatement) {
     pStatement->Invalidate();
 }
 
+void GSelect::AddStatementA(GStatement pStatement) {
+    mStatementsAOwned.push_back(pStatement);
+}
+
 void GSelect::AddStatementsB(std::vector<GStatement> *pStatements) {
     if (pStatements != NULL) {
         AppendStatements(&mStatementsBOwned, pStatements);
@@ -188,6 +193,10 @@ void GSelect::AddStatementB(GStatement *pStatement) {
     }
     mStatementsBOwned.push_back(*pStatement);
     pStatement->Invalidate();
+}
+
+void GSelect::AddStatementB(GStatement pStatement) {
+    mStatementsBOwned.push_back(pStatement);
 }
 
 void GSelect::AddStatementsC(std::vector<GStatement> *pStatements) {
@@ -205,6 +214,11 @@ void GSelect::AddStatementC(GStatement *pStatement) {
     pStatement->Invalidate();
 }
 
+void GSelect::AddStatementC(GStatement pStatement) {
+    mStatementsCOwned.push_back(pStatement);
+}
+
+
 void GSelect::AddStatementsD(std::vector<GStatement> *pStatements) {
     if (pStatements != NULL) {
         AppendStatements(&mStatementsDOwned, pStatements);
@@ -218,6 +232,10 @@ void GSelect::AddStatementD(GStatement *pStatement) {
     }
     mStatementsDOwned.push_back(*pStatement);
     pStatement->Invalidate();
+}
+
+void GSelect::AddStatementD(GStatement pStatement) {
+    mStatementsDOwned.push_back(pStatement);
 }
 
 bool GSelect::Bake(GSymbol pSelectVariable,
@@ -244,24 +262,27 @@ bool GSelect::Bake(GSymbol pSelectVariable,
     aResult.push_back(GStatement::Assign(GTarget::Symbol(pSelectVariable), pSelectValueExpr));
 
     const std::string aSelectName = pSelectVariable.mName;
+    char aMaskToken[16];
+    std::snprintf(aMaskToken, sizeof(aMaskToken), "0x%02XU", static_cast<unsigned int>(mMask));
+    const std::string aSelectMaskedExpr = "(" + aSelectName + " & " + std::string(aMaskToken) + ")";
     if (!aUseFourWay) {
-        aResult.push_back(GStatement::RawLine("if (" + aSelectName + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {"));
+        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {"));
         AppendStatementsWithPrefix(&aResult, aStatementsA, "\t");
         aResult.push_back(GStatement::RawLine("} else {"));
         AppendStatementsWithPrefix(&aResult, aStatementsB, "\t");
         aResult.push_back(GStatement::RawLine("}"));
     } else {
-        aResult.push_back(GStatement::RawLine("if (" + aSelectName + " > " + std::to_string(static_cast<int>(mThresholdC)) + ") {"));
-        AppendStatementsWithPrefix(&aResult, aStatementsD, "\t");
-        aResult.push_back(GStatement::RawLine("} else {"));
-        aResult.push_back(RawLineWithPrefix("if (" + aSelectName + " > " + std::to_string(static_cast<int>(mThresholdB)) + ") {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsC, "\t");
+        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdB)) + ") {"));
+        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdC)) + ") {", "\t"));
+        AppendStatementsWithPrefix(&aResult, aStatementsD, "\t\t");
         aResult.push_back(RawLineWithPrefix("} else {", "\t"));
-        aResult.push_back(RawLineWithPrefix("if (" + aSelectName + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t");
-        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t");
+        AppendStatementsWithPrefix(&aResult, aStatementsC, "\t\t");
         aResult.push_back(RawLineWithPrefix("}", "\t"));
+        aResult.push_back(GStatement::RawLine("} else {"));
+        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {", "\t"));
+        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t\t");
+        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
+        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t\t");
         aResult.push_back(RawLineWithPrefix("}", "\t"));
         aResult.push_back(GStatement::RawLine("}"));
     }

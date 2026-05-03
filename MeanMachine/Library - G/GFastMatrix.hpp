@@ -347,7 +347,7 @@ private:
             GExpr::Read(
                 pOperationSource,
                 GExpr::Add(GExpr::Symbol(pOperationSourceIndex),
-                           GExpr::Const(pOperationSourceOffset))));
+                           GExpr::Const32(pOperationSourceOffset))));
     }
 
     static TwistFastMatrixOp GetRandomOpFromList(const std::vector<TwistFastMatrixOp> &pList,

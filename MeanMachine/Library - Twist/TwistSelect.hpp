@@ -31,20 +31,15 @@ public:
 
 struct TwistSelectResult2 {
 public:
-    
     std::uint8_t                mMask;
     TwistSelectRange            mRangeA;
-    
     TwistSelectResult2();
 };
 
-
 class TwistSelect {
 public:
-    
     static std::vector<TwistSelectResult2>          GetAll2();
     static std::vector<TwistSelectResult4>          GetAll4();
-    
 };
 
 #endif /* TwistSelect_hpp */

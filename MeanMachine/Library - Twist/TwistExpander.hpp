@@ -45,6 +45,11 @@ public:
     std::uint8_t                            mSaltC[S_SALT];
     std::uint8_t                            mSaltD[S_SALT];
     
+    std::uint64_t                           mScratchSaltA[S_SALT];
+    std::uint64_t                           mScratchSaltB[S_SALT];
+    std::uint64_t                           mScratchSaltC[S_SALT];
+    std::uint64_t                           mScratchSaltD[S_SALT];
+    
     std::uint8_t                            mSBoxA[S_SBOX];
     std::uint8_t                            mSBoxB[S_SBOX];
     std::uint8_t                            mSBoxC[S_SBOX];

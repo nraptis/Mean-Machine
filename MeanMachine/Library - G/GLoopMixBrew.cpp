@@ -55,6 +55,13 @@ GLoopFragmentComposerInputVariable &GLoopMixBrew::PutVariableXor(GSymbol pSymbol
     return PutVariable(pSymbol, pBefore, GLoopFragmentComposerCombineOp::kXor);
 }
 
+GLoopFragmentComposerInputVariable &GLoopMixBrew::PutVariableRandom(GSymbol pSymbol, bool pBefore) {
+    if (Random::Bool()) {
+        return PutVariableAdd(pSymbol, pBefore);
+    }
+    return PutVariableXor(pSymbol, pBefore);
+}
+
 GLoopFragmentComposerInputBuffer &GLoopMixBrew::PutBufferAdd(GSymbol pSymbol, bool pBefore) {
     return PutBuffer(pSymbol, pBefore, GLoopFragmentComposerCombineOp::kAdd);
 }
@@ -65,6 +72,13 @@ GLoopFragmentComposerInputBuffer &GLoopMixBrew::PutBufferMul(GSymbol pSymbol, bo
 
 GLoopFragmentComposerInputBuffer &GLoopMixBrew::PutBufferXor(GSymbol pSymbol, bool pBefore) {
     return PutBuffer(pSymbol, pBefore, GLoopFragmentComposerCombineOp::kXor);
+}
+
+GLoopFragmentComposerInputBuffer &GLoopMixBrew::PutBufferRandom(GSymbol pSymbol, bool pBefore) {
+    if (Random::Bool()) {
+        return PutBufferXor(pSymbol, pBefore);
+    }
+    return PutBufferAdd(pSymbol, pBefore);
 }
 
 GLoopMixBrew::GLoopMixBrew() {
@@ -313,8 +327,16 @@ GExpr GLoopMixBrew::BuildMixExpr(const GExpr &pInput) const {
     return GExpr();
 }
 
-bool GLoopMixBrew::Bake(GAssignType pAssignTypeBefore,
-                        GAssignType pAssignTypeAfter,
+bool GLoopMixBrew::Bake(std::vector<GStatement> *pStatements,
+                                                 std::string *pErrorMessage) {
+    return Bake(TargetCombineMode::kSet,
+                TargetCombineMode::kXor,
+                pStatements,
+                pErrorMessage);
+}
+
+bool GLoopMixBrew::Bake(TargetCombineMode pCombineModeBefore,
+                        TargetCombineMode pCombineModeAfter,
                         std::vector<GStatement> *pStatements,
                         std::string *pErrorMessage) {
     if (pStatements == nullptr) {
@@ -324,10 +346,10 @@ bool GLoopMixBrew::Bake(GAssignType pAssignTypeBefore,
         return false;
     }
     
-    switch (pAssignTypeBefore) {
-        case GAssignType::kSet:
-        case GAssignType::kAddAssign:
-        case GAssignType::kXorAssign:
+    switch (pCombineModeBefore) {
+        case TargetCombineMode::kSet:
+        case TargetCombineMode::kAdd:
+        case TargetCombineMode::kXor:
             break;
         default:
             if (pErrorMessage != nullptr) {
@@ -336,9 +358,9 @@ bool GLoopMixBrew::Bake(GAssignType pAssignTypeBefore,
             return false;
     }
     
-    switch (pAssignTypeAfter) {
-        case GAssignType::kAddAssign:
-        case GAssignType::kXorAssign:
+    switch (pCombineModeAfter) {
+        case TargetCombineMode::kAdd:
+        case TargetCombineMode::kXor:
             break;
         default:
             if (pErrorMessage != nullptr) {
@@ -439,10 +461,12 @@ bool GLoopMixBrew::Bake(GAssignType pAssignTypeBefore,
     
     if (aBeforeList.size() <= 0) {
         const GExpr aMixExpr = BuildMixExpr(GExpr::Symbol(mTarget));
-        if (pAssignTypeBefore == GAssignType::kAddAssign) {
-            pStatements->push_back(GStatement::AddAssign(GTarget::Symbol(mTarget), aMixExpr));
-        } else if (pAssignTypeBefore == GAssignType::kXorAssign) {
-            pStatements->push_back(GStatement::XorAssign(GTarget::Symbol(mTarget), aMixExpr));
+        if (pCombineModeBefore == TargetCombineMode::kAdd) {
+            pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                      GExpr::Add(GExpr::Symbol(mTarget), aMixExpr)));
+        } else if (pCombineModeBefore == TargetCombineMode::kXor) {
+            pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                      GExpr::Xor(GExpr::Symbol(mTarget), aMixExpr)));
         } else {
             pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget), aMixExpr));
         }
@@ -466,10 +490,12 @@ bool GLoopMixBrew::Bake(GAssignType pAssignTypeBefore,
             }
             
             const GExpr aMixExpr = BuildMixExpr(aExpression);
-            if (pAssignTypeBefore == GAssignType::kAddAssign) {
-                pStatements->push_back(GStatement::AddAssign(GTarget::Symbol(mTarget), aMixExpr));
-            } else if (pAssignTypeBefore == GAssignType::kXorAssign) {
-                pStatements->push_back(GStatement::XorAssign(GTarget::Symbol(mTarget), aMixExpr));
+            if (pCombineModeBefore == TargetCombineMode::kAdd) {
+                pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                          GExpr::Add(GExpr::Symbol(mTarget), aMixExpr)));
+            } else if (pCombineModeBefore == TargetCombineMode::kXor) {
+                pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                          GExpr::Xor(GExpr::Symbol(mTarget), aMixExpr)));
             } else {
                 pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget), aMixExpr));
             }
@@ -500,10 +526,12 @@ bool GLoopMixBrew::Bake(GAssignType pAssignTypeBefore,
             }
             
             const GExpr aMixExpr = BuildMixExpr(GExpr::Symbol(mTargetMix));
-            if (pAssignTypeBefore == GAssignType::kAddAssign) {
-                pStatements->push_back(GStatement::AddAssign(GTarget::Symbol(mTarget), aMixExpr));
-            } else if (pAssignTypeBefore == GAssignType::kXorAssign) {
-                pStatements->push_back(GStatement::XorAssign(GTarget::Symbol(mTarget), aMixExpr));
+            if (pCombineModeBefore == TargetCombineMode::kAdd) {
+                pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                          GExpr::Add(GExpr::Symbol(mTarget), aMixExpr)));
+            } else if (pCombineModeBefore == TargetCombineMode::kXor) {
+                pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                          GExpr::Xor(GExpr::Symbol(mTarget), aMixExpr)));
             } else {
                 pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget), aMixExpr));
             }
@@ -529,12 +557,12 @@ bool GLoopMixBrew::Bake(GAssignType pAssignTypeBefore,
             return false;
         }
         
-        if (pAssignTypeAfter == GAssignType::kAddAssign) {
-            pStatements->push_back(GStatement::AddAssign(GTarget::Symbol(mTarget),
-                                                            aAfterExpression));
+        if (pCombineModeAfter == TargetCombineMode::kAdd) {
+            pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                      GExpr::Add(GExpr::Symbol(mTarget), aAfterExpression)));
         } else {
-            pStatements->push_back(GStatement::XorAssign(GTarget::Symbol(mTarget),
-                                                            aAfterExpression));
+            pStatements->push_back(GStatement::Assign(GTarget::Symbol(mTarget),
+                                                      GExpr::Xor(GExpr::Symbol(mTarget), aAfterExpression)));
         }
         
     }

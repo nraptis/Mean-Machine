@@ -47,6 +47,16 @@ inline std::uint64_t RotL64(std::uint64_t pValue, std::uint64_t pAmount) {
     return static_cast<std::uint64_t>((pValue << aAmount) | (pValue >> (64ULL - aAmount)));
 }
 
+inline std::uint64_t ShiftL64(std::uint64_t pValue, std::uint64_t pAmount) {
+    const std::uint64_t aAmount = pAmount & 63ULL;
+    return static_cast<std::uint64_t>(pValue << aAmount);
+}
+
+inline std::uint64_t ShiftR64(std::uint64_t pValue, std::uint64_t pAmount) {
+    const std::uint64_t aAmount = pAmount & 63ULL;
+    return static_cast<std::uint64_t>(pValue >> aAmount);
+}
+
 inline std::uint8_t RotR8(std::uint8_t pValue, std::uint8_t pAmount) {
     std::uint8_t aAmount = static_cast<std::uint8_t>(pAmount & 7U);
     if (aAmount == 0U) { return pValue; }

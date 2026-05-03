@@ -84,6 +84,10 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return "salt_b";
         case TwistWorkSpaceSlot::kSaltC: return "salt_c";
         case TwistWorkSpaceSlot::kSaltD: return "salt_d";
+        case TwistWorkSpaceSlot::kScratchSaltA: return "scratch_salt_a";
+        case TwistWorkSpaceSlot::kScratchSaltB: return "scratch_salt_b";
+        case TwistWorkSpaceSlot::kScratchSaltC: return "scratch_salt_c";
+        case TwistWorkSpaceSlot::kScratchSaltD: return "scratch_salt_d";
         case TwistWorkSpaceSlot::kDerivedSaltA: return "derived_salt_a";
         case TwistWorkSpaceSlot::kDerivedSaltB: return "derived_salt_b";
         case TwistWorkSpaceSlot::kDerivedSaltC: return "derived_salt_c";
@@ -149,6 +153,10 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return "mSaltB";
         case TwistWorkSpaceSlot::kSaltC: return "mSaltC";
         case TwistWorkSpaceSlot::kSaltD: return "mSaltD";
+        case TwistWorkSpaceSlot::kScratchSaltA: return "mScratchSaltA";
+        case TwistWorkSpaceSlot::kScratchSaltB: return "mScratchSaltB";
+        case TwistWorkSpaceSlot::kScratchSaltC: return "mScratchSaltC";
+        case TwistWorkSpaceSlot::kScratchSaltD: return "mScratchSaltD";
         case TwistWorkSpaceSlot::kDerivedSaltA: return "aDerivedSaltA";
         case TwistWorkSpaceSlot::kDerivedSaltB: return "aDerivedSaltB";
         case TwistWorkSpaceSlot::kDerivedSaltC: return "aDerivedSaltC";

@@ -2,10 +2,10 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_CroVaxCro : public TwistExpander {
+class TwistExpander_Corndogz : public TwistExpander {
 public:
-    TwistExpander_CroVaxCro();
-    ~TwistExpander_CroVaxCro() override = default;
+    TwistExpander_Corndogz();
+    ~TwistExpander_Corndogz() override = default;
 
     void Seed(TwistWorkSpace *pWorkspace,
               std::uint8_t *pSource,

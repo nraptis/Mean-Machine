@@ -125,9 +125,30 @@ void TwistCryptoGenerator::GenerateCandidate(const std::uint8_t *pSource,
 
 int TwistCryptoGenerator::ScoreCandidate(const std::uint8_t *pBox) {
     
-    int aScore = 110000;
+    int aScore = 140000;
     
     if (mAnalyzer.ComputeIsPermutation_256(pBox, 256) == false) { aScore -= 60000; }
+    
+    int aMinimumCycle0 = mAnalyzer.ComputeMinimumCycle_256(pBox, 256);
+    if (aMinimumCycle0 <= 1) { aScore -= 20000; }
+    else if (aMinimumCycle0 <= 2) { aScore -= 10000; }
+    else if (aMinimumCycle0 <= 3) { aScore -= 2000; }
+    else if (aMinimumCycle0 <= 4) { aScore -= 500; }
+    else if (aMinimumCycle0 <= 5) { aScore -= 250; }
+
+    int aMinimumCycle3 = mAnalyzer.ComputeMinimumCycleRotL3AfterGate_256(pBox, 256);
+    if (aMinimumCycle3 <= 1) { aScore -= 20000; }
+    else if (aMinimumCycle3 <= 2) { aScore -= 10000; }
+    else if (aMinimumCycle3 <= 3) { aScore -= 2000; }
+    else if (aMinimumCycle3 <= 4) { aScore -= 500; }
+    else if (aMinimumCycle3 <= 5) { aScore -= 250; }
+
+    int aMinimumCycle5 = mAnalyzer.ComputeMinimumCycleRotL5AfterGate_256(pBox, 256);
+    if (aMinimumCycle5 <= 1) { aScore -= 20000; }
+    else if (aMinimumCycle5 <= 2) { aScore -= 10000; }
+    else if (aMinimumCycle5 <= 3) { aScore -= 2000; }
+    else if (aMinimumCycle5 <= 4) { aScore -= 500; }
+    else if (aMinimumCycle5 <= 5) { aScore -= 250; }
     
     int aDDT = mAnalyzer.ComputeDifferenceDistributionTableMax_256(pBox, 256);
     if (aDDT > 6) { aScore -= 20000; }

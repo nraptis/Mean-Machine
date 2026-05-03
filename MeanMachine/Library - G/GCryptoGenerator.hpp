@@ -24,17 +24,35 @@ public:
                                          const GSymbol &pSBoxC,
                                          const GSymbol &pSBoxD,
                                          std::string *pErrorMessage = nullptr) {
+        return Make(pWorkspace,
+                    nullptr,
+                    pSource,
+                    pSBoxA,
+                    pSBoxB,
+                    pSBoxC,
+                    pSBoxD,
+                    pErrorMessage);
+    }
+
+    static bool                     Make(TwistWorkSpace *pWorkspace,
+                                         TwistExpander *pExpander,
+                                         const GSymbol &pSource,
+                                         const GSymbol &pSBoxA,
+                                         const GSymbol &pSBoxB,
+                                         const GSymbol &pSBoxC,
+                                         const GSymbol &pSBoxD,
+                                         std::string *pErrorMessage = nullptr) {
         std::uint8_t *aSource = nullptr;
         std::uint8_t *aSBoxA = nullptr;
         std::uint8_t *aSBoxB = nullptr;
         std::uint8_t *aSBoxC = nullptr;
         std::uint8_t *aSBoxD = nullptr;
 
-        if (!ResolveRequiredBuffer(pWorkspace, pSource, "source", &aSource, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSource, "source", &aSource, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
         aGenerator.Make(aSource, aSBoxA, aSBoxB, aSBoxC, aSBoxD);
@@ -42,6 +60,32 @@ public:
     }
 
     static bool                     Make(TwistWorkSpace *pWorkspace,
+                                         const GSymbol &pSource,
+                                         const GSymbol &pSBoxA,
+                                         const GSymbol &pSBoxB,
+                                         const GSymbol &pSBoxC,
+                                         const GSymbol &pSBoxD,
+                                         const GSymbol &pExistingSBoxA,
+                                         const GSymbol &pExistingSBoxB,
+                                         const GSymbol &pExistingSBoxC,
+                                         const GSymbol &pExistingSBoxD,
+                                         std::string *pErrorMessage = nullptr) {
+        return Make(pWorkspace,
+                    nullptr,
+                    pSource,
+                    pSBoxA,
+                    pSBoxB,
+                    pSBoxC,
+                    pSBoxD,
+                    pExistingSBoxA,
+                    pExistingSBoxB,
+                    pExistingSBoxC,
+                    pExistingSBoxD,
+                    pErrorMessage);
+    }
+
+    static bool                     Make(TwistWorkSpace *pWorkspace,
+                                         TwistExpander *pExpander,
                                          const GSymbol &pSource,
                                          const GSymbol &pSBoxA,
                                          const GSymbol &pSBoxB,
@@ -62,15 +106,15 @@ public:
         std::uint8_t *aExistingSBoxC = nullptr;
         std::uint8_t *aExistingSBoxD = nullptr;
 
-        if (!ResolveRequiredBuffer(pWorkspace, pSource, "source", &aSource, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxA, "existing sbox A", &aExistingSBoxA, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxB, "existing sbox B", &aExistingSBoxB, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxC, "existing sbox C", &aExistingSBoxC, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExistingSBoxD, "existing sbox D", &aExistingSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSource, "source", &aSource, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxA, "existing sbox A", &aExistingSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxB, "existing sbox B", &aExistingSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxC, "existing sbox C", &aExistingSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxD, "existing sbox D", &aExistingSBoxD, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
         aGenerator.Make(aSource,
@@ -94,6 +138,7 @@ private:
     }
 
     static bool                     ResolveRequiredBuffer(TwistWorkSpace *pWorkspace,
+                                                          TwistExpander *pExpander,
                                                           const GSymbol &pSymbol,
                                                           const std::string &pLabel,
                                                           std::uint8_t **pBufferOut,
@@ -114,7 +159,7 @@ private:
             return false;
         }
 
-        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pSymbol.mSlot);
+        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pSymbol.mSlot);
         if (aBuffer == nullptr) {
             SetError(pErrorMessage, "GCryptoGenerator resolved null buffer for " + pLabel + ".");
             return false;
@@ -125,6 +170,7 @@ private:
     }
 
     static bool                     ResolveOptionalBuffer(TwistWorkSpace *pWorkspace,
+                                                          TwistExpander *pExpander,
                                                           const GSymbol &pSymbol,
                                                           const std::string &pLabel,
                                                           std::uint8_t **pBufferOut,
@@ -139,7 +185,7 @@ private:
             return true;
         }
 
-        return ResolveRequiredBuffer(pWorkspace, pSymbol, pLabel, pBufferOut, pErrorMessage);
+        return ResolveRequiredBuffer(pWorkspace, pExpander, pSymbol, pLabel, pBufferOut, pErrorMessage);
     }
 };
 

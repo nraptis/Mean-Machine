@@ -90,11 +90,11 @@ GExpr ExpandWithConfig(const GExpr &pBase,
     }
 
     const GExpr &aBase = pBase;
-    const GExpr aScalar1 = GExpr::Const(pConfig.mNextScalar());
-    const GExpr aScalar2 = GExpr::Const(pConfig.mNextScalar());
-    const GExpr aOddScalar = GExpr::Const(pConfig.mNextOddScalar());
-    const GExpr aRotate1 = GExpr::Const(pConfig.mNextRotate());
-    const GExpr aRotate2 = GExpr::Const(pConfig.mNextRotate());
+    const GExpr aScalar1 = GExpr::Const32(pConfig.mNextScalar());
+    const GExpr aScalar2 = GExpr::Const32(pConfig.mNextScalar());
+    const GExpr aOddScalar = GExpr::Const32(pConfig.mNextOddScalar());
+    const GExpr aRotate1 = GExpr::Const32(pConfig.mNextRotate());
+    const GExpr aRotate2 = GExpr::Const32(pConfig.mNextRotate());
 
     const GTermPattern aPattern = pAllowMultiply
         ? kAllPatterns[NextPatternIndex(kAllPatterns.size() - 1U)]

@@ -8,8 +8,43 @@
 
 #include "GSeedProgram.hpp"
 
+enum class GSnowType : std::uint8_t {
+    kInv = 0,
+    kAES = 1,
+    kChaCha = 2,
+    kSha = 3,
+    kAria = 4
+};
+
 class GSnow {
 public:
+    
+    bool Bake(GSnowType pSnowType,
+              GSymbol pSource,
+              GSymbol pDest,
+              std::vector<GStatement> *pStatements,
+              std::string *pErrorMessage) const {
+        
+        switch (pSnowType) {
+                
+            case GSnowType::kAES:
+                return BakeAES256(pSource, pDest, pStatements, pErrorMessage);
+                break;
+            case GSnowType::kChaCha:
+                return BakeChaCha20(pSource, pDest, pStatements, pErrorMessage);
+                break;
+            case GSnowType::kSha:
+                return BakeSha256(pSource, pDest, pStatements, pErrorMessage);
+                break;
+            case GSnowType::kAria:
+                return BakeAria256(pSource, pDest, pStatements, pErrorMessage);
+                break;
+            default:
+                SetError(pErrorMessage, "GSnowType was unknown type");
+                return false;
+        }
+    }
+    
     bool BakeAES256(GSymbol pSource,
                     GSymbol pDest,
                     std::vector<GStatement> *pStatements,

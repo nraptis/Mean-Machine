@@ -17,12 +17,14 @@ GOperType OperTypeForExprType(const GExprType pType) {
         case GExprType::kAnd: return GOperType::kAnd;
         case GExprType::kRotL8: return GOperType::kRotL8;
         case GExprType::kRotL32: return GOperType::kRotL32;
+        case GExprType::kRotL64: return GOperType::kRotL64;
         case GExprType::kShiftL: return GOperType::kShiftL;
         case GExprType::kShiftR: return GOperType::kShiftR;
         case GExprType::kOr: return GOperType::kOr;
         case GExprType::kMix64_1: return GOperType::kInv;
         case GExprType::kMix64_4: return GOperType::kInv;
         case GExprType::kMix64_8: return GOperType::kInv;
+        case GExprType::kDiffuse64: return GOperType::kInv;
         default: return GOperType::kInv;
     }
 }
@@ -168,6 +170,12 @@ void AppendSymbols(const GExpr &pExpr,
             pSymbols->push_back(pExpr.mMix64SBoxH);
             return;
 
+        case GExprType::kDiffuse64:
+            if (pExpr.mA != nullptr) {
+                AppendSymbols(*pExpr.mA, pSymbols);
+            }
+            return;
+
         case GExprType::kAdd:
         case GExprType::kSub:
         case GExprType::kMul:
@@ -176,6 +184,7 @@ void AppendSymbols(const GExpr &pExpr,
         case GExprType::kOr:
         case GExprType::kRotL8:
         case GExprType::kRotL32:
+        case GExprType::kRotL64:
         case GExprType::kShiftL:
         case GExprType::kShiftR:
             if (pExpr.mA != nullptr) {
@@ -213,6 +222,7 @@ void AppendOps(const GExpr &pExpr,
         case GExprType::kOr:
         case GExprType::kRotL8:
         case GExprType::kRotL32:
+        case GExprType::kRotL64:
         case GExprType::kShiftL:
         case GExprType::kShiftR:
             if (pExpr.mA != nullptr) {
@@ -226,6 +236,7 @@ void AppendOps(const GExpr &pExpr,
         case GExprType::kMix64_1:
         case GExprType::kMix64_4:
         case GExprType::kMix64_8:
+        case GExprType::kDiffuse64:
             if (pExpr.mA != nullptr) {
                 AppendOps(*pExpr.mA, pOps);
             }
@@ -300,6 +311,9 @@ std::string ExprKeyInner(const GExpr &pExpr) {
                    ",sbox_h=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxH)) +
                    ",value=" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
 
+        case GExprType::kDiffuse64:
+            return "diffuse64(" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
+
         case GExprType::kAdd:
         case GExprType::kSub:
         case GExprType::kMul:
@@ -308,6 +322,7 @@ std::string ExprKeyInner(const GExpr &pExpr) {
         case GExprType::kOr:
         case GExprType::kRotL8:
         case GExprType::kRotL32:
+        case GExprType::kRotL64:
         case GExprType::kShiftL:
         case GExprType::kShiftR:
             return std::to_string(static_cast<int>(pExpr.mType)) + "(" +
@@ -331,10 +346,38 @@ GExpr GExpr::Symbol(const GSymbol &pSymbol) {
     return aExpr;
 }
 
-GExpr GExpr::Const(int pVal) {
+GExpr GExpr::Const8(int pVal) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kConst;
+    aExpr.mConstVal = static_cast<std::uint64_t>(static_cast<std::uint8_t>(pVal));
+    return aExpr;
+}
+
+GExpr GExpr::Const32(int pVal) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kConst;
+    aExpr.mConstVal = static_cast<std::uint64_t>(static_cast<std::uint32_t>(pVal));
+    return aExpr;
+}
+
+GExpr GExpr::Const64(std::uint64_t pVal) {
     GExpr aExpr;
     aExpr.mType = GExprType::kConst;
     aExpr.mConstVal = pVal;
+    return aExpr;
+}
+
+GExpr GExpr::Diffuse(std::uint64_t pVal) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kConst;
+    aExpr.mConstVal = TwistMix64::Diffuse(pVal);
+    return aExpr;
+}
+
+GExpr GExpr::Diffuse(const GExpr &pExpr) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kDiffuse64;
+    aExpr.mA = std::make_shared<GExpr>(pExpr);
     return aExpr;
 }
 
@@ -355,40 +398,264 @@ GExpr GExpr::Add(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kAdd, a, b);
 }
 
+GExpr GExpr::Add(const GSymbol &a, const GSymbol &b) {
+    return Add(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::Add(const GSymbol &a, const GExpr &b) {
+    return Add(Symbol(a), b);
+}
+
+GExpr GExpr::Add(const GExpr &a, const GSymbol &b) {
+    return Add(a, Symbol(b));
+}
+
+GExpr GExpr::Add(const GSymbol &a, std::uint64_t b) {
+    return Add(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::Add(const GExpr &a, std::uint64_t b) {
+    return Add(a, Const64(b));
+}
+
 GExpr GExpr::Sub(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kSub, a, b);
+}
+
+GExpr GExpr::Sub(const GSymbol &a, const GSymbol &b) {
+    return Sub(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::Sub(const GSymbol &a, const GExpr &b) {
+    return Sub(Symbol(a), b);
+}
+
+GExpr GExpr::Sub(const GExpr &a, const GSymbol &b) {
+    return Sub(a, Symbol(b));
+}
+
+GExpr GExpr::Sub(const GSymbol &a, std::uint64_t b) {
+    return Sub(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::Sub(const GExpr &a, std::uint64_t b) {
+    return Sub(a, Const64(b));
 }
 
 GExpr GExpr::Mul(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kMul, a, b);
 }
 
+GExpr GExpr::Mul(const GSymbol &a, const GSymbol &b) {
+    return Mul(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::Mul(const GSymbol &a, const GExpr &b) {
+    return Mul(Symbol(a), b);
+}
+
+GExpr GExpr::Mul(const GExpr &a, const GSymbol &b) {
+    return Mul(a, Symbol(b));
+}
+
+GExpr GExpr::Mul(const GSymbol &a, std::uint64_t b) {
+    return Mul(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::Mul(const GExpr &a, std::uint64_t b) {
+    return Mul(a, Const64(b));
+}
+
 GExpr GExpr::Xor(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kXor, a, b);
+}
+
+GExpr GExpr::Xor(const GSymbol &a, const GSymbol &b) {
+    return Xor(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::Xor(const GSymbol &a, const GExpr &b) {
+    return Xor(Symbol(a), b);
+}
+
+GExpr GExpr::Xor(const GExpr &a, const GSymbol &b) {
+    return Xor(a, Symbol(b));
+}
+
+GExpr GExpr::Xor(const GSymbol &a, std::uint64_t b) {
+    return Xor(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::Xor(const GExpr &a, std::uint64_t b) {
+    return Xor(a, Const64(b));
 }
 
 GExpr GExpr::And(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kAnd, a, b);
 }
 
+GExpr GExpr::And(const GSymbol &a, const GSymbol &b) {
+    return And(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::And(const GSymbol &a, const GExpr &b) {
+    return And(Symbol(a), b);
+}
+
+GExpr GExpr::And(const GExpr &a, const GSymbol &b) {
+    return And(a, Symbol(b));
+}
+
+GExpr GExpr::And(const GSymbol &a, std::uint64_t b) {
+    return And(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::And(const GExpr &a, std::uint64_t b) {
+    return And(a, Const64(b));
+}
+
 GExpr GExpr::Or(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kOr, a, b);
+}
+
+GExpr GExpr::Or(const GSymbol &a, const GSymbol &b) {
+    return Or(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::Or(const GSymbol &a, const GExpr &b) {
+    return Or(Symbol(a), b);
+}
+
+GExpr GExpr::Or(const GExpr &a, const GSymbol &b) {
+    return Or(a, Symbol(b));
+}
+
+GExpr GExpr::Or(const GSymbol &a, std::uint64_t b) {
+    return Or(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::Or(const GExpr &a, std::uint64_t b) {
+    return Or(a, Const64(b));
 }
 
 GExpr GExpr::RotL8(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kRotL8, a, b);
 }
 
+GExpr GExpr::RotL8(const GSymbol &a, const GSymbol &b) {
+    return RotL8(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::RotL8(const GSymbol &a, const GExpr &b) {
+    return RotL8(Symbol(a), b);
+}
+
+GExpr GExpr::RotL8(const GExpr &a, const GSymbol &b) {
+    return RotL8(a, Symbol(b));
+}
+
+GExpr GExpr::RotL8(const GSymbol &a, std::uint64_t b) {
+    return RotL8(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::RotL8(const GExpr &a, std::uint64_t b) {
+    return RotL8(a, Const64(b));
+}
+
 GExpr GExpr::RotL32(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kRotL32, a, b);
+}
+
+GExpr GExpr::RotL32(const GSymbol &a, const GSymbol &b) {
+    return RotL32(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::RotL32(const GSymbol &a, const GExpr &b) {
+    return RotL32(Symbol(a), b);
+}
+
+GExpr GExpr::RotL32(const GExpr &a, const GSymbol &b) {
+    return RotL32(a, Symbol(b));
+}
+
+GExpr GExpr::RotL32(const GSymbol &a, std::uint64_t b) {
+    return RotL32(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::RotL32(const GExpr &a, std::uint64_t b) {
+    return RotL32(a, Const64(b));
+}
+
+GExpr GExpr::RotL64(const GExpr &a, const GExpr &b) {
+    return BinaryExpr(GExprType::kRotL64, a, b);
+}
+
+GExpr GExpr::RotL64(const GSymbol &a, const GSymbol &b) {
+    return RotL64(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::RotL64(const GSymbol &a, const GExpr &b) {
+    return RotL64(Symbol(a), b);
+}
+
+GExpr GExpr::RotL64(const GExpr &a, const GSymbol &b) {
+    return RotL64(a, Symbol(b));
+}
+
+GExpr GExpr::RotL64(const GSymbol &a, std::uint64_t b) {
+    return RotL64(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::RotL64(const GExpr &a, std::uint64_t b) {
+    return RotL64(a, Const64(b));
 }
 
 GExpr GExpr::ShiftL(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kShiftL, a, b);
 }
 
+GExpr GExpr::ShiftL(const GSymbol &a, const GSymbol &b) {
+    return ShiftL(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::ShiftL(const GSymbol &a, const GExpr &b) {
+    return ShiftL(Symbol(a), b);
+}
+
+GExpr GExpr::ShiftL(const GExpr &a, const GSymbol &b) {
+    return ShiftL(a, Symbol(b));
+}
+
+GExpr GExpr::ShiftL(const GSymbol &a, std::uint64_t b) {
+    return ShiftL(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::ShiftL(const GExpr &a, std::uint64_t b) {
+    return ShiftL(a, Const64(b));
+}
+
 GExpr GExpr::ShiftR(const GExpr &a, const GExpr &b) {
     return BinaryExpr(GExprType::kShiftR, a, b);
+}
+
+GExpr GExpr::ShiftR(const GSymbol &a, const GSymbol &b) {
+    return ShiftR(Symbol(a), Symbol(b));
+}
+
+GExpr GExpr::ShiftR(const GSymbol &a, const GExpr &b) {
+    return ShiftR(Symbol(a), b);
+}
+
+GExpr GExpr::ShiftR(const GExpr &a, const GSymbol &b) {
+    return ShiftR(a, Symbol(b));
+}
+
+GExpr GExpr::ShiftR(const GSymbol &a, std::uint64_t b) {
+    return ShiftR(Symbol(a), Const64(b));
+}
+
+GExpr GExpr::ShiftR(const GExpr &a, std::uint64_t b) {
+    return ShiftR(a, Const64(b));
 }
 
 GExpr GExpr::Mix64_1(const GExpr &pValue,
@@ -511,6 +778,34 @@ GExpr GExpr::ReadSaltWrap(const GSymbol &pSymbol,
     return BuildWrappedRead(GReadWrapType::kSalt, pSymbol, pIndex, pIndexOracle, pOffset);
 }
 
+GExpr GExpr::ReadMaskAWrap(const GSymbol &pSymbol,
+                           const GSymbol &pIndex,
+                           const GSymbol &pIndexOracle,
+                           int pOffset) {
+    return BuildWrappedRead(GReadWrapType::kMaskA, pSymbol, pIndex, pIndexOracle, pOffset);
+}
+
+GExpr GExpr::ReadMaskBWrap(const GSymbol &pSymbol,
+                           const GSymbol &pIndex,
+                           const GSymbol &pIndexOracle,
+                           int pOffset) {
+    return BuildWrappedRead(GReadWrapType::kMaskB, pSymbol, pIndex, pIndexOracle, pOffset);
+}
+
+GExpr GExpr::ReadKeyAWrap(const GSymbol &pSymbol,
+                          const GSymbol &pIndex,
+                          const GSymbol &pIndexOracle,
+                          int pOffset) {
+    return BuildWrappedRead(GReadWrapType::kKeyA, pSymbol, pIndex, pIndexOracle, pOffset);
+}
+
+GExpr GExpr::ReadKeyBWrap(const GSymbol &pSymbol,
+                          const GSymbol &pIndex,
+                          const GSymbol &pIndexOracle,
+                          int pOffset) {
+    return BuildWrappedRead(GReadWrapType::kKeyB, pSymbol, pIndex, pIndexOracle, pOffset);
+}
+
 void GExpr::Set(const GExpr &pOther) {
     mType = pOther.mType;
     mSymbol = pOther.mSymbol;
@@ -584,6 +879,7 @@ bool GExpr::IsInvalid() const {
         case GExprType::kOr:
         case GExprType::kRotL8:
         case GExprType::kRotL32:
+        case GExprType::kRotL64:
         case GExprType::kShiftL:
         case GExprType::kShiftR:
             return (mA == nullptr) || (mB == nullptr) ||
@@ -615,6 +911,9 @@ bool GExpr::IsInvalid() const {
                    (!mMix64SBoxH.IsBuf()) ||
                    (mMix64Type8 == Mix64Type_8::kInv) ||
                    (Mix64Type8NeedsAmount(mMix64Type8) && !mMix64UseAmount);
+
+        case GExprType::kDiffuse64:
+            return (mA == nullptr) || mA->IsInvalid();
 
         default:
             return true;
@@ -676,6 +975,7 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
         case GExprType::kOr:
         case GExprType::kRotL8:
         case GExprType::kRotL32:
+        case GExprType::kRotL64:
         case GExprType::kShiftL:
         case GExprType::kShiftR:
             return ExprPtrEqual(pLHS.mA, pRHS.mA) &&
@@ -711,6 +1011,9 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
                    (pLHS.mMix64SBoxF == pRHS.mMix64SBoxF) &&
                    (pLHS.mMix64SBoxG == pRHS.mMix64SBoxG) &&
                    (pLHS.mMix64SBoxH == pRHS.mMix64SBoxH);
+
+        case GExprType::kDiffuse64:
+            return ExprPtrEqual(pLHS.mA, pRHS.mA);
     }
 
     return false;

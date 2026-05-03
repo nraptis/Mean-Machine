@@ -13,28 +13,31 @@
 #define S_SBOX 256
 #define S_SALT 128
 
-
 #define S_BLOCK1 8191
 #define S_SBOX1 255
 #define S_SALT1 127
 
+#define CRYPTO_MAX_DEPTH 16
+#define CRYPTO_MAX_DEPTH1 16
 
-
-
-#define W_KEY_A 96
-#define H_KEY_A 10
+#define W_KEY_A 128
+#define W_KEY_A1 127
+#define H_KEY_A 13
 #define S_KEY_A (W_KEY_A * H_KEY_A)
 
-#define W_KEY_B 80
-#define H_KEY_B 16
+#define W_KEY_B 256
+#define W_KEY_1 255
+#define H_KEY_B 11
 #define S_KEY_B (W_KEY_B * H_KEY_B)
 
-#define W_MASK_A 160
-#define H_MASK_A 12
+#define W_MASK_A 128
+#define W_MASK_A1 127
+#define H_MASK_A 15
 #define S_MASK_A (W_MASK_A * H_MASK_A)
 
-#define W_MASK_B 64
-#define H_MASK_B 15
+#define W_MASK_B 256
+#define W_MASK_B1 255
+#define H_MASK_B 9
 #define S_MASK_B (W_MASK_B * H_MASK_B)
 
 class TwistExpander;
@@ -50,6 +53,11 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kSaltB=11,
     kSaltC=12,
     kSaltD=13,
+    
+    kScratchSaltA=14,
+    kScratchSaltB=15,
+    kScratchSaltC=16,
+    kScratchSaltD=17,
     
     kDerivedSaltA=20,
     kDerivedSaltB=21,
@@ -143,10 +151,10 @@ public:
     std::uint8_t                            mDerivedSBoxG[S_SBOX];
     std::uint8_t                            mDerivedSBoxH[S_SBOX];
     
-    uint8_t                                 mKeyBoxA[H_KEY_A][W_KEY_A];
-    uint8_t                                 mKeyBoxB[H_KEY_B][W_KEY_B];
-    uint8_t                                 mMaskBoxA[H_MASK_A][W_MASK_A];
-    uint8_t                                 mMaskBoxB[H_MASK_B][W_MASK_B];
+    uint8_t                                 mKeyBoxA[CRYPTO_MAX_DEPTH][W_KEY_A];
+    uint8_t                                 mKeyBoxB[CRYPTO_MAX_DEPTH][W_KEY_B];
+    uint8_t                                 mMaskBoxA[CRYPTO_MAX_DEPTH][W_MASK_A];
+    uint8_t                                 mMaskBoxB[CRYPTO_MAX_DEPTH][W_MASK_B];
     
     std::uint8_t                            mExpandLaneA[S_BLOCK];
     std::uint8_t                            mExpandLaneB[S_BLOCK];

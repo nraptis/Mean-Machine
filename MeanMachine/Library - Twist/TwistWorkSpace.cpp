@@ -57,6 +57,27 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
     if (pWorkspace == nullptr) {
         return nullptr;
     }
+    if (pExpander == nullptr) {
+        switch (pSlot) {
+            case TwistWorkSpaceSlot::kSource:
+            case TwistWorkSpaceSlot::kDest:
+            case TwistWorkSpaceSlot::kSaltA:
+            case TwistWorkSpaceSlot::kSaltB:
+            case TwistWorkSpaceSlot::kSaltC:
+            case TwistWorkSpaceSlot::kSaltD:
+            case TwistWorkSpaceSlot::kScratchSaltA:
+            case TwistWorkSpaceSlot::kScratchSaltB:
+            case TwistWorkSpaceSlot::kScratchSaltC:
+            case TwistWorkSpaceSlot::kScratchSaltD:
+            case TwistWorkSpaceSlot::kSBoxA:
+            case TwistWorkSpaceSlot::kSBoxB:
+            case TwistWorkSpaceSlot::kSBoxC:
+            case TwistWorkSpaceSlot::kSBoxD:
+                return nullptr;
+            default:
+                break;
+        }
+    }
 
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource: return pExpander->mSource;
@@ -65,6 +86,10 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
         case TwistWorkSpaceSlot::kSaltB: return pExpander->mSaltB;
         case TwistWorkSpaceSlot::kSaltC: return pExpander->mSaltC;
         case TwistWorkSpaceSlot::kSaltD: return pExpander->mSaltD;
+        case TwistWorkSpaceSlot::kScratchSaltA: return reinterpret_cast<std::uint8_t *>(pExpander->mScratchSaltA);
+        case TwistWorkSpaceSlot::kScratchSaltB: return reinterpret_cast<std::uint8_t *>(pExpander->mScratchSaltB);
+        case TwistWorkSpaceSlot::kScratchSaltC: return reinterpret_cast<std::uint8_t *>(pExpander->mScratchSaltC);
+        case TwistWorkSpaceSlot::kScratchSaltD: return reinterpret_cast<std::uint8_t *>(pExpander->mScratchSaltD);
         case TwistWorkSpaceSlot::kDerivedSaltA: return pWorkspace->mDerivedSaltA;
         case TwistWorkSpaceSlot::kDerivedSaltB: return pWorkspace->mDerivedSaltB;
         case TwistWorkSpaceSlot::kDerivedSaltC: return pWorkspace->mDerivedSaltC;
@@ -148,6 +173,10 @@ int TwistWorkSpace::GetBufferLength(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB:
         case TwistWorkSpaceSlot::kSaltC:
         case TwistWorkSpaceSlot::kSaltD:
+        case TwistWorkSpaceSlot::kScratchSaltA:
+        case TwistWorkSpaceSlot::kScratchSaltB:
+        case TwistWorkSpaceSlot::kScratchSaltC:
+        case TwistWorkSpaceSlot::kScratchSaltD:
         case TwistWorkSpaceSlot::kDerivedSaltA:
         case TwistWorkSpaceSlot::kDerivedSaltB:
         case TwistWorkSpaceSlot::kDerivedSaltC:
@@ -189,6 +218,10 @@ bool TwistWorkSpace::IsSalt(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB:
         case TwistWorkSpaceSlot::kSaltC:
         case TwistWorkSpaceSlot::kSaltD:
+        case TwistWorkSpaceSlot::kScratchSaltA:
+        case TwistWorkSpaceSlot::kScratchSaltB:
+        case TwistWorkSpaceSlot::kScratchSaltC:
+        case TwistWorkSpaceSlot::kScratchSaltD:
         case TwistWorkSpaceSlot::kDerivedSaltA:
         case TwistWorkSpaceSlot::kDerivedSaltB:
         case TwistWorkSpaceSlot::kDerivedSaltC:

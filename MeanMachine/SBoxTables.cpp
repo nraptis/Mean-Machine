@@ -62,7 +62,7 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
             continue;
         }
         
-        printf("this is the file patj: %s\n", aFilePath.c_str());
+        printf("S-Box File Path: %s\n", aFilePath.c_str());
         
         // --- Check 1: filename must contain "sbox"
             std::size_t pos = aFilePath.find_last_of("/\\");
@@ -88,12 +88,8 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
     
     if (gSBoxTables.empty()) {
         printf("ERROR: No S-box tables loaded from %s\n", aDirectory.c_str());
-    
     }
     
-    printf("This was the directory: %s\n", aDirectory.c_str());
-
-
     gSBoxTablesDidLoad = true;
     return gSBoxTables;
 }

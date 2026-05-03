@@ -20,8 +20,10 @@
 #include "GFastMatrix.hpp"
 #include "GSnow.hpp"
 #include "GMasking.hpp"
-
-
+#include "GMagicNumbers.hpp"
+#include "GFamily.hpp"
+#include "GMemory.hpp"
+#include "CSPRNG.hpp"
 
 #define SEED_WORK_LANE_COUNT 4
 
@@ -37,6 +39,9 @@ public:
     
     bool                                    BuildSnow(TwistProgramBranch &pBranch, std::string *pErrorMessage);
     
+    bool                                    BuildZero(GSymbol pSymbol, TwistProgramBranch &pBranch, std::string *pErrorMessage);
+    
+    
     
     GSymbol                                 mLoopIndex;
     
@@ -44,49 +49,43 @@ public:
     
     GSymbol                                 mValue;
     GSymbol                                 mValueMix;
+    GSymbol                                 mValuePrevious;
+    
+    GSymbol                                 mFreshByte;
+    
+    GSymbol                                 mSecureA;
+    GSymbol                                 mSecureB;
     
     GSymbol                                 mCarry;
     GSymbol                                 mCarryMix;
     
+    GSymbol                                 mCross;
+    
+    GSymbol                                 mHalfA;
+    GSymbol                                 mHalfB;
+    
     GSymbol                                 mSelect;
     GSymbol                                 mMultiplex;
     
-    GSymbol                                 mSBoxA;
-    GSymbol                                 mSBoxB;
-    GSymbol                                 mSBoxC;
-    GSymbol                                 mSBoxD;
-    
-    GSymbol                                 mDerivedSBoxA;
-    GSymbol                                 mDerivedSBoxB;
-    GSymbol                                 mDerivedSBoxC;
-    GSymbol                                 mDerivedSBoxD;
-    
-    GSymbol                                 mSaltA;
-    GSymbol                                 mSaltB;
-    GSymbol                                 mSaltC;
-    GSymbol                                 mSaltD;
-    
-    GSymbol                                 mDerivedSaltA;
-    GSymbol                                 mDerivedSaltB;
-    GSymbol                                 mDerivedSaltC;
-    GSymbol                                 mDerivedSaltD;
-    
-    GSymbol                                 mWorkerA;
-    GSymbol                                 mWorkerB;
-    GSymbol                                 mWorkerC;
-    GSymbol                                 mWorkerD;
-    
-    GSymbol                                 mExpansionA;
-    GSymbol                                 mExpansionB;
-    GSymbol                                 mExpansionC;
-    GSymbol                                 mExpansionD;
-    
     GSymbol                                 mUnrollByte;
+    
+    GSymbol                                 mWandererA;
+    GSymbol                                 mWandererB;
+    GSymbol                                 mWandererC;
+    GSymbol                                 mWandererD;
+    
+    GSymbol                                 mOrbitA;
+    GSymbol                                 mOrbitB;
+    GSymbol                                 mOrbitC;
+    GSymbol                                 mOrbitD;
+    
     
 private:
     
     std::vector<GSymbol>                    mListSBoxes;
     std::vector<GSymbol>                    mListSalts;
+    std::vector<GSymbol>                    mListScratchSalts;
+    
     std::vector<GSymbol>                    mListWorkers;
     std::vector<GSymbol>                    mListExpansion;
     
@@ -116,30 +115,31 @@ private:
     bool                                    mValueSourceCEnabled[SEED_WORK_LANE_COUNT];
     bool                                    mValueSourceCBefore[SEED_WORK_LANE_COUNT];
     
-
     Mix64Type_1                             mValueMix64Type_1[SEED_WORK_LANE_COUNT];
     Mix64Type_4                             mValueMix64Type_4[SEED_WORK_LANE_COUNT];
     Mix64Type_8                             mValueMix64Type_8[SEED_WORK_LANE_COUNT];
     bool                                    mValueMixChoice[SEED_WORK_LANE_COUNT];
     
-    bool                                    mCarryValueEnabled[SEED_WORK_LANE_COUNT];
-    bool                                    mCarryValueBefore[SEED_WORK_LANE_COUNT];
+    GSymbol                                 mValueSBoxes[8][SEED_WORK_LANE_COUNT];
     
-    GSymbol                                 mCarrySalt[SEED_WORK_LANE_COUNT];
-    bool                                    mCarrySaltEnabled[SEED_WORK_LANE_COUNT];
-    bool                                    mCarrySaltBefore[SEED_WORK_LANE_COUNT];
-    
-    GSymbol                                 mCarrySourceA[SEED_WORK_LANE_COUNT];
-    bool                                    mCarrySourceAEnabled[SEED_WORK_LANE_COUNT];
-    bool                                    mCarrySourceABefore[SEED_WORK_LANE_COUNT];
-
-    GSymbol                                 mCarrySourceB[SEED_WORK_LANE_COUNT];
-    bool                                    mCarrySourceBEnabled[SEED_WORK_LANE_COUNT];
-    bool                                    mCarrySourceBBefore[SEED_WORK_LANE_COUNT];
     
     GSymbol                                 mDestBuffer[SEED_WORK_LANE_COUNT];
     bool                                    mDestReverse[SEED_WORK_LANE_COUNT];
     
+    GSnowType                               mSnowType[SEED_WORK_LANE_COUNT];
+    
+    GBoxFamily                              mBoxFamily;
+    GBoxFamily                              mSaltFamily;
+    GBoxFamily                              mScratchSaltFamily;
+    
+    GOperationFamily                        mMixOperationFamily;
+    
+    GRotationFamily                         mRotationFamily;
+    GHotPack                                mHotPacks[SEED_WORK_LANE_COUNT];
+    
+    //TwistHotPair                            mHotPairs[SEED_WORK_LANE_COUNT][3];
+    
+        
     Mix64Type_1                             RandomMix64Type_1();
     Mix64Type_4                             RandomMix64Type_4();
     Mix64Type_8                             RandomMix64Type_8();

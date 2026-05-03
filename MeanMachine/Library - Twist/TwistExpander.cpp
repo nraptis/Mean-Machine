@@ -13,6 +13,18 @@ TwistExpander::TwistExpander() {
     mWorkspace = nullptr;
     mSource = nullptr;
     mDest = nullptr;
+    std::memset(mSaltA, 0, sizeof(mSaltA));
+    std::memset(mSaltB, 0, sizeof(mSaltB));
+    std::memset(mSaltC, 0, sizeof(mSaltC));
+    std::memset(mSaltD, 0, sizeof(mSaltD));
+    std::memset(mScratchSaltA, 0, sizeof(mScratchSaltA));
+    std::memset(mScratchSaltB, 0, sizeof(mScratchSaltB));
+    std::memset(mScratchSaltC, 0, sizeof(mScratchSaltC));
+    std::memset(mScratchSaltD, 0, sizeof(mScratchSaltD));
+    std::memset(mSBoxA, 0, sizeof(mSBoxA));
+    std::memset(mSBoxB, 0, sizeof(mSBoxB));
+    std::memset(mSBoxC, 0, sizeof(mSBoxC));
+    std::memset(mSBoxD, 0, sizeof(mSBoxD));
 }
 
 TwistExpander::~TwistExpander() {

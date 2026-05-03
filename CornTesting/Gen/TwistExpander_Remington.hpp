@@ -2,10 +2,10 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_CorvusCorvax : public TwistExpander {
+class TwistExpander_Remington : public TwistExpander {
 public:
-    TwistExpander_CorvusCorvax();
-    ~TwistExpander_CorvusCorvax() override = default;
+    TwistExpander_Remington();
+    ~TwistExpander_Remington() override = default;
 
     void Seed(TwistWorkSpace *pWorkspace,
               std::uint8_t *pSource,

@@ -189,6 +189,11 @@ public:
                                                               const std::uint8_t *pSBoxF,
                                                               const std::uint8_t *pSBoxG,
                                                               const std::uint8_t *pSBoxH);
+    
+    
+    static std::uint64_t                        Diffuse(std::uint64_t pValue);
+    
+    
 
 private:
 

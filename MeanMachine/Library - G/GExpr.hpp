@@ -14,7 +14,6 @@
 #include <vector>
 #include "GSymbol.hpp"
 #include "TwistMix64.hpp"
-#include "TwistMix64.hpp"
 
 enum class GOperType : std::uint8_t {
     kInv = 0,
@@ -28,7 +27,8 @@ enum class GOperType : std::uint8_t {
     kRotL32 = 10,
     kShiftL = 11,
     kShiftR = 12,
-    kOr = 13
+    kOr = 13,
+    kRotL64 = 14
 };
 
 enum class GExprType : std::uint8_t {
@@ -48,14 +48,20 @@ enum class GExprType : std::uint8_t {
     kOr = 13,
     kMix64_1 = 14,
     kMix64_4 = 15,
-    kMix64_8 = 16
+    kMix64_8 = 16,
+    kRotL64 = 17,
+    kDiffuse64 = 18
 };
 
 enum class GReadWrapType : std::uint8_t {
     kNone = 0,
     kBlock = 1,
     kSBox = 2,
-    kSalt = 3
+    kSalt = 3,
+    kMaskA = 4,
+    kMaskB = 5,
+    kKeyA = 6,
+    kKeyB = 7
 };
 
 struct GExpr {
@@ -63,7 +69,7 @@ struct GExpr {
 public:
     GExprType                           mType;
     GSymbol                             mSymbol;
-    int                                 mConstVal;
+    std::uint64_t                       mConstVal;
 
     GReadWrapType                       mReadWrapType;
     GSymbol                             mReadWrapIndexSymbol;
@@ -94,18 +100,78 @@ public:
     GExpr();
     
     static GExpr                        Symbol(const GSymbol &pSymbol);
-    static GExpr                        Const(int pVal);
+    static GExpr                        Const8(int pVal);
+    static GExpr                        Const32(int pVal);
+    static GExpr                        Const64(std::uint64_t pVal);
+    static GExpr                        Diffuse(std::uint64_t pVal);
+    static GExpr                        Diffuse(const GExpr &pExpr);
     static GExpr                        Read(const GSymbol &pSymbol, const GExpr &pIndex);
     static GExpr                        Add(const GExpr &a, const GExpr &b);
+    static GExpr                        Add(const GSymbol &a, const GSymbol &b);
+    static GExpr                        Add(const GSymbol &a, const GExpr &b);
+    static GExpr                        Add(const GExpr &a, const GSymbol &b);
+    static GExpr                        Add(const GSymbol &a, std::uint64_t b);
+    static GExpr                        Add(const GExpr &a, std::uint64_t b);
     static GExpr                        Sub(const GExpr &a, const GExpr &b);
+    static GExpr                        Sub(const GSymbol &a, const GSymbol &b);
+    static GExpr                        Sub(const GSymbol &a, const GExpr &b);
+    static GExpr                        Sub(const GExpr &a, const GSymbol &b);
+    static GExpr                        Sub(const GSymbol &a, std::uint64_t b);
+    static GExpr                        Sub(const GExpr &a, std::uint64_t b);
     static GExpr                        Mul(const GExpr &a, const GExpr &b);
+    static GExpr                        Mul(const GSymbol &a, const GSymbol &b);
+    static GExpr                        Mul(const GSymbol &a, const GExpr &b);
+    static GExpr                        Mul(const GExpr &a, const GSymbol &b);
+    static GExpr                        Mul(const GSymbol &a, std::uint64_t b);
+    static GExpr                        Mul(const GExpr &a, std::uint64_t b);
     static GExpr                        Xor(const GExpr &a, const GExpr &b);
+    static GExpr                        Xor(const GSymbol &a, const GSymbol &b);
+    static GExpr                        Xor(const GSymbol &a, const GExpr &b);
+    static GExpr                        Xor(const GExpr &a, const GSymbol &b);
+    static GExpr                        Xor(const GSymbol &a, std::uint64_t b);
+    static GExpr                        Xor(const GExpr &a, std::uint64_t b);
     static GExpr                        And(const GExpr &a, const GExpr &b);
+    static GExpr                        And(const GSymbol &a, const GSymbol &b);
+    static GExpr                        And(const GSymbol &a, const GExpr &b);
+    static GExpr                        And(const GExpr &a, const GSymbol &b);
+    static GExpr                        And(const GSymbol &a, std::uint64_t b);
+    static GExpr                        And(const GExpr &a, std::uint64_t b);
     static GExpr                        Or(const GExpr &a, const GExpr &b);
+    static GExpr                        Or(const GSymbol &a, const GSymbol &b);
+    static GExpr                        Or(const GSymbol &a, const GExpr &b);
+    static GExpr                        Or(const GExpr &a, const GSymbol &b);
+    static GExpr                        Or(const GSymbol &a, std::uint64_t b);
+    static GExpr                        Or(const GExpr &a, std::uint64_t b);
     static GExpr                        RotL8(const GExpr &a, const GExpr &b);
+    static GExpr                        RotL8(const GSymbol &a, const GSymbol &b);
+    static GExpr                        RotL8(const GSymbol &a, const GExpr &b);
+    static GExpr                        RotL8(const GExpr &a, const GSymbol &b);
+    static GExpr                        RotL8(const GSymbol &a, std::uint64_t b);
+    static GExpr                        RotL8(const GExpr &a, std::uint64_t b);
     static GExpr                        RotL32(const GExpr &a, const GExpr &b);
+    static GExpr                        RotL32(const GSymbol &a, const GSymbol &b);
+    static GExpr                        RotL32(const GSymbol &a, const GExpr &b);
+    static GExpr                        RotL32(const GExpr &a, const GSymbol &b);
+    static GExpr                        RotL32(const GSymbol &a, std::uint64_t b);
+    static GExpr                        RotL32(const GExpr &a, std::uint64_t b);
+    static GExpr                        RotL64(const GExpr &a, const GExpr &b);
+    static GExpr                        RotL64(const GSymbol &a, const GSymbol &b);
+    static GExpr                        RotL64(const GSymbol &a, const GExpr &b);
+    static GExpr                        RotL64(const GExpr &a, const GSymbol &b);
+    static GExpr                        RotL64(const GSymbol &a, std::uint64_t b);
+    static GExpr                        RotL64(const GExpr &a, std::uint64_t b);
     static GExpr                        ShiftL(const GExpr &a, const GExpr &b);
+    static GExpr                        ShiftL(const GSymbol &a, const GSymbol &b);
+    static GExpr                        ShiftL(const GSymbol &a, const GExpr &b);
+    static GExpr                        ShiftL(const GExpr &a, const GSymbol &b);
+    static GExpr                        ShiftL(const GSymbol &a, std::uint64_t b);
+    static GExpr                        ShiftL(const GExpr &a, std::uint64_t b);
     static GExpr                        ShiftR(const GExpr &a, const GExpr &b);
+    static GExpr                        ShiftR(const GSymbol &a, const GSymbol &b);
+    static GExpr                        ShiftR(const GSymbol &a, const GExpr &b);
+    static GExpr                        ShiftR(const GExpr &a, const GSymbol &b);
+    static GExpr                        ShiftR(const GSymbol &a, std::uint64_t b);
+    static GExpr                        ShiftR(const GExpr &a, std::uint64_t b);
     
     static GExpr                        Mix64_1(const GExpr &pValue,
                                                 Mix64Type_1 pMixType,
@@ -161,6 +227,10 @@ public:
     static GExpr                        ReadBlockWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
     static GExpr                        ReadSBoxWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
     static GExpr                        ReadSaltWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
+    static GExpr                        ReadMaskAWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
+    static GExpr                        ReadMaskBWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
+    static GExpr                        ReadKeyAWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
+    static GExpr                        ReadKeyBWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
     
     void                                Set(const GExpr &pOther);
     void                                Invalidate();

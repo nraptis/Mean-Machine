@@ -436,3 +436,13 @@ std::uint64_t TwistMix64::GateTurn_8_8(const std::uint64_t pValue,
                          pSBoxG,
                          pSBoxH);
 }
+
+std::uint64_t TwistMix64::Diffuse(std::uint64_t pValue) {
+    pValue ^= (pValue >> 30);
+    pValue *= 0xBF58476D1CE4E5B9ULL;
+    pValue ^= (pValue >> 27);
+    pValue *= 0x94D049BB133111EBULL;
+    pValue ^= (pValue >> 31);
+    return pValue;
+}
+

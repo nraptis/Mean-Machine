@@ -252,7 +252,7 @@ bool ParseTables(const JsonValue &pRoot,
 bool ExecuteBatchJsonText(const std::vector<std::string> &pBatchJsonText,
                           TwistWorkSpace *pWorkspace,
                           TwistExpander *pExpander,
-                          std::unordered_map<std::string, int> *pVariables,
+                          std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                           std::string *pErrorMessage) {
     if (pVariables == nullptr) {
         SetError(pErrorMessage, "batch variable map was null.");
@@ -367,6 +367,10 @@ bool ResolveAliasSlot(const std::string &pAlias,
         TwistWorkSpaceSlot::kSaltB,
         TwistWorkSpaceSlot::kSaltC,
         TwistWorkSpaceSlot::kSaltD,
+        TwistWorkSpaceSlot::kScratchSaltA,
+        TwistWorkSpaceSlot::kScratchSaltB,
+        TwistWorkSpaceSlot::kScratchSaltC,
+        TwistWorkSpaceSlot::kScratchSaltD,
         TwistWorkSpaceSlot::kDerivedSaltA,
         TwistWorkSpaceSlot::kDerivedSaltB,
         TwistWorkSpaceSlot::kDerivedSaltC,
@@ -541,7 +545,7 @@ bool ExecuteCryptoMakeLine(const std::string &pLine,
 bool ApplyBranchStringLine(const std::string &pRawLine,
                            TwistWorkSpace *pWorkspace,
                            TwistExpander *pExpander,
-                           std::unordered_map<std::string, int> *pVariables,
+                           std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                            std::string *pErrorMessage) {
     if ((pWorkspace == nullptr) || (pVariables == nullptr)) {
         SetError(pErrorMessage, "Branch string-line execution had null inputs.");
@@ -608,14 +612,14 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    (*pVariables)[aName] = aValue;
+    (*pVariables)[aName] = static_cast<GRuntimeScalar>(aValue);
     return true;
 }
 
 bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
                             TwistWorkSpace *pWorkspace,
                             TwistExpander *pExpander,
-                            std::unordered_map<std::string, int> *pVariables,
+                            std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                             std::string *pErrorMessage) {
     for (const std::string &aRawLine : pLines) {
         if (!ApplyBranchStringLine(aRawLine, pWorkspace, pExpander, pVariables, pErrorMessage)) {
@@ -629,7 +633,7 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
                              std::size_t pBatchIndex,
                              TwistWorkSpace *pWorkspace,
                              TwistExpander *pExpander,
-                             std::unordered_map<std::string, int> *pVariables,
+                             std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                              std::string *pErrorMessage) {
     if (pBatchIndex >= pBranch.GetBatchJsonText().size()) {
         SetError(pErrorMessage, "Branch batch step index was out of range during execution.");
@@ -663,7 +667,7 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
         return false;
     }
 
-    std::unordered_map<std::string, int> aVariables;
+    std::unordered_map<std::string, GRuntimeScalar> aVariables;
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
         if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, &aVariables, pErrorMessage)) {

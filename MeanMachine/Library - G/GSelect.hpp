@@ -30,15 +30,20 @@ public:
     
     void                        AddStatementsA(std::vector<GStatement> *pStatements);
     void                        AddStatementA(GStatement *pStatement);
+    void                        AddStatementA(GStatement pStatement);
+    
     
     void                        AddStatementsB(std::vector<GStatement> *pStatements);
     void                        AddStatementB(GStatement *pStatement);
+    void                        AddStatementB(GStatement pStatement);
     
     void                        AddStatementsC(std::vector<GStatement> *pStatements);
     void                        AddStatementC(GStatement *pStatement);
+    void                        AddStatementC(GStatement pStatement);
     
     void                        AddStatementsD(std::vector<GStatement> *pStatements);
     void                        AddStatementD(GStatement *pStatement);
+    void                        AddStatementD(GStatement pStatement);
     
     bool                        Bake(GSymbol pSelectVariable,
                                      GExpr pSelectValueExpr,

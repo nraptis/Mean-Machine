@@ -44,6 +44,19 @@ public:
     GSymbol         mWorkerC;
     GSymbol         mWorkerD;
     
+    GSymbol         mKeyReadA;
+    GSymbol         mKeyReadB;
+    GSymbol         mMaskReadA;
+    GSymbol         mMaskReadB;
+    
+    
+    GSymbol         mKeyWriteA;
+    GSymbol         mKeyWriteB;
+    GSymbol         mMaskWriteA;
+    GSymbol         mMaskWriteB;
+    
+    
+    
     GSymbol         a;
     GSymbol         b;
     GSymbol         c;

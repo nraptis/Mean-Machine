@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <vector>
 
+using GRuntimeScalar = std::uint64_t;
+
 struct GStatement;
 struct GLoop;
 
@@ -72,9 +74,7 @@ struct GTarget {
 
 enum class GAssignType : std::uint8_t {
     kInvalid = 0,
-    kSet = 1,
-    kAddAssign = 2,
-    kXorAssign = 3
+    kSet = 1
 };
 
 enum class GStatementType : std::uint8_t {
@@ -94,11 +94,9 @@ struct GStatement {
 
     static GStatement                   Assign(const GTarget &pTarget,
                                             const GExpr &pExpression);
-    static GStatement                   AddAssign(const GTarget &pTarget,
-                                               const GExpr &pExpression);
-    static GStatement                   XorAssign(const GTarget &pTarget,
-                                               const GExpr &pExpression);
     static GStatement                   RawLine(const std::string &pRawLine);
+    static GStatement                   Comment(const std::string &pComment);
+    static GStatement                   EmptyLine();
 
     void                                Set(const GStatement &pOther);
     void                                Invalidate();
@@ -156,6 +154,7 @@ struct GLoop {
     void                                AddBodyComment(std::string);
     void                                AddBodyEmptyLine();
     void                                AddBody(GStatement *pStatement);
+    void                                AddBody(GStatement pStatement);
     void                                AddBody(std::vector<GStatement> *pStatements);
     
     void                                AddInitialization(GStatement *pStatement);
@@ -164,21 +163,28 @@ struct GLoop {
 
 enum class GBatchWorkItemType : std::uint8_t {
     kLoop = 0,
-    kStatements = 1
+    kStatements = 1,
+    kComment = 2,
+    kEmptyLine = 3
 };
 
 struct GBatchWorkItem {
     GBatchWorkItemType                  mType;
     GLoop                               mLoop;
     std::vector<GStatement>             mStatements;
+    std::string                         mComment;
 
     GBatchWorkItem();
 
     static GBatchWorkItem               Loop(const GLoop &pLoop);
     static GBatchWorkItem               Statements(std::vector<GStatement> *pStatements);
+    static GBatchWorkItem               Comment(std::string pComment);
+    static GBatchWorkItem               EmptyLine();
 
     bool                                IsLoop() const;
     bool                                IsStatements() const;
+    bool                                IsComment() const;
+    bool                                IsEmptyLine() const;
     bool                                IsInvalid() const;
 };
 
@@ -194,6 +200,8 @@ struct GBatch {
     bool                                IsInvalid() const;
     void                                CommitLoop(GLoop *pLoop);
     void                                CommitStatements(std::vector<GStatement> *pStatements);
+    void                                AddComment(std::string pComment);
+    void                                AddEmptyLine();
 
     int                                 CountReads(TwistWorkSpaceSlot pSlot) const;
     int                                 CountWrites(TwistWorkSpaceSlot pSlot) const;
@@ -220,7 +228,7 @@ struct GBatch {
                                                 std::string *pErrorMessage = nullptr) const;
     bool                                ExecuteWithVariables(TwistWorkSpace *pWorkspace,
                                                              TwistExpander *pExpander,
-                                                             std::unordered_map<std::string, int> *pVariables,
+                                                             std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                                              std::string *pErrorMessage = nullptr) const;
 };
 

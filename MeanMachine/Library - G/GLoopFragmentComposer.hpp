@@ -60,7 +60,9 @@ public:
     GLoopFragmentComposerInputBuffer        &Domain(GLoopFragmentDomain pDomain);
     GLoopFragmentComposerInputBuffer        &Offset();
     GLoopFragmentComposerInputBuffer        &Offset(int pOffset);
+    GLoopFragmentComposerInputBuffer        &OffsetIverted();
     GLoopFragmentComposerInputBuffer        &OffsetIverted(int pOffset);
+    GLoopFragmentComposerInputBuffer        &OffsetIvertedRandom();
     
     GLoopFragmentComposerInputBuffer        &OffsetDebugMax();
     GLoopFragmentComposerInputBuffer        &Expand(std::uint8_t pExpandProbability,
@@ -68,6 +70,10 @@ public:
     
     GLoopFragmentComposerInputBuffer        &ExpandDebug(GTermPattern pPattern, int pConstantA, int pConstantB);
     GLoopFragmentComposerInputBuffer        &Combine(GLoopFragmentComposerCombineOp pCombineOp);
+    GLoopFragmentComposerInputBuffer        &MixInt64Add();
+    GLoopFragmentComposerInputBuffer        &MixInt64Xor();
+    GLoopFragmentComposerInputBuffer        &MixInt64Mul();
+    GLoopFragmentComposerInputBuffer        &MixInt64();
     GLoopFragmentComposerCombineOp          GetCombine() const;
     GLoopFragmentComposerInput              ToInput() const;
 
@@ -116,6 +122,10 @@ public:
                                                    bool pAllowMultiply);
     GLoopFragmentComposerInputVariable      &ExpandDebug(GTermPattern pPattern, int pConstantA, int pConstantB);
     GLoopFragmentComposerInputVariable      &Combine(GLoopFragmentComposerCombineOp pCombineOp);
+    GLoopFragmentComposerInputVariable      &MixInt64Add();
+    GLoopFragmentComposerInputVariable      &MixInt64Xor();
+    GLoopFragmentComposerInputVariable      &MixInt64Mul();
+    GLoopFragmentComposerInputVariable      &MixInt64();
     GLoopFragmentComposerCombineOp          GetCombine() const;
     GLoopFragmentComposerInput              ToInput() const;
 
@@ -167,7 +177,7 @@ public:
     void                                    SetTarget(GSymbol pTarget);
     GSymbol                                 GetTarget() const;
     
-    // We clear and pick our assign type, suck as =, +=, or ^=
+    // We clear and pick how the composed expression combines with target.
     void                                    ResetSetEqual(GSymbol pTarget);
     void                                    ResetAddEqual(GSymbol pTarget);
     void                                    ResetXorEqual(GSymbol pTarget);
@@ -178,6 +188,14 @@ public:
     GLoopFragmentComposerInputBuffer        MixBufferAdd(GSymbol pBuffer);
     GLoopFragmentComposerInputBuffer        MixBufferMul(GSymbol pBuffer);
     GLoopFragmentComposerInputBuffer        MixBufferXor(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer        MixInt64Add(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer        MixInt64Xor(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer        MixInt64Mul(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer        MixInt64(GSymbol pBuffer);
+    GLoopFragmentComposerInputBuffer        &MixInt64Add();
+    GLoopFragmentComposerInputBuffer        &MixInt64Xor();
+    GLoopFragmentComposerInputBuffer        &MixInt64Mul();
+    GLoopFragmentComposerInputBuffer        &MixInt64();
 
     GLoopFragmentComposerInputVariable      MixVariable(GSymbol pVariable);
     GLoopFragmentComposerInputVariable      MixVariableAdd(GSymbol pVariable);
@@ -188,6 +206,7 @@ public:
     bool                                    AddInput(const GLoopFragmentComposerInputVariable &pInputVariable);
     bool                                    AddInput(const GLoopFragmentComposerInput &pInput);
     bool                                    AddInputs(const std::vector<GLoopFragmentComposerInput> &pInputs);
+    GLoopFragmentComposer                   &Shuffle();
 
     bool                                    Bake(std::vector<GStatement> *pStatements,
                                                           std::string *pErrorMessage);
@@ -198,6 +217,13 @@ public:
     
 
 private:
+    enum class TargetCombineMode : std::uint8_t {
+        kInvalid = 0,
+        kSet = 1,
+        kAdd = 2,
+        kXor = 3
+    };
+
     enum class NodeType : std::uint8_t {
         kInvalid = 0,
         kMixBuffer = 1,
@@ -256,6 +282,7 @@ private:
     bool                                   ConfigureNodeDomain(std::size_t pNodeIndex,
                                                                GLoopFragmentDomain pDomain);
     bool                                   ConfigureNodeRandomOffset(std::size_t pNodeIndex);
+    bool                                   ConfigureNodeInvertedRandomOffset(std::size_t pNodeIndex);
     bool                                   ConfigureNodeFixedOffset(std::size_t pNodeIndex,
                                                                     int pOffset);
     bool                                   ConfigureNodeInvertedOffset(std::size_t pNodeIndex,
@@ -318,16 +345,18 @@ private:
     bool                                   FlushDeferredCombine(std::vector<GStatement> *pStatements,
                                                                std::string *pErrorMessage);
 
-    GAssignType                            mInitialAssignType = GAssignType::kSet;
+    TargetCombineMode                      mInitialCombineMode = TargetCombineMode::kSet;
     bool                                   mDeferCombine = false;
     GSymbol                                mTarget;
     GSymbol                                mLoopIndex;
     std::vector<Node>                      mNodes;
-    GAssignType                            mDeferredCombineAssignType = GAssignType::kInvalid;
+    TargetCombineMode                      mDeferredCombineMode = TargetCombineMode::kInvalid;
     std::vector<GExpr>                     mDeferredCombineOperands;
     std::vector<DeferredCombineOp>         mDeferredCombineOps;
     GLoopFragmentComposerCombineOp         mDeferredNextCombineOp = GLoopFragmentComposerCombineOp::kAdd;
     std::string                            mConfigError;
+    bool                                   mShufflePending = false;
+    GLoopFragmentComposerInputBuffer       mLastBufferInputHandle;
 };
 
 #endif /* GLoopFragmentComposer_hpp */

@@ -262,6 +262,19 @@ GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::Offset(int p
     return *this;
 }
 
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::OffsetIverted() {
+    if (IsValid()) {
+        if (mComposer != nullptr) {
+            mComposer->ConfigureNodeInvertedRandomOffset(mNodeIndex);
+        }
+        mOffsetIsRandom = true;
+        mOffsetIsDebugMax = false;
+        mOffsetIsInverted = true;
+        mOffset = 0;
+    }
+    return *this;
+}
+
 GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::OffsetIverted(int pOffset) {
     if (IsValid()) {
         if (mComposer != nullptr) {
@@ -273,6 +286,13 @@ GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::OffsetIverte
         mOffset = pOffset;
     }
     return *this;
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::OffsetIvertedRandom() {
+    if (Random::Bool()) {
+        return OffsetIverted();
+    }
+    return Offset();
 }
 
 GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::OffsetDebugMax() {
@@ -323,6 +343,25 @@ GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::Combine(GLoo
         mComposer->mNodes[mNodeIndex].mCombineOp = pCombineOp;
     }
     return *this;
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::MixInt64Add() {
+    return Combine(GLoopFragmentComposerCombineOp::kAdd);
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::MixInt64Xor() {
+    return Combine(GLoopFragmentComposerCombineOp::kXor);
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::MixInt64Mul() {
+    return Combine(GLoopFragmentComposerCombineOp::kMul);
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposerInputBuffer::MixInt64() {
+    if (Random::Bool()) {
+        return MixInt64Add();
+    }
+    return MixInt64Xor();
 }
 
 GLoopFragmentComposerCombineOp GLoopFragmentComposerInputBuffer::GetCombine() const {
@@ -423,6 +462,25 @@ GLoopFragmentComposerInputVariable &GLoopFragmentComposerInputVariable::Combine(
     return *this;
 }
 
+GLoopFragmentComposerInputVariable &GLoopFragmentComposerInputVariable::MixInt64Add() {
+    return Combine(GLoopFragmentComposerCombineOp::kAdd);
+}
+
+GLoopFragmentComposerInputVariable &GLoopFragmentComposerInputVariable::MixInt64Xor() {
+    return Combine(GLoopFragmentComposerCombineOp::kXor);
+}
+
+GLoopFragmentComposerInputVariable &GLoopFragmentComposerInputVariable::MixInt64Mul() {
+    return Combine(GLoopFragmentComposerCombineOp::kMul);
+}
+
+GLoopFragmentComposerInputVariable &GLoopFragmentComposerInputVariable::MixInt64() {
+    if (Random::Bool()) {
+        return MixInt64Add();
+    }
+    return MixInt64Xor();
+}
+
 GLoopFragmentComposerCombineOp GLoopFragmentComposerInputVariable::GetCombine() const {
     return mCombineOp;
 }
@@ -472,8 +530,10 @@ void GLoopFragmentComposer::Clear() {
     mDeferredCombineOperands.clear();
     mDeferredCombineOps.clear();
     mDeferCombine = false;
-    mDeferredCombineAssignType = GAssignType::kInvalid;
+    mDeferredCombineMode = TargetCombineMode::kInvalid;
     mConfigError.clear();
+    mShufflePending = false;
+    mLastBufferInputHandle = GLoopFragmentComposerInputBuffer();
 }
 
 void GLoopFragmentComposer::SetTarget(GSymbol pTarget) {
@@ -487,19 +547,19 @@ GSymbol GLoopFragmentComposer::GetTarget() const {
 void GLoopFragmentComposer::ResetSetEqual(GSymbol pTarget) {
     Clear();
     SetTarget(pTarget);
-    mInitialAssignType = GAssignType::kSet;
+    mInitialCombineMode = TargetCombineMode::kSet;
 }
 
 void GLoopFragmentComposer::ResetAddEqual(GSymbol pTarget) {
     Clear();
     SetTarget(pTarget);
-    mInitialAssignType = GAssignType::kAddAssign;
+    mInitialCombineMode = TargetCombineMode::kAdd;
 }
 
 void GLoopFragmentComposer::ResetXorEqual(GSymbol pTarget) {
     Clear();
     SetTarget(pTarget);
-    mInitialAssignType = GAssignType::kXorAssign;
+    mInitialCombineMode = TargetCombineMode::kXor;
 }
 
 void GLoopFragmentComposer::SetLoopIndex(GSymbol pLoopIndex) {
@@ -531,6 +591,65 @@ GLoopFragmentComposerInputBuffer GLoopFragmentComposer::MixBufferMul(GSymbol pBu
 GLoopFragmentComposerInputBuffer GLoopFragmentComposer::MixBufferXor(GSymbol pBuffer) {
     GLoopFragmentComposerInputBuffer aInput = MixBufferAdd(pBuffer);
     return aInput.Combine(GLoopFragmentComposerCombineOp::kXor);
+}
+
+GLoopFragmentComposerInputBuffer GLoopFragmentComposer::MixInt64Add(GSymbol pBuffer) {
+    return MixBufferAdd(pBuffer);
+}
+
+GLoopFragmentComposerInputBuffer GLoopFragmentComposer::MixInt64Xor(GSymbol pBuffer) {
+    return MixBufferXor(pBuffer);
+}
+
+GLoopFragmentComposerInputBuffer GLoopFragmentComposer::MixInt64Mul(GSymbol pBuffer) {
+    return MixBufferMul(pBuffer);
+}
+
+GLoopFragmentComposerInputBuffer GLoopFragmentComposer::MixInt64(GSymbol pBuffer) {
+    if (Random::Bool()) {
+        return MixInt64Add(pBuffer);
+    }
+    return MixInt64Xor(pBuffer);
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposer::MixInt64Add() {
+    if (mNodes.empty() || (mNodes.back().mType != NodeType::kMixBuffer)) {
+        SetConfigError("MixInt64Add requires a prior MixBuffer* node.");
+        mLastBufferInputHandle = GLoopFragmentComposerInputBuffer();
+        return mLastBufferInputHandle;
+    }
+    mLastBufferInputHandle = GLoopFragmentComposerInputBuffer(this, mNodes.size() - 1U);
+    mLastBufferInputHandle.MixInt64Add();
+    return mLastBufferInputHandle;
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposer::MixInt64Xor() {
+    if (mNodes.empty() || (mNodes.back().mType != NodeType::kMixBuffer)) {
+        SetConfigError("MixInt64Xor requires a prior MixBuffer* node.");
+        mLastBufferInputHandle = GLoopFragmentComposerInputBuffer();
+        return mLastBufferInputHandle;
+    }
+    mLastBufferInputHandle = GLoopFragmentComposerInputBuffer(this, mNodes.size() - 1U);
+    mLastBufferInputHandle.MixInt64Xor();
+    return mLastBufferInputHandle;
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposer::MixInt64Mul() {
+    if (mNodes.empty() || (mNodes.back().mType != NodeType::kMixBuffer)) {
+        SetConfigError("MixInt64Mul requires a prior MixBuffer* node.");
+        mLastBufferInputHandle = GLoopFragmentComposerInputBuffer();
+        return mLastBufferInputHandle;
+    }
+    mLastBufferInputHandle = GLoopFragmentComposerInputBuffer(this, mNodes.size() - 1U);
+    mLastBufferInputHandle.MixInt64Mul();
+    return mLastBufferInputHandle;
+}
+
+GLoopFragmentComposerInputBuffer &GLoopFragmentComposer::MixInt64() {
+    if (Random::Bool()) {
+        return MixInt64Add();
+    }
+    return MixInt64Xor();
 }
 
 GLoopFragmentComposerInputVariable GLoopFragmentComposer::MixVariable(GSymbol pVariable) {
@@ -677,6 +796,11 @@ bool GLoopFragmentComposer::AddInputs(const std::vector<GLoopFragmentComposerInp
     return aResult;
 }
 
+GLoopFragmentComposer &GLoopFragmentComposer::Shuffle() {
+    mShufflePending = true;
+    return *this;
+}
+
 bool GLoopFragmentComposer::ConfigureNodeBase(std::size_t pNodeIndex,
                                               GSymbol pBaseIndex) {
     if (pNodeIndex >= mNodes.size()) {
@@ -763,6 +887,18 @@ bool GLoopFragmentComposer::ConfigureNodeRandomOffset(std::size_t pNodeIndex) {
     mNodes[pNodeIndex].mOffsetIsRandom = true;
     mNodes[pNodeIndex].mOffsetIsDebugMax = false;
     mNodes[pNodeIndex].mOffsetIsInverted = false;
+    mNodes[pNodeIndex].mOffset = 0;
+    return true;
+}
+
+bool GLoopFragmentComposer::ConfigureNodeInvertedRandomOffset(std::size_t pNodeIndex) {
+    if (pNodeIndex >= mNodes.size()) {
+        SetConfigError("Composer node index was out of range while setting offset.");
+        return false;
+    }
+    mNodes[pNodeIndex].mOffsetIsRandom = true;
+    mNodes[pNodeIndex].mOffsetIsDebugMax = false;
+    mNodes[pNodeIndex].mOffsetIsInverted = true;
     mNodes[pNodeIndex].mOffset = 0;
     return true;
 }
@@ -868,9 +1004,9 @@ bool GLoopFragmentComposer::EmitTargetCombine(const GExpr &pOperandExpr,
     if (mDeferCombine) {
         if (mDeferredCombineOperands.empty()) {
             if (!(*pTargetInitialized)) {
-                mDeferredCombineAssignType = mInitialAssignType;
+                mDeferredCombineMode = mInitialCombineMode;
             } else {
-                mDeferredCombineAssignType = GAssignType::kSet;
+                mDeferredCombineMode = TargetCombineMode::kSet;
                 mDeferredCombineOperands.push_back(GExpr::Symbol(mTarget));
             }
         }
@@ -899,16 +1035,16 @@ bool GLoopFragmentComposer::EmitTargetCombine(const GExpr &pOperandExpr,
     if (!(*pTargetInitialized)) {
         *pTargetInitialized = true;
         GStatement aStatement;
-        switch (mInitialAssignType) {
-            case GAssignType::kAddAssign:
-                aStatement = GStatement::AddAssign(GTarget::Symbol(mTarget),
-                                                   pOperandExpr);
+        switch (mInitialCombineMode) {
+            case TargetCombineMode::kAdd:
+                aStatement = GStatement::Assign(GTarget::Symbol(mTarget),
+                                                GExpr::Add(GExpr::Symbol(mTarget), pOperandExpr));
                 break;
-            case GAssignType::kXorAssign:
-                aStatement = GStatement::XorAssign(GTarget::Symbol(mTarget),
-                                                   pOperandExpr);
+            case TargetCombineMode::kXor:
+                aStatement = GStatement::Assign(GTarget::Symbol(mTarget),
+                                                GExpr::Xor(GExpr::Symbol(mTarget), pOperandExpr));
                 break;
-            case GAssignType::kSet:
+            case TargetCombineMode::kSet:
             default:
                 aStatement = GStatement::Assign(GTarget::Symbol(mTarget),
                                                 pOperandExpr);
@@ -921,15 +1057,15 @@ bool GLoopFragmentComposer::EmitTargetCombine(const GExpr &pOperandExpr,
     if (mDeferredNextCombineOp == GLoopFragmentComposerCombineOp::kAdd) {
         mDeferredNextCombineOp = pCombineOp;
         return AddStatement(pStatements,
-                            GStatement::AddAssign(GTarget::Symbol(mTarget),
-                                                  pOperandExpr),
+                            GStatement::Assign(GTarget::Symbol(mTarget),
+                                               GExpr::Add(GExpr::Symbol(mTarget), pOperandExpr)),
                             pErrorMessage);
     }
     if (mDeferredNextCombineOp == GLoopFragmentComposerCombineOp::kXor) {
         mDeferredNextCombineOp = pCombineOp;
         return AddStatement(pStatements,
-                            GStatement::XorAssign(GTarget::Symbol(mTarget),
-                                                  pOperandExpr),
+                            GStatement::Assign(GTarget::Symbol(mTarget),
+                                               GExpr::Xor(GExpr::Symbol(mTarget), pOperandExpr)),
                             pErrorMessage);
     }
     if (mDeferredNextCombineOp == GLoopFragmentComposerCombineOp::kMul) {
@@ -1019,7 +1155,7 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
         } else {
             GExpr aBufferIndexExpr = GExpr::Symbol(pNode.mBaseBufferIndexSymbol);
             if (aBaseBufferIndexOffset != 0) {
-                aBufferIndexExpr = GExpr::Add(aBufferIndexExpr, GExpr::Const(aBaseBufferIndexOffset));
+                aBufferIndexExpr = GExpr::Add(aBufferIndexExpr, GExpr::Const32(aBaseBufferIndexOffset));
             }
             aBaseExpr = GExpr::Read(pNode.mBaseBufferSymbol, aBufferIndexExpr);
         }
@@ -1088,10 +1224,10 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
                     aDomainMax = S_BLOCK - 1;
                     break;
             }
-            aKeyExpr = GExpr::Sub(GExpr::Const(aDomainMax), aBaseExpr);
+            aKeyExpr = GExpr::Sub(GExpr::Const32(aDomainMax), aBaseExpr);
         }
         if (aOffset != 0) {
-            aKeyExpr = GExpr::Add(aKeyExpr, GExpr::Const(aOffset));
+            aKeyExpr = GExpr::Add(aKeyExpr, GExpr::Const32(aOffset));
         }
 
         if (!AddStatement(pStatements,
@@ -1106,7 +1242,7 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
         if (aUseBlockWrapRead) {
             aReadExpr = GExpr::ReadBlockWrap(pNode.mSymbol, aBaseSymbol, aTemp.mKeySymbol, aOffset);
         } else if (aNeedKey) {
-            const GExpr aKeyIndexExpr = GExpr::And(GExpr::Symbol(aTemp.mKeySymbol), GExpr::Const(S_BLOCK1));
+            const GExpr aKeyIndexExpr = GExpr::And(GExpr::Symbol(aTemp.mKeySymbol), GExpr::Const32(S_BLOCK1));
             aReadExpr = GExpr::Read(pNode.mSymbol, aKeyIndexExpr);
         } else {
             aReadExpr = GExpr::Read(pNode.mSymbol, aBaseExpr);
@@ -1117,7 +1253,7 @@ bool GLoopFragmentComposer::EmitBufferNode(const Node &pNode,
         } else {
             GExpr aIndexExpr = aBaseExpr;
             if (aOffset != 0) {
-                aIndexExpr = GExpr::Add(aIndexExpr, GExpr::Const(aOffset));
+                aIndexExpr = GExpr::Add(aIndexExpr, GExpr::Const32(aOffset));
             }
             aReadExpr = GExpr::Read(pNode.mSymbol, aIndexExpr);
         }
@@ -1303,15 +1439,15 @@ GExpr GLoopFragmentComposer::BuildExpandedExpression(const GExpr &pBaseExpr,
     const int aChoice = aOperations[static_cast<std::size_t>(Random::Get(static_cast<int>(aOperations.size())))];
     switch (aChoice) {
         case 0:
-            return GExpr::Add(pBaseExpr, GExpr::Const(Random::Get(1, 31)));
+            return GExpr::Add(pBaseExpr, GExpr::Const32(Random::Get(1, 31)));
         case 1:
-            return GExpr::Xor(pBaseExpr, GExpr::Const(Random::Get(1, 255)));
+            return GExpr::Xor(pBaseExpr, GExpr::Const32(Random::Get(1, 255)));
         case 2:
-            return GExpr::Sub(pBaseExpr, GExpr::Const(Random::Get(1, 17)));
+            return GExpr::Sub(pBaseExpr, GExpr::Const32(Random::Get(1, 17)));
         case 3:
-            return GExpr::RotL8(pBaseExpr, GExpr::Const(Random::Get(1, 7)));
+            return GExpr::RotL8(pBaseExpr, GExpr::Const32(Random::Get(1, 7)));
         case 4:
-            return GExpr::Mul(pBaseExpr, GExpr::Const(Random::Get(2, 33)));
+            return GExpr::Mul(pBaseExpr, GExpr::Const32(Random::Get(2, 33)));
         default:
             return pBaseExpr;
     }
@@ -1322,9 +1458,9 @@ GExpr GLoopFragmentComposer::BuildExpandedExpressionDebug(const Node &pNode,
     const int aRotateRaw = pNode.mDebugExpandConstantA;
     const int aRotateSafe = (aRotateRaw <= 0) ? 1 : (aRotateRaw & 7);
     const int aRotateAmount = (aRotateSafe == 0) ? 1 : aRotateSafe;
-    const GExpr aConstA = GExpr::Const(pNode.mDebugExpandConstantA);
-    const GExpr aConstB = GExpr::Const(pNode.mDebugExpandConstantB);
-    const GExpr aRotateExpr = GExpr::Const(aRotateAmount);
+    const GExpr aConstA = GExpr::Const32(pNode.mDebugExpandConstantA);
+    const GExpr aConstB = GExpr::Const32(pNode.mDebugExpandConstantB);
+    const GExpr aRotateExpr = GExpr::Const32(aRotateAmount);
 
     switch (pNode.mDebugExpandPattern) {
         case GTermPattern::kAdd:
@@ -1365,7 +1501,7 @@ GExpr GLoopFragmentComposer::BuildExpandedExpressionDebug(const Node &pNode,
 }
 
 bool GLoopFragmentComposer::ShouldDeferCombine() const {
-    if (mInitialAssignType == GAssignType::kInvalid) {
+    if (mInitialCombineMode == TargetCombineMode::kInvalid) {
         return false;
     }
     for (const Node &aNode : mNodes) {
@@ -1468,19 +1604,21 @@ bool GLoopFragmentComposer::FlushDeferredCombine(std::vector<GStatement> *pState
     }
 
     GStatement aStatement;
-    switch (mDeferredCombineAssignType) {
-        case GAssignType::kAddAssign:
-            aStatement = GStatement::AddAssign(GTarget::Symbol(mTarget), aCombinedExpr);
+    switch (mDeferredCombineMode) {
+        case TargetCombineMode::kAdd:
+            aStatement = GStatement::Assign(GTarget::Symbol(mTarget),
+                                            GExpr::Add(GExpr::Symbol(mTarget), aCombinedExpr));
             break;
-        case GAssignType::kXorAssign:
-            aStatement = GStatement::XorAssign(GTarget::Symbol(mTarget), aCombinedExpr);
+        case TargetCombineMode::kXor:
+            aStatement = GStatement::Assign(GTarget::Symbol(mTarget),
+                                            GExpr::Xor(GExpr::Symbol(mTarget), aCombinedExpr));
             break;
-        case GAssignType::kSet:
+        case TargetCombineMode::kSet:
         default:
             aStatement = GStatement::Assign(GTarget::Symbol(mTarget), aCombinedExpr);
             break;
     }
-    mDeferredCombineAssignType = GAssignType::kInvalid;
+    mDeferredCombineMode = TargetCombineMode::kInvalid;
     return AddStatement(pStatements, aStatement, pErrorMessage);
 }
 
@@ -1511,10 +1649,21 @@ bool GLoopFragmentComposer::ResolveToStatementsAndExpression(std::vector<GStatem
     mDeferredCombineOperands.clear();
     mDeferredCombineOps.clear();
     mDeferCombine = true;
-    mDeferredCombineAssignType = GAssignType::kInvalid;
+    mDeferredCombineMode = TargetCombineMode::kInvalid;
     mDeferredNextCombineOp = GLoopFragmentComposerCombineOp::kAdd;
+    
+    std::vector<std::size_t> aNodeOrder;
+    aNodeOrder.reserve(mNodes.size());
+    for (std::size_t aNodeIndex = 0U; aNodeIndex < mNodes.size(); ++aNodeIndex) {
+        aNodeOrder.push_back(aNodeIndex);
+    }
+    if (mShufflePending) {
+        Random::Shuffle(&aNodeOrder);
+        mShufflePending = false;
+    }
 
-    for (const Node &aNode : mNodes) {
+    for (const std::size_t aNodeIndex : aNodeOrder) {
+        const Node &aNode = mNodes[aNodeIndex];
         switch (aNode.mType) {
             case NodeType::kMixBuffer:
                 if (!EmitBufferNode(aNode,
@@ -1551,7 +1700,7 @@ bool GLoopFragmentComposer::ResolveToStatementsAndExpression(std::vector<GStatem
     pExpr = BuildDeferredExpression();
     mDeferredCombineOperands.clear();
     mDeferredCombineOps.clear();
-    mDeferredCombineAssignType = GAssignType::kInvalid;
+    mDeferredCombineMode = TargetCombineMode::kInvalid;
     mDeferredNextCombineOp = GLoopFragmentComposerCombineOp::kAdd;
     mDeferCombine = false;
 
@@ -1592,10 +1741,21 @@ bool GLoopFragmentComposer::Bake(std::vector<GStatement> *pStatements,
     mDeferredCombineOperands.clear();
     mDeferredCombineOps.clear();
     mDeferCombine = ShouldDeferCombine();
-    mDeferredCombineAssignType = GAssignType::kInvalid;
+    mDeferredCombineMode = TargetCombineMode::kInvalid;
     mDeferredNextCombineOp = GLoopFragmentComposerCombineOp::kAdd;
+    
+    std::vector<std::size_t> aNodeOrder;
+    aNodeOrder.reserve(mNodes.size());
+    for (std::size_t aNodeIndex = 0U; aNodeIndex < mNodes.size(); ++aNodeIndex) {
+        aNodeOrder.push_back(aNodeIndex);
+    }
+    if (mShufflePending) {
+        Random::Shuffle(&aNodeOrder);
+        mShufflePending = false;
+    }
 
-    for (const Node &aNode : mNodes) {
+    for (const std::size_t aNodeIndex : aNodeOrder) {
+        const Node &aNode = mNodes[aNodeIndex];
         switch (aNode.mType) {
             case NodeType::kMixBuffer:
                 if (!EmitBufferNode(aNode,
