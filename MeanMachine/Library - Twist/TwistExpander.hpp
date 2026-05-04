@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 #include "TwistFastMatrix.hpp"
+#include "TwistCryptoGenerator.hpp"
+
 
 class TwistExpander {
 public:
@@ -25,6 +27,7 @@ public:
                                                                    const unsigned int pPasswordByteLength);
     
     virtual void                            Seed(TwistWorkSpace *pWorkspace,
+                                                 TwistCryptoGenerator *pCryptoGenerator,
                                                  std::uint8_t *pSource,
                                                  std::uint8_t *pPassword,
                                                  unsigned int pPasswordByteLength);

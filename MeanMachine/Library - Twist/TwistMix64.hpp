@@ -191,7 +191,9 @@ public:
                                                               const std::uint8_t *pSBoxH);
     
     
-    static std::uint64_t                        Diffuse(std::uint64_t pValue);
+    static std::uint64_t                        DiffuseA(std::uint64_t pValue);
+    static std::uint64_t                        DiffuseB(std::uint64_t pValue);
+    static std::uint64_t                        DiffuseC(std::uint64_t pValue);
     
     
 

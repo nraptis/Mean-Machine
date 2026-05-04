@@ -359,6 +359,43 @@ bool ResolveAliasSlot(const std::string &pAlias,
         return false;
     }
 
+    auto NormalizeAliasToken = [](const std::string &pToken) -> std::string {
+        std::string aToken = TrimCopy(pToken);
+        if (aToken.empty()) {
+            return aToken;
+        }
+
+        while (!aToken.empty() && ((aToken[0] == '&') || (aToken[0] == '*'))) {
+            aToken.erase(aToken.begin());
+            aToken = TrimCopy(aToken);
+        }
+
+        const std::size_t aBracketPos = aToken.find('[');
+        if (aBracketPos != std::string::npos) {
+            aToken = TrimCopy(aToken.substr(0U, aBracketPos));
+        }
+
+        const std::size_t aArrowPos = aToken.rfind("->");
+        const std::size_t aDotPos = aToken.rfind('.');
+        std::size_t aMemberPos = std::string::npos;
+        if (aArrowPos != std::string::npos) {
+            aMemberPos = aArrowPos + 2U;
+        }
+        if (aDotPos != std::string::npos) {
+            const std::size_t aDotMemberPos = aDotPos + 1U;
+            if ((aMemberPos == std::string::npos) || (aDotMemberPos > aMemberPos)) {
+                aMemberPos = aDotMemberPos;
+            }
+        }
+        if ((aMemberPos != std::string::npos) && (aMemberPos < aToken.size())) {
+            aToken = TrimCopy(aToken.substr(aMemberPos));
+        }
+
+        return aToken;
+    };
+
+    const std::string aAlias = NormalizeAliasToken(pAlias);
+
     static const TwistWorkSpaceSlot kKnownSlots[] = {
         TwistWorkSpaceSlot::kSource,
         TwistWorkSpaceSlot::kDest,
@@ -425,15 +462,60 @@ bool ResolveAliasSlot(const std::string &pAlias,
     };
 
     for (TwistWorkSpaceSlot aSlot : kKnownSlots) {
-        if (BufAliasName(aSlot) == pAlias) {
+        if (BufAliasName(aSlot) == aAlias) {
             *pSlotOut = aSlot;
             return true;
         }
     }
+
+    struct AliasSlotPair {
+        const char *mAlias;
+        TwistWorkSpaceSlot mSlot;
+    };
+
+    static const AliasSlotPair kWorkspaceFieldAliases[] = {
+        {"mDerivedSaltA", TwistWorkSpaceSlot::kDerivedSaltA},
+        {"mDerivedSaltB", TwistWorkSpaceSlot::kDerivedSaltB},
+        {"mDerivedSaltC", TwistWorkSpaceSlot::kDerivedSaltC},
+        {"mDerivedSaltD", TwistWorkSpaceSlot::kDerivedSaltD},
+        {"mDerivedSaltE", TwistWorkSpaceSlot::kDerivedSaltE},
+        {"mDerivedSaltF", TwistWorkSpaceSlot::kDerivedSaltF},
+        {"mDerivedSaltG", TwistWorkSpaceSlot::kDerivedSaltG},
+        {"mDerivedSaltH", TwistWorkSpaceSlot::kDerivedSaltH},
+        {"mDerivedSBoxA", TwistWorkSpaceSlot::kDerivedSBoxA},
+        {"mDerivedSBoxB", TwistWorkSpaceSlot::kDerivedSBoxB},
+        {"mDerivedSBoxC", TwistWorkSpaceSlot::kDerivedSBoxC},
+        {"mDerivedSBoxD", TwistWorkSpaceSlot::kDerivedSBoxD},
+        {"mDerivedSBoxE", TwistWorkSpaceSlot::kDerivedSBoxE},
+        {"mDerivedSBoxF", TwistWorkSpaceSlot::kDerivedSBoxF},
+        {"mDerivedSBoxG", TwistWorkSpaceSlot::kDerivedSBoxG},
+        {"mDerivedSBoxH", TwistWorkSpaceSlot::kDerivedSBoxH},
+        {"mExpandLaneA", TwistWorkSpaceSlot::kSeedExpansionLaneA},
+        {"mExpandLaneB", TwistWorkSpaceSlot::kSeedExpansionLaneB},
+        {"mExpandLaneC", TwistWorkSpaceSlot::kSeedExpansionLaneC},
+        {"mExpandLaneD", TwistWorkSpaceSlot::kSeedExpansionLaneD},
+        {"mWorkLaneA", TwistWorkSpaceSlot::kWorkLaneA},
+        {"mWorkLaneB", TwistWorkSpaceSlot::kWorkLaneB},
+        {"mWorkLaneC", TwistWorkSpaceSlot::kWorkLaneC},
+        {"mWorkLaneD", TwistWorkSpaceSlot::kWorkLaneD},
+        {"mOperationLaneA", TwistWorkSpaceSlot::kOperationLaneA},
+        {"mOperationLaneB", TwistWorkSpaceSlot::kOperationLaneB},
+        {"mMaskLaneA", TwistWorkSpaceSlot::kMaskLaneA},
+        {"mMaskLaneB", TwistWorkSpaceSlot::kMaskLaneB}
+    };
+
+    for (const AliasSlotPair &aPair : kWorkspaceFieldAliases) {
+        if (aAlias == aPair.mAlias) {
+            *pSlotOut = aPair.mSlot;
+            return true;
+        }
+    }
+
     return false;
 }
 
-bool ParseCryptoMakeArguments(const std::string &pLine,
+bool ParseCryptoCallArguments(const std::string &pLine,
+                              const std::string &pMethodName,
                               std::vector<std::string> *pArgsOut) {
     if (pArgsOut == nullptr) {
         return false;
@@ -449,12 +531,23 @@ bool ParseCryptoMakeArguments(const std::string &pLine,
         aLine = TrimCopy(aLine);
     }
 
-    const std::size_t aCallPos = aLine.find(".Make(");
-    if (aCallPos == std::string::npos) {
+    const std::string aCallTokenDot = "." + pMethodName + "(";
+    const std::string aCallTokenArrow = "->" + pMethodName + "(";
+    std::size_t aCallPos = aLine.find(aCallTokenDot);
+    std::size_t aOpen = std::string::npos;
+    if (aCallPos != std::string::npos) {
+        aOpen = aCallPos + aCallTokenDot.size();
+    } else {
+        aCallPos = aLine.find(aCallTokenArrow);
+        if (aCallPos != std::string::npos) {
+            aOpen = aCallPos + aCallTokenArrow.size();
+        }
+    }
+
+    if ((aCallPos == std::string::npos) || (aOpen == std::string::npos)) {
         return false;
     }
 
-    const std::size_t aOpen = aCallPos + 6U;
     const std::size_t aClose = aLine.rfind(')');
     if ((aClose == std::string::npos) || (aClose < aOpen)) {
         return false;
@@ -487,17 +580,40 @@ bool ParseCryptoMakeArguments(const std::string &pLine,
     return true;
 }
 
-bool ExecuteCryptoMakeLine(const std::string &pLine,
-                           TwistWorkSpace *pWorkspace,
-                           TwistExpander *pExpander,
-                           std::string *pErrorMessage) {
+bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
+                                    TwistWorkSpace *pWorkspace,
+                                    TwistExpander *pExpander,
+                                    TwistCryptoGenerator *pCryptoGenerator,
+                                    std::string *pErrorMessage) {
+    enum class CryptoMethod : std::uint8_t {
+        kMake = 0,
+        kSalt = 1
+    };
+
     std::vector<std::string> aArgs;
-    if (!ParseCryptoMakeArguments(pLine, &aArgs)) {
+    CryptoMethod aMethod = CryptoMethod::kMake;
+    if (ParseCryptoCallArguments(pLine, "Make", &aArgs)) {
+        aMethod = CryptoMethod::kMake;
+    } else if (ParseCryptoCallArguments(pLine, "Salt", &aArgs)) {
+        aMethod = CryptoMethod::kSalt;
+    } else {
         return false;
     }
 
-    if ((aArgs.size() != 5U) && (aArgs.size() != 9U)) {
-        SetError(pErrorMessage, "TwistCryptoGenerator::Make expects 5 or 9 arguments.");
+    const bool aValidCount =
+        ((aMethod == CryptoMethod::kMake) && ((aArgs.size() == 5U) || (aArgs.size() == 9U))) ||
+        ((aMethod == CryptoMethod::kSalt) && ((aArgs.size() == 9U) || (aArgs.size() == 17U)));
+    if (!aValidCount) {
+        if (aMethod == CryptoMethod::kMake) {
+            SetError(pErrorMessage, "TwistCryptoGenerator::Make expects 5 or 9 arguments.");
+        } else {
+            SetError(pErrorMessage, "TwistCryptoGenerator::Salt expects 9 or 17 arguments.");
+        }
+        return false;
+    }
+
+    if ((pWorkspace == nullptr) || (pExpander == nullptr) || (pCryptoGenerator == nullptr)) {
+        SetError(pErrorMessage, "TwistCryptoGenerator call execution was missing required runtime inputs.");
         return false;
     }
 
@@ -506,7 +622,11 @@ bool ExecuteCryptoMakeLine(const std::string &pLine,
     for (const std::string &aAlias : aArgs) {
         TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
         if (!ResolveAliasSlot(aAlias, &aSlot)) {
-            SetError(pErrorMessage, "Unknown buffer alias in TwistCryptoGenerator::Make call: " + aAlias);
+            if (aMethod == CryptoMethod::kMake) {
+                SetError(pErrorMessage, "Unknown buffer alias in TwistCryptoGenerator::Make call: " + aAlias);
+            } else {
+                SetError(pErrorMessage, "Unknown buffer alias in TwistCryptoGenerator::Salt call: " + aAlias);
+            }
             return false;
         }
 
@@ -520,31 +640,79 @@ bool ExecuteCryptoMakeLine(const std::string &pLine,
         aBuffers.push_back(aBuffer);
     }
 
-    TwistCryptoGenerator aGenerator;
-    if (aBuffers.size() == 5U) {
-        aGenerator.Make(aBuffers[0],
-                        aBuffers[1],
-                        aBuffers[2],
-                        aBuffers[3],
-                        aBuffers[4]);
-    } else {
-        aGenerator.Make(aBuffers[0],
-                        aBuffers[1],
-                        aBuffers[2],
-                        aBuffers[3],
-                        aBuffers[4],
-                        aBuffers[5],
-                        aBuffers[6],
-                        aBuffers[7],
-                        aBuffers[8]);
+    if (aMethod == CryptoMethod::kMake) {
+        if (aBuffers.size() == 5U) {
+            pCryptoGenerator->Make(aBuffers[0],
+                                   aBuffers[1],
+                                   aBuffers[2],
+                                   aBuffers[3],
+                                   aBuffers[4]);
+        } else {
+            pCryptoGenerator->Make(aBuffers[0],
+                                   aBuffers[1],
+                                   aBuffers[2],
+                                   aBuffers[3],
+                                   aBuffers[4],
+                                   aBuffers[5],
+                                   aBuffers[6],
+                                   aBuffers[7],
+                                   aBuffers[8]);
+        }
+        return true;
     }
 
+    if (aBuffers.size() == 9U) {
+        pCryptoGenerator->Salt(aBuffers[0],
+                               aBuffers[1],
+                               aBuffers[2],
+                               aBuffers[3],
+                               aBuffers[4],
+                               aBuffers[5],
+                               aBuffers[6],
+                               aBuffers[7],
+                               aBuffers[8]);
+    } else {
+        pCryptoGenerator->Salt(aBuffers[0],
+                               aBuffers[1],
+                               aBuffers[2],
+                               aBuffers[3],
+                               aBuffers[4],
+                               aBuffers[5],
+                               aBuffers[6],
+                               aBuffers[7],
+                               aBuffers[8],
+                               aBuffers[9],
+                               aBuffers[10],
+                               aBuffers[11],
+                               aBuffers[12],
+                               aBuffers[13],
+                               aBuffers[14],
+                               aBuffers[15],
+                               aBuffers[16]);
+    }
     return true;
+}
+
+bool ExecuteCryptoMakeLine(const std::string &pLine,
+                           TwistWorkSpace *pWorkspace,
+                           TwistExpander *pExpander,
+                           TwistCryptoGenerator *pCryptoGenerator,
+                           std::string *pErrorMessage) {
+    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pCryptoGenerator, pErrorMessage);
+}
+
+bool ExecuteCryptoSaltLine(const std::string &pLine,
+                           TwistWorkSpace *pWorkspace,
+                           TwistExpander *pExpander,
+                           TwistCryptoGenerator *pCryptoGenerator,
+                           std::string *pErrorMessage) {
+    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pCryptoGenerator, pErrorMessage);
 }
 
 bool ApplyBranchStringLine(const std::string &pRawLine,
                            TwistWorkSpace *pWorkspace,
                            TwistExpander *pExpander,
+                           TwistCryptoGenerator *pCryptoGenerator,
                            std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                            std::string *pErrorMessage) {
     if ((pWorkspace == nullptr) || (pVariables == nullptr)) {
@@ -553,13 +721,21 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
     }
 
     std::string aLineError;
-    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, pExpander, &aLineError);
+    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, pExpander, pCryptoGenerator, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
     }
-
     if (aExecutedCrypto) {
+        return true;
+    }
+
+    const bool aExecutedCryptoSalt = ExecuteCryptoSaltLine(pRawLine, pWorkspace, pExpander, pCryptoGenerator, &aLineError);
+    if (!aLineError.empty()) {
+        SetError(pErrorMessage, aLineError);
+        return false;
+    }
+    if (aExecutedCryptoSalt) {
         return true;
     }
 
@@ -619,10 +795,11 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
 bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
                             TwistWorkSpace *pWorkspace,
                             TwistExpander *pExpander,
+                            TwistCryptoGenerator *pCryptoGenerator,
                             std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                             std::string *pErrorMessage) {
     for (const std::string &aRawLine : pLines) {
-        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pExpander, pVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pExpander, pCryptoGenerator, pVariables, pErrorMessage)) {
             return false;
         }
     }
@@ -661,6 +838,7 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
 bool ExecuteBranch(const TwistProgramBranch &pBranch,
                    TwistWorkSpace *pWorkspace,
                    TwistExpander *pExpander,
+                   TwistCryptoGenerator *pCryptoGenerator,
                    std::string *pErrorMessage) {
     if (pWorkspace == nullptr) {
         SetError(pErrorMessage, "Branch execution received a null workspace.");
@@ -670,7 +848,7 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
     std::unordered_map<std::string, GRuntimeScalar> aVariables;
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
-        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, &aVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, pCryptoGenerator, &aVariables, pErrorMessage)) {
             return false;
         }
         return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkspace, pExpander, &aVariables, pErrorMessage);
@@ -685,6 +863,7 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
             if (!ApplyBranchStringLine(pBranch.GetStringLines()[aStep.mIndex],
                                        pWorkspace,
                                        pExpander,
+                                       pCryptoGenerator,
                                        &aVariables,
                                        pErrorMessage)) {
                 return false;
@@ -754,18 +933,19 @@ void GTwistExpander::RefreshTablePointers() {
 }
 
 void GTwistExpander::Seed(TwistWorkSpace *pWorkspace,
+                          TwistCryptoGenerator *pCryptoGenerator,
                           std::uint8_t *pSource,
                           std::uint8_t *pPassword,
                           unsigned int pPasswordByteLength) {
     RefreshTablePointers();
-    TwistExpander::Seed(pWorkspace, pSource, pPassword, pPasswordByteLength);
+    TwistExpander::Seed(pWorkspace, pCryptoGenerator, pSource, pPassword, pPasswordByteLength);
 
-    if (pWorkspace == nullptr) {
+    if ((pWorkspace == nullptr) || (pCryptoGenerator == nullptr)) {
         return;
     }
 
     std::string aError;
-    if (!ExecuteBranch(mSeeder, pWorkspace, this, &aError)) {
+    if (!ExecuteBranch(mSeeder, pWorkspace, this, pCryptoGenerator, &aError)) {
         std::printf("fatal: GTwistExpander::Seed failed: %s\n", aError.c_str());
     }
 }

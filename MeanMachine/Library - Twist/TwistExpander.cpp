@@ -32,6 +32,7 @@ TwistExpander::~TwistExpander() {
 }
 
 void TwistExpander::Seed(TwistWorkSpace *pWorkspace,
+                         TwistCryptoGenerator *pCryptoGenerator,
                          std::uint8_t *pSource,
                          std::uint8_t *pPassword,
                          unsigned int pPasswordByteLength) {
@@ -41,6 +42,10 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkspace,
     }
     if (pSource == nullptr) {
         std::printf("fatal: TwistExpander::Seed requires source buffer\n");
+        return;
+    }
+    if (pCryptoGenerator == nullptr) {
+        std::printf("fatal: TwistExpander::Seed requires crypto generator\n");
         return;
     }
 

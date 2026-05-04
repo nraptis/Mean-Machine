@@ -17,6 +17,22 @@
 #define CRYPTO_GENERATOR_SALT_COUNT (((S_BLOCK - S_SALT) / CRYPTO_GENERATOR_SALT_HOP) + 1)
 #define CRYPTO_GENERATOR_SALT_MIN_DISTANCE 8
 
+/*
+struct TwistCryptoPackSBoxes {
+    std::uint8_t            mSBoxA[S_SBOX];
+    std::uint8_t            mSBoxB[S_SBOX];
+    std::uint8_t            mSBoxC[S_SBOX];
+    std::uint8_t            mSBoxD[S_SBOX];
+};
+
+struct TwistCryptoPackSalts {
+    std::uint8_t            mSaltA[S_SALT];
+    std::uint8_t            mSaltB[S_SALT];
+    std::uint8_t            mSaltC[S_SALT];
+    std::uint8_t            mSaltD[S_SALT];
+};
+*/
+
 class TwistCryptoGenerator {
 public:
     

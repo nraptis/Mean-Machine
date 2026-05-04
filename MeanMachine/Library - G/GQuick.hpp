@@ -72,20 +72,27 @@ public:
     
     
     static GStatement                               MakeAssignVariableStatement(const GSymbol pTarget, const GExpr pExpr);
-    
     static GStatement                               MakeAssignVariableStatement(const GSymbol pTarget, const GSymbol pValue);
+    
+    
+    static GStatement                               MakeAssignVariableStatement(const GExpr pTargetExpr, const GExpr pExpr);
+    static GStatement                               MakeAssignVariableStatement(const GExpr pTargetExpr, const GSymbol pValue);
+    
+    
+    
     static GStatement                               MakeAssignVariableStatement(const GSymbol pTarget, const GSymbol pBuffer, const GSymbol pIndex);
     static GStatement                               MakeAssignVariableStatementInverted(const GSymbol pTarget, const GSymbol pBuffer, const GSymbol pIndex);
     
     static GStatement                               MakeAssignDestStatement(const GSymbol pDest, const GSymbol pIndex, const GSymbol pValue);
     static GStatement                               MakeAssignDestStatementInverted(const GSymbol pDest, const GSymbol pIndex, const GSymbol pValue);
     
-    
     static GStatement                               MakeAssignOffsetByteStatement(const GSymbol pTarget, const GSymbol pSource,
                                                                                   const GSymbol pIndex, const int pOffset);
     
     
-    static GStatement                               DiffuseEqual(const GSymbol pSymbol);
+    static GStatement                               DiffuseAEqual(const GSymbol pSymbol);
+    static GStatement                               DiffuseBEqual(const GSymbol pSymbol);
+    static GStatement                               DiffuseCEqual(const GSymbol pSymbol);
     static GStatement                               MulEqual64(const GSymbol pSymbol, const std::uint64_t pAmount);
     static GStatement                               AddEqual64(const GSymbol pSymbol, const std::uint64_t pAmount);
     static GStatement                               XorEqual64(const GSymbol pSymbol, const std::uint64_t pAmount);

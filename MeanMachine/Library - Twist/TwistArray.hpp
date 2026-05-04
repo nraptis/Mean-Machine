@@ -24,11 +24,7 @@ public:
             return;
         }
         
-        pItems->insert(
-            pItems->end(),
-            pItemsToAppend->begin(),
-            pItemsToAppend->end()
-        );
+        pItems->insert(pItems->end(), pItemsToAppend->begin(), pItemsToAppend->end());
     }
 
     template <typename T>

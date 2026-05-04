@@ -57,6 +57,16 @@ GStatement BuildAssignToSymbol(const GSymbol pSymbol,
     return GStatement::Assign(GTarget::Symbol(pSymbol), pExpression);
 }
 
+GTarget BuildAssignTarget(const GExpr &pTargetExpr) {
+    if (pTargetExpr.mType == GExprType::kSymbol) {
+        return GTarget::Symbol(pTargetExpr.mSymbol);
+    }
+    if ((pTargetExpr.mType == GExprType::kRead) && (pTargetExpr.mIndex != nullptr)) {
+        return GTarget::Write(pTargetExpr.mSymbol, *pTargetExpr.mIndex);
+    }
+    return GTarget();
+}
+
 } // namespace
 
 GExpr GQuick::MakeReadBufferOffsetExpression(const GSymbol pBuffer,
@@ -149,6 +159,18 @@ GStatement GQuick::MakeAssignVariableStatement(const GSymbol pTarget, const GSym
     return GStatement::Assign(aTarget, aValueExpr);
 }
 
+GStatement GQuick::MakeAssignVariableStatement(const GExpr pTargetExpr, const GExpr pExpr) {
+    const GTarget aTarget = BuildAssignTarget(pTargetExpr);
+    if (aTarget.IsInvalid()) {
+        return GStatement();
+    }
+    return GStatement::Assign(aTarget, pExpr);
+}
+
+GStatement GQuick::MakeAssignVariableStatement(const GExpr pTargetExpr, const GSymbol pValue) {
+    return MakeAssignVariableStatement(pTargetExpr, GExpr::Symbol(pValue));
+}
+
 GStatement GQuick::MakeAssignVariableStatement(const GSymbol pTarget, const GSymbol pBuffer, const GSymbol pIndex) {
     
     GTarget aDestTarget = GTarget::Symbol(pTarget);
@@ -209,8 +231,16 @@ GStatement GQuick::MulEqual64(const GSymbol pSymbol, const std::uint64_t pAmount
     
 }
 
-GStatement GQuick::DiffuseEqual(const GSymbol pSymbol) {
-    return BuildAssignToSymbol(pSymbol, GExpr::Diffuse(GExpr::Symbol(pSymbol)));
+GStatement GQuick::DiffuseAEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::DiffuseA(GExpr::Symbol(pSymbol)));
+}
+
+GStatement GQuick::DiffuseBEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::DiffuseB(GExpr::Symbol(pSymbol)));
+}
+
+GStatement GQuick::DiffuseCEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::DiffuseC(GExpr::Symbol(pSymbol)));
 }
 
 GStatement GQuick::AddEqual64(const GSymbol pSymbol, const std::uint64_t pAmount) {

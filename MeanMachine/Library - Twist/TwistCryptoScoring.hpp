@@ -17,12 +17,12 @@ public:
     ~TwistCryptoScoring();
     
     static std::int32_t                                     ComputeMinimumCycle_256(const std::uint8_t *pData,
-                                                                        const int pLength);
+                                                                                    const int pLength);
     
     static std::int32_t                                     ComputeMinimumCycleRotL3AfterGate_256(const std::uint8_t *pData,
-                                                                                      const int pLength);
+                                                                                                  const int pLength);
     static std::int32_t                                     ComputeMinimumCycleRotL5AfterGate_256(const std::uint8_t *pData,
-                                                                                      const int pLength);
+                                                                                                  const int pLength);
     
     std::int32_t                                            ComputeLinearCorrelationMax_256(const std::uint8_t *pData, const int pLength);
     std::int32_t                                            ComputeDifferenceDistributionTableMax_256(const std::uint8_t *pData, const int pLength);
@@ -36,22 +36,22 @@ public:
     float                                                   ComputeBicAverageBias_256(const std::uint8_t *pData, const int pLength);
     
     std::int32_t                                            ComputeDifferentialSimilarityMax_256(const std::uint8_t *pDataA,
-                                                                                     const std::uint8_t *pDataB,
-                                                                                     const int pLength);
+                                                                                                 const std::uint8_t *pDataB,
+                                                                                                 const int pLength);
     
     std::int32_t                                            ComputeXorDistributionMax_256(const std::uint8_t *pDataA,
-                                                                              const std::uint8_t *pDataB,
-                                                                              const int pLength);
+                                                                                          const std::uint8_t *pDataB,
+                                                                                          const int pLength);
     
     bool                                                    Equal_256(const std::uint8_t *pDataA,
-                                                          const std::uint8_t *pDataB);
+                                                                      const std::uint8_t *pDataB);
     
     bool                                                    Equal_128(const std::uint8_t *pDataA,
-                                                          const std::uint8_t *pDataB);
+                                                                      const std::uint8_t *pDataB);
     
     
     bool                                                    ComputeIsPermutation_256(const std::uint8_t *pData,
-                                                                         const int pLength);
+                                                                                     const int pLength);
     
     
     int                                                     ComputeSaltBitBalance_128(const std::uint8_t *pData);
@@ -61,14 +61,13 @@ public:
     
     
     void                                                    PrintBox_256(const char *pName,
-                                                             const std::uint8_t *pData);
+                                                                         const std::uint8_t *pData);
     
-    std::uint64_t                                         ComputeSaltComprehensiveAgainstSBoxFamilt(const std::uint8_t *pSalt,
+    std::uint64_t                                         ComputeSaltComprehensiveAgainstSBoxFamily(const std::uint8_t *pSalt,
                                                                                                     std::uint8_t *pSBoxA,
                                                                                                     std::uint8_t *pSBoxB,
                                                                                                     std::uint8_t *pSBoxC,
                                                                                                     std::uint8_t *pSBoxD,
-                                                                                                    
                                                                                                     std::uint8_t *pSBoxE,
                                                                                                     std::uint8_t *pSBoxF,
                                                                                                     std::uint8_t *pSBoxG,

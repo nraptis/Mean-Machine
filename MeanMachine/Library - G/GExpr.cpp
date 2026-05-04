@@ -24,7 +24,9 @@ GOperType OperTypeForExprType(const GExprType pType) {
         case GExprType::kMix64_1: return GOperType::kInv;
         case GExprType::kMix64_4: return GOperType::kInv;
         case GExprType::kMix64_8: return GOperType::kInv;
-        case GExprType::kDiffuse64: return GOperType::kInv;
+        case GExprType::kDiffuseA64: return GOperType::kInv;
+        case GExprType::kDiffuseB64: return GOperType::kInv;
+        case GExprType::kDiffuseC64: return GOperType::kInv;
         default: return GOperType::kInv;
     }
 }
@@ -170,7 +172,9 @@ void AppendSymbols(const GExpr &pExpr,
             pSymbols->push_back(pExpr.mMix64SBoxH);
             return;
 
-        case GExprType::kDiffuse64:
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64:
             if (pExpr.mA != nullptr) {
                 AppendSymbols(*pExpr.mA, pSymbols);
             }
@@ -236,7 +240,9 @@ void AppendOps(const GExpr &pExpr,
         case GExprType::kMix64_1:
         case GExprType::kMix64_4:
         case GExprType::kMix64_8:
-        case GExprType::kDiffuse64:
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64:
             if (pExpr.mA != nullptr) {
                 AppendOps(*pExpr.mA, pOps);
             }
@@ -311,8 +317,12 @@ std::string ExprKeyInner(const GExpr &pExpr) {
                    ",sbox_h=" + ExprKeyInner(GExpr::Symbol(pExpr.mMix64SBoxH)) +
                    ",value=" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
 
-        case GExprType::kDiffuse64:
+        case GExprType::kDiffuseA64:
             return "diffuse64(" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
+        case GExprType::kDiffuseB64:
+            return "diffuse64_b(" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
+        case GExprType::kDiffuseC64:
+            return "diffuse64_c(" + ((pExpr.mA != nullptr) ? ExprKeyInner(*pExpr.mA) : "null") + ")";
 
         case GExprType::kAdd:
         case GExprType::kSub:
@@ -367,16 +377,44 @@ GExpr GExpr::Const64(std::uint64_t pVal) {
     return aExpr;
 }
 
-GExpr GExpr::Diffuse(std::uint64_t pVal) {
+GExpr GExpr::DiffuseA(std::uint64_t pVal) {
     GExpr aExpr;
     aExpr.mType = GExprType::kConst;
-    aExpr.mConstVal = TwistMix64::Diffuse(pVal);
+    aExpr.mConstVal = TwistMix64::DiffuseA(pVal);
     return aExpr;
 }
 
-GExpr GExpr::Diffuse(const GExpr &pExpr) {
+GExpr GExpr::DiffuseA(const GExpr &pExpr) {
     GExpr aExpr;
-    aExpr.mType = GExprType::kDiffuse64;
+    aExpr.mType = GExprType::kDiffuseA64;
+    aExpr.mA = std::make_shared<GExpr>(pExpr);
+    return aExpr;
+}
+
+GExpr GExpr::DiffuseB(std::uint64_t pVal) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kConst;
+    aExpr.mConstVal = TwistMix64::DiffuseB(pVal);
+    return aExpr;
+}
+
+GExpr GExpr::DiffuseB(const GExpr &pExpr) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kDiffuseB64;
+    aExpr.mA = std::make_shared<GExpr>(pExpr);
+    return aExpr;
+}
+
+GExpr GExpr::DiffuseC(std::uint64_t pVal) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kConst;
+    aExpr.mConstVal = TwistMix64::DiffuseC(pVal);
+    return aExpr;
+}
+
+GExpr GExpr::DiffuseC(const GExpr &pExpr) {
+    GExpr aExpr;
+    aExpr.mType = GExprType::kDiffuseC64;
     aExpr.mA = std::make_shared<GExpr>(pExpr);
     return aExpr;
 }
@@ -912,7 +950,9 @@ bool GExpr::IsInvalid() const {
                    (mMix64Type8 == Mix64Type_8::kInv) ||
                    (Mix64Type8NeedsAmount(mMix64Type8) && !mMix64UseAmount);
 
-        case GExprType::kDiffuse64:
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64:
             return (mA == nullptr) || mA->IsInvalid();
 
         default:
@@ -1012,7 +1052,9 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
                    (pLHS.mMix64SBoxG == pRHS.mMix64SBoxG) &&
                    (pLHS.mMix64SBoxH == pRHS.mMix64SBoxH);
 
-        case GExprType::kDiffuse64:
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64:
             return ExprPtrEqual(pLHS.mA, pRHS.mA);
     }
 

@@ -35,6 +35,7 @@ void GBoxFamily::Build(std::vector<GSymbol> pList, int pCount) {
     for (int i=0; i<FAMILY_SIZE; i++) {
         for (int n=0; n<FAMILY_DEPTH; n++) {
             mChosen[i][n] = -1;
+            mBox[i][n].Invalidate();
         }
     }
     
@@ -108,6 +109,31 @@ void GBoxFamily::Build(std::vector<GSymbol> pList, int pCount) {
     
 }
 
+std::vector<int> GRotationFamily::GetListLow() {
+    return {
+        1, 3, 5, 7
+    };
+}
+
+std::vector<int> GRotationFamily::GetListMedium() {
+    return {
+        11, 13, 19, 21, 27, 29
+    };
+}
+
+std::vector<int> GRotationFamily::GetListHigh() {
+    return {
+        35, 37, 43, 45, 51, 53
+    };
+}
+
+std::vector<int> GRotationFamily::GetListAll() {
+    return {
+        1, 3, 5, 7,
+        11, 13, 19, 21, 27, 29,
+        35, 37, 43, 45, 51, 53
+    };
+}
 
 void GRotationFamily::Build(int pCount) {
     
@@ -119,41 +145,10 @@ void GRotationFamily::Build(int pCount) {
         pCount = FAMILY_DEPTH;
     }
     
-    std::vector<int> aLow;
-    aLow.push_back(1);
-    aLow.push_back(3);
-    aLow.push_back(5);
-    aLow.push_back(7);
-    
-    std::vector<int> aMedium;
-    aMedium.push_back(11);
-    aMedium.push_back(13);
-    aMedium.push_back(19);
-    aMedium.push_back(21);
-    aMedium.push_back(27);
-    aMedium.push_back(29);
-    
-    std::vector<int> aHigh;
-    aHigh.push_back(35);
-    aHigh.push_back(37);
-    aHigh.push_back(43);
-    aHigh.push_back(45);
-    aHigh.push_back(51);
-    aHigh.push_back(53);
-    
-    std::vector<int> aHealthy;
-    aHealthy.push_back(11);
-    aHealthy.push_back(13);
-    aHealthy.push_back(19);
-    aHealthy.push_back(21);
-    aHealthy.push_back(27);
-    aHealthy.push_back(29);
-    aHealthy.push_back(35);
-    aHealthy.push_back(37);
-    aHealthy.push_back(43);
-    aHealthy.push_back(45);
-    aHealthy.push_back(51);
-    aHealthy.push_back(53);
+    std::vector<int> aLow = GRotationFamily::GetListLow();
+    std::vector<int> aMedium = GRotationFamily::GetListMedium();
+    std::vector<int> aHigh = GRotationFamily::GetListHigh();
+    std::vector<int> aHealthy = GRotationFamily::GetListAll();
     
     Random::Shuffle(&aLow);
     Random::Shuffle(&aMedium);

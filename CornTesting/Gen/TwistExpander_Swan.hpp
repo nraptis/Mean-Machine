@@ -2,12 +2,13 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_Remington : public TwistExpander {
+class TwistExpander_Swan : public TwistExpander {
 public:
-    TwistExpander_Remington();
-    ~TwistExpander_Remington() override = default;
+    TwistExpander_Swan();
+    ~TwistExpander_Swan() override = default;
 
     void Seed(TwistWorkSpace *pWorkspace,
+              TwistCryptoGenerator *pCryptoGenerator,
               std::uint8_t *pSource,
               std::uint8_t *pPassword,
               unsigned int pPasswordByteLength) override;

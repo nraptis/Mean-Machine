@@ -49,8 +49,7 @@ public:
                                      GExpr pSelectValueExpr,
                                      std::vector<GStatement> *pStatements,
                                      std::string *pErrorMessage);
-    bool                        Bake(GSymbol pSelectVariable,
-                                     GSymbol pSelectValue,
+    bool                        Bake(GSymbol pSelectValue,
                                      std::vector<GStatement> *pStatements,
                                      std::string *pErrorMessage);
     

@@ -50,6 +50,7 @@ public:
     ~GTwistExpander() override;
 
     void                                Seed(TwistWorkSpace *pWorkspace,
+                                             TwistCryptoGenerator *pCryptoGenerator,
                                              std::uint8_t *pSource,
                                              std::uint8_t *pPassword,
                                              unsigned int pPasswordByteLength) override;

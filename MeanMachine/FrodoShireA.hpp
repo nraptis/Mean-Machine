@@ -1,13 +1,22 @@
-#pragma once
+//
+//  FrodoShireA.hpp
+//  MeanMachine
+//
+//  Created by Dragon on 5/4/26.
+//
+
+#ifndef FrodoShireA_hpp
+#define FrodoShireA_hpp
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_CrooooNNnnNN : public TwistExpander {
+class FrodoShireA : public TwistExpander {
 public:
-    TwistExpander_CrooooNNnnNN();
-    ~TwistExpander_CrooooNNnnNN() override = default;
+    FrodoShireA();
+    ~FrodoShireA() override = default;
 
     void Seed(TwistWorkSpace *pWorkspace,
+              TwistCryptoGenerator *pCryptoGenerator,
               std::uint8_t *pSource,
               std::uint8_t *pPassword,
               unsigned int pPasswordByteLength) override;
@@ -25,3 +34,6 @@ private:
     static const std::uint8_t kSaltC[S_SALT];
     static const std::uint8_t kSaltD[S_SALT];
 };
+
+
+#endif /* FrodoShireA_hpp */

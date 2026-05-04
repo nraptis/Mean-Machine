@@ -2,12 +2,13 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_Corndogz : public TwistExpander {
+class TwistExpander_Goose : public TwistExpander {
 public:
-    TwistExpander_Corndogz();
-    ~TwistExpander_Corndogz() override = default;
+    TwistExpander_Goose();
+    ~TwistExpander_Goose() override = default;
 
     void Seed(TwistWorkSpace *pWorkspace,
+              TwistCryptoGenerator *pCryptoGenerator,
               std::uint8_t *pSource,
               std::uint8_t *pPassword,
               unsigned int pPasswordByteLength) override;

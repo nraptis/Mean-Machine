@@ -7,7 +7,7 @@
 
 #include "TwistCryptoScoring.hpp"
 #include "TwistWorkSpace.hpp"
-
+#include "TwistMix64.hpp"
 #include <algorithm>
 #include <bit>
 #include <cstring>
@@ -476,7 +476,7 @@ int TwistCryptoScoring::ComputeSaltXorDrift_128(const std::uint8_t *pData) {
 }
 
 
-std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamilt(const std::uint8_t *pSalt,
+std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamily(const std::uint8_t *pSalt,
                                                                             std::uint8_t *pSBoxA,
                                                                             std::uint8_t *pSBoxB,
                                                                             std::uint8_t *pSBoxC,
@@ -499,269 +499,242 @@ std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamilt(cons
     if (pSBoxH) { aList[aListCount++] = pSBoxH; }
     
     std::uint64_t aScore = 0;
+    std::uint64_t aBaseValue = 0;
+    std::uint64_t aBefore = 0;
+    std::uint64_t aValue = aBaseValue;
     
-    static const std::uint8_t aHighByteList[] = {
-        0x00, 0xFF, 0xAA, 0x55,
-        0x0F, 0xF0, 0x33, 0xCC
+    int aRotations[16] = {
+        1, 3, 5, 7,
+        11, 13, 19, 21,
+        27, 29, 35, 37,
+        43, 45, 51, 53
     };
     
-    static const int aHighByteCount =
-    sizeof(aHighByteList) / sizeof(aHighByteList[0]);
-    
-    static const std::uint8_t aLowByteList[] = {
-        0x00, 0x01, 0x02, 0x03,
-        0x07, 0x0F, 0x1F, 0x3F,
-        0x7F, 0x80, 0xAA, 0x55,
-        0xCC, 0x33, 0xF0, 0x0F
-    };
-    
-    static const int aLowByteCount =
-    sizeof(aLowByteList) / sizeof(aLowByteList[0]);
-    
-    for (int aLowIndex = 0; aLowIndex < aLowByteCount; aLowIndex++) {
-        for (int aHighIndex = 0; aHighIndex < aHighByteCount; aHighIndex++) {
+    for (int aSBoxIndexA = 0; aSBoxIndexA < aListCount; aSBoxIndexA++) {
+        
+        std::uint8_t *aBox = aList[aSBoxIndexA];
+        
+        aValue = aBaseValue;
+        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+            aBefore = aValue;
+            aValue = TwistMix64::GatePrism_1_8(aValue ^ pSalt[aSaltIndex], aBox);
+            aScore += __builtin_popcountll(aBefore ^ aValue);
+        }
+        
+        for (int aRotationIndex=0; aRotationIndex<16; aRotationIndex++) {
             
-            std::uint16_t aBaseValue =
-            static_cast<std::uint16_t>(aLowByteList[aLowIndex]) |
-            (static_cast<std::uint16_t>(aHighByteList[aHighIndex]) << 8U);
-            std::uint16_t aValue = aBaseValue;
             
-            for (int aSBoxIndexA = 0; aSBoxIndexA < aListCount; aSBoxIndexA++) {
-                
-                std::uint8_t *pBox = aList[aSBoxIndexA];
-                
-                /*
-                // --- 000 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_000(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                
-                // --- 001 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_001(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                
-                // --- 002 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_002(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                
-                // --- 003 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_003(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                
-                // --- 004 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_004(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                
-                // --- 005 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_005(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                
-                // --- 006 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_006(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                
-                // --- 007 ---
-                aValue = aBaseValue;
-                for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                    aValue ^= pSalt[aSaltIndex & 127];
-                    std::uint16_t aBefore = aValue;
-                    aValue = TwistMix16::Mix161_007(aValue, pBox);
-                    aScore += __builtin_popcount(aBefore ^ aValue);
-                }
-                */
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRoll_1_1(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
             }
             
-            for (int aSBoxIndexA = 0; aSBoxIndexA < aListCount; aSBoxIndexA++) {
-                for (int aSBoxIndexB = 0; aSBoxIndexB < aListCount; aSBoxIndexB++) {
-                    
-                    /*
-                    std::uint8_t *pBoxA = aList[aSBoxIndexA];
-                    std::uint8_t *pBoxB = aList[aSBoxIndexB];
-                    
-                    // --- 000 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_000(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 001 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_001(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 002 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_002(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 003 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_003(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 004 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_004(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 005 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_005(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 006 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_006(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 007 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_007(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 008 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_008(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 009 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_009(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 010 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_010(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 011 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_011(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 012 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_012(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 013 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_013(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 014 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_014(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    
-                    // --- 015 ---
-                    aValue = aBaseValue;
-                    for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                        aValue ^= pSalt[aSaltIndex & 127];
-                        std::uint16_t aBefore = aValue;
-                        aValue = TwistMix16::Mix162_015(aValue, pBoxA, pBoxB);
-                        aScore += __builtin_popcount(aBefore ^ aValue);
-                    }
-                    */
-                }
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRoll_1_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRoll_1_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurn_1_1(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurn_1_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurn_1_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+        }
+    }
+    
+    for (int aStartIndex = 0; aStartIndex < aListCount; aStartIndex++) {
+        
+        std::uint8_t *aBoxA = aList[((aStartIndex + 0) % aListCount)];
+        std::uint8_t *aBoxB = aList[((aStartIndex + 1) % aListCount)];
+        std::uint8_t *aBoxC = aList[((aStartIndex + 2) % aListCount)];
+        std::uint8_t *aBoxD = aList[((aStartIndex + 3) % aListCount)];
+        
+        aValue = aBaseValue;
+        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+            aBefore = aValue;
+            aValue = TwistMix64::GatePrismA_4_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+            aScore += __builtin_popcountll(aBefore ^ aValue);
+        }
+        
+        aValue = aBaseValue;
+        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+            aBefore = aValue;
+            aValue = TwistMix64::GatePrismB_4_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+            aScore += __builtin_popcountll(aBefore ^ aValue);
+        }
+        
+        aValue = aBaseValue;
+        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+            aBefore = aValue;
+            aValue = TwistMix64::GatePrismC_4_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+            aScore += __builtin_popcountll(aBefore ^ aValue);
+        }
+        
+        for (int aRotationIndex=0; aRotationIndex<16; aRotationIndex++) {
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRoll_4_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRollA_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRollB_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRollC_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurn_4_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurnA_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurnB_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurnC_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
             }
             
         }
     }
     
+    for (int aStartIndex = 0; aStartIndex < aListCount; aStartIndex++) {
+        
+        std::uint8_t *aBoxA = aList[((aStartIndex + 0) % aListCount)];
+        std::uint8_t *aBoxB = aList[((aStartIndex + 1) % aListCount)];
+        std::uint8_t *aBoxC = aList[((aStartIndex + 2) % aListCount)];
+        std::uint8_t *aBoxD = aList[((aStartIndex + 3) % aListCount)];
+        std::uint8_t *aBoxE = aList[((aStartIndex + 4) % aListCount)];
+        std::uint8_t *aBoxF = aList[((aStartIndex + 5) % aListCount)];
+        std::uint8_t *aBoxG = aList[((aStartIndex + 6) % aListCount)];
+        std::uint8_t *aBoxH = aList[((aStartIndex + 7) % aListCount)];
+        
+        aValue = aBaseValue;
+        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+            aBefore = aValue;
+            aValue = TwistMix64::GatePrism_8_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD, aBoxE, aBoxF, aBoxG, aBoxH);
+            aScore += __builtin_popcountll(aBefore ^ aValue);
+        }
+        
+        aValue = aBaseValue;
+        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+            aBefore = aValue;
+            aValue = TwistMix64::GatePrism_8_8(aValue ^ pSalt[aSaltIndex], aBoxH, aBoxB, aBoxF, aBoxD, aBoxE, aBoxC, aBoxG, aBoxA);
+            aScore += __builtin_popcountll(aBefore ^ aValue);
+        }
+        
+        aValue = aBaseValue;
+        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+            aBefore = aValue;
+            aValue = TwistMix64::GatePrism_8_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxG, aBoxC, aBoxE, aBoxD, aBoxF, aBoxB, aBoxH);
+            aScore += __builtin_popcountll(aBefore ^ aValue);
+        }
+        
+        
+        for (int aRotationIndex=0; aRotationIndex<16; aRotationIndex++) {
+
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRoll_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD, aBoxE, aBoxF, aBoxG, aBoxH);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRoll_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxH, aBoxB, aBoxF, aBoxD, aBoxE, aBoxC, aBoxG, aBoxA);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateRoll_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxG, aBoxC, aBoxE, aBoxD, aBoxF, aBoxB, aBoxH);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurn_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD, aBoxE, aBoxF, aBoxG, aBoxH);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurn_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxH, aBoxB, aBoxF, aBoxD, aBoxE, aBoxC, aBoxG, aBoxA);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+            
+            aValue = aBaseValue;
+            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
+                aBefore = aValue;
+                aValue = TwistMix64::GateTurn_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxG, aBoxC, aBoxE, aBoxD, aBoxF, aBoxB, aBoxH);
+                aScore += __builtin_popcountll(aBefore ^ aValue);
+            }
+        }
+    }
     return aScore;
 }
 
@@ -807,32 +780,22 @@ std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL3AfterGate_256(const std
     }
     
     std::int32_t aResult = 256;
-    
     for (int aStart = 0; aStart < 256; aStart++) {
-        
         std::int32_t aSeen[256];
         std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
-        
         std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
         std::int32_t aStep = 0;
-        
         while (aSeen[aValue] < 0) {
-            
             aSeen[aValue] = aStep;
-            
             aValue = pData[aValue];
             aValue = static_cast<std::uint8_t>((aValue << 3U) | (aValue >> 5U));
-            
             aStep += 1;
         }
-        
         const std::int32_t aCycleLength = aStep - aSeen[aValue];
-        
         if (aCycleLength < aResult) {
             aResult = aCycleLength;
         }
     }
-    
     return aResult;
 }
 
@@ -845,25 +808,17 @@ std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL5AfterGate_256(const std
     
     std::int32_t aResult = 256;
     for (int aStart = 0; aStart < 256; aStart++) {
-        
         std::int32_t aSeen[256];
         std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
-        
         std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
         std::int32_t aStep = 0;
-        
         while (aSeen[aValue] < 0) {
-            
             aSeen[aValue] = aStep;
-            
             aValue = pData[aValue];
             aValue = static_cast<std::uint8_t>((aValue << 5U) | (aValue >> 3U));
-            
             aStep += 1;
         }
-        
         const std::int32_t aCycleLength = aStep - aSeen[aValue];
-        
         if (aCycleLength < aResult) {
             aResult = aCycleLength;
         }

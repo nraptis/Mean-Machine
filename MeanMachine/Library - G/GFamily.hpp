@@ -42,26 +42,32 @@ private:
 class GRotationFamily {
 public:
     
-    // Max pCount is 8.
-    void                    Build(int pCount);
+    static std::vector<int>     GetListLow();
+    static std::vector<int>     GetListMedium();
+    static std::vector<int>     GetListHigh();
+    static std::vector<int>     GetListAll();
     
-    int                     mLow[FAMILY_SIZE][FAMILY_DEPTH];
-    int                     mMedium[FAMILY_SIZE][FAMILY_DEPTH];
-    int                     mHigh[FAMILY_SIZE][FAMILY_DEPTH];
-    int                     mHealthy[FAMILY_SIZE][FAMILY_DEPTH];
+    
+    // Max pCount is 8.
+    void                        Build(int pCount);
+    
+    int                         mLow[FAMILY_SIZE][FAMILY_DEPTH];
+    int                         mMedium[FAMILY_SIZE][FAMILY_DEPTH];
+    int                         mHigh[FAMILY_SIZE][FAMILY_DEPTH];
+    int                         mHealthy[FAMILY_SIZE][FAMILY_DEPTH];
     
 private:
     
-    void                    BuildGroup(int pDest[FAMILY_SIZE][FAMILY_DEPTH],
+    void                        BuildGroup(int pDest[FAMILY_SIZE][FAMILY_DEPTH],
                                        std::vector<int> pList,
                                        int pCount,
                                        bool pAvoidExisting);
     
-    int                     GetExistingCollisionScore(int pFamily,
+    int                         GetExistingCollisionScore(int pFamily,
                                                      int pSlot,
                                                      int pValue);
     
-    void                    ShuffleFamilies();
+    void                        ShuffleFamilies();
     
 };
 

@@ -16,77 +16,99 @@
 #include "GQuick.hpp"
 #include "GSelect.hpp"
 #include "GMagicNumbers.hpp"
+#include "GCache.hpp"
+#include <deque>
+#include <unordered_set>
 
-//#include "GFastMatrix.hpp"
+enum class CSPRNGPlugMode : std::uint8_t {
+    kInv = 1,
+    kInput = 2,
+    kInputPrevious = 3,
+    kScatter = 5,
+    kCross = 8,
+    kCarry = 9,
+    kWandererA = 11,
+    kWandererB = 12,
+    kWandererC = 13,
+    kOrbiterA = 14,
+    kOrbiterB = 15,
+    kOrbiterC = 16,
+    kOrbiterD = 17
+};
+
+struct CSPRNGPlugPack {
+    
+    GSymbol mInput;
+    GSymbol mPrevious;
+    GSymbol mScatter;
+    GSymbol mCross;
+    GSymbol mCarry;
+    GSymbol mWandererA;
+    GSymbol mWandererB;
+    GSymbol mWandererC;
+    GSymbol mOrbiterA;
+    GSymbol mOrbiterB;
+    GSymbol mOrbiterC;
+    GSymbol mOrbiterD;
+    
+    GExpr GetExpr(CSPRNGPlugMode pPlugMode);
+};
 
 class CSPRNG {
     
 public:
     
-    static bool             Bake(bool pWriteReversed,
-                                 int pFamilyIndex,
-                                 
-                                 GSymbol pDest,
-                                 GSymbol pLoopIndex,
-                                 
-                                 GSymbol pFreshByte,
-                                 
-                                 GSymbol pValue,
-                                 GSymbol pValuePrevious,
-                                 GSymbol pValueMix,
-                                 
-                                 
-                                 GSymbol pSecureByteA,
-                                 GSymbol pSecureByteB,
-                                 
-                                 GSymbol pCross,
-                                 
-                                 GSymbol pSelect,
-                                 
-                                 GSymbol pCarry,
-                                 
-                                 GSymbol pHalfA,
-                                 GSymbol pHalfB,
-                                 
-                                 
-                                 GSymbol pFixedSaltA,
-                                 GSymbol pFixedSaltB,
-                                 GSymbol pFixedSaltC,
-                                 GSymbol pFixedSaltD,
-                                 
-                                 
-                                 GSymbol pScratchSaltA,
-                                 GSymbol pScratchSaltB,
-                                 GSymbol pScratchSaltC,
-                                 GSymbol pScratchSaltD,
-                                 
-                                 
-                                 GSymbol pSBoxA,
-                                 GSymbol pSBoxB,
-                                 GSymbol pSBoxC,
-                                 GSymbol pSBoxD,
-                                 
-                                 GSymbol pWandererA,
-                                 GSymbol pWandererB,
-                                 GSymbol pWandererC,
-                                 
-                                 GSymbol pOrbiterA,
-                                 GSymbol pOrbiterB,
-                                 GSymbol pOrbiterC,
-                                 GSymbol pOrbiterD,
-                                 
-                                 Mix64Type_4 pMixTypeA,
-                                 Mix64Type_4 pMixTypeB,
-                                 Mix64Type_4 pMixTypeC,
-                                 Mix64Type_4 pMixTypeD,
-                                 
-                                 GRotationFamily &pRotationFamily,
-                                 GHotPack pHotPack,
-                                 
-                                 std::vector<GStatement> *pStatements,
-                                 std::string *pErrorMessage);
+    static GExpr CreatePlug(GExpr pExpr,
+                            bool pAdd,
+                            GSymbol pSalt,
+                            GIntCache *pRotCache,
+                            CSPRNGPlugPack *pPack,
+                            std::deque<CSPRNGPlugMode> *pRecent);
+    
+    static bool PlugIncompatible(CSPRNGPlugMode pPlugModeA,
+                                 CSPRNGPlugMode pPlugModeB);
     
     
+    static bool Bake(GSymbol pDest,
+                     bool pDestWriteInverted,
+                     
+                     GSymbol pLoopIndex,
+                     
+                     GSymbol pCurrent,
+                     GSymbol pPrevious,
+                     
+                     GSymbol pPrism,
+                     GSymbol pScatter,
+                     
+                     GSymbol pCross,
+                     GSymbol pCarry,
+                     
+                     GSymbol pWandererA,
+                     GSymbol pWandererB,
+                     GSymbol pWandererC,
+                     
+                     GSymbol pOrbiterA,
+                     GSymbol pOrbiterB,
+                     GSymbol pOrbiterC,
+                     GSymbol pOrbiterD,
+                     
+                     std::vector<GSymbol> pSBoxes,
+                     std::vector<GSymbol> pSaltsFixed,
+                     std::vector<GSymbol> pSaltsScratch,
+                     
+                     std::vector<int> pRotationsLow,
+                     std::vector<int> pRotationsMedium,
+                     std::vector<int> pRotationsHigh,
+                     std::vector<int> pRotationsRandom,
+                     
+                     std::vector<Mix64Type_4> pMixTypes4,
+                     std::vector<Mix64Type_8> pMixTypes8,
+                     
+                     
+                     GHotPack pHotPack,
+                     
+                     std::vector<GStatement> *pStatements,
+                     std::string *pErrorMessage);
     
 };
 

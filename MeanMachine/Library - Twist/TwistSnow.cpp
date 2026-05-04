@@ -505,7 +505,7 @@ inline void AriaSubLayer2(std::uint8_t *pState) {
     pState[15] = ARIA_SB2[pState[15]];
 }
 
-inline void AriaDiffuse(std::uint8_t *pState) {
+inline void AriaDiffuseA(std::uint8_t *pState) {
 
     std::uint8_t aTemp[16];
 
@@ -540,7 +540,7 @@ inline void AriaFO(const std::uint8_t *pInput,
     }
 
     AriaSubLayer1(pOutput);
-    AriaDiffuse(pOutput);
+    AriaDiffuseA(pOutput);
 }
 
 inline void AriaFE(const std::uint8_t *pInput,
@@ -552,7 +552,7 @@ inline void AriaFE(const std::uint8_t *pInput,
     }
 
     AriaSubLayer2(pOutput);
-    AriaDiffuse(pOutput);
+    AriaDiffuseA(pOutput);
 }
 
 void AriaRotateRight128(const std::uint8_t *pInput,

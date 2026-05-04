@@ -853,6 +853,7 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
             << "    ~" << aClassName << "() override = default;\n"
             << "\n"
             << "    void Seed(TwistWorkSpace *pWorkspace,\n"
+            << "              TwistCryptoGenerator *pCryptoGenerator,\n"
             << "              std::uint8_t *pSource,\n"
             << "              std::uint8_t *pPassword,\n"
             << "              unsigned int pPasswordByteLength) override;\n"
@@ -911,11 +912,12 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "}\n"
          << "\n"
          << "void " << aClassName << "::Seed(TwistWorkSpace *pWorkspace,\n"
+         << "                                 TwistCryptoGenerator *pCryptoGenerator,\n"
          << "                                 std::uint8_t *pSource,\n"
          << "                                 std::uint8_t *pPassword,\n"
          << "                                 unsigned int pPasswordByteLength) {\n"
-         << "    TwistExpander::Seed(pWorkspace, pSource, pPassword, pPasswordByteLength);\n"
-         << "    if (pWorkspace == nullptr) { return; }\n";
+         << "    TwistExpander::Seed(pWorkspace, pCryptoGenerator, pSource, pPassword, pPasswordByteLength);\n"
+         << "    if ((pWorkspace == nullptr) || (pCryptoGenerator == nullptr)) { return; }\n";
     if (!AppendBranchBody(aSnapshot.mSeeder, &aCpp, pErrorMessage, true)) {
         return false;
     }

@@ -75,35 +75,21 @@ public:
                   GSymbol pSource,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) const {
-        if (pStatements == nullptr) {
-            SetError(pErrorMessage, "GMemory output statement list was null.");
-            return false;
-        }
-        if (!pDest.IsBuf() || !pSource.IsBuf()) {
-            SetError(pErrorMessage, "GMemory grow symbols must both be buffer symbols.");
-            return false;
-        }
-        if (!IsWideScratchSaltSlot(pDest.mSlot)) {
-            SetError(pErrorMessage, "GMemory grow destination must be a scratch-salt buffer.");
-            return false;
-        }
-        if (IsWideScratchSaltSlot(pSource.mSlot)) {
-            SetError(pErrorMessage, "GMemory grow source must be a byte buffer.");
-            return false;
-        }
+        return BakeGrowWithMethod("Grow", pDest, pSource, pStatements, pErrorMessage);
+    }
 
-        const int aLength = TwistWorkSpace::GetBufferLength(pSource.mSlot);
-        if (aLength <= 0) {
-            SetError(pErrorMessage, "GMemory grow source length resolved to <= 0.");
-            return false;
-        }
+    bool BakeGrowA(GSymbol pDest,
+                   GSymbol pSource,
+                   std::vector<GStatement> *pStatements,
+                   std::string *pErrorMessage) const {
+        return BakeGrowWithMethod("GrowA", pDest, pSource, pStatements, pErrorMessage);
+    }
 
-        const std::string aLine = "TwistMemory::Grow(" +
-            BufAliasName(pDest.mSlot) + ", " +
-            BufAliasName(pSource.mSlot) + ", " +
-            std::to_string(static_cast<unsigned int>(aLength)) + "U);";
-        pStatements->push_back(GStatement::RawLine(aLine));
-        return true;
+    bool BakeGrowB(GSymbol pDest,
+                   GSymbol pSource,
+                   std::vector<GStatement> *pStatements,
+                   std::string *pErrorMessage) const {
+        return BakeGrowWithMethod("GrowB", pDest, pSource, pStatements, pErrorMessage);
     }
     
     bool BakeSwap(GSymbol pBufferA,
@@ -129,6 +115,41 @@ public:
     }
     
 private:
+    bool BakeGrowWithMethod(const std::string &pMethod,
+                            GSymbol pDest,
+                            GSymbol pSource,
+                            std::vector<GStatement> *pStatements,
+                            std::string *pErrorMessage) const {
+        if (pStatements == nullptr) {
+            SetError(pErrorMessage, "GMemory output statement list was null.");
+            return false;
+        }
+        if (!pDest.IsBuf() || !pSource.IsBuf()) {
+            SetError(pErrorMessage, "GMemory grow symbols must both be buffer symbols.");
+            return false;
+        }
+        if (!IsWideScratchSaltSlot(pDest.mSlot)) {
+            SetError(pErrorMessage, "GMemory grow destination must be a scratch-salt buffer.");
+            return false;
+        }
+        if (IsWideScratchSaltSlot(pSource.mSlot)) {
+            SetError(pErrorMessage, "GMemory grow source must be a byte buffer.");
+            return false;
+        }
+
+        const int aLength = TwistWorkSpace::GetBufferLength(pSource.mSlot);
+        if (aLength <= 0) {
+            SetError(pErrorMessage, "GMemory grow source length resolved to <= 0.");
+            return false;
+        }
+
+        const std::string aLine = "TwistMemory::" + pMethod + "(" +
+            BufAliasName(pDest.mSlot) + ", " +
+            BufAliasName(pSource.mSlot) + ", " +
+            std::to_string(static_cast<unsigned int>(aLength)) + "U);";
+        pStatements->push_back(GStatement::RawLine(aLine));
+        return true;
+    }
     static bool IsWideScratchSaltSlot(TwistWorkSpaceSlot pSlot) {
         switch (pSlot) {
             case TwistWorkSpaceSlot::kScratchSaltA:

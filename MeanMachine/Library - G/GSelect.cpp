@@ -291,9 +291,52 @@ bool GSelect::Bake(GSymbol pSelectVariable,
     return true;
 }
 
-bool GSelect::Bake(GSymbol pSelectVariable,
-                   GSymbol pSelectValue,
+bool GSelect::Bake(GSymbol pSelectValue,
                    std::vector<GStatement> *pStatements,
                    std::string *pErrorMessage) {
-    return Bake(pSelectVariable, GExpr::Symbol(pSelectValue), pStatements, pErrorMessage);
+    if (!pSelectValue.IsVar()) {
+        SetError(pErrorMessage, "GSelect::Bake requires a variable symbol select value.");
+        return false;
+    }
+    if (pStatements == NULL) {
+        SetError(pErrorMessage, "GSelect::Bake had a null output statement vector.");
+        return false;
+    }
+
+    const std::vector<GStatement> *aStatementsA = &mStatementsAOwned;
+    const std::vector<GStatement> *aStatementsB = &mStatementsBOwned;
+    const std::vector<GStatement> *aStatementsC = &mStatementsCOwned;
+    const std::vector<GStatement> *aStatementsD = &mStatementsDOwned;
+
+    const bool aUseFourWay = !aStatementsC->empty() || !aStatementsD->empty();
+
+    std::vector<GStatement> aResult;
+    const std::string aSelectName = pSelectValue.mName;
+    char aMaskToken[16];
+    std::snprintf(aMaskToken, sizeof(aMaskToken), "0x%02XU", static_cast<unsigned int>(mMask));
+    const std::string aSelectMaskedExpr = "(" + aSelectName + " & " + std::string(aMaskToken) + ")";
+    if (!aUseFourWay) {
+        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {"));
+        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t");
+        aResult.push_back(GStatement::RawLine("} else {"));
+        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t");
+        aResult.push_back(GStatement::RawLine("}"));
+    } else {
+        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdB)) + ") {"));
+        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdC)) + ") {", "\t"));
+        AppendStatementsWithPrefix(&aResult, aStatementsD, "\t\t");
+        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
+        AppendStatementsWithPrefix(&aResult, aStatementsC, "\t\t");
+        aResult.push_back(RawLineWithPrefix("}", "\t"));
+        aResult.push_back(GStatement::RawLine("} else {"));
+        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {", "\t"));
+        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t\t");
+        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
+        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t\t");
+        aResult.push_back(RawLineWithPrefix("}", "\t"));
+        aResult.push_back(GStatement::RawLine("}"));
+    }
+
+    *pStatements = std::move(aResult);
+    return true;
 }

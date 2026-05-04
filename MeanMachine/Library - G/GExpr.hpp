@@ -50,7 +50,9 @@ enum class GExprType : std::uint8_t {
     kMix64_4 = 15,
     kMix64_8 = 16,
     kRotL64 = 17,
-    kDiffuse64 = 18
+    kDiffuseA64 = 18,
+    kDiffuseB64 = 19,
+    kDiffuseC64 = 20
 };
 
 enum class GReadWrapType : std::uint8_t {
@@ -103,8 +105,12 @@ public:
     static GExpr                        Const8(int pVal);
     static GExpr                        Const32(int pVal);
     static GExpr                        Const64(std::uint64_t pVal);
-    static GExpr                        Diffuse(std::uint64_t pVal);
-    static GExpr                        Diffuse(const GExpr &pExpr);
+    static GExpr                        DiffuseA(std::uint64_t pVal);
+    static GExpr                        DiffuseA(const GExpr &pExpr);
+    static GExpr                        DiffuseB(std::uint64_t pVal);
+    static GExpr                        DiffuseB(const GExpr &pExpr);
+    static GExpr                        DiffuseC(std::uint64_t pVal);
+    static GExpr                        DiffuseC(const GExpr &pExpr);
     static GExpr                        Read(const GSymbol &pSymbol, const GExpr &pIndex);
     static GExpr                        Add(const GExpr &a, const GExpr &b);
     static GExpr                        Add(const GSymbol &a, const GSymbol &b);

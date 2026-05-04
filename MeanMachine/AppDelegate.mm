@@ -32,7 +32,9 @@
 #include "TwistSnow.hpp"
 #include "SBoxMaterial.hpp"
 #include "TwistCryptoScoring.hpp"
-
+#include "FrodoShireA.hpp"
+#include "ByteString.hpp"
+#include "Rig.hpp"
 
 @interface AppDelegate ()
 
@@ -43,6 +45,50 @@
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
+    
+    /*
+    std::vector<std::string> aPasswords;
+    aPasswords.push_back("cat");
+    aPasswords.push_back("dog");
+    aPasswords.push_back("ham");
+    
+    
+    
+    int aBlockCount = 32;
+    
+    
+    unsigned char aPassword[3];
+    
+    Rig aRig;
+    aRig.SetBlockCount(aBlockCount);
+    
+    int aNumber = 0;
+    
+    for (int aLetter1=0; aLetter1<256; aLetter1++) {
+        for (int aLetter2=0; aLetter2<256; aLetter2++) {
+            //for (int aLetter3=0; aLetter3<256; aLetter3++) {
+                
+                FrodoShireA aShire;
+                
+                aPassword[0] = aLetter1;
+                aPassword[1] = aLetter2;
+                //aPassword[2] = aLetter3;
+                
+                aRig.Run(&aShire, aPassword, 2);
+                
+                
+                //aRig.SaveByteStreamProjectRootLastAsciiPassword();
+                
+                aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
+            //}
+            
+            
+        }
+    }
+    */
+    
+
+    
     
     /*
     TwistCryptoScoring aScoring;
@@ -79,7 +125,7 @@
     GSeedDeriveMaterial aDer;
     std::string aError;
     GTwistExpander aExpander;
-    aExpander.mNameBase = "CrooooNNnnNN";
+    aExpander.mNameBase = "Goose";
     
     if (!aDer.PlanPhaseA(&aError)) {
         printf("error on GSeedDeriveMaterial.PlanPhaseA\n");

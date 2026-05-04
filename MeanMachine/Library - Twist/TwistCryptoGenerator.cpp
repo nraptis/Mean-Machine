@@ -318,10 +318,6 @@ void TwistCryptoGenerator::ProceedWithTopSixteen(int *aBestIndex,
         return;
     }
     
-    for (int aI = 0; aI < 4; aI++) {
-        aSelectedIndex[aI] = aBestIndex[aI];
-    }
-    
     std::uint8_t *aExistingList[4];
     int aExistingCount = 0;
     
@@ -453,90 +449,7 @@ void TwistCryptoGenerator::ProceedWithTopSixteen(int *aBestIndex,
     if (aSelectedCount > 3) {
         std::memcpy(pSBoxD, mCandidates[aSelectedIndex[3]], 256);
     }
-    
-    printf("\n==== S-BOX SCORE TABLE ====\n");
-    
-    for (int aIndex=0; aIndex<aMaxCandidates; aIndex++) {
-        
-        bool aIsTop16 = false;
-        bool aIsSelected = false;
-        
-        // Check if in top 16
-        for (int aI = 0; aI<16; aI++) {
-            if (aBestIndex[aI] == aIndex) {
-                aIsTop16 = true;
-                break;
-            }
-        }
-        
-        // Check if in final selected set (top 4)
-        for (int aI = 0; aI < 4; aI++) {
-            if (aSelectedIndex[aI] == aIndex) {
-                aIsSelected = true;
-                break;
-            }
-        }
-        
-        if (aIsTop16) {
 
-            // Print line
-            printf("[%3d] score=%6d", aIndex, mScores[aIndex]);
-            
-            if (aIsSelected) {
-                printf("  *");        // final chosen
-            } else if (aIsTop16) {
-                printf("  +");        // in top 16 pool
-            }
-            printf("\n");
-            
-            
-            printf("\n================ FINAL TOP 16 S-BOXES ================\n");
-            printf("Idx   Score    DDT  Walsh   SACavg  SACmax  BICavg  BICmax   Flag\n");
-            printf("-----------------------------------------------------------------\n");
-
-            if (aIsTop16) {
-                
-                std::uint8_t *aBox = mCandidates[aIndex];
-                
-                int aDDT   = mAnalyzer.ComputeDifferenceDistributionTableMax_256(aBox, 256);
-                int aWalsh = mAnalyzer.ComputeLinearCorrelationMax_256(aBox, 256);
-                
-                float aSacAvg = mAnalyzer.ComputeSacAverageBias_256(aBox, 256);
-                int   aSacMax = mAnalyzer.ComputeSacMaxBias_256(aBox, 256);
-                
-                float aBicAvg = mAnalyzer.ComputeBicAverageBias_256(aBox, 256);
-                int   aBicMax = mAnalyzer.ComputeBicMaxBias_256(aBox, 256);
-                
-                char aFlag = ' ';
-                if (aIsSelected) {
-                    aFlag = '*';   // final chosen
-                } else {
-                    aFlag = '+';   // top 16 pool
-                }
-                
-                printf("%3d | %6d | %3d | %5d | %6.2f | %6d | %6.2f | %6d |  %c\n",
-                       aIndex,
-                       mScores[aIndex],
-                       aDDT,
-                       aWalsh,
-                       aSacAvg,
-                       aSacMax,
-                       aBicAvg,
-                       aBicMax,
-                       aFlag);
-            }
-
-            printf("=======================================================\n\n");
-            
-            
-        }
-        
-        
-    }
-    
-    printf("==== END TABLE ====\n\n");
-    
-    
     printf("\n=========== FINAL 4 VS TOP 16 SIMILARITY ===========\n");
     printf("SelIdx | WorstSim | WorstAgainstIdx\n");
     printf("---------------------------------------------------\n");
@@ -632,24 +545,14 @@ void TwistCryptoGenerator::Salt(const std::uint8_t *pSource,
         mSalts[i] = const_cast<std::uint8_t*>(pSource + (i * CRYPTO_GENERATOR_SALT_HOP));
     }
     
-    for (int i = 0; i < CRYPTO_GENERATOR_SALT_COUNT; i++) {
-        
+    for (int i=0; i<CRYPTO_GENERATOR_SALT_COUNT; i++) {
         const std::uint8_t *aSalt = mSalts[i];
-        
         int aBitBalance = mAnalyzer.ComputeSaltBitBalance_128(aSalt);
         int aByteSpread = mAnalyzer.ComputeSaltByteSpread_128(aSalt);
         int aAdjacency  = mAnalyzer.ComputeSaltAdjacencyPenalty_128(aSalt);
         int aXorDrift   = mAnalyzer.ComputeSaltXorDrift_128(aSalt);
-        
-        int aScore =
-        (aBitBalance * 4) +
-        (aByteSpread * 3) +
-        (aXorDrift * 4) -
-        (aAdjacency * 5);
-        
+        int aScore = (aBitBalance * 4) + (aByteSpread * 3) + (aXorDrift * 4) - (aAdjacency * 5);
         mSaltScores[i] = aScore;
-        
-        printf("salt at %d score is %d\n", i, aScore);
     }
     
     
@@ -845,34 +748,10 @@ void TwistCryptoGenerator::ProceedWithTopTwelve(int *aBestIndex,
                 continue;
             }
             
-            // --- Reject duplicate vs already selected ---
-            for (int aSel = 0; aSel < aSelectedCount; aSel++) {
-                
-                const std::uint8_t *aSelectedSalt = mSalts[aSelectedIndex[aSel]];
-                
-                if (mAnalyzer.Equal_128(aCandidate, aSelectedSalt)) {
-                    aIsDuplicate = true;
-                    break;
-                }
-            }
-            
-            if (aIsDuplicate) {
-                continue;
-            }
-            
-            
             std::uint64_t aCandidateScore =
-                mAnalyzer.ComputeSaltComprehensiveAgainstSBoxFamilt(
-                    aCandidate,
-                    pSBoxA,
-                    pSBoxB,
-                    pSBoxC,
-                    pSBoxD,
-                    pSBoxE,
-                    pSBoxF,
-                    pSBoxG,
-                    pSBoxH
-                );
+                mAnalyzer.ComputeSaltComprehensiveAgainstSBoxFamily(
+                    aCandidate, pSBoxA, pSBoxB, pSBoxC, pSBoxD,
+                    pSBoxE, pSBoxF, pSBoxG, pSBoxH);
 
             bool aTakeCandidate = false;
 
@@ -895,10 +774,6 @@ void TwistCryptoGenerator::ProceedWithTopTwelve(int *aBestIndex,
             printf("WARNING: could not find enough valid salts\n");
             break;
         }
-        
-        printf("Selected salt index %d with score %" PRIu64 "\n",
-               aBestCandidateIndex,
-               aBestCandidateScore);
         
         aSelectedIndex[aSelectedCount] = aBestCandidateIndex;
         aSelectedCount++;
@@ -925,7 +800,7 @@ void TwistCryptoGenerator::ProceedWithTopTwelve(int *aBestIndex,
         const std::uint8_t *aSalt = mSalts[aIndex];
         
         std::uint64_t aFullScore =
-            mAnalyzer.ComputeSaltComprehensiveAgainstSBoxFamilt(
+            mAnalyzer.ComputeSaltComprehensiveAgainstSBoxFamily(
                 aSalt,
                 pSBoxA,
                 pSBoxB,
@@ -937,7 +812,7 @@ void TwistCryptoGenerator::ProceedWithTopTwelve(int *aBestIndex,
                 pSBoxH
             );
         
-        printf("[%02d] idx=%4d  base=%6d  full=%12llu  ",
+        printf("[%02d] idx=%4d  base=%6d  full=%12" PRIu64 "  ",
                aSlot,
                aIndex,
                mSaltScores[aIndex],

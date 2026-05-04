@@ -374,7 +374,9 @@ std::string ExprTypeToken(const GExprType pType) {
         case GExprType::kMix64_4: return "mix64_4";
         case GExprType::kMix64_8: return "mix64_8";
         case GExprType::kRotL64: return "rotl64";
-        case GExprType::kDiffuse64: return "diffuse64";
+        case GExprType::kDiffuseA64: return "diffuse64";
+        case GExprType::kDiffuseB64: return "diffuse64_b";
+        case GExprType::kDiffuseC64: return "diffuse64_c";
         default: return "invalid";
     }
 }
@@ -401,7 +403,10 @@ bool ExprTypeFromToken(const std::string &pToken,
     if (pToken == "mix64_4") { *pType = GExprType::kMix64_4; return true; }
     if (pToken == "mix64_8") { *pType = GExprType::kMix64_8; return true; }
     if (pToken == "rotl64") { *pType = GExprType::kRotL64; return true; }
-    if (pToken == "diffuse64") { *pType = GExprType::kDiffuse64; return true; }
+    if (pToken == "diffuse64") { *pType = GExprType::kDiffuseA64; return true; }
+    if (pToken == "diffuse64_a") { *pType = GExprType::kDiffuseA64; return true; }
+    if (pToken == "diffuse64_b") { *pType = GExprType::kDiffuseB64; return true; }
+    if (pToken == "diffuse64_c") { *pType = GExprType::kDiffuseC64; return true; }
     return false;
 }
 
@@ -1378,7 +1383,9 @@ bool ExprFromJsonValue(const JsonValue &pValue,
             }
             break;
         }
-        case GExprType::kDiffuse64: {
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64: {
             const JsonValue *aValue = pValue.find("a");
             if (aValue == NULL) {
                 SetError(pErrorMessage, "Diffuse64 expression was incomplete.");
@@ -1388,7 +1395,13 @@ bool ExprFromJsonValue(const JsonValue &pValue,
             if (!ExprFromJsonValue(*aValue, &aInput, pErrorMessage)) {
                 return false;
             }
-            aExpr = GExpr::Diffuse(aInput);
+            if (aTypeValue == GExprType::kDiffuseA64) {
+                aExpr = GExpr::DiffuseA(aInput);
+            } else if (aTypeValue == GExprType::kDiffuseB64) {
+                aExpr = GExpr::DiffuseB(aInput);
+            } else {
+                aExpr = GExpr::DiffuseC(aInput);
+            }
             break;
         }
         case GExprType::kAdd:
@@ -1918,8 +1931,12 @@ std::string PrettyExpr(const GExpr &pExpr) {
             return "rotl32(" + PrettyExpr(*pExpr.mA) + ", " + PrettyExpr(*pExpr.mB) + ")";
         case GExprType::kRotL64:
             return "rotl64(" + PrettyExpr(*pExpr.mA) + ", " + PrettyExpr(*pExpr.mB) + ")";
-        case GExprType::kDiffuse64:
+        case GExprType::kDiffuseA64:
             return "diffuse64(" + PrettyExpr(*pExpr.mA) + ")";
+        case GExprType::kDiffuseB64:
+            return "diffuse64_b(" + PrettyExpr(*pExpr.mA) + ")";
+        case GExprType::kDiffuseC64:
+            return "diffuse64_c(" + PrettyExpr(*pExpr.mA) + ")";
         case GExprType::kMix64_1: {
             const std::string aCall = Mix64Type1CallToken(pExpr.mMix64Type1);
             if (Mix64Type1NeedsAmount(pExpr.mMix64Type1)) {
@@ -2430,8 +2447,12 @@ std::string CppExprWithParent(const GExpr &pExpr,
         case GExprType::kRotL64:
             return "RotL64(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ", " +
                    CppExprWithParent(*pExpr.mB, CppExprGroup::kNone) + ")";
-        case GExprType::kDiffuse64:
-            return "TwistMix64::Diffuse(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ")";
+        case GExprType::kDiffuseA64:
+            return "TwistMix64::DiffuseA(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ")";
+        case GExprType::kDiffuseB64:
+            return "TwistMix64::DiffuseB(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ")";
+        case GExprType::kDiffuseC64:
+            return "TwistMix64::DiffuseC(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ")";
         case GExprType::kMix64_1: {
             const std::string aCall = Mix64Type1CallToken(pExpr.mMix64Type1);
             if (aCall.empty() || !pExpr.mMix64SBoxA.IsBuf()) {
@@ -2834,7 +2855,9 @@ bool EvaluateExpr(const GExpr &pExpr,
             *pValue = ReadRuntimeBufferValue(pExpr.mSymbol.mSlot, aBuffer, aIndex);
             return true;
         }
-        case GExprType::kDiffuse64: {
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64: {
             if (pExpr.mA == NULL) {
                 SetError(pErrorMessage, "Diffuse64 expression was missing an input child.");
                 return false;
@@ -2844,8 +2867,15 @@ bool EvaluateExpr(const GExpr &pExpr,
                 SetError(pErrorMessage, "Diffuse64 input expression was invalid.");
                 return false;
             }
-            *pValue = static_cast<GRuntimeScalar>(
-                TwistMix64::Diffuse(static_cast<std::uint64_t>(aInputValue)));
+            std::uint64_t aDiffused = 0ULL;
+            if (pExpr.mType == GExprType::kDiffuseA64) {
+                aDiffused = TwistMix64::DiffuseA(static_cast<std::uint64_t>(aInputValue));
+            } else if (pExpr.mType == GExprType::kDiffuseB64) {
+                aDiffused = TwistMix64::DiffuseB(static_cast<std::uint64_t>(aInputValue));
+            } else {
+                aDiffused = TwistMix64::DiffuseC(static_cast<std::uint64_t>(aInputValue));
+            }
+            *pValue = static_cast<GRuntimeScalar>(aDiffused);
             return true;
         }
         case GExprType::kMix64_1: {
@@ -4372,9 +4402,9 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
         return true;
     }
 
-    if (aMethod == "Grow") {
+    if ((aMethod == "Grow") || (aMethod == "GrowA") || (aMethod == "GrowB")) {
         if (aArgs.size() != 3U) {
-            SetError(pErrorMessage, "Grow expected exactly 3 arguments.");
+            SetError(pErrorMessage, aMethod + " expected exactly 3 arguments.");
             return false;
         }
 
@@ -4389,7 +4419,7 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
             return false;
         }
         if (!IsScratchSaltSlot(aDestSlot)) {
-            SetError(pErrorMessage, "Grow destination must be a scratch-salt buffer.");
+            SetError(pErrorMessage, aMethod + " destination must be a scratch-salt buffer.");
             return false;
         }
 
@@ -4401,15 +4431,25 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
         std::uint8_t *aDestBytes = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aDestSlot);
         std::uint8_t *aSourceBytes = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSourceSlot);
         if ((aDestBytes == nullptr) || (aSourceBytes == nullptr)) {
-            SetError(pErrorMessage, "Grow source/destination pointer was null.");
+            SetError(pErrorMessage, aMethod + " source/destination pointer was null.");
             return false;
         }
 
         aDestBytes += static_cast<std::size_t>(aDestOffset);
         aSourceBytes += static_cast<std::size_t>(aSourceOffset);
-        TwistMemory::Grow(reinterpret_cast<std::uint64_t *>(aDestBytes),
-                          aSourceBytes,
-                          static_cast<std::uint32_t>(aLength));
+        if (aMethod == "GrowB") {
+            TwistMemory::GrowB(reinterpret_cast<std::uint64_t *>(aDestBytes),
+                               aSourceBytes,
+                               static_cast<std::uint32_t>(aLength));
+        } else if (aMethod == "GrowA") {
+            TwistMemory::GrowA(reinterpret_cast<std::uint64_t *>(aDestBytes),
+                               aSourceBytes,
+                               static_cast<std::uint32_t>(aLength));
+        } else {
+            TwistMemory::Grow(reinterpret_cast<std::uint64_t *>(aDestBytes),
+                              aSourceBytes,
+                              static_cast<std::uint32_t>(aLength));
+        }
         return true;
     }
 

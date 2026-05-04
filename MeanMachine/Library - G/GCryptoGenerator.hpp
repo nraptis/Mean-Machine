@@ -129,6 +129,194 @@ public:
         return true;
     }
 
+    static bool                     Salt(TwistWorkSpace *pWorkspace,
+                                         const GSymbol &pSource,
+                                         const GSymbol &pSaltA,
+                                         const GSymbol &pSaltB,
+                                         const GSymbol &pSaltC,
+                                         const GSymbol &pSaltD,
+                                         const GSymbol &pSBoxA,
+                                         const GSymbol &pSBoxB,
+                                         const GSymbol &pSBoxC,
+                                         const GSymbol &pSBoxD,
+                                         std::string *pErrorMessage = nullptr) {
+        return Salt(pWorkspace,
+                    nullptr,
+                    pSource,
+                    pSaltA,
+                    pSaltB,
+                    pSaltC,
+                    pSaltD,
+                    pSBoxA,
+                    pSBoxB,
+                    pSBoxC,
+                    pSBoxD,
+                    pErrorMessage);
+    }
+
+    static bool                     Salt(TwistWorkSpace *pWorkspace,
+                                         TwistExpander *pExpander,
+                                         const GSymbol &pSource,
+                                         const GSymbol &pSaltA,
+                                         const GSymbol &pSaltB,
+                                         const GSymbol &pSaltC,
+                                         const GSymbol &pSaltD,
+                                         const GSymbol &pSBoxA,
+                                         const GSymbol &pSBoxB,
+                                         const GSymbol &pSBoxC,
+                                         const GSymbol &pSBoxD,
+                                         std::string *pErrorMessage = nullptr) {
+        std::uint8_t *aSource = nullptr;
+        std::uint8_t *aSaltA = nullptr;
+        std::uint8_t *aSaltB = nullptr;
+        std::uint8_t *aSaltC = nullptr;
+        std::uint8_t *aSaltD = nullptr;
+        std::uint8_t *aSBoxA = nullptr;
+        std::uint8_t *aSBoxB = nullptr;
+        std::uint8_t *aSBoxC = nullptr;
+        std::uint8_t *aSBoxD = nullptr;
+
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSource, "source", &aSource, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltA, "salt A", &aSaltA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltB, "salt B", &aSaltB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltC, "salt C", &aSaltC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltD, "salt D", &aSaltD, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
+
+        TwistCryptoGenerator aGenerator;
+        aGenerator.Salt(aSource,
+                        aSaltA,
+                        aSaltB,
+                        aSaltC,
+                        aSaltD,
+                        aSBoxA,
+                        aSBoxB,
+                        aSBoxC,
+                        aSBoxD);
+        return true;
+    }
+
+    static bool                     Salt(TwistWorkSpace *pWorkspace,
+                                         const GSymbol &pSource,
+                                         const GSymbol &pSaltA,
+                                         const GSymbol &pSaltB,
+                                         const GSymbol &pSaltC,
+                                         const GSymbol &pSaltD,
+                                         const GSymbol &pExistingSaltA,
+                                         const GSymbol &pExistingSaltB,
+                                         const GSymbol &pExistingSaltC,
+                                         const GSymbol &pExistingSaltD,
+                                         const GSymbol &pSBoxA,
+                                         const GSymbol &pSBoxB,
+                                         const GSymbol &pSBoxC,
+                                         const GSymbol &pSBoxD,
+                                         const GSymbol &pSBoxE,
+                                         const GSymbol &pSBoxF,
+                                         const GSymbol &pSBoxG,
+                                         const GSymbol &pSBoxH,
+                                         std::string *pErrorMessage = nullptr) {
+        return Salt(pWorkspace,
+                    nullptr,
+                    pSource,
+                    pSaltA,
+                    pSaltB,
+                    pSaltC,
+                    pSaltD,
+                    pExistingSaltA,
+                    pExistingSaltB,
+                    pExistingSaltC,
+                    pExistingSaltD,
+                    pSBoxA,
+                    pSBoxB,
+                    pSBoxC,
+                    pSBoxD,
+                    pSBoxE,
+                    pSBoxF,
+                    pSBoxG,
+                    pSBoxH,
+                    pErrorMessage);
+    }
+
+    static bool                     Salt(TwistWorkSpace *pWorkspace,
+                                         TwistExpander *pExpander,
+                                         const GSymbol &pSource,
+                                         const GSymbol &pSaltA,
+                                         const GSymbol &pSaltB,
+                                         const GSymbol &pSaltC,
+                                         const GSymbol &pSaltD,
+                                         const GSymbol &pExistingSaltA,
+                                         const GSymbol &pExistingSaltB,
+                                         const GSymbol &pExistingSaltC,
+                                         const GSymbol &pExistingSaltD,
+                                         const GSymbol &pSBoxA,
+                                         const GSymbol &pSBoxB,
+                                         const GSymbol &pSBoxC,
+                                         const GSymbol &pSBoxD,
+                                         const GSymbol &pSBoxE,
+                                         const GSymbol &pSBoxF,
+                                         const GSymbol &pSBoxG,
+                                         const GSymbol &pSBoxH,
+                                         std::string *pErrorMessage = nullptr) {
+        std::uint8_t *aSource = nullptr;
+        std::uint8_t *aSaltA = nullptr;
+        std::uint8_t *aSaltB = nullptr;
+        std::uint8_t *aSaltC = nullptr;
+        std::uint8_t *aSaltD = nullptr;
+        std::uint8_t *aExistingSaltA = nullptr;
+        std::uint8_t *aExistingSaltB = nullptr;
+        std::uint8_t *aExistingSaltC = nullptr;
+        std::uint8_t *aExistingSaltD = nullptr;
+        std::uint8_t *aSBoxA = nullptr;
+        std::uint8_t *aSBoxB = nullptr;
+        std::uint8_t *aSBoxC = nullptr;
+        std::uint8_t *aSBoxD = nullptr;
+        std::uint8_t *aSBoxE = nullptr;
+        std::uint8_t *aSBoxF = nullptr;
+        std::uint8_t *aSBoxG = nullptr;
+        std::uint8_t *aSBoxH = nullptr;
+
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSource, "source", &aSource, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltA, "salt A", &aSaltA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltB, "salt B", &aSaltB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltC, "salt C", &aSaltC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltD, "salt D", &aSaltD, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSaltA, "existing salt A", &aExistingSaltA, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSaltB, "existing salt B", &aExistingSaltB, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSaltC, "existing salt C", &aExistingSaltC, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSaltD, "existing salt D", &aExistingSaltD, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxE, "sbox E", &aSBoxE, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxF, "sbox F", &aSBoxF, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxG, "sbox G", &aSBoxG, pErrorMessage)) { return false; }
+        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxH, "sbox H", &aSBoxH, pErrorMessage)) { return false; }
+
+        TwistCryptoGenerator aGenerator;
+        aGenerator.Salt(aSource,
+                        aSaltA,
+                        aSaltB,
+                        aSaltC,
+                        aSaltD,
+                        aExistingSaltA,
+                        aExistingSaltB,
+                        aExistingSaltC,
+                        aExistingSaltD,
+                        aSBoxA,
+                        aSBoxB,
+                        aSBoxC,
+                        aSBoxD,
+                        aSBoxE,
+                        aSBoxF,
+                        aSBoxG,
+                        aSBoxH);
+        return true;
+    }
+
 private:
     static void                     SetError(std::string *pErrorMessage,
                                              const std::string &pMessage) {
