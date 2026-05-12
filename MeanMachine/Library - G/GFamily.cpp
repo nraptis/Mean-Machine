@@ -2,7 +2,7 @@
 //  GBoxFamily.cpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/2/26.
+//  Created by Xenegos of the Revel on 5/2/26.
 //
 
 #include "GFamily.hpp"
@@ -111,19 +111,19 @@ void GBoxFamily::Build(std::vector<GSymbol> pList, int pCount) {
 
 std::vector<int> GRotationFamily::GetListLow() {
     return {
-        1, 3, 5, 7
+        3, 5, 7
     };
 }
 
 std::vector<int> GRotationFamily::GetListMedium() {
     return {
-        11, 13, 19, 21, 27, 29
+        11, 13, 17, 19, 21, 27, 29
     };
 }
 
 std::vector<int> GRotationFamily::GetListHigh() {
     return {
-        35, 37, 43, 45, 51, 53
+        31, 35, 37, 43, 45, 51, 53
     };
 }
 

@@ -49,9 +49,8 @@ std::vector<std::vector<std::uint8_t>> SBoxTables::Get() {
         return gSBoxTables;
     }
     
-    //const std::string aDirectory = FileIO::ProjectRoot("Assets/data_s_box");
-    const std::string aDirectory = FileIO::ProjectRoot("Assets/large_list_sboxes");
-    
+    const std::string aDirectory = FileIO::ProjectRoot("Assets/data_s_box");
+    //const std::string aDirectory = FileIO::ProjectRoot("Assets/large_list_sboxes");
     
     
     const std::vector<std::string> aFilePaths = FileIO::GetAllFiles(aDirectory);
@@ -182,7 +181,7 @@ std::vector<std::uint8_t> SBoxTables::GetDefaultD() {
     return aResult;
 }
 
-void SBoxTables::InjectRandomFour(GTwistExpander *pExpander) {
+void SBoxTables::InjectRandomEight(GTwistExpander *pExpander) {
     if (pExpander == nullptr) {
         return;
     }
@@ -192,16 +191,28 @@ void SBoxTables::InjectRandomFour(GTwistExpander *pExpander) {
         AppendIfUnique(&aUniqueTables, aTable, S_SBOX);
     }
 
-    if (aUniqueTables.size() < 4U) {
+    if (aUniqueTables.size() < 8U) {
         AppendIfUnique(&aUniqueTables, GetDefaultA(), S_SBOX);
     }
-    if (aUniqueTables.size() < 4U) {
+    if (aUniqueTables.size() < 8U) {
         AppendIfUnique(&aUniqueTables, GetDefaultB(), S_SBOX);
     }
-    if (aUniqueTables.size() < 4U) {
+    if (aUniqueTables.size() < 8U) {
         AppendIfUnique(&aUniqueTables, GetDefaultC(), S_SBOX);
     }
-    if (aUniqueTables.size() < 4U) {
+    if (aUniqueTables.size() < 8U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultD(), S_SBOX);
+    }
+    if (aUniqueTables.size() < 8U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultA(), S_SBOX);
+    }
+    if (aUniqueTables.size() < 8U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultB(), S_SBOX);
+    }
+    if (aUniqueTables.size() < 8U) {
+        AppendIfUnique(&aUniqueTables, GetDefaultC(), S_SBOX);
+    }
+    if (aUniqueTables.size() < 8U) {
         AppendIfUnique(&aUniqueTables, GetDefaultD(), S_SBOX);
     }
 
@@ -211,7 +222,7 @@ void SBoxTables::InjectRandomFour(GTwistExpander *pExpander) {
 
     Random::Shuffle(&aUniqueTables);
     const std::vector<std::uint8_t> aFallbackTable = aUniqueTables.front();
-    while (aUniqueTables.size() < 4U) {
+    while (aUniqueTables.size() < 8U) {
         aUniqueTables.push_back(aFallbackTable);
     }
 
@@ -219,4 +230,12 @@ void SBoxTables::InjectRandomFour(GTwistExpander *pExpander) {
     pExpander->_mSBoxB = aUniqueTables[1];
     pExpander->_mSBoxC = aUniqueTables[2];
     pExpander->_mSBoxD = aUniqueTables[3];
+    pExpander->_mSBoxE = aUniqueTables[4];
+    pExpander->_mSBoxF = aUniqueTables[5];
+    pExpander->_mSBoxG = aUniqueTables[6];
+    pExpander->_mSBoxH = aUniqueTables[7];
+}
+
+void SBoxTables::InjectRandomFour(GTwistExpander *pExpander) {
+    InjectRandomEight(pExpander);
 }

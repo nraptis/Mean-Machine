@@ -103,32 +103,16 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "93E1B722-A264-4D72-BD22-05B6DE9E6FE9"
+            uuid = "E7EB72B8-DFCB-402F-A2B7-EE2019D9B56D"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "MeanMachine/Library - G/TwistExpanderBuilder.cpp"
+            filePath = "MeanMachine/TwistExpander_Gollum.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "788"
-            endingLineNumber = "788"
-            landmarkName = "TwistProgramBranch::AddWorkspaceAliasLine(pAliasName, pWorkspaceFieldName)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "F72DA127-3ACC-48CB-B6F3-6C0678236F4F"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "MeanMachine/Library - G/GLoopMixBrew.cpp"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "510"
-            endingLineNumber = "510"
-            landmarkName = "GLoopMixBrew::Bake(pCombineModeBefore, pCombineModeAfter, pStatements, pErrorMessage)"
+            startingLineNumber = "199"
+            endingLineNumber = "199"
+            landmarkName = "TwistExpander_Gollum::Seed(pWorkspace, pCryptoGenerator, pFarmSBox, pFarmSalt, pSource, pPassword, pPasswordByteLength)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

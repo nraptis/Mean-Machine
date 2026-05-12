@@ -9,13 +9,14 @@
 #include <cstdint>
 #include <vector>
 
-#define S_BLOCK 8192 // 4,096 // 2,048
+#define S_BLOCK 16384 // 4,096 // 2,048
 #define S_SBOX 256
-#define S_SALT 128
+#define S_SALT 32
+#define S_SALT_DIVIDE_BITSHIFT 5
 
-#define S_BLOCK1 8191
+#define S_BLOCK1 16383
 #define S_SBOX1 255
-#define S_SALT1 127
+#define S_SALT1 (S_SALT - 1)
 
 #define CRYPTO_MAX_DEPTH 16
 #define CRYPTO_MAX_DEPTH1 16
@@ -53,11 +54,10 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kSaltB=11,
     kSaltC=12,
     kSaltD=13,
-    
-    kScratchSaltA=14,
-    kScratchSaltB=15,
-    kScratchSaltC=16,
-    kScratchSaltD=17,
+    kSaltE=18,
+    kSaltF=19,
+    kSaltG=28,
+    kSaltH=29,
     
     kDerivedSaltA=20,
     kDerivedSaltB=21,
@@ -72,6 +72,10 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kSBoxB=31,
     kSBoxC=32,
     kSBoxD=33,
+    kSBoxE=34,
+    kSBoxF=35,
+    kSBoxG=36,
+    kSBoxH=37,
     
     kDerivedSBoxA=40,
     kDerivedSBoxB=41,
@@ -119,6 +123,58 @@ enum class TwistWorkSpaceSlot : std::uint8_t {
     kMaskRowReadB=133, // size is W_MASK_B
     kMaskRowWriteA=134, // size is S_MASK_A
     kMaskRowWriteB=135, // size is S_MASK_B
+    
+    kDomainSaltKeyBoxA=140,
+    kDomainSaltKeyBoxB=141,
+    kDomainSaltKeyBoxC=142,
+    kDomainSaltKeyBoxD=143,
+    kDomainSaltKeyBoxE=144,
+    kDomainSaltKeyBoxF=145,
+    
+    kDomainSaltMaskBoxA=146,
+    kDomainSaltMaskBoxB=147,
+    kDomainSaltMaskBoxC=148,
+    kDomainSaltMaskBoxD=149,
+    kDomainSaltMaskBoxE=150,
+    kDomainSaltMaskBoxF=151,
+    
+    kDomainSaltWandererA=152,
+    kDomainSaltWandererB=153,
+    kDomainSaltWandererC=154,
+    kDomainSaltWandererD=155,
+    kDomainSaltWandererE=156,
+    kDomainSaltWandererF=157,
+    
+    kDomainSaltOrbiterA=158,
+    kDomainSaltOrbiterB=159,
+    kDomainSaltOrbiterC=160,
+    kDomainSaltOrbiterD=161,
+    kDomainSaltOrbiterE=162,
+    kDomainSaltOrbiterF=163,
+    
+    kDomainSaltPrismA=164,
+    kDomainSaltPrismB=165,
+    kDomainSaltPrismC=166,
+    kDomainSaltPrismD=167,
+    kDomainSaltPrismE=168,
+    kDomainSaltPrismF=169,
+    
+    kDomainSaltSourceA=170,
+    kDomainSaltSourceB=171,
+    kDomainSaltSourceC=172,
+    kDomainSaltSourceD=173,
+    kDomainSaltSourceE=174,
+    kDomainSaltSourceF=175,
+
+    kDerivedSaltOrbiterA=176,
+    kDerivedSaltOrbiterB=177,
+    kDerivedSaltOrbiterC=178,
+    kDerivedSaltOrbiterD=179,
+
+    kDerivedSaltWandererA=180,
+    kDerivedSaltWandererB=181,
+    kDerivedSaltWandererC=182,
+    kDerivedSaltWandererD=183,
 };
 
 
@@ -133,14 +189,24 @@ public:
     // We stop storing dest here.
     //std::uint8_t                            *mDest;
     
-    std::uint8_t                            mDerivedSaltA[S_SALT];
-    std::uint8_t                            mDerivedSaltB[S_SALT];
-    std::uint8_t                            mDerivedSaltC[S_SALT];
-    std::uint8_t                            mDerivedSaltD[S_SALT];
-    std::uint8_t                            mDerivedSaltE[S_SALT];
-    std::uint8_t                            mDerivedSaltF[S_SALT];
-    std::uint8_t                            mDerivedSaltG[S_SALT];
-    std::uint8_t                            mDerivedSaltH[S_SALT];
+    std::uint64_t                           mDerivedSaltA[S_SALT];
+    std::uint64_t                           mDerivedSaltB[S_SALT];
+    std::uint64_t                           mDerivedSaltC[S_SALT];
+    std::uint64_t                           mDerivedSaltD[S_SALT];
+    std::uint64_t                           mDerivedSaltE[S_SALT];
+    std::uint64_t                           mDerivedSaltF[S_SALT];
+    std::uint64_t                           mDerivedSaltG[S_SALT];
+    std::uint64_t                           mDerivedSaltH[S_SALT];
+
+    std::uint64_t                           mDerivedSaltOrbiterA[S_SALT];
+    std::uint64_t                           mDerivedSaltOrbiterB[S_SALT];
+    std::uint64_t                           mDerivedSaltOrbiterC[S_SALT];
+    std::uint64_t                           mDerivedSaltOrbiterD[S_SALT];
+
+    std::uint64_t                           mDerivedSaltWandererA[S_SALT];
+    std::uint64_t                           mDerivedSaltWandererB[S_SALT];
+    std::uint64_t                           mDerivedSaltWandererC[S_SALT];
+    std::uint64_t                           mDerivedSaltWandererD[S_SALT];
     
     std::uint8_t                            mDerivedSBoxA[S_SBOX];
     std::uint8_t                            mDerivedSBoxB[S_SBOX];

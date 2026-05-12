@@ -29,12 +29,31 @@
 #include "GTwistExpander.hpp"
 #include "TwistCryptoGenerator.hpp"
 #include "GSeedDeriveMaterial.hpp"
+#include "GSeedRunKDF.hpp"
+#include "LardExpander.hpp"
+
+#include "GSeedMatrixRollups.hpp"
+
+#include "TwistFarmSalt.hpp"
+#include "TwistFarmSBox.hpp"
+
+#include "TwistExpander_Gollum.hpp"
+
 #include "TwistSnow.hpp"
 #include "SBoxMaterial.hpp"
 #include "TwistCryptoScoring.hpp"
-#include "FrodoShireA.hpp"
 #include "ByteString.hpp"
 #include "Rig.hpp"
+#include "GARXPlan.hpp"
+
+namespace {
+
+bool IsRunningUnderXCTest() {
+    return (std::getenv("XCTestConfigurationFilePath") != nullptr) ||
+    (std::getenv("XCTestBundlePath") != nullptr);
+}
+
+}
 
 @interface AppDelegate ()
 
@@ -43,8 +62,191 @@
 
 @implementation AppDelegate
 
+/*
+void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pData) {
+    
+    printf("\n%s\n", pName);
+    printf("--------------------------------------------------\n");
+    
+    for (int aRow = 0; aRow < 16; aRow++) {
+        printf("[%02X] ", aRow << 4);
+        for (int aCol = 0; aCol < 16; aCol++) {
+            int aIndex = (aRow << 4) | aCol;
+            printf("%02X ", pData[aIndex]);
+        }
+        printf("\n");
+    }
+}
+*/
+
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
+    
+    /*
+    unsigned char aPassword[3];
+
+    int aNumber = 0;
+    
+    int aBlockCount = 2;
+
+    TwistWorkSpace aWorkSpace;
+    TwistCryptoGenerator aCryptoGenerator;
+    TwistFarmSBox aFarmSBox;
+    TwistFarmSalt aFarmSalt;
+
+    int aDataLength = S_BLOCK * aBlockCount;
+    std::uint8_t * aSource= new std::uint8_t[aDataLength];
+    std::uint8_t *aLaneA= new std::uint8_t[aDataLength];
+    std::uint8_t *aLaneB= new std::uint8_t[aDataLength];
+    std::uint8_t *aLaneC= new std::uint8_t[aDataLength];
+
+    Rig aRig;
+    aRig.SetBlockCount(aBlockCount);
+    
+    int aCOunt = 0;
+    for (int aLetter1 = 'a'; aLetter1 <= 'z'; aLetter1++) {
+        for (int aLetter2 = 'a'; aLetter2 <= 'z'; aLetter2++) {
+            for (int aLetter3 = 'a'; aLetter3 <= 'z'; aLetter3++) {
+                
+                
+                
+                aPassword[0] = static_cast<unsigned char>(aLetter1);
+                aPassword[1] = static_cast<unsigned char>(aLetter2);
+                aPassword[2] = static_cast<unsigned char>(aLetter3);
+                
+                LardExpander::UnrollPasswordToSource(aSource,
+                                                     aPassword,
+                                                     3,
+                                                     aDataLength);
+                
+                LardExpander aExpander;
+                aExpander.mDataLength = aDataLength;
+                aExpander.mPassword = aSource;
+                aExpander.mLaneA = aLaneA;
+                aExpander.mLaneB = aLaneB;
+                aExpander.mLaneC = aLaneC;
+                aExpander.mLaneD = aRig.mData;
+                
+                aExpander.Roll();
+                
+                aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
+
+                printf("exported %d\n", aNumber);
+            }
+        }
+    }
+    
+    
+    return;
+    */
+    
+    if (IsRunningUnderXCTest() == false) {
+        GSeedRunKDF aKDF;
+        std::string aError;
+        GTwistExpander aExpander;
+        aExpander.mNameBase = "Carbon";
+        
+        if (!aKDF.Plan(&aError)) {
+            printf("error on GSeedRunKDF.Plan\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aKDF.Build(aExpander.mKDF, &aError)) {
+            printf("error on GSeedRunKDF.Build\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        aExpander.mSeeder.AddLine("// [phase ii]");
+     
+        GSeedMatrixRollups aMatr;
+        if (!aMatr.Plan(&aError)) {
+            printf("error on GSeedMatrixRollups.Plan\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aMatr.Build(aExpander.mSeeder, &aError)) {
+            printf("error on GSeedMatrixRollups.Build\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
+            !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError)) {
+            printf("expander export failed: %s\n", aError.c_str());
+            return;
+        }
+        
+    }
+    
+     
+    /*
+    for (int i=0;i<10;i++) {
+        //GARXPlan aPlan = GARXPlan::Bake();
+        GARXPlan aPlan;
+        GARXPlan::Bake(&aPlan);
+        
+        //printf(IsValid(pPlan) ? "GARX PLAN: VALID\n" : "GARX PLAN: INVALID / PARTIAL\n");
+        
+        
+        GARXPlan::Print(&aPlan);
+    
+    }
+    */
+    
+    return;
+    
+    //
+    
+    /*
+    unsigned char aPassword[3];
+    
+    
+    int aNumber = 0;
+    
+    TwistWorkSpace aWorkSpace;
+    TwistCryptoGenerator aCryptoGenerator;
+    TwistFarmSBox aFarmSBox;
+    TwistFarmSalt aFarmSalt;
+    
+    std::uint8_t aSource[S_BLOCK];
+    
+    for (int aLetter1=0; aLetter1<256; aLetter1++) {
+        for (int aLetter2=0; aLetter2<256; aLetter2++) {
+            //for (int aLetter3=0; aLetter3<256; aLetter3++) {
+                
+            TwistExpander_Gollum aExpander;
+            
+            aPassword[0] = aLetter1;
+            aPassword[1] = aLetter2;
+            
+            //wistExpander::UnrollPasswordToSource(aSource, aPassword, 2);
+                
+                
+                //aPassword[2] = aLetter3;
+                
+            //    aRig.Run(&aShire, aPassword, 2);
+            
+            aExpander.Seed(&aWorkSpace,
+                           &aCryptoGenerator,
+                           &aFarmSBox,
+                           &aFarmSalt,
+                           aSource,
+                           aPassword,
+                           2);
+                
+                
+                //aRig.SaveByteStreamProjectRootLastAsciiPassword();
+                
+                //aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
+            //}
+            
+            
+        }
+    }
+    */
     
     /*
     std::vector<std::string> aPasswords;
@@ -87,9 +289,6 @@
     }
     */
     
-
-    
-    
     /*
     TwistCryptoScoring aScoring;
     auto aSBoxes = SBoxTables::Get();
@@ -99,11 +298,11 @@
         
         auto &aSBox = aSBoxes[aSBoxIndex];
         
-        auto aCycle0 = aScoring.ComputeMinimumCycle_256(aSBox.data(), (int)aSBox.size());
-        //auto aCycle1 = aScoring.ComputeMinimumCycleRotL1AfterGate_256(aSBox.data(), (int)aSBox.size());
-        auto aCycle3 = aScoring.ComputeMinimumCycleRotL3AfterGate_256(aSBox.data(), (int)aSBox.size());
-        auto aCycle5 = aScoring.ComputeMinimumCycleRotL5AfterGate_256(aSBox.data(), (int)aSBox.size());
-        //auto aCycle7 = aScoring.ComputeMinimumCycleRotL7AfterGate_256(aSBox.data(), (int)aSBox.size());
+        auto aCycle0 = aScoring.ComputeMinimumCycle_SBox(aSBox.data(), (int)aSBox.size());
+        //auto aCycle1 = aScoring.ComputeMinimumCycleRotL1AfterGate_SBox(aSBox.data(), (int)aSBox.size());
+        auto aCycle3 = aScoring.ComputeMinimumCycleRotL3AfterGate_SBox(aSBox.data(), (int)aSBox.size());
+        auto aCycle5 = aScoring.ComputeMinimumCycleRotL5AfterGate_SBox(aSBox.data(), (int)aSBox.size());
+        //auto aCycle7 = aScoring.ComputeMinimumCycleRotL7AfterGate_SBox(aSBox.data(), (int)aSBox.size());
         
         auto aMinCycle = aCycle0;
         
@@ -122,31 +321,48 @@
     */
     
     
-    GSeedDeriveMaterial aDer;
-    std::string aError;
-    GTwistExpander aExpander;
-    aExpander.mNameBase = "Goose";
-    
-    if (!aDer.PlanPhaseA(&aError)) {
-        printf("error on GSeedDeriveMaterial.PlanPhaseA\n");
-        printf("%s\n", aError.c_str());
-        return;
+    /*GSeedRunKDF
+    if (IsRunningUnderXCTest() == false) {
+        GSeedDeriveMaterial aDer;
+        std::string aError;
+        GTwistExpander aExpander;
+        aExpander.mNameBase = "Samwise";
+        
+        if (!aDer.Plan(&aError)) {
+            printf("error on GSeedDeriveMaterial.Plan\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aDer.Build(aExpander.mSeeder, &aError)) {
+            printf("error on GSeedDeriveMaterial.Build\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        aExpander.mSeeder.AddLine("// [phase ii]");
+        
+        
+        GSeedMatrixRollups aMatr;
+        if (!aMatr.Plan(&aError)) {
+            printf("error on GSeedMatrixRollups.Plan\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aMatr.Build(aExpander.mSeeder, &aError)) {
+            printf("error on GSeedMatrixRollups.Build\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
+            !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError)) {
+            printf("expander export failed: %s\n", aError.c_str());
+            return;
+        }
     }
-    
-    if (!aDer.BuildPhaseA(aExpander.mSeeder, &aError)) {
-        printf("error on GSeedDeriveMaterial.BuildPhaseA\n");
-        printf("%s\n", aError.c_str());
-        return;
-    }
-    
-    
-    if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
-        !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError) ||
-        !aExpander.ExportCPPProjectRoot("aaa/bbb/ccc", &aError) ||
-        !aExpander.ExportJSONProjectRoot("aaa/bbb/ccc", &aError)) {
-        printf("expander export failed: %s\n", aError.c_str());
-        return;
-    }
+    */
     
     
     printf("process finished\n");

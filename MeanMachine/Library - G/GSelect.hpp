@@ -2,7 +2,7 @@
 //  GSelect.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 4/30/26.
+//  Created by Xenegos of the Revel on 4/30/26.
 //
 
 #ifndef GSelect_hpp
@@ -31,16 +31,15 @@ public:
     void                        AddStatementsA(std::vector<GStatement> *pStatements);
     void                        AddStatementA(GStatement *pStatement);
     void                        AddStatementA(GStatement pStatement);
-    
-    
+
     void                        AddStatementsB(std::vector<GStatement> *pStatements);
     void                        AddStatementB(GStatement *pStatement);
     void                        AddStatementB(GStatement pStatement);
-    
+
     void                        AddStatementsC(std::vector<GStatement> *pStatements);
     void                        AddStatementC(GStatement *pStatement);
     void                        AddStatementC(GStatement pStatement);
-    
+
     void                        AddStatementsD(std::vector<GStatement> *pStatements);
     void                        AddStatementD(GStatement *pStatement);
     void                        AddStatementD(GStatement pStatement);

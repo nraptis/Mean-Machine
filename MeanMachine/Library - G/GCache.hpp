@@ -2,7 +2,7 @@
 //  GCache.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/3/26.
+//  Created by Xenegos of the Revel on 5/3/26.
 //
 
 #ifndef GCache_hpp
@@ -17,6 +17,9 @@
 #include "GSymbol.hpp"
 #include "Random.hpp"
 #include "TwistMix64.hpp"
+#include "TwistFastMatrix.hpp"
+#include "GARXSkeleton.hpp"
+
 
 template <typename T>
 class GCacheHistory {
@@ -257,6 +260,12 @@ using GMix644Cache = GCache<Mix64Type_4>;
 
 using GMix648CacheHistory = GCacheHistory<Mix64Type_8>;
 using GMix648Cache = GCache<Mix64Type_8>;
+
+using GUnrollCacheHistory = GCacheHistory<TwistFastMatrixUnrollScheme>;
+using GUnrollCache = GCache<TwistFastMatrixUnrollScheme>;
+
+using GARXTypeCacheHistory = GCacheHistory<GARXType>;
+using GARXTypeCache = GCache<GARXType>;
 
 
 

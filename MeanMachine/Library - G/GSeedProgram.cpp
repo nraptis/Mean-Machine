@@ -8,6 +8,8 @@
 #include "GJson.hpp"
 #include "TwistExpander.hpp"
 #include "TwistFastMatrix.hpp"
+#include "TwistFarmSBox.hpp"
+#include "TwistFarmSalt.hpp"
 #include "TwistFunctional.hpp"
 #include "TwistMasking.hpp"
 #include "TwistMix64.hpp"
@@ -26,20 +28,6 @@
 using MeanMachine_json::JsonValue;
 
 namespace {
-
-std::string ScopeSymbolKey(const GSymbol &pSymbol) {
-    if (pSymbol.IsVar()) {
-        return "var:" + pSymbol.mName;
-    }
-    if (pSymbol.IsBuf()) {
-        return "buf:" + std::to_string(static_cast<int>(pSymbol.mSlot));
-    }
-    return "invalid";
-}
-
-std::string ScopeExprKey(const GExpr &pExpr) {
-    return "expr:" + GExprKey(pExpr);
-}
 
 void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
@@ -97,10 +85,50 @@ const std::vector<TwistWorkSpaceSlot> &WorkspaceAliasSlotsForRawLine() {
         TwistWorkSpaceSlot::kSaltB,
         TwistWorkSpaceSlot::kSaltC,
         TwistWorkSpaceSlot::kSaltD,
-        TwistWorkSpaceSlot::kScratchSaltA,
-        TwistWorkSpaceSlot::kScratchSaltB,
-        TwistWorkSpaceSlot::kScratchSaltC,
-        TwistWorkSpaceSlot::kScratchSaltD,
+        TwistWorkSpaceSlot::kSaltE,
+        TwistWorkSpaceSlot::kSaltF,
+        TwistWorkSpaceSlot::kSaltG,
+        TwistWorkSpaceSlot::kSaltH,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxA,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxB,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxC,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxD,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxE,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxF,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxA,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxB,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxC,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxD,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxE,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxF,
+        TwistWorkSpaceSlot::kDomainSaltWandererA,
+        TwistWorkSpaceSlot::kDomainSaltWandererB,
+        TwistWorkSpaceSlot::kDomainSaltWandererC,
+        TwistWorkSpaceSlot::kDomainSaltWandererD,
+        TwistWorkSpaceSlot::kDomainSaltWandererE,
+        TwistWorkSpaceSlot::kDomainSaltWandererF,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterA,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterB,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterC,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterD,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterE,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterF,
+        TwistWorkSpaceSlot::kDomainSaltPrismA,
+        TwistWorkSpaceSlot::kDomainSaltPrismB,
+        TwistWorkSpaceSlot::kDomainSaltPrismC,
+        TwistWorkSpaceSlot::kDomainSaltPrismD,
+        TwistWorkSpaceSlot::kDomainSaltPrismE,
+        TwistWorkSpaceSlot::kDomainSaltPrismF,
+        TwistWorkSpaceSlot::kDomainSaltSourceA,
+        TwistWorkSpaceSlot::kDomainSaltSourceB,
+        TwistWorkSpaceSlot::kDomainSaltSourceC,
+        TwistWorkSpaceSlot::kDomainSaltSourceD,
+        TwistWorkSpaceSlot::kDomainSaltSourceE,
+        TwistWorkSpaceSlot::kDomainSaltSourceF,
+        TwistWorkSpaceSlot::kSaltA,
+        TwistWorkSpaceSlot::kSaltB,
+        TwistWorkSpaceSlot::kSaltC,
+        TwistWorkSpaceSlot::kSaltD,
         TwistWorkSpaceSlot::kDerivedSaltA,
         TwistWorkSpaceSlot::kDerivedSaltB,
         TwistWorkSpaceSlot::kDerivedSaltC,
@@ -109,10 +137,38 @@ const std::vector<TwistWorkSpaceSlot> &WorkspaceAliasSlotsForRawLine() {
         TwistWorkSpaceSlot::kDerivedSaltF,
         TwistWorkSpaceSlot::kDerivedSaltG,
         TwistWorkSpaceSlot::kDerivedSaltH,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterA,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterB,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterC,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterD,
+        TwistWorkSpaceSlot::kDerivedSaltWandererA,
+        TwistWorkSpaceSlot::kDerivedSaltWandererB,
+        TwistWorkSpaceSlot::kDerivedSaltWandererC,
+        TwistWorkSpaceSlot::kDerivedSaltWandererD,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterA,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterB,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterC,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterD,
+        TwistWorkSpaceSlot::kDerivedSaltWandererA,
+        TwistWorkSpaceSlot::kDerivedSaltWandererB,
+        TwistWorkSpaceSlot::kDerivedSaltWandererC,
+        TwistWorkSpaceSlot::kDerivedSaltWandererD,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterA,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterB,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterC,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterD,
+        TwistWorkSpaceSlot::kDerivedSaltWandererA,
+        TwistWorkSpaceSlot::kDerivedSaltWandererB,
+        TwistWorkSpaceSlot::kDerivedSaltWandererC,
+        TwistWorkSpaceSlot::kDerivedSaltWandererD,
         TwistWorkSpaceSlot::kSBoxA,
         TwistWorkSpaceSlot::kSBoxB,
         TwistWorkSpaceSlot::kSBoxC,
         TwistWorkSpaceSlot::kSBoxD,
+        TwistWorkSpaceSlot::kSBoxE,
+        TwistWorkSpaceSlot::kSBoxF,
+        TwistWorkSpaceSlot::kSBoxG,
+        TwistWorkSpaceSlot::kSBoxH,
         TwistWorkSpaceSlot::kDerivedSBoxA,
         TwistWorkSpaceSlot::kDerivedSBoxB,
         TwistWorkSpaceSlot::kDerivedSBoxC,
@@ -171,10 +227,46 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return "salt_b";
         case TwistWorkSpaceSlot::kSaltC: return "salt_c";
         case TwistWorkSpaceSlot::kSaltD: return "salt_d";
-        case TwistWorkSpaceSlot::kScratchSaltA: return "scratch_salt_a";
-        case TwistWorkSpaceSlot::kScratchSaltB: return "scratch_salt_b";
-        case TwistWorkSpaceSlot::kScratchSaltC: return "scratch_salt_c";
-        case TwistWorkSpaceSlot::kScratchSaltD: return "scratch_salt_d";
+        case TwistWorkSpaceSlot::kSaltE: return "salt_e";
+        case TwistWorkSpaceSlot::kSaltF: return "salt_f";
+        case TwistWorkSpaceSlot::kSaltG: return "salt_g";
+        case TwistWorkSpaceSlot::kSaltH: return "salt_h";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxA: return "domain_keybox_a";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxB: return "domain_keybox_b";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxC: return "domain_keybox_c";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxD: return "domain_keybox_d";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxE: return "domain_keybox_e";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxF: return "domain_keybox_f";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxA: return "domain_maskbox_a";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxB: return "domain_maskbox_b";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxC: return "domain_maskbox_c";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxD: return "domain_maskbox_d";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxE: return "domain_maskbox_e";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxF: return "domain_maskbox_f";
+        case TwistWorkSpaceSlot::kDomainSaltWandererA: return "domain_wanderer_a";
+        case TwistWorkSpaceSlot::kDomainSaltWandererB: return "domain_wanderer_b";
+        case TwistWorkSpaceSlot::kDomainSaltWandererC: return "domain_wanderer_c";
+        case TwistWorkSpaceSlot::kDomainSaltWandererD: return "domain_wanderer_d";
+        case TwistWorkSpaceSlot::kDomainSaltWandererE: return "domain_wanderer_e";
+        case TwistWorkSpaceSlot::kDomainSaltWandererF: return "domain_wanderer_f";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterA: return "domain_orbiter_a";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterB: return "domain_orbiter_b";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterC: return "domain_orbiter_c";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterD: return "domain_orbiter_d";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterE: return "domain_orbiter_e";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterF: return "domain_orbiter_f";
+        case TwistWorkSpaceSlot::kDomainSaltPrismA: return "domain_prism_a";
+        case TwistWorkSpaceSlot::kDomainSaltPrismB: return "domain_prism_b";
+        case TwistWorkSpaceSlot::kDomainSaltPrismC: return "domain_prism_c";
+        case TwistWorkSpaceSlot::kDomainSaltPrismD: return "domain_prism_d";
+        case TwistWorkSpaceSlot::kDomainSaltPrismE: return "domain_prism_e";
+        case TwistWorkSpaceSlot::kDomainSaltPrismF: return "domain_prism_f";
+        case TwistWorkSpaceSlot::kDomainSaltSourceA: return "domain_source_a";
+        case TwistWorkSpaceSlot::kDomainSaltSourceB: return "domain_source_b";
+        case TwistWorkSpaceSlot::kDomainSaltSourceC: return "domain_source_c";
+        case TwistWorkSpaceSlot::kDomainSaltSourceD: return "domain_source_d";
+        case TwistWorkSpaceSlot::kDomainSaltSourceE: return "domain_source_e";
+        case TwistWorkSpaceSlot::kDomainSaltSourceF: return "domain_source_f";
         case TwistWorkSpaceSlot::kDerivedSaltA: return "derived_salt_a";
         case TwistWorkSpaceSlot::kDerivedSaltB: return "derived_salt_b";
         case TwistWorkSpaceSlot::kDerivedSaltC: return "derived_salt_c";
@@ -183,10 +275,22 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kDerivedSaltF: return "derived_salt_f";
         case TwistWorkSpaceSlot::kDerivedSaltG: return "derived_salt_g";
         case TwistWorkSpaceSlot::kDerivedSaltH: return "derived_salt_h";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA: return "derived_salt_orbiter_a";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB: return "derived_salt_orbiter_b";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC: return "derived_salt_orbiter_c";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD: return "derived_salt_orbiter_d";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererA: return "derived_salt_wanderer_a";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererB: return "derived_salt_wanderer_b";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererC: return "derived_salt_wanderer_c";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererD: return "derived_salt_wanderer_d";
         case TwistWorkSpaceSlot::kSBoxA: return "sbox_a";
         case TwistWorkSpaceSlot::kSBoxB: return "sbox_b";
         case TwistWorkSpaceSlot::kSBoxC: return "sbox_c";
         case TwistWorkSpaceSlot::kSBoxD: return "sbox_d";
+        case TwistWorkSpaceSlot::kSBoxE: return "sbox_e";
+        case TwistWorkSpaceSlot::kSBoxF: return "sbox_f";
+        case TwistWorkSpaceSlot::kSBoxG: return "sbox_g";
+        case TwistWorkSpaceSlot::kSBoxH: return "sbox_h";
         case TwistWorkSpaceSlot::kDerivedSBoxA: return "derived_sbox_a";
         case TwistWorkSpaceSlot::kDerivedSBoxB: return "derived_sbox_b";
         case TwistWorkSpaceSlot::kDerivedSBoxC: return "derived_sbox_c";
@@ -231,10 +335,46 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSaltB: return "kSaltB";
         case TwistWorkSpaceSlot::kSaltC: return "kSaltC";
         case TwistWorkSpaceSlot::kSaltD: return "kSaltD";
-        case TwistWorkSpaceSlot::kScratchSaltA: return "kScratchSaltA";
-        case TwistWorkSpaceSlot::kScratchSaltB: return "kScratchSaltB";
-        case TwistWorkSpaceSlot::kScratchSaltC: return "kScratchSaltC";
-        case TwistWorkSpaceSlot::kScratchSaltD: return "kScratchSaltD";
+        case TwistWorkSpaceSlot::kSaltE: return "kSaltE";
+        case TwistWorkSpaceSlot::kSaltF: return "kSaltF";
+        case TwistWorkSpaceSlot::kSaltG: return "kSaltG";
+        case TwistWorkSpaceSlot::kSaltH: return "kSaltH";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxA: return "kDomainSaltKeyBoxA";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxB: return "kDomainSaltKeyBoxB";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxC: return "kDomainSaltKeyBoxC";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxD: return "kDomainSaltKeyBoxD";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxE: return "kDomainSaltKeyBoxE";
+        case TwistWorkSpaceSlot::kDomainSaltKeyBoxF: return "kDomainSaltKeyBoxF";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxA: return "kDomainSaltMaskBoxA";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxB: return "kDomainSaltMaskBoxB";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxC: return "kDomainSaltMaskBoxC";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxD: return "kDomainSaltMaskBoxD";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxE: return "kDomainSaltMaskBoxE";
+        case TwistWorkSpaceSlot::kDomainSaltMaskBoxF: return "kDomainSaltMaskBoxF";
+        case TwistWorkSpaceSlot::kDomainSaltWandererA: return "kDomainSaltWandererA";
+        case TwistWorkSpaceSlot::kDomainSaltWandererB: return "kDomainSaltWandererB";
+        case TwistWorkSpaceSlot::kDomainSaltWandererC: return "kDomainSaltWandererC";
+        case TwistWorkSpaceSlot::kDomainSaltWandererD: return "kDomainSaltWandererD";
+        case TwistWorkSpaceSlot::kDomainSaltWandererE: return "kDomainSaltWandererE";
+        case TwistWorkSpaceSlot::kDomainSaltWandererF: return "kDomainSaltWandererF";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterA: return "kDomainSaltOrbiterA";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterB: return "kDomainSaltOrbiterB";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterC: return "kDomainSaltOrbiterC";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterD: return "kDomainSaltOrbiterD";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterE: return "kDomainSaltOrbiterE";
+        case TwistWorkSpaceSlot::kDomainSaltOrbiterF: return "kDomainSaltOrbiterF";
+        case TwistWorkSpaceSlot::kDomainSaltPrismA: return "kDomainSaltPrismA";
+        case TwistWorkSpaceSlot::kDomainSaltPrismB: return "kDomainSaltPrismB";
+        case TwistWorkSpaceSlot::kDomainSaltPrismC: return "kDomainSaltPrismC";
+        case TwistWorkSpaceSlot::kDomainSaltPrismD: return "kDomainSaltPrismD";
+        case TwistWorkSpaceSlot::kDomainSaltPrismE: return "kDomainSaltPrismE";
+        case TwistWorkSpaceSlot::kDomainSaltPrismF: return "kDomainSaltPrismF";
+        case TwistWorkSpaceSlot::kDomainSaltSourceA: return "kDomainSaltSourceA";
+        case TwistWorkSpaceSlot::kDomainSaltSourceB: return "kDomainSaltSourceB";
+        case TwistWorkSpaceSlot::kDomainSaltSourceC: return "kDomainSaltSourceC";
+        case TwistWorkSpaceSlot::kDomainSaltSourceD: return "kDomainSaltSourceD";
+        case TwistWorkSpaceSlot::kDomainSaltSourceE: return "kDomainSaltSourceE";
+        case TwistWorkSpaceSlot::kDomainSaltSourceF: return "kDomainSaltSourceF";
         case TwistWorkSpaceSlot::kDerivedSaltA: return "kDerivedSaltA";
         case TwistWorkSpaceSlot::kDerivedSaltB: return "kDerivedSaltB";
         case TwistWorkSpaceSlot::kDerivedSaltC: return "kDerivedSaltC";
@@ -243,10 +383,22 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kDerivedSaltF: return "kDerivedSaltF";
         case TwistWorkSpaceSlot::kDerivedSaltG: return "kDerivedSaltG";
         case TwistWorkSpaceSlot::kDerivedSaltH: return "kDerivedSaltH";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA: return "kDerivedSaltOrbiterA";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB: return "kDerivedSaltOrbiterB";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC: return "kDerivedSaltOrbiterC";
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD: return "kDerivedSaltOrbiterD";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererA: return "kDerivedSaltWandererA";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererB: return "kDerivedSaltWandererB";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererC: return "kDerivedSaltWandererC";
+        case TwistWorkSpaceSlot::kDerivedSaltWandererD: return "kDerivedSaltWandererD";
         case TwistWorkSpaceSlot::kSBoxA: return "kSBoxA";
         case TwistWorkSpaceSlot::kSBoxB: return "kSBoxB";
         case TwistWorkSpaceSlot::kSBoxC: return "kSBoxC";
         case TwistWorkSpaceSlot::kSBoxD: return "kSBoxD";
+        case TwistWorkSpaceSlot::kSBoxE: return "kSBoxE";
+        case TwistWorkSpaceSlot::kSBoxF: return "kSBoxF";
+        case TwistWorkSpaceSlot::kSBoxG: return "kSBoxG";
+        case TwistWorkSpaceSlot::kSBoxH: return "kSBoxH";
         case TwistWorkSpaceSlot::kDerivedSBoxA: return "kDerivedSBoxA";
         case TwistWorkSpaceSlot::kDerivedSBoxB: return "kDerivedSBoxB";
         case TwistWorkSpaceSlot::kDerivedSBoxC: return "kDerivedSBoxC";
@@ -296,10 +448,50 @@ bool SlotFromToken(const std::string &pToken,
         TwistWorkSpaceSlot::kSaltB,
         TwistWorkSpaceSlot::kSaltC,
         TwistWorkSpaceSlot::kSaltD,
-        TwistWorkSpaceSlot::kScratchSaltA,
-        TwistWorkSpaceSlot::kScratchSaltB,
-        TwistWorkSpaceSlot::kScratchSaltC,
-        TwistWorkSpaceSlot::kScratchSaltD,
+        TwistWorkSpaceSlot::kSaltE,
+        TwistWorkSpaceSlot::kSaltF,
+        TwistWorkSpaceSlot::kSaltG,
+        TwistWorkSpaceSlot::kSaltH,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxA,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxB,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxC,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxD,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxE,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxF,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxA,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxB,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxC,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxD,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxE,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxF,
+        TwistWorkSpaceSlot::kDomainSaltWandererA,
+        TwistWorkSpaceSlot::kDomainSaltWandererB,
+        TwistWorkSpaceSlot::kDomainSaltWandererC,
+        TwistWorkSpaceSlot::kDomainSaltWandererD,
+        TwistWorkSpaceSlot::kDomainSaltWandererE,
+        TwistWorkSpaceSlot::kDomainSaltWandererF,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterA,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterB,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterC,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterD,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterE,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterF,
+        TwistWorkSpaceSlot::kDomainSaltPrismA,
+        TwistWorkSpaceSlot::kDomainSaltPrismB,
+        TwistWorkSpaceSlot::kDomainSaltPrismC,
+        TwistWorkSpaceSlot::kDomainSaltPrismD,
+        TwistWorkSpaceSlot::kDomainSaltPrismE,
+        TwistWorkSpaceSlot::kDomainSaltPrismF,
+        TwistWorkSpaceSlot::kDomainSaltSourceA,
+        TwistWorkSpaceSlot::kDomainSaltSourceB,
+        TwistWorkSpaceSlot::kDomainSaltSourceC,
+        TwistWorkSpaceSlot::kDomainSaltSourceD,
+        TwistWorkSpaceSlot::kDomainSaltSourceE,
+        TwistWorkSpaceSlot::kDomainSaltSourceF,
+        TwistWorkSpaceSlot::kSaltA,
+        TwistWorkSpaceSlot::kSaltB,
+        TwistWorkSpaceSlot::kSaltC,
+        TwistWorkSpaceSlot::kSaltD,
         TwistWorkSpaceSlot::kDerivedSaltA,
         TwistWorkSpaceSlot::kDerivedSaltB,
         TwistWorkSpaceSlot::kDerivedSaltC,
@@ -308,10 +500,22 @@ bool SlotFromToken(const std::string &pToken,
         TwistWorkSpaceSlot::kDerivedSaltF,
         TwistWorkSpaceSlot::kDerivedSaltG,
         TwistWorkSpaceSlot::kDerivedSaltH,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterA,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterB,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterC,
+        TwistWorkSpaceSlot::kDerivedSaltOrbiterD,
+        TwistWorkSpaceSlot::kDerivedSaltWandererA,
+        TwistWorkSpaceSlot::kDerivedSaltWandererB,
+        TwistWorkSpaceSlot::kDerivedSaltWandererC,
+        TwistWorkSpaceSlot::kDerivedSaltWandererD,
         TwistWorkSpaceSlot::kSBoxA,
         TwistWorkSpaceSlot::kSBoxB,
         TwistWorkSpaceSlot::kSBoxC,
         TwistWorkSpaceSlot::kSBoxD,
+        TwistWorkSpaceSlot::kSBoxE,
+        TwistWorkSpaceSlot::kSBoxF,
+        TwistWorkSpaceSlot::kSBoxG,
+        TwistWorkSpaceSlot::kSBoxH,
         TwistWorkSpaceSlot::kDerivedSBoxA,
         TwistWorkSpaceSlot::kDerivedSBoxB,
         TwistWorkSpaceSlot::kDerivedSBoxC,
@@ -370,8 +574,6 @@ std::string ExprTypeToken(const GExprType pType) {
         case GExprType::kShiftL: return "shiftl";
         case GExprType::kShiftR: return "shiftr";
         case GExprType::kOr: return "or";
-        case GExprType::kMix64_1: return "mix64_1";
-        case GExprType::kMix64_4: return "mix64_4";
         case GExprType::kMix64_8: return "mix64_8";
         case GExprType::kRotL64: return "rotl64";
         case GExprType::kDiffuseA64: return "diffuse64";
@@ -399,8 +601,6 @@ bool ExprTypeFromToken(const std::string &pToken,
     if (pToken == "shiftl") { *pType = GExprType::kShiftL; return true; }
     if (pToken == "shiftr") { *pType = GExprType::kShiftR; return true; }
     if (pToken == "or") { *pType = GExprType::kOr; return true; }
-    if (pToken == "mix64_1") { *pType = GExprType::kMix64_1; return true; }
-    if (pToken == "mix64_4") { *pType = GExprType::kMix64_4; return true; }
     if (pToken == "mix64_8") { *pType = GExprType::kMix64_8; return true; }
     if (pToken == "rotl64") { *pType = GExprType::kRotL64; return true; }
     if (pToken == "diffuse64") { *pType = GExprType::kDiffuseA64; return true; }
@@ -804,9 +1004,7 @@ void CollectVariablesFromExpr(const GExpr &pExpr,
         }
         return;
     }
-    if (pExpr.mType == GExprType::kMix64_1 ||
-        pExpr.mType == GExprType::kMix64_4 ||
-        pExpr.mType == GExprType::kMix64_8) {
+    if (pExpr.mType == GExprType::kMix64_8) {
         if (pExpr.mA != nullptr) {
             CollectVariablesFromExpr(*pExpr.mA, pNames);
         }
@@ -832,33 +1030,6 @@ void CollectSlotsFromExpr(const GExpr &pExpr,
         }
         if (pExpr.mIndex != nullptr) {
             CollectSlotsFromExpr(*pExpr.mIndex, pSlots);
-        }
-        return;
-    }
-    if (pExpr.mType == GExprType::kMix64_1) {
-        if (pExpr.mMix64SBoxA.IsBuf()) {
-            AppendUnique(pSlots, pExpr.mMix64SBoxA.mSlot);
-        }
-        if (pExpr.mA != nullptr) {
-            CollectSlotsFromExpr(*pExpr.mA, pSlots);
-        }
-        return;
-    }
-    if (pExpr.mType == GExprType::kMix64_4) {
-        if (pExpr.mMix64SBoxA.IsBuf()) {
-            AppendUnique(pSlots, pExpr.mMix64SBoxA.mSlot);
-        }
-        if (pExpr.mMix64SBoxB.IsBuf()) {
-            AppendUnique(pSlots, pExpr.mMix64SBoxB.mSlot);
-        }
-        if (pExpr.mMix64SBoxC.IsBuf()) {
-            AppendUnique(pSlots, pExpr.mMix64SBoxC.mSlot);
-        }
-        if (pExpr.mMix64SBoxD.IsBuf()) {
-            AppendUnique(pSlots, pExpr.mMix64SBoxD.mSlot);
-        }
-        if (pExpr.mA != nullptr) {
-            CollectSlotsFromExpr(*pExpr.mA, pSlots);
         }
         return;
     }
@@ -908,18 +1079,6 @@ int CountExprReads(const GExpr &pExpr,
         pExpr.mSymbol.mSlot == pSlot) {
         ++aCount;
     }
-    if ((pExpr.mType == GExprType::kMix64_1) &&
-        pExpr.mMix64SBoxA.IsBuf() &&
-        (pExpr.mMix64SBoxA.mSlot == pSlot)) {
-        ++aCount;
-    }
-    if ((pExpr.mType == GExprType::kMix64_4) &&
-        ((pExpr.mMix64SBoxA.IsBuf() && (pExpr.mMix64SBoxA.mSlot == pSlot)) ||
-         (pExpr.mMix64SBoxB.IsBuf() && (pExpr.mMix64SBoxB.mSlot == pSlot)) ||
-         (pExpr.mMix64SBoxC.IsBuf() && (pExpr.mMix64SBoxC.mSlot == pSlot)) ||
-         (pExpr.mMix64SBoxD.IsBuf() && (pExpr.mMix64SBoxD.mSlot == pSlot)))) {
-        ++aCount;
-    }
     if ((pExpr.mType == GExprType::kMix64_8) &&
         ((pExpr.mMix64SBoxA.IsBuf() && (pExpr.mMix64SBoxA.mSlot == pSlot)) ||
          (pExpr.mMix64SBoxB.IsBuf() && (pExpr.mMix64SBoxB.mSlot == pSlot)) ||
@@ -941,17 +1100,6 @@ int CountExprReads(const GExpr &pExpr,
         aCount += CountExprReads(*pExpr.mB, pSlot);
     }
     return aCount;
-}
-
-void CollectReadSymbolsFromStatement(const GStatement &pStatement,
-                                     std::vector<GSymbol> *pSymbols) {
-    if (pStatement.mTarget.mIndex != nullptr) {
-        const std::vector<GSymbol> aTargetSymbols = pStatement.mTarget.mIndex->GetSymbols();
-        pSymbols->insert(pSymbols->end(), aTargetSymbols.begin(), aTargetSymbols.end());
-    }
-
-    const std::vector<GSymbol> aExprSymbols = pStatement.mExpression.GetSymbols();
-    pSymbols->insert(pSymbols->end(), aExprSymbols.begin(), aExprSymbols.end());
 }
 
 bool ExprReadsSlot(const GExpr &pExpr,
@@ -1033,53 +1181,17 @@ bool LoopUsesUint32(const GLoop &pLoop) {
 }
 
 bool IsSBoxSlot(const TwistWorkSpaceSlot pSlot) {
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kSBoxA:
-        case TwistWorkSpaceSlot::kSBoxB:
-        case TwistWorkSpaceSlot::kSBoxC:
-        case TwistWorkSpaceSlot::kSBoxD:
-        case TwistWorkSpaceSlot::kDerivedSBoxA:
-        case TwistWorkSpaceSlot::kDerivedSBoxB:
-        case TwistWorkSpaceSlot::kDerivedSBoxC:
-        case TwistWorkSpaceSlot::kDerivedSBoxD:
-        case TwistWorkSpaceSlot::kDerivedSBoxE:
-        case TwistWorkSpaceSlot::kDerivedSBoxF:
-        case TwistWorkSpaceSlot::kDerivedSBoxG:
-        case TwistWorkSpaceSlot::kDerivedSBoxH:
-            return true;
-        default:
-            return false;
-    }
+    return TwistWorkSpace::IsSBox(pSlot);
 }
 
 bool IsSaltSlot(const TwistWorkSpaceSlot pSlot) {
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kSaltA:
-        case TwistWorkSpaceSlot::kSaltB:
-        case TwistWorkSpaceSlot::kSaltC:
-        case TwistWorkSpaceSlot::kSaltD:
-        case TwistWorkSpaceSlot::kScratchSaltA:
-        case TwistWorkSpaceSlot::kScratchSaltB:
-        case TwistWorkSpaceSlot::kScratchSaltC:
-        case TwistWorkSpaceSlot::kScratchSaltD:
-        case TwistWorkSpaceSlot::kDerivedSaltA:
-        case TwistWorkSpaceSlot::kDerivedSaltB:
-        case TwistWorkSpaceSlot::kDerivedSaltC:
-        case TwistWorkSpaceSlot::kDerivedSaltD:
-        case TwistWorkSpaceSlot::kDerivedSaltE:
-        case TwistWorkSpaceSlot::kDerivedSaltF:
-        case TwistWorkSpaceSlot::kDerivedSaltG:
-        case TwistWorkSpaceSlot::kDerivedSaltH:
-            return true;
-        default:
-            return false;
-    }
+    return TwistWorkSpace::IsSalt(pSlot);
 }
 
 std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
                                 const GRuntimeScalar pIndexValue) {
     if (IsSaltSlot(pSlot)) {
-        return static_cast<std::size_t>(pIndexValue & 0x7FULL);
+        return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_SALT1));
     }
     if (IsSBoxSlot(pSlot)) {
         return static_cast<std::size_t>(pIndexValue & 0xFFULL);
@@ -1087,22 +1199,14 @@ std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
     return static_cast<std::size_t>(pIndexValue);
 }
 
-bool IsWideScratchSaltSlot(const TwistWorkSpaceSlot pSlot) {
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kScratchSaltA:
-        case TwistWorkSpaceSlot::kScratchSaltB:
-        case TwistWorkSpaceSlot::kScratchSaltC:
-        case TwistWorkSpaceSlot::kScratchSaltD:
-            return true;
-        default:
-            return false;
-    }
+bool IsWideSaltSlot(const TwistWorkSpaceSlot pSlot) {
+    return TwistWorkSpace::IsSalt(pSlot);
 }
 
 GRuntimeScalar ReadRuntimeBufferValue(const TwistWorkSpaceSlot pSlot,
                                       const std::uint8_t *pBuffer,
                                       const std::size_t pIndex) {
-    if (IsWideScratchSaltSlot(pSlot)) {
+    if (IsWideSaltSlot(pSlot)) {
         const std::uint64_t *aWideBuffer = reinterpret_cast<const std::uint64_t *>(pBuffer);
         return static_cast<GRuntimeScalar>(aWideBuffer[pIndex]);
     }
@@ -1113,7 +1217,7 @@ void WriteRuntimeBufferValue(const TwistWorkSpaceSlot pSlot,
                              std::uint8_t *pBuffer,
                              const std::size_t pIndex,
                              const GRuntimeScalar pValue) {
-    if (IsWideScratchSaltSlot(pSlot)) {
+    if (IsWideSaltSlot(pSlot)) {
         std::uint64_t *aWideBuffer = reinterpret_cast<std::uint64_t *>(pBuffer);
         aWideBuffer[pIndex] = static_cast<std::uint64_t>(pValue);
         return;
@@ -1125,7 +1229,7 @@ unsigned int ReadWrapTrimMaskForType(const GReadWrapType pType) {
     switch (pType) {
         case GReadWrapType::kBlock: return 0x1FFFU;
         case GReadWrapType::kSBox: return 0xFFU;
-        case GReadWrapType::kSalt: return 0x7FU;
+        case GReadWrapType::kSalt: return static_cast<unsigned int>(S_SALT1);
         case GReadWrapType::kMaskA: return static_cast<unsigned int>(S_MASK_A - 1U);
         case GReadWrapType::kMaskB: return static_cast<unsigned int>(S_MASK_B - 1U);
         case GReadWrapType::kKeyA: return static_cast<unsigned int>(S_KEY_A - 1U);
@@ -1251,21 +1355,6 @@ JsonValue ExprToJsonValue(const GExpr &pExpr) {
         aObject["read_wrap_index_symbol"] = SymbolToJsonValue(pExpr.mReadWrapIndexSymbol);
         aObject["read_wrap_oracle_symbol"] = SymbolToJsonValue(pExpr.mReadWrapOracleSymbol);
         aObject["read_wrap_offset"] = JsonValue::Number(static_cast<double>(pExpr.mReadWrapOffset));
-    }
-    if (pExpr.mType == GExprType::kMix64_1) {
-        aObject["mix64_1_type"] = JsonValue::String(Mix64Type1Token(pExpr.mMix64Type1));
-        aObject["mix64_use_amount"] = JsonValue::Bool(pExpr.mMix64UseAmount);
-        aObject["mix64_amount"] = JsonValue::String(std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)));
-        aObject["mix64_sbox_a_symbol"] = SymbolToJsonValue(pExpr.mMix64SBoxA);
-    }
-    if (pExpr.mType == GExprType::kMix64_4) {
-        aObject["mix64_4_type"] = JsonValue::String(Mix64Type4Token(pExpr.mMix64Type4));
-        aObject["mix64_use_amount"] = JsonValue::Bool(pExpr.mMix64UseAmount);
-        aObject["mix64_amount"] = JsonValue::String(std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)));
-        aObject["mix64_sbox_a_symbol"] = SymbolToJsonValue(pExpr.mMix64SBoxA);
-        aObject["mix64_sbox_b_symbol"] = SymbolToJsonValue(pExpr.mMix64SBoxB);
-        aObject["mix64_sbox_c_symbol"] = SymbolToJsonValue(pExpr.mMix64SBoxC);
-        aObject["mix64_sbox_d_symbol"] = SymbolToJsonValue(pExpr.mMix64SBoxD);
     }
     if (pExpr.mType == GExprType::kMix64_8) {
         aObject["mix64_8_type"] = JsonValue::String(Mix64Type8Token(pExpr.mMix64Type8));
@@ -1440,107 +1529,6 @@ bool ExprFromJsonValue(const JsonValue &pValue,
                 case GExprType::kShiftL: aExpr = GExpr::ShiftL(aLeft, aRight); break;
                 case GExprType::kShiftR: aExpr = GExpr::ShiftR(aLeft, aRight); break;
                 default: break;
-            }
-            break;
-        }
-        case GExprType::kMix64_1: {
-            const JsonValue *aValue = pValue.find("a");
-            const JsonValue *aMixType = pValue.find("mix64_1_type");
-            const JsonValue *aSBoxA = pValue.find("mix64_sbox_a_symbol");
-            if ((aValue == NULL) || (aMixType == NULL) || !aMixType->is_string() || (aSBoxA == NULL)) {
-                SetError(pErrorMessage, "Mix64_1 expression was incomplete.");
-                return false;
-            }
-
-            GExpr aValueExpr;
-            if (!ExprFromJsonValue(*aValue, &aValueExpr, pErrorMessage)) {
-                return false;
-            }
-
-            Mix64Type_1 aParsedMixType = Mix64Type_1::kInv;
-            if (!Mix64Type1FromToken(aMixType->as_string(), &aParsedMixType)) {
-                SetError(pErrorMessage, "Mix64_1 type token was invalid.");
-                return false;
-            }
-
-            GSymbol aParsedSBoxA;
-            if (!SymbolFromJsonValue(*aSBoxA, &aParsedSBoxA, pErrorMessage)) {
-                return false;
-            }
-
-            const JsonValue *aUseAmount = pValue.find("mix64_use_amount");
-            const JsonValue *aAmount = pValue.find("mix64_amount");
-            const bool aHasAmount = (aUseAmount != NULL) && aUseAmount->as_bool(false);
-            if (aHasAmount && (aAmount != NULL)) {
-                std::uint64_t aParsedAmount = 0U;
-                if (!ParseUInt64(*aAmount, &aParsedAmount)) {
-                    SetError(pErrorMessage, "Mix64_1 amount token was invalid.");
-                    return false;
-                }
-                aExpr = GExpr::Mix64_1(aValueExpr, aParsedMixType, aParsedAmount, aParsedSBoxA);
-            } else {
-                aExpr = GExpr::Mix64_1(aValueExpr, aParsedMixType, aParsedSBoxA);
-            }
-            break;
-        }
-        case GExprType::kMix64_4: {
-            const JsonValue *aValue = pValue.find("a");
-            const JsonValue *aMixType = pValue.find("mix64_4_type");
-            const JsonValue *aSBoxA = pValue.find("mix64_sbox_a_symbol");
-            const JsonValue *aSBoxB = pValue.find("mix64_sbox_b_symbol");
-            const JsonValue *aSBoxC = pValue.find("mix64_sbox_c_symbol");
-            const JsonValue *aSBoxD = pValue.find("mix64_sbox_d_symbol");
-            if ((aValue == NULL) || (aMixType == NULL) || !aMixType->is_string() ||
-                (aSBoxA == NULL) || (aSBoxB == NULL) || (aSBoxC == NULL) || (aSBoxD == NULL)) {
-                SetError(pErrorMessage, "Mix64_4 expression was incomplete.");
-                return false;
-            }
-
-            GExpr aValueExpr;
-            if (!ExprFromJsonValue(*aValue, &aValueExpr, pErrorMessage)) {
-                return false;
-            }
-
-            Mix64Type_4 aParsedMixType = Mix64Type_4::kInv;
-            if (!Mix64Type4FromToken(aMixType->as_string(), &aParsedMixType)) {
-                SetError(pErrorMessage, "Mix64_4 type token was invalid.");
-                return false;
-            }
-
-            GSymbol aParsedSBoxA;
-            GSymbol aParsedSBoxB;
-            GSymbol aParsedSBoxC;
-            GSymbol aParsedSBoxD;
-            if (!SymbolFromJsonValue(*aSBoxA, &aParsedSBoxA, pErrorMessage) ||
-                !SymbolFromJsonValue(*aSBoxB, &aParsedSBoxB, pErrorMessage) ||
-                !SymbolFromJsonValue(*aSBoxC, &aParsedSBoxC, pErrorMessage) ||
-                !SymbolFromJsonValue(*aSBoxD, &aParsedSBoxD, pErrorMessage)) {
-                return false;
-            }
-
-            const JsonValue *aUseAmount = pValue.find("mix64_use_amount");
-            const JsonValue *aAmount = pValue.find("mix64_amount");
-            const bool aHasAmount = (aUseAmount != NULL) && aUseAmount->as_bool(false);
-            if (aHasAmount && (aAmount != NULL)) {
-                std::uint64_t aParsedAmount = 0U;
-                if (!ParseUInt64(*aAmount, &aParsedAmount)) {
-                    SetError(pErrorMessage, "Mix64_4 amount token was invalid.");
-                    return false;
-                }
-                aExpr = GExpr::Mix64_4(aValueExpr,
-                                       aParsedMixType,
-                                       aParsedAmount,
-                                       aParsedSBoxA,
-                                       aParsedSBoxB,
-                                       aParsedSBoxC,
-                                       aParsedSBoxD);
-            } else {
-                aExpr = GExpr::Mix64_4(aValueExpr,
-                                       aParsedMixType,
-                                       aParsedSBoxA,
-                                       aParsedSBoxB,
-                                       aParsedSBoxC,
-                                       aParsedSBoxD);
             }
             break;
         }
@@ -1937,26 +1925,6 @@ std::string PrettyExpr(const GExpr &pExpr) {
             return "diffuse64_b(" + PrettyExpr(*pExpr.mA) + ")";
         case GExprType::kDiffuseC64:
             return "diffuse64_c(" + PrettyExpr(*pExpr.mA) + ")";
-        case GExprType::kMix64_1: {
-            const std::string aCall = Mix64Type1CallToken(pExpr.mMix64Type1);
-            if (Mix64Type1NeedsAmount(pExpr.mMix64Type1)) {
-                return aCall + "(" + PrettyExpr(*pExpr.mA) + ", " +
-                       std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) + ", " +
-                       pExpr.mMix64SBoxA.mName + ")";
-            }
-            return aCall + "(" + PrettyExpr(*pExpr.mA) + ", " + pExpr.mMix64SBoxA.mName + ")";
-        }
-        case GExprType::kMix64_4: {
-            const std::string aCall = Mix64Type4CallToken(pExpr.mMix64Type4);
-            const std::string aSBoxes = pExpr.mMix64SBoxA.mName + ", " + pExpr.mMix64SBoxB.mName +
-                                        ", " + pExpr.mMix64SBoxC.mName + ", " + pExpr.mMix64SBoxD.mName;
-            if (Mix64Type4NeedsAmount(pExpr.mMix64Type4)) {
-                return aCall + "(" + PrettyExpr(*pExpr.mA) + ", " +
-                       std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) + ", " +
-                       aSBoxes + ")";
-            }
-            return aCall + "(" + PrettyExpr(*pExpr.mA) + ", " + aSBoxes + ")";
-        }
         case GExprType::kMix64_8: {
             const std::string aCall = Mix64Type8CallToken(pExpr.mMix64Type8);
             const std::string aSBoxes = pExpr.mMix64SBoxA.mName + ", " + pExpr.mMix64SBoxB.mName +
@@ -2095,9 +2063,10 @@ std::string CppIndexForSlot(const TwistWorkSpaceSlot pSlot,
     std::string aIndexText = pIndexText;
     bool aMaskedIndex = false;
     if (IsSaltSlot(pSlot)) {
-        const bool aHasExplicitMask = HasEquivalentOrNarrowerAndMask(pIndexExpr, 0x7FULL, HasEquivalentOrNarrowerAndMask);
+        const std::uint64_t aSaltMask = static_cast<std::uint64_t>(S_SALT1);
+        const bool aHasExplicitMask = HasEquivalentOrNarrowerAndMask(pIndexExpr, aSaltMask, HasEquivalentOrNarrowerAndMask);
         if (!aHasExplicitMask) {
-            aIndexText = "((" + aIndexText + ") & 0x7FU)";
+            aIndexText = "((" + aIndexText + ") & static_cast<std::uint64_t>(S_SALT1))";
         }
         aMaskedIndex = true;
     } else if (IsSBoxSlot(pSlot)) {
@@ -2453,45 +2422,6 @@ std::string CppExprWithParent(const GExpr &pExpr,
             return "TwistMix64::DiffuseB(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ")";
         case GExprType::kDiffuseC64:
             return "TwistMix64::DiffuseC(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ")";
-        case GExprType::kMix64_1: {
-            const std::string aCall = Mix64Type1CallToken(pExpr.mMix64Type1);
-            if (aCall.empty() || !pExpr.mMix64SBoxA.IsBuf()) {
-                return "0";
-            }
-            if (Mix64Type1NeedsAmount(pExpr.mMix64Type1)) {
-                if (!pExpr.mMix64UseAmount) {
-                    return "0";
-                }
-                return aCall + "(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ", " +
-                       std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) + "ULL, " +
-                       BufAliasName(pExpr.mMix64SBoxA.mSlot) + ")";
-            }
-            return aCall + "(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ", " +
-                   BufAliasName(pExpr.mMix64SBoxA.mSlot) + ")";
-        }
-        case GExprType::kMix64_4: {
-            const std::string aCall = Mix64Type4CallToken(pExpr.mMix64Type4);
-            if (aCall.empty() ||
-                !pExpr.mMix64SBoxA.IsBuf() ||
-                !pExpr.mMix64SBoxB.IsBuf() ||
-                !pExpr.mMix64SBoxC.IsBuf() ||
-                !pExpr.mMix64SBoxD.IsBuf()) {
-                return "0";
-            }
-            const std::string aSBoxes = BufAliasName(pExpr.mMix64SBoxA.mSlot) + ", " +
-                                        BufAliasName(pExpr.mMix64SBoxB.mSlot) + ", " +
-                                        BufAliasName(pExpr.mMix64SBoxC.mSlot) + ", " +
-                                        BufAliasName(pExpr.mMix64SBoxD.mSlot);
-            if (Mix64Type4NeedsAmount(pExpr.mMix64Type4)) {
-                if (!pExpr.mMix64UseAmount) {
-                    return "0";
-                }
-                return aCall + "(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ", " +
-                       std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) + "ULL, " +
-                       aSBoxes + ")";
-            }
-            return aCall + "(" + CppExprWithParent(*pExpr.mA, CppExprGroup::kNone) + ", " + aSBoxes + ")";
-        }
         case GExprType::kMix64_8: {
             const std::string aCall = Mix64Type8CallToken(pExpr.mMix64Type8);
             if (aCall.empty() ||
@@ -2609,7 +2539,7 @@ std::string CppReadWrapTrimMaskToken(const GReadWrapType pType) {
     switch (pType) {
         case GReadWrapType::kBlock: return "0x1FFFU";
         case GReadWrapType::kSBox: return "0xFFU";
-        case GReadWrapType::kSalt: return "0x7FU";
+        case GReadWrapType::kSalt: return "(S_SALT - 1U)";
         case GReadWrapType::kMaskA: return "(S_MASK_A - 1U)";
         case GReadWrapType::kMaskB: return "(S_MASK_B - 1U)";
         case GReadWrapType::kKeyA: return "(S_KEY_A - 1U)";
@@ -2719,6 +2649,67 @@ void FlattenTopLevelOrTerms(const std::string &pText,
     pTerms->push_back(aCandidate);
 }
 
+bool SplitTopLevelXor(const std::string &pText,
+                      std::string *pLeft,
+                      std::string *pRight) {
+    if ((pLeft == nullptr) || (pRight == nullptr)) {
+        return false;
+    }
+
+    int aDepth = 0;
+    for (std::size_t i = 0U; (i + 2U) <= pText.size(); ++i) {
+        const char aChar = pText[i];
+        if (aChar == '(') {
+            aDepth += 1;
+            continue;
+        }
+        if (aChar == ')') {
+            aDepth -= 1;
+            continue;
+        }
+
+        if ((aDepth == 0) &&
+            (pText[i] == ' ') &&
+            (i + 2U < pText.size()) &&
+            (pText[i + 1U] == '^') &&
+            (pText[i + 2U] == ' ')) {
+            *pLeft = pText.substr(0U, i);
+            *pRight = pText.substr(i + 3U);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void FlattenTopLevelXorTerms(const std::string &pText,
+                             std::vector<std::string> *pTerms) {
+    if (pTerms == nullptr) {
+        return;
+    }
+
+    std::string aLeft;
+    std::string aRight;
+    const std::string aCandidate = StripOuterParens(pText);
+    if (SplitTopLevelXor(aCandidate, &aLeft, &aRight)) {
+        FlattenTopLevelXorTerms(aLeft, pTerms);
+        FlattenTopLevelXorTerms(aRight, pTerms);
+        return;
+    }
+
+    pTerms->push_back(aCandidate);
+}
+
+std::string EnsureParenWrappedTerm(const std::string &pText) {
+    if (pText.empty()) {
+        return "(0U)";
+    }
+    if ((pText.front() == '(') && (pText.back() == ')')) {
+        return pText;
+    }
+    return "(" + pText + ")";
+}
+
 std::string FormatExpressionForCppStatement(const std::string &pExpressionText) {
     std::string aText = pExpressionText;
 
@@ -2739,6 +2730,32 @@ std::string FormatExpressionForCppStatement(const std::string &pExpressionText) 
         }
     }
 
+    // Keep packed ingress-word assembly readable in generated C++.
+    // Render xor chains as one term per line:
+    // t0 ^
+    // t1 ^
+    // t2 ^
+    // t3
+    if ((aText.find("static_cast<std::uint64_t>(") != std::string::npos) &&
+        (aText.find("<<") != std::string::npos) &&
+        (aText.find(" ^ ") != std::string::npos)) {
+        std::vector<std::string> aTerms;
+        FlattenTopLevelXorTerms(aText, &aTerms);
+        if (aTerms.size() >= 4U) {
+            std::string aFormatted;
+            for (std::size_t i = 0U; i < aTerms.size(); ++i) {
+                if (i > 0U) {
+                    aFormatted += "\n\t\t";
+                }
+                aFormatted += EnsureParenWrappedTerm(aTerms[i]);
+                if ((i + 1U) < aTerms.size()) {
+                    aFormatted += " ^";
+                }
+            }
+            aText = aFormatted;
+        }
+    }
+
     return aText;
 }
 
@@ -2746,6 +2763,9 @@ std::string CppStatement(const GStatement &pStatement) {
     const std::string aTargetText = CppTarget(pStatement.mTarget);
     const std::string aExpressionText =
         FormatExpressionForCppStatement(StripOuterParens(CppExpr(pStatement.mExpression)));
+    if (aExpressionText.find('\n') != std::string::npos) {
+        return aTargetText + " =\n\t\t" + aExpressionText + ";";
+    }
     return aTargetText + " = " + aExpressionText + ";";
 }
 
@@ -2876,78 +2896,6 @@ bool EvaluateExpr(const GExpr &pExpr,
                 aDiffused = TwistMix64::DiffuseC(static_cast<std::uint64_t>(aInputValue));
             }
             *pValue = static_cast<GRuntimeScalar>(aDiffused);
-            return true;
-        }
-        case GExprType::kMix64_1: {
-            if ((pExpr.mA == NULL) || !pExpr.mMix64SBoxA.IsBuf()) {
-                SetError(pErrorMessage, "Mix64_1 expression metadata was invalid.");
-                return false;
-            }
-
-            if (Mix64Type1NeedsAmount(pExpr.mMix64Type1) && !pExpr.mMix64UseAmount) {
-                SetError(pErrorMessage, "Mix64_1 amount was required but missing.");
-                return false;
-            }
-
-            GRuntimeScalar aInputValue = 0ULL;
-            if (!EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aInputValue, pErrorMessage)) {
-                SetError(pErrorMessage, "Mix64_1 input expression was invalid.");
-                return false;
-            }
-
-            std::uint8_t *aSBoxA = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mMix64SBoxA.mSlot);
-            if (aSBoxA == NULL) {
-                SetError(pErrorMessage, "Mix64_1 S-box buffer resolved to null.");
-                return false;
-            }
-
-            const std::uint64_t aResult = EvaluateMix64Type1Local(
-                pExpr.mMix64Type1,
-                static_cast<std::uint64_t>(aInputValue),
-                pExpr.mMix64Amount,
-                aSBoxA);
-            *pValue = static_cast<GRuntimeScalar>(aResult);
-            return true;
-        }
-        case GExprType::kMix64_4: {
-            if ((pExpr.mA == NULL) ||
-                !pExpr.mMix64SBoxA.IsBuf() ||
-                !pExpr.mMix64SBoxB.IsBuf() ||
-                !pExpr.mMix64SBoxC.IsBuf() ||
-                !pExpr.mMix64SBoxD.IsBuf()) {
-                SetError(pErrorMessage, "Mix64_4 expression metadata was invalid.");
-                return false;
-            }
-
-            if (Mix64Type4NeedsAmount(pExpr.mMix64Type4) && !pExpr.mMix64UseAmount) {
-                SetError(pErrorMessage, "Mix64_4 amount was required but missing.");
-                return false;
-            }
-
-            GRuntimeScalar aInputValue = 0ULL;
-            if (!EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aInputValue, pErrorMessage)) {
-                SetError(pErrorMessage, "Mix64_4 input expression was invalid.");
-                return false;
-            }
-
-            std::uint8_t *aSBoxA = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mMix64SBoxA.mSlot);
-            std::uint8_t *aSBoxB = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mMix64SBoxB.mSlot);
-            std::uint8_t *aSBoxC = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mMix64SBoxC.mSlot);
-            std::uint8_t *aSBoxD = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mMix64SBoxD.mSlot);
-            if ((aSBoxA == NULL) || (aSBoxB == NULL) || (aSBoxC == NULL) || (aSBoxD == NULL)) {
-                SetError(pErrorMessage, "Mix64_4 S-box buffer resolved to null.");
-                return false;
-            }
-
-            const std::uint64_t aResult = EvaluateMix64Type4Local(
-                pExpr.mMix64Type4,
-                static_cast<std::uint64_t>(aInputValue),
-                pExpr.mMix64Amount,
-                aSBoxA,
-                aSBoxB,
-                aSBoxC,
-                aSBoxD);
-            *pValue = static_cast<GRuntimeScalar>(aResult);
             return true;
         }
         case GExprType::kMix64_8: {
@@ -3200,12 +3148,17 @@ enum class ControlLineType : std::uint8_t {
     kNone = 0,
     kIf = 1,
     kElse = 2,
-    kEnd = 3
+    kEnd = 3,
+    kSwitch = 4,
+    kCase = 5,
+    kDefault = 6,
+    kBreak = 7
 };
 
 struct ParsedControlLine {
     ControlLineType                 mType = ControlLineType::kNone;
     std::string                     mCondition;
+    GRuntimeScalar                  mCaseValue = 0ULL;
 };
 
 bool ParseControlLine(const std::string &pRawLine,
@@ -3233,6 +3186,12 @@ bool ParseControlLine(const std::string &pRawLine,
         return true;
     }
 
+    if (aText == "break;") {
+        aLine.mType = ControlLineType::kBreak;
+        *pParsed = aLine;
+        return true;
+    }
+
     if (aText.rfind("if", 0U) == 0U) {
         const std::size_t aOpenParen = aText.find('(');
         const std::size_t aCloseParen = aText.rfind(')');
@@ -3247,6 +3206,53 @@ bool ParseControlLine(const std::string &pRawLine,
 
         aLine.mType = ControlLineType::kIf;
         aLine.mCondition = TrimCopy(aText.substr(aOpenParen + 1U, aCloseParen - aOpenParen - 1U));
+        *pParsed = aLine;
+        return true;
+    }
+
+    if (aText.rfind("switch", 0U) == 0U) {
+        const std::size_t aOpenParen = aText.find('(');
+        const std::size_t aCloseParen = aText.rfind(')');
+        const std::size_t aOpenBrace = aText.rfind('{');
+        if ((aOpenParen == std::string::npos) ||
+            (aCloseParen == std::string::npos) ||
+            (aOpenBrace == std::string::npos) ||
+            (aCloseParen <= aOpenParen) ||
+            (aOpenBrace <= aCloseParen)) {
+            return false;
+        }
+
+        aLine.mType = ControlLineType::kSwitch;
+        aLine.mCondition = TrimCopy(aText.substr(aOpenParen + 1U, aCloseParen - aOpenParen - 1U));
+        *pParsed = aLine;
+        return true;
+    }
+
+    if (aText.rfind("case", 0U) == 0U) {
+        const std::size_t aColon = aText.find(':');
+        if (aColon == std::string::npos) {
+            return false;
+        }
+
+        const std::string aValueText = TrimCopy(aText.substr(4U, aColon - 4U));
+        int aCaseValue = 0;
+        if (!ParseIntLiteralToken(aValueText, &aCaseValue)) {
+            return false;
+        }
+
+        aLine.mType = ControlLineType::kCase;
+        aLine.mCaseValue = static_cast<GRuntimeScalar>(static_cast<std::uint64_t>(static_cast<unsigned int>(aCaseValue)));
+        *pParsed = aLine;
+        return true;
+    }
+
+    if (aText.rfind("default", 0U) == 0U) {
+        const std::size_t aColon = aText.find(':');
+        if (aColon == std::string::npos) {
+            return false;
+        }
+
+        aLine.mType = ControlLineType::kDefault;
         *pParsed = aLine;
         return true;
     }
@@ -3296,10 +3302,50 @@ bool ResolveAliasBufferSlot(const std::string &pAlias,
         TwistWorkSpaceSlot::kSaltB,
         TwistWorkSpaceSlot::kSaltC,
         TwistWorkSpaceSlot::kSaltD,
-        TwistWorkSpaceSlot::kScratchSaltA,
-        TwistWorkSpaceSlot::kScratchSaltB,
-        TwistWorkSpaceSlot::kScratchSaltC,
-        TwistWorkSpaceSlot::kScratchSaltD,
+        TwistWorkSpaceSlot::kSaltE,
+        TwistWorkSpaceSlot::kSaltF,
+        TwistWorkSpaceSlot::kSaltG,
+        TwistWorkSpaceSlot::kSaltH,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxA,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxB,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxC,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxD,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxE,
+        TwistWorkSpaceSlot::kDomainSaltKeyBoxF,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxA,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxB,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxC,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxD,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxE,
+        TwistWorkSpaceSlot::kDomainSaltMaskBoxF,
+        TwistWorkSpaceSlot::kDomainSaltWandererA,
+        TwistWorkSpaceSlot::kDomainSaltWandererB,
+        TwistWorkSpaceSlot::kDomainSaltWandererC,
+        TwistWorkSpaceSlot::kDomainSaltWandererD,
+        TwistWorkSpaceSlot::kDomainSaltWandererE,
+        TwistWorkSpaceSlot::kDomainSaltWandererF,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterA,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterB,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterC,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterD,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterE,
+        TwistWorkSpaceSlot::kDomainSaltOrbiterF,
+        TwistWorkSpaceSlot::kDomainSaltPrismA,
+        TwistWorkSpaceSlot::kDomainSaltPrismB,
+        TwistWorkSpaceSlot::kDomainSaltPrismC,
+        TwistWorkSpaceSlot::kDomainSaltPrismD,
+        TwistWorkSpaceSlot::kDomainSaltPrismE,
+        TwistWorkSpaceSlot::kDomainSaltPrismF,
+        TwistWorkSpaceSlot::kDomainSaltSourceA,
+        TwistWorkSpaceSlot::kDomainSaltSourceB,
+        TwistWorkSpaceSlot::kDomainSaltSourceC,
+        TwistWorkSpaceSlot::kDomainSaltSourceD,
+        TwistWorkSpaceSlot::kDomainSaltSourceE,
+        TwistWorkSpaceSlot::kDomainSaltSourceF,
+        TwistWorkSpaceSlot::kSaltA,
+        TwistWorkSpaceSlot::kSaltB,
+        TwistWorkSpaceSlot::kSaltC,
+        TwistWorkSpaceSlot::kSaltD,
         TwistWorkSpaceSlot::kDerivedSaltA,
         TwistWorkSpaceSlot::kDerivedSaltB,
         TwistWorkSpaceSlot::kDerivedSaltC,
@@ -3313,6 +3359,10 @@ bool ResolveAliasBufferSlot(const std::string &pAlias,
         TwistWorkSpaceSlot::kSBoxB,
         TwistWorkSpaceSlot::kSBoxC,
         TwistWorkSpaceSlot::kSBoxD,
+        TwistWorkSpaceSlot::kSBoxE,
+        TwistWorkSpaceSlot::kSBoxF,
+        TwistWorkSpaceSlot::kSBoxG,
+        TwistWorkSpaceSlot::kSBoxH,
         TwistWorkSpaceSlot::kDerivedSBoxA,
         TwistWorkSpaceSlot::kDerivedSBoxB,
         TwistWorkSpaceSlot::kDerivedSBoxC,
@@ -3644,6 +3694,51 @@ std::size_t FindTopLevelShiftOperator(const std::string &pText,
     if (aFound != std::string::npos) {
         *pIsRightShift = aFoundRightShift;
     }
+    return aFound;
+}
+
+std::size_t FindTopLevelMulModOperator(const std::string &pText,
+                                       char *pOperator) {
+    if (pOperator == nullptr) {
+        return std::string::npos;
+    }
+
+    int aParenDepth = 0;
+    int aBracketDepth = 0;
+    std::size_t aFound = std::string::npos;
+    char aFoundOperator = '\0';
+    for (std::size_t i = 0U; i < pText.size(); ++i) {
+        const char aChar = pText[i];
+        if (aChar == '(') {
+            aParenDepth += 1;
+            continue;
+        }
+        if (aChar == ')') {
+            aParenDepth -= 1;
+            continue;
+        }
+        if (aChar == '[') {
+            aBracketDepth += 1;
+            continue;
+        }
+        if (aChar == ']') {
+            aBracketDepth -= 1;
+            continue;
+        }
+        if ((aParenDepth != 0) || (aBracketDepth != 0)) {
+            continue;
+        }
+        if ((aChar == '*') || (aChar == '%')) {
+            aFound = i;
+            aFoundOperator = aChar;
+        }
+    }
+
+    if (aFound == std::string::npos) {
+        return std::string::npos;
+    }
+
+    *pOperator = aFoundOperator;
     return aFound;
 }
 
@@ -4029,17 +4124,18 @@ bool EvaluateGenericRawExpression(const std::string &pExpression,
         return true;
     }
 
-    const std::size_t aMulPos = FindTopLevelOperatorChar(aParsed, '*', false);
-    if (aMulPos != std::string::npos) {
+    char aMulModOperator = '\0';
+    const std::size_t aMulModPos = FindTopLevelMulModOperator(aParsed, &aMulModOperator);
+    if (aMulModPos != std::string::npos) {
         GRuntimeScalar aLeft = 0ULL;
         GRuntimeScalar aRight = 0ULL;
-        if (!EvaluateGenericRawExpression(aParsed.substr(0U, aMulPos),
+        if (!EvaluateGenericRawExpression(aParsed.substr(0U, aMulModPos),
                                           pWorkspace,
                                           pExpander,
                                           pVariables,
                                           &aLeft,
                                           pErrorMessage) ||
-            !EvaluateGenericRawExpression(aParsed.substr(aMulPos + 1U),
+            !EvaluateGenericRawExpression(aParsed.substr(aMulModPos + 1U),
                                           pWorkspace,
                                           pExpander,
                                           pVariables,
@@ -4047,8 +4143,22 @@ bool EvaluateGenericRawExpression(const std::string &pExpression,
                                           pErrorMessage)) {
             return false;
         }
-        *pValue = aLeft * aRight;
-        return true;
+
+        if (aMulModOperator == '*') {
+            *pValue = aLeft * aRight;
+            return true;
+        }
+        if (aMulModOperator == '%') {
+            if (aRight == 0ULL) {
+                SetError(pErrorMessage, "Generic raw-line modulo used zero divisor.");
+                return false;
+            }
+            *pValue = aLeft % aRight;
+            return true;
+        }
+
+        SetError(pErrorMessage, "Generic raw-line mul/mod operator was invalid.");
+        return false;
     }
 
     return EvaluateGenericRawAtom(aParsed, pWorkspace, pExpander, pVariables, pValue, pErrorMessage);
@@ -4317,12 +4427,32 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
     const std::string aArgsText = aText.substr(aOpenPos + 1U, aClosePos - (aOpenPos + 1U));
     const std::vector<std::string> aArgs = SplitCommaTokens(aArgsText);
 
-    auto IsScratchSaltSlot = [](const TwistWorkSpaceSlot pSlot) -> bool {
+    auto IsWideSaltSlot = [](const TwistWorkSpaceSlot pSlot) -> bool {
         switch (pSlot) {
-            case TwistWorkSpaceSlot::kScratchSaltA:
-            case TwistWorkSpaceSlot::kScratchSaltB:
-            case TwistWorkSpaceSlot::kScratchSaltC:
-            case TwistWorkSpaceSlot::kScratchSaltD:
+            case TwistWorkSpaceSlot::kSaltA:
+            case TwistWorkSpaceSlot::kSaltB:
+            case TwistWorkSpaceSlot::kSaltC:
+            case TwistWorkSpaceSlot::kSaltD:
+            case TwistWorkSpaceSlot::kSaltE:
+            case TwistWorkSpaceSlot::kSaltF:
+            case TwistWorkSpaceSlot::kSaltG:
+            case TwistWorkSpaceSlot::kSaltH:
+            case TwistWorkSpaceSlot::kDerivedSaltA:
+            case TwistWorkSpaceSlot::kDerivedSaltB:
+            case TwistWorkSpaceSlot::kDerivedSaltC:
+            case TwistWorkSpaceSlot::kDerivedSaltD:
+            case TwistWorkSpaceSlot::kDerivedSaltE:
+            case TwistWorkSpaceSlot::kDerivedSaltF:
+            case TwistWorkSpaceSlot::kDerivedSaltG:
+            case TwistWorkSpaceSlot::kDerivedSaltH:
+            case TwistWorkSpaceSlot::kDerivedSaltOrbiterA:
+            case TwistWorkSpaceSlot::kDerivedSaltOrbiterB:
+            case TwistWorkSpaceSlot::kDerivedSaltOrbiterC:
+            case TwistWorkSpaceSlot::kDerivedSaltOrbiterD:
+            case TwistWorkSpaceSlot::kDerivedSaltWandererA:
+            case TwistWorkSpaceSlot::kDerivedSaltWandererB:
+            case TwistWorkSpaceSlot::kDerivedSaltWandererC:
+            case TwistWorkSpaceSlot::kDerivedSaltWandererD:
                 return true;
             default:
                 return false;
@@ -4402,7 +4532,41 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
         return true;
     }
 
-    if ((aMethod == "Grow") || (aMethod == "GrowA") || (aMethod == "GrowB")) {
+    if (aMethod == "Copy") {
+        if (aArgs.size() != 3U) {
+            SetError(pErrorMessage, "Copy expected exactly 3 arguments.");
+            return false;
+        }
+
+        TwistWorkSpaceSlot aDestSlot = TwistWorkSpaceSlot::kInvalid;
+        TwistWorkSpaceSlot aSourceSlot = TwistWorkSpaceSlot::kInvalid;
+        int aDestOffset = 0;
+        int aSourceOffset = 0;
+        if (!ParseMatrixBufferOffsetExpression(aArgs[0], pVariables, &aDestSlot, &aDestOffset, pErrorMessage)) {
+            return false;
+        }
+        if (!ParseMatrixBufferOffsetExpression(aArgs[1], pVariables, &aSourceSlot, &aSourceOffset, pErrorMessage)) {
+            return false;
+        }
+
+        std::size_t aLength = 0U;
+        if (!ParseLength(aArgs[2], &aLength)) {
+            return false;
+        }
+
+        std::uint8_t *aDest = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aDestSlot);
+        std::uint8_t *aSource = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSourceSlot);
+        if ((aDest == nullptr) || (aSource == nullptr)) {
+            SetError(pErrorMessage, "Copy source/destination pointer was null.");
+            return false;
+        }
+        aDest += static_cast<std::size_t>(aDestOffset);
+        aSource += static_cast<std::size_t>(aSourceOffset);
+        TwistMemory::Copy(aDest, aSource, static_cast<std::uint32_t>(aLength));
+        return true;
+    }
+
+    if ((aMethod == "GrowA") || (aMethod == "GrowB")) {
         if (aArgs.size() != 3U) {
             SetError(pErrorMessage, aMethod + " expected exactly 3 arguments.");
             return false;
@@ -4418,8 +4582,8 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
         if (!ParseMatrixBufferOffsetExpression(aArgs[1], pVariables, &aSourceSlot, &aSourceOffset, pErrorMessage)) {
             return false;
         }
-        if (!IsScratchSaltSlot(aDestSlot)) {
-            SetError(pErrorMessage, aMethod + " destination must be a scratch-salt buffer.");
+        if (!IsWideSaltSlot(aDestSlot)) {
+            SetError(pErrorMessage, aMethod + " destination must be a wide-salt buffer.");
             return false;
         }
 
@@ -4441,12 +4605,8 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
             TwistMemory::GrowB(reinterpret_cast<std::uint64_t *>(aDestBytes),
                                aSourceBytes,
                                static_cast<std::uint32_t>(aLength));
-        } else if (aMethod == "GrowA") {
-            TwistMemory::GrowA(reinterpret_cast<std::uint64_t *>(aDestBytes),
-                               aSourceBytes,
-                               static_cast<std::uint32_t>(aLength));
         } else {
-            TwistMemory::Grow(reinterpret_cast<std::uint64_t *>(aDestBytes),
+            TwistMemory::GrowA(reinterpret_cast<std::uint64_t *>(aDestBytes),
                               aSourceBytes,
                               static_cast<std::uint32_t>(aLength));
         }
@@ -4491,6 +4651,218 @@ bool ExecuteMemoryRawLine(const std::string &pRawLine,
 
     SetError(pErrorMessage, "Unsupported memory statement method: " + aMethod);
     return false;
+}
+
+bool ExecuteFarmRawLine(const std::string &pRawLine,
+                        TwistWorkSpace *pWorkspace,
+                        TwistExpander *pExpander,
+                        std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                        bool *pHandled,
+                        std::string *pErrorMessage) {
+    if (pHandled == nullptr) {
+        SetError(pErrorMessage, "Farm raw-line handled output was null.");
+        return false;
+    }
+    *pHandled = false;
+
+    const std::string aText = TrimCopy(pRawLine);
+    if (aText.empty() || (aText.rfind("//", 0U) == 0U)) {
+        return true;
+    }
+    const bool aHasSBoxToken =
+        (aText.find("pFarmSBox->") != std::string::npos) ||
+        (aText.find("GetFarmSBox()->") != std::string::npos);
+    const bool aHasSaltToken =
+        (aText.find("pFarmSalt->") != std::string::npos) ||
+        (aText.find("GetFarmSalt()->") != std::string::npos);
+    if (!aHasSBoxToken && !aHasSaltToken) {
+        return true;
+    }
+
+    if ((pWorkspace == nullptr) || (pExpander == nullptr) || (pVariables == nullptr)) {
+        SetError(pErrorMessage, "Farm statement execution was missing required runtime inputs.");
+        return false;
+    }
+    if (aText.back() != ';') {
+        SetError(pErrorMessage, "Farm statement was missing a trailing semicolon.");
+        return false;
+    }
+
+    TwistFarmSBox *aFarmSBox = nullptr;
+    if (aHasSBoxToken) {
+        aFarmSBox = pExpander->GetFarmSBox();
+        if (aFarmSBox == nullptr) {
+            SetError(pErrorMessage, "Farm statement execution requires a non-null S-box farm worker.");
+            return false;
+        }
+    }
+
+    TwistFarmSalt *aFarmSalt = nullptr;
+    if (aHasSaltToken) {
+        aFarmSalt = pExpander->GetFarmSalt();
+        if (aFarmSalt == nullptr) {
+            SetError(pErrorMessage, "Farm statement execution requires a non-null salt farm worker.");
+            return false;
+        }
+    }
+
+    *pHandled = true;
+    const std::string aBody = TrimCopy(aText.substr(0U, aText.size() - 1U));
+    if ((aBody == "pFarmSBox->Reset()") || (aBody == "GetFarmSBox()->Reset()")) {
+        aFarmSBox->Reset();
+        return true;
+    }
+    if ((aBody == "pFarmSalt->Reset()") || (aBody == "GetFarmSalt()->Reset()")) {
+        aFarmSalt->Reset();
+        return true;
+    }
+
+    const std::size_t aAssignPos = aBody.find('=');
+    if (aAssignPos == std::string::npos) {
+        SetError(pErrorMessage, "Farm statement expected assignment or reset.");
+        return false;
+    }
+
+    const std::string aLeftName = TrimCopy(aBody.substr(0U, aAssignPos));
+    if (!IsIdentifierToken(aLeftName)) {
+        SetError(pErrorMessage, "Farm statement assignment target must be a variable.");
+        return false;
+    }
+    std::string aRightText = TrimCopy(aBody.substr(aAssignPos + 1U));
+    if (aRightText.empty()) {
+        SetError(pErrorMessage, "Farm statement assignment was missing right-hand side.");
+        return false;
+    }
+
+    enum class FarmCallType {
+        kSBox = 0,
+        kSalt = 1
+    };
+    FarmCallType aCallType = FarmCallType::kSBox;
+    std::string aTillBytesPrefix;
+
+    if (aRightText.rfind("pFarmSBox->TillBytes(", 0U) == 0U) {
+        aCallType = FarmCallType::kSBox;
+        aTillBytesPrefix = "pFarmSBox->TillBytes(";
+    } else if (aRightText.rfind("GetFarmSBox()->TillBytes(", 0U) == 0U) {
+        aCallType = FarmCallType::kSBox;
+        aTillBytesPrefix = "GetFarmSBox()->TillBytes(";
+    } else if (aRightText.rfind("pFarmSalt->TillBytes(", 0U) == 0U) {
+        aCallType = FarmCallType::kSalt;
+        aTillBytesPrefix = "pFarmSalt->TillBytes(";
+    } else if (aRightText.rfind("GetFarmSalt()->TillBytes(", 0U) == 0U) {
+        aCallType = FarmCallType::kSalt;
+        aTillBytesPrefix = "GetFarmSalt()->TillBytes(";
+    } else {
+        SetError(pErrorMessage, "Farm statement right-hand side must call TillBytes.");
+        return false;
+    }
+
+    auto FindMatchingParen = [](const std::string &pText,
+                                const std::size_t pOpenPos) -> std::size_t {
+        int aDepth = 0;
+        for (std::size_t i = pOpenPos; i < pText.size(); ++i) {
+            if (pText[i] == '(') {
+                ++aDepth;
+                continue;
+            }
+            if (pText[i] == ')') {
+                --aDepth;
+                if (aDepth == 0) {
+                    return i;
+                }
+            }
+        }
+        return std::string::npos;
+    };
+
+    const std::size_t aArgsOpenPos = aRightText.find('(', aTillBytesPrefix.size() - 1U);
+    if (aArgsOpenPos == std::string::npos) {
+        SetError(pErrorMessage, "TillBytes call syntax was invalid.");
+        return false;
+    }
+    const std::size_t aArgsClosePos = FindMatchingParen(aRightText, aArgsOpenPos);
+    if (aArgsClosePos == std::string::npos) {
+        SetError(pErrorMessage, "TillBytes call had unmatched parentheses.");
+        return false;
+    }
+
+    const std::string aArgsText = aRightText.substr(aArgsOpenPos + 1U, aArgsClosePos - aArgsOpenPos - 1U);
+    const std::vector<std::string> aArgs = SplitCommaTokens(aArgsText);
+    if (aArgs.size() != 3U) {
+        SetError(pErrorMessage, "TillBytes expected exactly 3 arguments.");
+        return false;
+    }
+
+    TwistWorkSpaceSlot aSourceSlot = TwistWorkSpaceSlot::kInvalid;
+    int aSourceOffset = 0;
+    if (!ParseMatrixBufferOffsetExpression(aArgs[0], pVariables, &aSourceSlot, &aSourceOffset, pErrorMessage)) {
+        return false;
+    }
+    std::uint8_t *aSource = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSourceSlot);
+    if (aSource == nullptr) {
+        SetError(pErrorMessage, "TillBytes source buffer resolved to null.");
+        return false;
+    }
+    aSource += static_cast<std::size_t>(aSourceOffset);
+
+    TwistWorkSpaceSlot aSnowSlot = TwistWorkSpaceSlot::kInvalid;
+    int aSnowOffset = 0;
+    if (!ParseMatrixBufferOffsetExpression(aArgs[1], pVariables, &aSnowSlot, &aSnowOffset, pErrorMessage)) {
+        return false;
+    }
+    std::uint8_t *aSnow = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSnowSlot);
+    if (aSnow == nullptr) {
+        SetError(pErrorMessage, "TillBytes snow buffer resolved to null.");
+        return false;
+    }
+    aSnow += static_cast<std::size_t>(aSnowOffset);
+
+    GRuntimeScalar aTargetCount = 0ULL;
+    if (!EvaluateGenericRawExpression(aArgs[2], pWorkspace, pExpander, pVariables, &aTargetCount, pErrorMessage)) {
+        return false;
+    }
+
+    bool aTillHit = false;
+    if (aCallType == FarmCallType::kSBox) {
+        aTillHit = aFarmSBox->TillBytes(aSource, aSnow, static_cast<std::uint64_t>(aTargetCount));
+    } else {
+        aTillHit = aFarmSalt->TillBytes(aSource, aSnow, static_cast<std::uint64_t>(aTargetCount));
+    }
+
+    std::uint64_t aAssignedValue = aTillHit ? 1ULL : 0ULL;
+    const std::string aTail = TrimCopy(aRightText.substr(aArgsClosePos + 1U));
+    if (!aTail.empty()) {
+        if (aTail[0] != '?') {
+            SetError(pErrorMessage, "TillBytes assignment tail had invalid syntax.");
+            return false;
+        }
+        const std::size_t aColonPos = aTail.find(':');
+        if (aColonPos == std::string::npos) {
+            SetError(pErrorMessage, "TillBytes ternary assignment was missing ':' separator.");
+            return false;
+        }
+        const std::string aTrueText = TrimCopy(aTail.substr(1U, aColonPos - 1U));
+        const std::string aFalseText = TrimCopy(aTail.substr(aColonPos + 1U));
+        if (aTrueText.empty() || aFalseText.empty()) {
+            SetError(pErrorMessage, "TillBytes ternary assignment had empty branches.");
+            return false;
+        }
+        GRuntimeScalar aTrueValue = 0ULL;
+        GRuntimeScalar aFalseValue = 0ULL;
+        if (!EvaluateGenericRawExpression(aTrueText, pWorkspace, pExpander, pVariables, &aTrueValue, pErrorMessage) ||
+            !EvaluateGenericRawExpression(aFalseText, pWorkspace, pExpander, pVariables, &aFalseValue, pErrorMessage)) {
+            return false;
+        }
+        aAssignedValue = aTillHit
+            ? static_cast<std::uint64_t>(aTrueValue)
+            : static_cast<std::uint64_t>(aFalseValue);
+    }
+
+    (*pVariables)[aLeftName] = NormalizeScalarValueForName(
+        aLeftName,
+        static_cast<GRuntimeScalar>(aAssignedValue));
+    return true;
 }
 
 bool ParseMaskBraidTypeToken(const std::string &pText,
@@ -4966,16 +5338,45 @@ bool EvaluateControlCondition(const std::string &pCondition,
     return true;
 }
 
+enum class ControlFrameType : std::uint8_t {
+    kIf = 0,
+    kSwitch = 1
+};
+
 struct ControlFrame {
+    ControlFrameType                mType = ControlFrameType::kIf;
+
     bool                            mParentActive = false;
     bool                            mCondition = false;
     bool                            mBranchActive = false;
     bool                            mElseSeen = false;
+
+    GRuntimeScalar                  mSwitchValue = 0ULL;
+    bool                            mSwitchMatched = false;
+    bool                            mSwitchInCaseBlock = false;
+    bool                            mSwitchBreakSeen = false;
 };
+
+bool ControlFrameIsActive(const ControlFrame &pFrame) {
+    if (pFrame.mType == ControlFrameType::kIf) {
+        return pFrame.mBranchActive;
+    }
+
+    if (!pFrame.mParentActive) {
+        return false;
+    }
+    if (pFrame.mSwitchBreakSeen) {
+        return false;
+    }
+    if (!pFrame.mSwitchInCaseBlock) {
+        return false;
+    }
+    return pFrame.mBranchActive;
+}
 
 bool AllBranchesActive(const std::vector<ControlFrame> &pStack) {
     for (const ControlFrame &aFrame : pStack) {
-        if (!aFrame.mBranchActive) {
+        if (!ControlFrameIsActive(aFrame)) {
             return false;
         }
     }
@@ -5002,6 +5403,10 @@ bool ExecuteStatementSequence(const std::vector<GStatement> *pStatements,
             }
 
             if (aControlLine.mType == ControlLineType::kNone) {
+                if (!AllBranchesActive(aControlStack)) {
+                    continue;
+                }
+
                 bool aDidHandleSnowLine = false;
                 if (!ExecuteSnowRawLine(aStatement.mRawLine,
                                         pWorkspace,
@@ -5025,6 +5430,19 @@ bool ExecuteStatementSequence(const std::vector<GStatement> *pStatements,
                     return false;
                 }
                 if (aDidHandleMemoryLine) {
+                    continue;
+                }
+
+                bool aDidHandleFarmLine = false;
+                if (!ExecuteFarmRawLine(aStatement.mRawLine,
+                                        pWorkspace,
+                                        pExpander,
+                                        pVariables,
+                                        &aDidHandleFarmLine,
+                                        pErrorMessage)) {
+                    return false;
+                }
+                if (aDidHandleFarmLine) {
                     continue;
                 }
 
@@ -5069,6 +5487,7 @@ bool ExecuteStatementSequence(const std::vector<GStatement> *pStatements,
 
             if (aControlLine.mType == ControlLineType::kIf) {
                 ControlFrame aFrame;
+                aFrame.mType = ControlFrameType::kIf;
                 aFrame.mParentActive = AllBranchesActive(aControlStack);
                 if (aFrame.mParentActive) {
                     if (!EvaluateControlCondition(aControlLine.mCondition,
@@ -5091,6 +5510,10 @@ bool ExecuteStatementSequence(const std::vector<GStatement> *pStatements,
                     return false;
                 }
                 ControlFrame &aFrame = aControlStack.back();
+                if (aFrame.mType != ControlFrameType::kIf) {
+                    SetError(pErrorMessage, "Encountered else without matching if frame.");
+                    return false;
+                }
                 if (aFrame.mElseSeen) {
                     SetError(pErrorMessage, "Encountered repeated else for one if block.");
                     return false;
@@ -5100,12 +5523,121 @@ bool ExecuteStatementSequence(const std::vector<GStatement> *pStatements,
                 continue;
             }
 
+            if (aControlLine.mType == ControlLineType::kSwitch) {
+                ControlFrame aFrame;
+                aFrame.mType = ControlFrameType::kSwitch;
+                aFrame.mParentActive = AllBranchesActive(aControlStack);
+                if (aFrame.mParentActive) {
+                    if (!EvaluateGenericRawExpression(aControlLine.mCondition,
+                                                      pWorkspace,
+                                                      pExpander,
+                                                      pVariables,
+                                                      &aFrame.mSwitchValue,
+                                                      pErrorMessage)) {
+                        SetError(pErrorMessage, "Switch expression could not be evaluated.");
+                        return false;
+                    }
+                } else {
+                    aFrame.mSwitchValue = 0ULL;
+                }
+                aFrame.mSwitchMatched = false;
+                aFrame.mSwitchInCaseBlock = false;
+                aFrame.mSwitchBreakSeen = false;
+                aFrame.mBranchActive = false;
+                aControlStack.push_back(aFrame);
+                continue;
+            }
+
+            if (aControlLine.mType == ControlLineType::kCase) {
+                if (aControlStack.empty()) {
+                    SetError(pErrorMessage, "Encountered case without matching switch.");
+                    return false;
+                }
+                ControlFrame &aFrame = aControlStack.back();
+                if (aFrame.mType != ControlFrameType::kSwitch) {
+                    SetError(pErrorMessage, "Encountered case outside switch frame.");
+                    return false;
+                }
+                if (aFrame.mSwitchInCaseBlock) {
+                    SetError(pErrorMessage, "Encountered case before prior case block was closed.");
+                    return false;
+                }
+                const bool aCaseActive = aFrame.mParentActive &&
+                                         !aFrame.mSwitchBreakSeen &&
+                                         !aFrame.mSwitchMatched &&
+                                         (aFrame.mSwitchValue == aControlLine.mCaseValue);
+                aFrame.mBranchActive = aCaseActive;
+                aFrame.mSwitchInCaseBlock = true;
+                if (aCaseActive) {
+                    aFrame.mSwitchMatched = true;
+                }
+                continue;
+            }
+
+            if (aControlLine.mType == ControlLineType::kDefault) {
+                if (aControlStack.empty()) {
+                    SetError(pErrorMessage, "Encountered default without matching switch.");
+                    return false;
+                }
+                ControlFrame &aFrame = aControlStack.back();
+                if (aFrame.mType != ControlFrameType::kSwitch) {
+                    SetError(pErrorMessage, "Encountered default outside switch frame.");
+                    return false;
+                }
+                if (aFrame.mSwitchInCaseBlock) {
+                    SetError(pErrorMessage, "Encountered default before prior case block was closed.");
+                    return false;
+                }
+                const bool aCaseActive = aFrame.mParentActive &&
+                                         !aFrame.mSwitchBreakSeen &&
+                                         !aFrame.mSwitchMatched;
+                aFrame.mBranchActive = aCaseActive;
+                aFrame.mSwitchInCaseBlock = true;
+                aFrame.mSwitchMatched = true;
+                continue;
+            }
+
+            if (aControlLine.mType == ControlLineType::kBreak) {
+                if (aControlStack.empty()) {
+                    SetError(pErrorMessage, "Encountered break without matching switch case.");
+                    return false;
+                }
+                ControlFrame &aFrame = aControlStack.back();
+                if (aFrame.mType != ControlFrameType::kSwitch) {
+                    SetError(pErrorMessage, "Encountered break outside switch frame.");
+                    return false;
+                }
+                if (!aFrame.mSwitchInCaseBlock) {
+                    SetError(pErrorMessage, "Encountered break outside an active case block.");
+                    return false;
+                }
+                if (aFrame.mBranchActive) {
+                    aFrame.mSwitchBreakSeen = true;
+                }
+                aFrame.mBranchActive = false;
+                continue;
+            }
+
             if (aControlLine.mType == ControlLineType::kEnd) {
                 if (aControlStack.empty()) {
                     SetError(pErrorMessage, "Encountered closing brace without matching if.");
                     return false;
                 }
-                aControlStack.pop_back();
+                ControlFrame &aFrame = aControlStack.back();
+                if (aFrame.mType == ControlFrameType::kIf) {
+                    aControlStack.pop_back();
+                    continue;
+                }
+
+                if (aFrame.mType == ControlFrameType::kSwitch) {
+                    if (aFrame.mSwitchInCaseBlock) {
+                        aFrame.mSwitchInCaseBlock = false;
+                        aFrame.mBranchActive = false;
+                    } else {
+                        aControlStack.pop_back();
+                    }
+                    continue;
+                }
                 continue;
             }
         }
@@ -5119,7 +5651,7 @@ bool ExecuteStatementSequence(const std::vector<GStatement> *pStatements,
     }
 
     if (!aControlStack.empty()) {
-        SetError(pErrorMessage, "Control statement block ended with an open if.");
+        SetError(pErrorMessage, "Control statement block ended with an open control frame.");
         return false;
     }
 
@@ -5130,96 +5662,6 @@ bool ExecuteStatementSequence(const std::vector<GStatement> *pStatements,
 
 GTarget::GTarget() {
     Invalidate();
-}
-
-void GScopeRules::SetReadPreferredMinimum(GSymbol pSymbol, int pCount) {
-    if (!pSymbol.IsInvalid()) {
-        mReadPreferredMinimum[ScopeSymbolKey(pSymbol)] = pCount;
-    }
-}
-
-void GScopeRules::SetReadPreferredMaximum(GSymbol pSymbol, int pCount) {
-    if (!pSymbol.IsInvalid()) {
-        mReadPreferredMaximum[ScopeSymbolKey(pSymbol)] = pCount;
-    }
-}
-
-int GScopeRules::GetReadPreferredMinimum(GSymbol pSymbol) const {
-    const auto aIterator = mReadPreferredMinimum.find(ScopeSymbolKey(pSymbol));
-    return (aIterator == mReadPreferredMinimum.end()) ? 0 : aIterator->second;
-}
-
-int GScopeRules::GetReadPreferredMaximum(GSymbol pSymbol) const {
-    const auto aIterator = mReadPreferredMaximum.find(ScopeSymbolKey(pSymbol));
-    return (aIterator == mReadPreferredMaximum.end()) ? 0 : aIterator->second;
-}
-
-void GScopeState::Clear() {
-    mReadCounts.clear();
-}
-
-void GScopeState::Consume(GScopeState pScopeState) {
-    for (const auto &aPair : pScopeState.mReadCounts) {
-        mReadCounts[aPair.first] += aPair.second;
-    }
-}
-
-void GScopeState::Consume(GLoop pLoop) {
-    for (const GStatement &aStatement : pLoop.mInitializationStatements) {
-        Consume(aStatement);
-    }
-    for (const GStatement &aStatement : pLoop.mBodyStatements) {
-        Consume(aStatement);
-    }
-}
-
-void GScopeState::Consume(GStatement pStatement) {
-    std::vector<GSymbol> aSymbols;
-    CollectReadSymbolsFromStatement(pStatement, &aSymbols);
-    for (const GSymbol &aSymbol : aSymbols) {
-        RegisterRead(aSymbol);
-    }
-    RegisterRead(pStatement.mExpression);
-}
-
-void GScopeState::Consume(GSymbol pSymbol) {
-    RegisterRead(pSymbol);
-}
-
-void GScopeState::Consume(GExpr pExpr) {
-    RegisterRead(pExpr);
-    const std::vector<GSymbol> aSymbols = pExpr.GetSymbols();
-    for (const GSymbol &aSymbol : aSymbols) {
-        RegisterRead(aSymbol);
-    }
-}
-
-void GScopeState::RegisterRead(GSymbol pSymbol) {
-    if (!pSymbol.IsInvalid()) {
-        mReadCounts[ScopeSymbolKey(pSymbol)] += 1;
-    }
-}
-
-void GScopeState::RegisterRead(GExpr pExpr) {
-    if (!pExpr.IsInvalid()) {
-        mReadCounts[ScopeExprKey(pExpr)] += 1;
-    }
-}
-
-int GScopeState::GetReadCount(GSymbol pSymbol, int pCount) const {
-    if (pSymbol.IsInvalid()) {
-        return pCount;
-    }
-    const auto aIterator = mReadCounts.find(ScopeSymbolKey(pSymbol));
-    return (aIterator == mReadCounts.end()) ? pCount : aIterator->second;
-}
-
-int GScopeState::GetReadCount(GExpr pExpr, int pCount) const {
-    if (pExpr.IsInvalid()) {
-        return pCount;
-    }
-    const auto aIterator = mReadCounts.find(ScopeExprKey(pExpr));
-    return (aIterator == mReadCounts.end()) ? pCount : aIterator->second;
 }
 
 GTarget GTarget::Symbol(const GSymbol &pSymbol) {
@@ -5536,6 +5978,132 @@ void GLoop::AddInitialization(GStatement *pStatement) {
     pStatement->Invalidate();
 }
 
+GWhileWorkItem::GWhileWorkItem() {
+    mType = GWhileWorkItemType::kLoop;
+    mComment.clear();
+}
+
+GWhileWorkItem GWhileWorkItem::Loop(const GLoop &pLoop) {
+    GWhileWorkItem aItem;
+    aItem.mType = GWhileWorkItemType::kLoop;
+    aItem.mLoop = pLoop;
+    aItem.mStatements.clear();
+    aItem.mComment.clear();
+    return aItem;
+}
+
+GWhileWorkItem GWhileWorkItem::Statements(std::vector<GStatement> *pStatements) {
+    GWhileWorkItem aItem;
+    aItem.mType = GWhileWorkItemType::kStatements;
+    aItem.mLoop = GLoop();
+    if (pStatements != nullptr) {
+        aItem.mStatements = std::move(*pStatements);
+        pStatements->clear();
+    }
+    aItem.mComment.clear();
+    return aItem;
+}
+
+GWhileWorkItem GWhileWorkItem::Comment(std::string pComment) {
+    GWhileWorkItem aItem;
+    aItem.mType = GWhileWorkItemType::kComment;
+    aItem.mLoop = GLoop();
+    aItem.mStatements.clear();
+    aItem.mComment = std::move(pComment);
+    return aItem;
+}
+
+GWhileWorkItem GWhileWorkItem::EmptyLine() {
+    GWhileWorkItem aItem;
+    aItem.mType = GWhileWorkItemType::kEmptyLine;
+    aItem.mLoop = GLoop();
+    aItem.mStatements.clear();
+    aItem.mComment.clear();
+    return aItem;
+}
+
+bool GWhileWorkItem::IsLoop() const {
+    return mType == GWhileWorkItemType::kLoop;
+}
+
+bool GWhileWorkItem::IsStatements() const {
+    return mType == GWhileWorkItemType::kStatements;
+}
+
+bool GWhileWorkItem::IsComment() const {
+    return mType == GWhileWorkItemType::kComment;
+}
+
+bool GWhileWorkItem::IsEmptyLine() const {
+    return mType == GWhileWorkItemType::kEmptyLine;
+}
+
+bool GWhileWorkItem::IsInvalid() const {
+    if (IsLoop()) {
+        return mLoop.IsInvalid();
+    }
+    if (IsStatements()) {
+        for (const GStatement &aStatement : mStatements) {
+            if (aStatement.IsInvalid()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    if (IsComment() || IsEmptyLine()) {
+        return false;
+    }
+    return true;
+}
+
+GWhile::GWhile() {
+    mConditionSymbol = GSymbol::Var("condition");
+    mConditionVariableName = "condition";
+}
+
+bool GWhile::IsInvalid() const {
+    if (mConditionSymbol.IsInvalid() || mConditionVariableName.empty()) {
+        return true;
+    }
+    for (const GWhileWorkItem &aItem : mWorkItems) {
+        if (aItem.IsInvalid()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void GWhile::SetCondition(GSymbol pSymbol) {
+    if (pSymbol.IsInvalid()) {
+        return;
+    }
+    mConditionSymbol = pSymbol;
+    mConditionVariableName = pSymbol.mName;
+}
+
+void GWhile::CommitLoop(GLoop *pLoop) {
+    if (pLoop == nullptr) {
+        return;
+    }
+    mWorkItems.push_back(GWhileWorkItem::Loop(*pLoop));
+    *pLoop = GLoop();
+}
+
+void GWhile::CommitStatements(std::vector<GStatement> *pStatements) {
+    if ((pStatements == nullptr) || pStatements->empty()) {
+        return;
+    }
+    mWorkItems.push_back(GWhileWorkItem::Statements(pStatements));
+}
+
+void GWhile::AddComment(std::string pComment) {
+    mWorkItems.push_back(GWhileWorkItem::Comment(std::move(pComment)));
+}
+
+void GWhile::AddEmptyLine() {
+    mWorkItems.push_back(GWhileWorkItem::EmptyLine());
+}
+
 GBatchWorkItem::GBatchWorkItem() {
     mType = GBatchWorkItemType::kLoop;
     mComment.clear();
@@ -5545,6 +6113,17 @@ GBatchWorkItem GBatchWorkItem::Loop(const GLoop &pLoop) {
     GBatchWorkItem aItem;
     aItem.mType = GBatchWorkItemType::kLoop;
     aItem.mLoop = pLoop;
+    aItem.mWhile = GWhile();
+    aItem.mStatements.clear();
+    aItem.mComment.clear();
+    return aItem;
+}
+
+GBatchWorkItem GBatchWorkItem::While(const GWhile &pWhile) {
+    GBatchWorkItem aItem;
+    aItem.mType = GBatchWorkItemType::kWhile;
+    aItem.mLoop = GLoop();
+    aItem.mWhile = pWhile;
     aItem.mStatements.clear();
     aItem.mComment.clear();
     return aItem;
@@ -5554,6 +6133,7 @@ GBatchWorkItem GBatchWorkItem::Statements(std::vector<GStatement> *pStatements) 
     GBatchWorkItem aItem;
     aItem.mType = GBatchWorkItemType::kStatements;
     aItem.mLoop = GLoop();
+    aItem.mWhile = GWhile();
     if (pStatements != nullptr) {
         aItem.mStatements = std::move(*pStatements);
         pStatements->clear();
@@ -5566,6 +6146,7 @@ GBatchWorkItem GBatchWorkItem::Comment(std::string pComment) {
     GBatchWorkItem aItem;
     aItem.mType = GBatchWorkItemType::kComment;
     aItem.mLoop = GLoop();
+    aItem.mWhile = GWhile();
     aItem.mStatements.clear();
     aItem.mComment = std::move(pComment);
     return aItem;
@@ -5575,6 +6156,7 @@ GBatchWorkItem GBatchWorkItem::EmptyLine() {
     GBatchWorkItem aItem;
     aItem.mType = GBatchWorkItemType::kEmptyLine;
     aItem.mLoop = GLoop();
+    aItem.mWhile = GWhile();
     aItem.mStatements.clear();
     aItem.mComment.clear();
     return aItem;
@@ -5582,6 +6164,10 @@ GBatchWorkItem GBatchWorkItem::EmptyLine() {
 
 bool GBatchWorkItem::IsLoop() const {
     return mType == GBatchWorkItemType::kLoop;
+}
+
+bool GBatchWorkItem::IsWhile() const {
+    return mType == GBatchWorkItemType::kWhile;
 }
 
 bool GBatchWorkItem::IsStatements() const {
@@ -5599,6 +6185,9 @@ bool GBatchWorkItem::IsEmptyLine() const {
 bool GBatchWorkItem::IsInvalid() const {
     if (IsLoop()) {
         return mLoop.IsInvalid();
+    }
+    if (IsWhile()) {
+        return mWhile.IsInvalid();
     }
     if (IsStatements()) {
         for (const GStatement &aStatement : mStatements) {
@@ -5624,9 +6213,15 @@ void GBatch::CommitLoop(GLoop *pLoop) {
     }
     mLoops.push_back(*pLoop);
     mWorkItems.push_back(GBatchWorkItem::Loop(*pLoop));
-    mScopeStateGlobal.Consume(mScopeStateLocal);
-    mScopeStateLocal.Clear();
     *pLoop = GLoop();
+}
+
+void GBatch::CommitWhile(GWhile *pWhile) {
+    if (pWhile == nullptr) {
+        return;
+    }
+    mWorkItems.push_back(GBatchWorkItem::While(*pWhile));
+    *pWhile = GWhile();
 }
 
 void GBatch::CommitStatements(std::vector<GStatement> *pStatements) {
@@ -5634,23 +6229,14 @@ void GBatch::CommitStatements(std::vector<GStatement> *pStatements) {
         return;
     }
     mWorkItems.push_back(GBatchWorkItem::Statements(pStatements));
-    for (const GStatement &aStatement : mWorkItems.back().mStatements) {
-        mScopeStateLocal.Consume(aStatement);
-    }
-    mScopeStateGlobal.Consume(mScopeStateLocal);
-    mScopeStateLocal.Clear();
 }
 
 void GBatch::AddComment(std::string pComment) {
     mWorkItems.push_back(GBatchWorkItem::Comment(std::move(pComment)));
-    mScopeStateGlobal.Consume(mScopeStateLocal);
-    mScopeStateLocal.Clear();
 }
 
 void GBatch::AddEmptyLine() {
     mWorkItems.push_back(GBatchWorkItem::EmptyLine());
-    mScopeStateGlobal.Consume(mScopeStateLocal);
-    mScopeStateLocal.Clear();
 }
 
 bool GBatch::IsInvalid() const {
@@ -5688,6 +6274,32 @@ int GBatch::CountReads(TwistWorkSpaceSlot pSlot) const {
                     aCount += CountExprReads(aStatement.mExpression, pSlot);
                     if (aStatement.mTarget.mIndex != nullptr) {
                         aCount += CountExprReads(*aStatement.mTarget.mIndex, pSlot);
+                    }
+                }
+                continue;
+            }
+            if (aItem.IsWhile()) {
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsLoop()) {
+                        for (const GStatement &aStatement : aWhileItem.mLoop.mInitializationStatements) {
+                            aCount += CountExprReads(aStatement.mExpression, pSlot);
+                            if (aStatement.mTarget.mIndex != nullptr) {
+                                aCount += CountExprReads(*aStatement.mTarget.mIndex, pSlot);
+                            }
+                        }
+                        for (const GStatement &aStatement : aWhileItem.mLoop.mBodyStatements) {
+                            aCount += CountExprReads(aStatement.mExpression, pSlot);
+                            if (aStatement.mTarget.mIndex != nullptr) {
+                                aCount += CountExprReads(*aStatement.mTarget.mIndex, pSlot);
+                            }
+                        }
+                        continue;
+                    }
+                    for (const GStatement &aStatement : aWhileItem.mStatements) {
+                        aCount += CountExprReads(aStatement.mExpression, pSlot);
+                        if (aStatement.mTarget.mIndex != nullptr) {
+                            aCount += CountExprReads(*aStatement.mTarget.mIndex, pSlot);
+                        }
                     }
                 }
                 continue;
@@ -5732,6 +6344,23 @@ int GBatch::CountWrites(TwistWorkSpaceSlot pSlot) const {
                 }
                 continue;
             }
+            if (aItem.IsWhile()) {
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsLoop()) {
+                        for (const GStatement &aStatement : aWhileItem.mLoop.mInitializationStatements) {
+                            aCount += CountTargetWrites(aStatement.mTarget, pSlot);
+                        }
+                        for (const GStatement &aStatement : aWhileItem.mLoop.mBodyStatements) {
+                            aCount += CountTargetWrites(aStatement.mTarget, pSlot);
+                        }
+                        continue;
+                    }
+                    for (const GStatement &aStatement : aWhileItem.mStatements) {
+                        aCount += CountTargetWrites(aStatement.mTarget, pSlot);
+                    }
+                }
+                continue;
+            }
             for (const GStatement &aStatement : aItem.mStatements) {
                 aCount += CountTargetWrites(aStatement.mTarget, pSlot);
             }
@@ -5754,29 +6383,40 @@ int GBatch::CountLoopsReading(TwistWorkSpaceSlot pSlot) const {
     int aCount = 0U;
     if (!mWorkItems.empty()) {
         for (const GBatchWorkItem &aItem : mWorkItems) {
-            if (!aItem.IsLoop()) {
-                continue;
-            }
-            const GLoop &aLoop = aItem.mLoop;
-            bool aReads = false;
-            for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-                if (ExprReadsSlot(aStatement.mExpression, pSlot) ||
-                    ((aStatement.mTarget.mIndex != nullptr) && ExprReadsSlot(*aStatement.mTarget.mIndex, pSlot))) {
-                    aReads = true;
-                    break;
-                }
-            }
-            if (!aReads) {
-                for (const GStatement &aStatement : aLoop.mBodyStatements) {
+            auto aCountLoopIfReads = [&](const GLoop &pLoop) {
+                bool aReads = false;
+                for (const GStatement &aStatement : pLoop.mInitializationStatements) {
                     if (ExprReadsSlot(aStatement.mExpression, pSlot) ||
                         ((aStatement.mTarget.mIndex != nullptr) && ExprReadsSlot(*aStatement.mTarget.mIndex, pSlot))) {
                         aReads = true;
                         break;
                     }
                 }
+                if (!aReads) {
+                    for (const GStatement &aStatement : pLoop.mBodyStatements) {
+                        if (ExprReadsSlot(aStatement.mExpression, pSlot) ||
+                            ((aStatement.mTarget.mIndex != nullptr) && ExprReadsSlot(*aStatement.mTarget.mIndex, pSlot))) {
+                            aReads = true;
+                            break;
+                        }
+                    }
+                }
+                if (aReads) {
+                    ++aCount;
+                }
+            };
+
+            if (aItem.IsLoop()) {
+                aCountLoopIfReads(aItem.mLoop);
+                continue;
             }
-            if (aReads) {
-                ++aCount;
+            if (aItem.IsWhile()) {
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsLoop()) {
+                        aCountLoopIfReads(aWhileItem.mLoop);
+                    }
+                }
+                continue;
             }
         }
         return aCount;
@@ -5811,27 +6451,38 @@ int GBatch::CountLoopsWriting(TwistWorkSpaceSlot pSlot) const {
     int aCount = 0U;
     if (!mWorkItems.empty()) {
         for (const GBatchWorkItem &aItem : mWorkItems) {
-            if (!aItem.IsLoop()) {
-                continue;
-            }
-            const GLoop &aLoop = aItem.mLoop;
-            bool aWrites = false;
-            for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-                if (TargetWritesSlot(aStatement.mTarget, pSlot)) {
-                    aWrites = true;
-                    break;
-                }
-            }
-            if (!aWrites) {
-                for (const GStatement &aStatement : aLoop.mBodyStatements) {
+            auto aCountLoopIfWrites = [&](const GLoop &pLoop) {
+                bool aWrites = false;
+                for (const GStatement &aStatement : pLoop.mInitializationStatements) {
                     if (TargetWritesSlot(aStatement.mTarget, pSlot)) {
                         aWrites = true;
                         break;
                     }
                 }
+                if (!aWrites) {
+                    for (const GStatement &aStatement : pLoop.mBodyStatements) {
+                        if (TargetWritesSlot(aStatement.mTarget, pSlot)) {
+                            aWrites = true;
+                            break;
+                        }
+                    }
+                }
+                if (aWrites) {
+                    ++aCount;
+                }
+            };
+
+            if (aItem.IsLoop()) {
+                aCountLoopIfWrites(aItem.mLoop);
+                continue;
             }
-            if (aWrites) {
-                ++aCount;
+            if (aItem.IsWhile()) {
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsLoop()) {
+                        aCountLoopIfWrites(aWhileItem.mLoop);
+                    }
+                }
+                continue;
             }
         }
         return aCount;
@@ -5884,6 +6535,44 @@ std::vector<std::string> GBatch::CollectVariableNames() const {
                         CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
                     }
                     CollectVariablesFromExpr(aStatement.mExpression, &aNames);
+                }
+                continue;
+            }
+            if (aItem.IsWhile()) {
+                AppendUnique(&aNames, aItem.mWhile.mConditionVariableName);
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsLoop()) {
+                        const GLoop &aLoop = aWhileItem.mLoop;
+                        AppendUnique(&aNames, aLoop.mLoopVariableName);
+                        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
+                            if (aStatement.mTarget.IsVar()) {
+                                AppendUnique(&aNames, aStatement.mTarget.mSymbol.mName);
+                            }
+                            if (aStatement.mTarget.mIndex != nullptr) {
+                                CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
+                            }
+                            CollectVariablesFromExpr(aStatement.mExpression, &aNames);
+                        }
+                        for (const GStatement &aStatement : aLoop.mBodyStatements) {
+                            if (aStatement.mTarget.IsVar()) {
+                                AppendUnique(&aNames, aStatement.mTarget.mSymbol.mName);
+                            }
+                            if (aStatement.mTarget.mIndex != nullptr) {
+                                CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
+                            }
+                            CollectVariablesFromExpr(aStatement.mExpression, &aNames);
+                        }
+                        continue;
+                    }
+                    for (const GStatement &aStatement : aWhileItem.mStatements) {
+                        if (aStatement.mTarget.IsVar()) {
+                            AppendUnique(&aNames, aStatement.mTarget.mSymbol.mName);
+                        }
+                        if (aStatement.mTarget.mIndex != nullptr) {
+                            CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
+                        }
+                        CollectVariablesFromExpr(aStatement.mExpression, &aNames);
+                    }
                 }
                 continue;
             }
@@ -5958,6 +6647,54 @@ std::vector<TwistWorkSpaceSlot> GBatch::CollectReferencedSlots() const {
                 }
                 continue;
             }
+            if (aItem.IsWhile()) {
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsLoop()) {
+                        const GLoop &aLoop = aWhileItem.mLoop;
+                        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
+                            if (aStatement.IsRawLine()) {
+                                CollectSlotsFromRawLine(aStatement.mRawLine, &aSlots);
+                                continue;
+                            }
+                            if (aStatement.mTarget.IsBuf()) {
+                                AppendUnique(&aSlots, aStatement.mTarget.mSymbol.mSlot);
+                            }
+                            if (aStatement.mTarget.mIndex != nullptr) {
+                                CollectSlotsFromExpr(*aStatement.mTarget.mIndex, &aSlots);
+                            }
+                            CollectSlotsFromExpr(aStatement.mExpression, &aSlots);
+                        }
+                        for (const GStatement &aStatement : aLoop.mBodyStatements) {
+                            if (aStatement.IsRawLine()) {
+                                CollectSlotsFromRawLine(aStatement.mRawLine, &aSlots);
+                                continue;
+                            }
+                            if (aStatement.mTarget.IsBuf()) {
+                                AppendUnique(&aSlots, aStatement.mTarget.mSymbol.mSlot);
+                            }
+                            if (aStatement.mTarget.mIndex != nullptr) {
+                                CollectSlotsFromExpr(*aStatement.mTarget.mIndex, &aSlots);
+                            }
+                            CollectSlotsFromExpr(aStatement.mExpression, &aSlots);
+                        }
+                        continue;
+                    }
+                    for (const GStatement &aStatement : aWhileItem.mStatements) {
+                        if (aStatement.IsRawLine()) {
+                            CollectSlotsFromRawLine(aStatement.mRawLine, &aSlots);
+                            continue;
+                        }
+                        if (aStatement.mTarget.IsBuf()) {
+                            AppendUnique(&aSlots, aStatement.mTarget.mSymbol.mSlot);
+                        }
+                        if (aStatement.mTarget.mIndex != nullptr) {
+                            CollectSlotsFromExpr(*aStatement.mTarget.mIndex, &aSlots);
+                        }
+                        CollectSlotsFromExpr(aStatement.mExpression, &aSlots);
+                    }
+                }
+                continue;
+            }
             for (const GStatement &aStatement : aItem.mStatements) {
                 if (aStatement.IsRawLine()) {
                     CollectSlotsFromRawLine(aStatement.mRawLine, &aSlots);
@@ -6026,6 +6763,32 @@ std::string GBatch::ToPrettyString() const {
                 AppendPrettyLoopLines(aItem.mLoop, &aLines);
                 continue;
             }
+            if (aItem.IsWhile()) {
+                aLines.push_back("while (" + aItem.mWhile.mConditionVariableName + " != 0) {");
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsComment()) {
+                        aLines.push_back(Indent(1) + NormalizeCommentLine(aWhileItem.mComment));
+                        continue;
+                    }
+                    if (aWhileItem.IsEmptyLine()) {
+                        aLines.push_back("");
+                        continue;
+                    }
+                    if (aWhileItem.IsLoop()) {
+                        std::vector<std::string> aNestedLines;
+                        AppendPrettyLoopLines(aWhileItem.mLoop, &aNestedLines);
+                        for (const std::string &aNestedLine : aNestedLines) {
+                            aLines.push_back(Indent(1) + aNestedLine);
+                        }
+                        continue;
+                    }
+                    for (const GStatement &aStatement : aWhileItem.mStatements) {
+                        aLines.push_back(Indent(1) + PrettyStatement(aStatement));
+                    }
+                }
+                aLines.push_back("}");
+                continue;
+            }
             for (const GStatement &aStatement : aItem.mStatements) {
                 aLines.push_back(PrettyStatement(aStatement));
             }
@@ -6072,6 +6835,55 @@ std::string GBatch::ToJson(std::string *pErrorMessage) const {
             JsonValue::Object aItemObject;
             aItemObject["kind"] = JsonValue::String("loop");
             aItemObject["loop"] = LoopToJsonValue(aItem.mLoop);
+            aWorkItems.push_back(JsonValue::ObjectValue(std::move(aItemObject)));
+            continue;
+        }
+        if (aItem.IsWhile()) {
+            JsonValue::Object aWhileObject;
+            aWhileObject["condition_symbol"] = SymbolToJsonValue(aItem.mWhile.mConditionSymbol);
+            aWhileObject["condition_variable"] = JsonValue::String(aItem.mWhile.mConditionVariableName);
+
+            JsonValue::Array aWhileBodyItems;
+            for (const GWhileWorkItem &aBodyItem : aItem.mWhile.mWorkItems) {
+                if (aBodyItem.IsLoop()) {
+                    JsonValue::Object aBodyObject;
+                    aBodyObject["kind"] = JsonValue::String("loop");
+                    aBodyObject["loop"] = LoopToJsonValue(aBodyItem.mLoop);
+                    aWhileBodyItems.push_back(JsonValue::ObjectValue(std::move(aBodyObject)));
+                    continue;
+                }
+                if (aBodyItem.IsStatements()) {
+                    JsonValue::Array aStatements;
+                    for (const GStatement &aStatement : aBodyItem.mStatements) {
+                        aStatements.push_back(StatementToJsonValue(aStatement));
+                    }
+                    JsonValue::Object aBodyObject;
+                    aBodyObject["kind"] = JsonValue::String("statements");
+                    aBodyObject["statements"] = JsonValue::ArrayValue(std::move(aStatements));
+                    aWhileBodyItems.push_back(JsonValue::ObjectValue(std::move(aBodyObject)));
+                    continue;
+                }
+                if (aBodyItem.IsComment()) {
+                    JsonValue::Object aBodyObject;
+                    aBodyObject["kind"] = JsonValue::String("comment");
+                    aBodyObject["text"] = JsonValue::String(aBodyItem.mComment);
+                    aWhileBodyItems.push_back(JsonValue::ObjectValue(std::move(aBodyObject)));
+                    continue;
+                }
+                if (aBodyItem.IsEmptyLine()) {
+                    JsonValue::Object aBodyObject;
+                    aBodyObject["kind"] = JsonValue::String("empty_line");
+                    aWhileBodyItems.push_back(JsonValue::ObjectValue(std::move(aBodyObject)));
+                    continue;
+                }
+                SetError(pErrorMessage, "While body work-item type was invalid and could not be serialized.");
+                return "";
+            }
+            aWhileObject["work_items"] = JsonValue::ArrayValue(std::move(aWhileBodyItems));
+
+            JsonValue::Object aItemObject;
+            aItemObject["kind"] = JsonValue::String("while");
+            aItemObject["while"] = JsonValue::ObjectValue(std::move(aWhileObject));
             aWorkItems.push_back(JsonValue::ObjectValue(std::move(aItemObject)));
             continue;
         }
@@ -6161,6 +6973,91 @@ bool GBatch::FromJson(const std::string &pJsonText,
                 aBatch.mWorkItems.push_back(GBatchWorkItem::Loop(aLoop));
                 continue;
             }
+            if (aKind->as_string() == "while") {
+                const JsonValue *aWhileJson = aItemValue.find("while");
+                if ((aWhileJson == NULL) || !aWhileJson->is_object()) {
+                    SetError(pErrorMessage, "Batch while work-item JSON was incomplete.");
+                    return false;
+                }
+
+                const JsonValue *aConditionSymbolJson = aWhileJson->find("condition_symbol");
+                const JsonValue *aConditionVariableJson = aWhileJson->find("condition_variable");
+                const JsonValue *aBodyItemsJson = aWhileJson->find("work_items");
+                if ((aConditionSymbolJson == NULL) || (aConditionVariableJson == NULL) ||
+                    !aConditionVariableJson->is_string() ||
+                    (aBodyItemsJson == NULL) || !aBodyItemsJson->is_array()) {
+                    SetError(pErrorMessage, "Batch while JSON was incomplete.");
+                    return false;
+                }
+
+                GSymbol aConditionSymbol;
+                if (!SymbolFromJsonValue(*aConditionSymbolJson, &aConditionSymbol, pErrorMessage)) {
+                    return false;
+                }
+
+                GWhile aWhile;
+                aWhile.SetCondition(aConditionSymbol);
+                aWhile.mConditionVariableName = aConditionVariableJson->as_string();
+
+                for (const JsonValue &aBodyItemValue : aBodyItemsJson->as_array()) {
+                    if (!aBodyItemValue.is_object()) {
+                        SetError(pErrorMessage, "While body work-item JSON entry was not an object.");
+                        return false;
+                    }
+                    const JsonValue *aBodyKind = aBodyItemValue.find("kind");
+                    if ((aBodyKind == NULL) || !aBodyKind->is_string()) {
+                        SetError(pErrorMessage, "While body work-item JSON kind was missing.");
+                        return false;
+                    }
+
+                    if (aBodyKind->as_string() == "loop") {
+                        const JsonValue *aLoopJson = aBodyItemValue.find("loop");
+                        if (aLoopJson == NULL) {
+                            SetError(pErrorMessage, "While loop body work-item JSON was incomplete.");
+                            return false;
+                        }
+                        GLoop aLoop;
+                        if (!LoopFromJsonValue(*aLoopJson, &aLoop, pErrorMessage)) {
+                            return false;
+                        }
+                        aWhile.mWorkItems.push_back(GWhileWorkItem::Loop(aLoop));
+                        continue;
+                    }
+                    if (aBodyKind->as_string() == "statements") {
+                        const JsonValue *aStatementsJson = aBodyItemValue.find("statements");
+                        if ((aStatementsJson == NULL) || !aStatementsJson->is_array()) {
+                            SetError(pErrorMessage, "While statements body work-item JSON was incomplete.");
+                            return false;
+                        }
+                        std::vector<GStatement> aStatements;
+                        for (const JsonValue &aStatementValue : aStatementsJson->as_array()) {
+                            GStatement aStatement;
+                            if (!StatementFromJsonValue(aStatementValue, &aStatement, pErrorMessage)) {
+                                return false;
+                            }
+                            aStatements.push_back(aStatement);
+                        }
+                        aWhile.mWorkItems.push_back(GWhileWorkItem::Statements(&aStatements));
+                        continue;
+                    }
+                    if (aBodyKind->as_string() == "comment") {
+                        const JsonValue *aText = aBodyItemValue.find("text");
+                        const std::string aCommentText = ((aText != NULL) && aText->is_string()) ? aText->as_string() : "";
+                        aWhile.mWorkItems.push_back(GWhileWorkItem::Comment(aCommentText));
+                        continue;
+                    }
+                    if (aBodyKind->as_string() == "empty_line") {
+                        aWhile.mWorkItems.push_back(GWhileWorkItem::EmptyLine());
+                        continue;
+                    }
+
+                    SetError(pErrorMessage, "While body work-item JSON kind was invalid.");
+                    return false;
+                }
+
+                aBatch.mWorkItems.push_back(GBatchWorkItem::While(aWhile));
+                continue;
+            }
             if (aKind->as_string() == "statements") {
                 const JsonValue *aStatementsJson = aItemValue.find("statements");
                 if ((aStatementsJson == NULL) || !aStatementsJson->is_array()) {
@@ -6228,6 +7125,14 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
         for (const GBatchWorkItem &aItem : mWorkItems) {
             if (aItem.IsLoop()) {
                 AppendUnique(&aLoopVariables, aItem.mLoop.mLoopVariableName);
+                continue;
+            }
+            if (aItem.IsWhile()) {
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsLoop()) {
+                        AppendUnique(&aLoopVariables, aWhileItem.mLoop.mLoopVariableName);
+                    }
+                }
             }
         }
     } else {
@@ -6258,17 +7163,21 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
                 case TwistWorkSpaceSlot::kSource:
                 case TwistWorkSpaceSlot::kDest:
                 case TwistWorkSpaceSlot::kSaltA:
-                case TwistWorkSpaceSlot::kSaltB:
-                case TwistWorkSpaceSlot::kSaltC:
-                case TwistWorkSpaceSlot::kSaltD:
-                case TwistWorkSpaceSlot::kScratchSaltA:
-                case TwistWorkSpaceSlot::kScratchSaltB:
-                case TwistWorkSpaceSlot::kScratchSaltC:
-                case TwistWorkSpaceSlot::kScratchSaltD:
+        case TwistWorkSpaceSlot::kSaltB:
+        case TwistWorkSpaceSlot::kSaltC:
+        case TwistWorkSpaceSlot::kSaltD:
+                case TwistWorkSpaceSlot::kSaltE:
+                case TwistWorkSpaceSlot::kSaltF:
+                case TwistWorkSpaceSlot::kSaltG:
+                case TwistWorkSpaceSlot::kSaltH:
                 case TwistWorkSpaceSlot::kSBoxA:
-                case TwistWorkSpaceSlot::kSBoxB:
-                case TwistWorkSpaceSlot::kSBoxC:
-                case TwistWorkSpaceSlot::kSBoxD:
+        case TwistWorkSpaceSlot::kSBoxB:
+        case TwistWorkSpaceSlot::kSBoxC:
+        case TwistWorkSpaceSlot::kSBoxD:
+        case TwistWorkSpaceSlot::kSBoxE:
+        case TwistWorkSpaceSlot::kSBoxF:
+        case TwistWorkSpaceSlot::kSBoxG:
+        case TwistWorkSpaceSlot::kSBoxH:
                     return true;
                 default:
                     return false;
@@ -6283,10 +7192,6 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
                              std::to_string(static_cast<int>(aSlot)) + "));");
         }
 
-        if (!aSlots.empty() && !aScalarVariables.empty()) {
-            aLines.push_back("");
-        }
-
         for (const std::string &aVariable : aScalarVariables) {
             aLines.push_back(Indent(1) + ScalarCppTypeForName(aVariable) + " " + aVariable + " = 0;");
         }
@@ -6295,9 +7200,6 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
     if (!mWorkItems.empty()) {
         for (std::size_t aIndex = 0U; aIndex < mWorkItems.size(); ++aIndex) {
             const GBatchWorkItem &aItem = mWorkItems[aIndex];
-            if ((pEmitDeclarations || (aIndex > 0U)) && !aItem.IsEmptyLine()) {
-                aLines.push_back("");
-            }
             if (aItem.IsComment()) {
                 aLines.push_back(Indent(1) + NormalizeCommentLine(aItem.mComment));
                 continue;
@@ -6337,6 +7239,58 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
                 aLines.push_back(Indent(1) + "}");
                 continue;
             }
+            if (aItem.IsWhile()) {
+                aLines.push_back(Indent(1) + "while (" + aItem.mWhile.mConditionVariableName + " != 0) {");
+                for (const GWhileWorkItem &aWhileItem : aItem.mWhile.mWorkItems) {
+                    if (aWhileItem.IsComment()) {
+                        aLines.push_back(Indent(2) + NormalizeCommentLine(aWhileItem.mComment));
+                        continue;
+                    }
+                    if (aWhileItem.IsEmptyLine()) {
+                        aLines.push_back("");
+                        continue;
+                    }
+                    if (aWhileItem.IsLoop()) {
+                        const GLoop &aLoop = aWhileItem.mLoop;
+                        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
+                            const std::vector<std::string> aStatementLines = CppStatementLines(aStatement);
+                            for (const std::string &aStatementLine : aStatementLines) {
+                                aLines.push_back(Indent(2) + aStatementLine);
+                            }
+                        }
+                        if (LoopUsesUint32(aLoop)) {
+                            aLines.push_back(Indent(2) + "for (std::uint16_t " + aLoop.mLoopVariableName + " = " +
+                                             std::to_string(aLoop.mLoopBegin) + "U; " +
+                                             aLoop.mLoopVariableName + " < " + aLoop.mLoopEndText + "; " +
+                                             aLoop.mLoopVariableName + " += " + std::to_string(aLoop.mLoopStep) + "U) {");
+                        } else {
+                            aLines.push_back(Indent(2) + "for (int " + aLoop.mLoopVariableName + " = " +
+                                             std::to_string(aLoop.mLoopBegin) + "; " +
+                                             aLoop.mLoopVariableName + " < " + aLoop.mLoopEndText + "; " +
+                                             aLoop.mLoopVariableName + " += " + std::to_string(aLoop.mLoopStep) + ") {");
+                        }
+                        for (std::size_t aStatementIndex = 0U; aStatementIndex < aLoop.mBodyStatements.size(); ++aStatementIndex) {
+                            AppendBodyDecorations(aLoop, aStatementIndex, 3, &aLines);
+                            const GStatement &aStatement = aLoop.mBodyStatements[aStatementIndex];
+                            const std::vector<std::string> aStatementLines = CppStatementLines(aStatement);
+                            for (const std::string &aStatementLine : aStatementLines) {
+                                aLines.push_back(Indent(3) + aStatementLine);
+                            }
+                        }
+                        AppendBodyDecorations(aLoop, aLoop.mBodyStatements.size(), 3, &aLines);
+                        aLines.push_back(Indent(2) + "}");
+                        continue;
+                    }
+                    for (const GStatement &aStatement : aWhileItem.mStatements) {
+                        const std::vector<std::string> aStatementLines = CppStatementLines(aStatement);
+                        for (const std::string &aStatementLine : aStatementLines) {
+                            aLines.push_back(Indent(2) + aStatementLine);
+                        }
+                    }
+                }
+                aLines.push_back(Indent(1) + "}");
+                continue;
+            }
             for (const GStatement &aStatement : aItem.mStatements) {
                 const std::vector<std::string> aStatementLines = CppStatementLines(aStatement);
                 for (const std::string &aStatementLine : aStatementLines) {
@@ -6347,9 +7301,6 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
     } else {
         for (std::size_t aIndex = 0U; aIndex < mLoops.size(); ++aIndex) {
             const GLoop &aLoop = mLoops[aIndex];
-            if (pEmitDeclarations || (aIndex > 0U)) {
-                aLines.push_back("");
-            }
             for (const GStatement &aStatement : aLoop.mInitializationStatements) {
                 const std::vector<std::string> aStatementLines = CppStatementLines(aStatement);
                 for (const std::string &aStatementLine : aStatementLines) {
@@ -6484,6 +7435,46 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkspace,
                                                   pVariables,
                                                   pErrorMessage)) {
                         return false;
+                    }
+                }
+                continue;
+            }
+            if (aItem.IsWhile()) {
+                const GWhile &aWhile = aItem.mWhile;
+                while (((*pVariables)[aWhile.mConditionVariableName]) != 0ULL) {
+                    for (const GWhileWorkItem &aWhileItem : aWhile.mWorkItems) {
+                        if (aWhileItem.IsLoop()) {
+                            const GLoop &aLoop = aWhileItem.mLoop;
+                            if (!ExecuteStatementSequence(&aLoop.mInitializationStatements,
+                                                          pWorkspace,
+                                                          pExpander,
+                                                          pVariables,
+                                                          pErrorMessage)) {
+                                return false;
+                            }
+
+                            const int aLoopEnd = ResolveLengthText(aLoop.mLoopEndText);
+                            for (int aLoopValue = aLoop.mLoopBegin;
+                                 (aLoop.mLoopStep > 0) ? (aLoopValue < aLoopEnd) : (aLoopValue > aLoopEnd);
+                                 aLoopValue += aLoop.mLoopStep) {
+                                (*pVariables)[aLoop.mLoopVariableName] = static_cast<GRuntimeScalar>(aLoopValue);
+                                if (!ExecuteStatementSequence(&aLoop.mBodyStatements,
+                                                              pWorkspace,
+                                                              pExpander,
+                                                              pVariables,
+                                                              pErrorMessage)) {
+                                    return false;
+                                }
+                            }
+                            continue;
+                        }
+                        if (!ExecuteStatementSequence(&aWhileItem.mStatements,
+                                                      pWorkspace,
+                                                      pExpander,
+                                                      pVariables,
+                                                      pErrorMessage)) {
+                            return false;
+                        }
                     }
                 }
                 continue;

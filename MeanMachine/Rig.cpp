@@ -2,7 +2,7 @@
 //  Rig.cpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/4/26.
+//  Created by Xenegos of the Revel on 5/4/26.
 //
 
 #include "Rig.hpp"

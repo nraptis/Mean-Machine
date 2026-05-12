@@ -2,7 +2,7 @@
 //  TwistMemory.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/2/26.
+//  Created by Xenegos of the Revel on 5/2/26.
 //
 
 #ifndef TwistMemory_hpp
@@ -86,6 +86,14 @@ public:
         }
     }
 
+    static void                 GrowA(std::uint64_t *pDest,
+                                      const std::uint64_t *pSource,
+                                      std::uint32_t pLength) {
+        GrowA(pDest,
+              reinterpret_cast<const std::uint8_t *>(pSource),
+              pLength);
+    }
+
     static void                 GrowB(std::uint64_t *pDest,
                                       const std::uint8_t *pSource,
                                       std::uint32_t pLength) {
@@ -147,12 +155,14 @@ public:
         }
     }
 
-    static void                 Grow(std::uint64_t *pDest,
-                                     const std::uint8_t *pSource,
-                                     std::uint32_t pLength) {
-        GrowA(pDest, pSource, pLength);
+    static void                 GrowB(std::uint64_t *pDest,
+                                      const std::uint64_t *pSource,
+                                      std::uint32_t pLength) {
+        GrowB(pDest,
+              reinterpret_cast<const std::uint8_t *>(pSource),
+              pLength);
     }
-    
+
     static void                 Swap(std::uint8_t *pBufferA,
                                      std::uint8_t *pBufferB,
                                      std::uint8_t *pTemp,

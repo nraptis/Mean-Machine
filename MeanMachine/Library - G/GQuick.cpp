@@ -2,7 +2,7 @@
 //  GQuickStatement.cpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/1/26.
+//  Created by Xenegos of the Revel on 5/1/26.
 //
 
 #include "GQuick.hpp"
@@ -210,7 +210,26 @@ GStatement GQuick::MakeAssignDestStatementInverted(const GSymbol pDest, const GS
     GExpr aValueExpr = GExpr::Symbol(pValue);
     GTarget aDestTarget = GTarget::Write(pDest, aIndexExpr);
     return GStatement::Assign(aDestTarget, aValueExpr);
-    
+}
+
+GStatement GQuick::MakeAssignDestStatement(const GSymbol pDest,
+                                          const GSymbol pIndex,
+                                           const GExpr pValue) {
+    GExpr aIndexExpr = GExpr::Symbol(pIndex);
+    GTarget aDestTarget = GTarget::Write(pDest, aIndexExpr);
+    return GStatement::Assign(aDestTarget, pValue);
+}
+
+GStatement GQuick::MakeAssignDestStatementInverted(const GSymbol pDest,
+                                                  const GSymbol pIndex,
+                                                   const GExpr pValue) {
+    int aBufferLength = TwistWorkSpace::GetBufferLength(pDest.mSlot);
+    if (aBufferLength < 128) { aBufferLength = 128; }
+    int aCeiling = aBufferLength - 1;
+    GExpr aIndexExpr = GExpr::Sub(GExpr::Const32(aCeiling),
+                                  GExpr(GExpr::Symbol(pIndex)));
+    GTarget aDestTarget = GTarget::Write(pDest, aIndexExpr);
+    return GStatement::Assign(aDestTarget, pValue);
 }
 
 GStatement GQuick::MakeAssignOffsetByteStatement(const GSymbol pTarget,
@@ -389,3 +408,64 @@ GStatement GQuick::RotateLeftEqualBufferInverted(const GSymbol pSymbol, const GS
     const GExpr aExpr = GExpr::RotL64(GExpr::Symbol(pSymbol), BuildBufferReadExprInverted(pOtherSymbol, pIndex, pOffset));
     return BuildAssignToSymbol(pSymbol, aExpr);
 }
+
+GExpr GQuick::RotL64(const GExpr &pExpr, int pRotation) {
+    return GExpr::RotL64(pExpr, GExpr::Const64(static_cast<std::uint64_t>(pRotation)));
+}
+
+GExpr GQuick::RotL64(const GSymbol &pSymbol, int pRotation) {
+    return RotL64(GExpr::Symbol(pSymbol), pRotation);
+}
+
+GExpr GQuick::MulConstRotL64(const GSymbol &pSymbol,
+                             std::uint64_t pMul,
+                             int pRotation) {
+    GExpr aExpr = GExpr::Mul(GExpr::Symbol(pSymbol), GExpr::Const64(pMul));
+    return RotL64(aExpr, pRotation);
+}
+
+GExpr GQuick::AddChain(const std::vector<GExpr> &pExprs) {
+    if (pExprs.empty()) {
+        return GExpr::Const64(0);
+    }
+
+    GExpr aExpr = pExprs[0];
+    for (std::size_t i = 1; i < pExprs.size(); i++) {
+        aExpr = GExpr::Add(aExpr, pExprs[i]);
+    }
+    return aExpr;
+}
+
+GExpr GQuick::XorChain(const std::vector<GExpr> &pExprs) {
+    if (pExprs.empty()) {
+        return GExpr::Const64(0);
+    }
+
+    GExpr aExpr = pExprs[0];
+    for (std::size_t i = 1; i < pExprs.size(); i++) {
+        aExpr = GExpr::Xor(aExpr, pExprs[i]);
+    }
+    return aExpr;
+}
+
+GExpr GQuick::MakeReadBufferOffsetExpressionDirected(const GSymbol pBuffer,
+                                                     const GSymbol pIndex,
+                                                     bool pInverted,
+                                                     std::uint32_t pOffset) {
+    return MakeReadBufferOffsetExpressionDirected(pBuffer,
+                                                  GExpr::Symbol(pIndex),
+                                                  pInverted,
+                                                  pOffset);
+}
+
+GExpr GQuick::MakeReadBufferOffsetExpressionDirected(const GSymbol pBuffer,
+                                                     GExpr pIndex,
+                                                     bool pInverted,
+                                                     std::uint32_t pOffset) {
+    if (pInverted) {
+        return MakeReadBufferOffsetExpressionInverted(pBuffer, pIndex, pOffset);
+    } else {
+        return MakeReadBufferOffsetExpression(pBuffer, pIndex, pOffset);
+    }
+}
+

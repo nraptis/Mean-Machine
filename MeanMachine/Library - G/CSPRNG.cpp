@@ -2,7 +2,7 @@
 //  CSPRNG.cpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/2/26.
+//  Created by Xenegos of the Revel on 5/2/26.
 //
 
 #include "CSPRNG.hpp"
@@ -22,9 +22,8 @@ GExpr CSPRNGPlugPack::GetExpr(CSPRNGPlugMode pPlugMode) {
             return GExpr::Symbol(mInput);
         case CSPRNGPlugMode::kInputPrevious:
             return GExpr::Symbol(mPrevious);
-        
         case CSPRNGPlugMode::kCross:
-            return GExpr::Symbol(mCross);
+            return GExpr::Symbol(mStreamCross);
         case CSPRNGPlugMode::kCarry:
             return GExpr::Symbol(mCarry);
         case CSPRNGPlugMode::kWandererA:
@@ -229,9 +228,10 @@ bool CSPRNG::Bake(GSymbol pDest,
                   GSymbol pPrevious,
                   
                   GSymbol pPrism,
+                  bool pIgnorePrism,
                   GSymbol pScatter,
                   
-                  GSymbol pCross,
+                  GSymbol pStreamCross,
                   GSymbol pCarry,
                   
                   GSymbol pWandererA,
@@ -243,16 +243,17 @@ bool CSPRNG::Bake(GSymbol pDest,
                   GSymbol pOrbiterC,
                   GSymbol pOrbiterD,
                   
+                  GSymbol pRecipeSaltA,
+                  GSymbol pRecipeSaltB,
+                  
                   std::vector<GSymbol> pSBoxes,
-                  std::vector<GSymbol> pSaltsFixed,
-                  std::vector<GSymbol> pSaltsScratch,
+                  std::vector<GSymbol> pSalts,
                   
                   std::vector<int> pRotationsLow,
                   std::vector<int> pRotationsMedium,
                   std::vector<int> pRotationsHigh,
                   std::vector<int> pRotationsRandom,
                   
-                  std::vector<Mix64Type_4> pMixTypes4,
                   std::vector<Mix64Type_8> pMixTypes8,
                   
                   GHotPack pHotPack,
@@ -260,15 +261,63 @@ bool CSPRNG::Bake(GSymbol pDest,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) {
     
+    bool aDisableComments = true;
+    
     std::deque<CSPRNGPlugMode> aRecentPlugDeque;
     
-    int aHotIndex = 0;
+    
+    std::vector<GSymbol> aSBoxesPermutationA;
+    std::vector<GSymbol> aSBoxesPermutationB;
+    std::vector<GSymbol> aSBoxesPermutationC;
+    std::vector<GSymbol> aSBoxesPermutationD;
+
+    std::vector<GSymbol>* aPermutations[4] = {
+        &aSBoxesPermutationA,
+        &aSBoxesPermutationB,
+        &aSBoxesPermutationC,
+        &aSBoxesPermutationD
+    };
+
+    for (int aPermIndex = 0; aPermIndex < 4; aPermIndex++) {
+
+        bool aAccepted = false;
+
+        for (int aTry = 0; aTry < 10000; aTry++) {
+
+            aPermutations[aPermIndex]->clear();
+            TwistArray::Append(aPermutations[aPermIndex], &pSBoxes);
+            Random::Shuffle(aPermutations[aPermIndex]);
+
+            bool aGood = true;
+
+            for (int aOtherPermIndex = 0; aOtherPermIndex < aPermIndex; aOtherPermIndex++) {
+                for (int i = 0; i < 8; i++) {
+                    if ((*aPermutations[aPermIndex])[i] == (*aPermutations[aOtherPermIndex])[i]) {
+                        aGood = false;
+                        break;
+                    }
+                }
+
+                if (!aGood) {
+                    break;
+                }
+            }
+
+            if (aGood) {
+                aAccepted = true;
+                break;
+            }
+        }
+    }
+    
+    
+    int aHotIndex = Random::Get(3);
     
     CSPRNGPlugPack aPlugPack;
     aPlugPack.mInput = pCurrent;
     aPlugPack.mPrevious = pPrevious;
     aPlugPack.mScatter = pScatter;
-    aPlugPack.mCross = pCross;
+    aPlugPack.mStreamCross = pStreamCross;
     aPlugPack.mCarry = pCarry;
     aPlugPack.mWandererA = pWandererA;
     aPlugPack.mWandererB = pWandererB;
@@ -303,45 +352,30 @@ bool CSPRNG::Bake(GSymbol pDest,
     aRotCacheRandom.LinkSharedHistory(&aRotCacheLow.mHistory);
     aRotCacheRandom.LinkSharedHistory(&aRotCacheMedium.mHistory);
     aRotCacheRandom.LinkSharedHistory(&aRotCacheHigh.mHistory);
-    
-    GMix644Cache aMix644Cache;
-    aMix644Cache.AddItems(pMixTypes4);
-    aMix644Cache.SetLimits(2, 3, 4);
-    
+
     GMix648Cache aMix648Cache;
     aMix648Cache.AddItems(pMixTypes8);
     aMix648Cache.SetLimits(2, 2, 2);
     
-    GSymbolCache aSaltCacheScratch;
-    for (int i=0; i<pSaltsScratch.size(); i++) {
-        aSaltCacheScratch.AddItem(&(pSaltsScratch[i]));
-    }
-    aSaltCacheScratch.SetLimits(2, 3, 4);
-    
     GSymbolCache aSaltCacheFixed;
-    for (int i=0; i<pSaltsFixed.size(); i++) {
-        aSaltCacheFixed.AddItem(&(pSaltsFixed[i]));
+    for (int i=0; i<pSalts.size(); i++) {
+        aSaltCacheFixed.AddItem(&(pSalts[i]));
     }
-    if (pSaltsFixed.size() <= 4) {
-        aSaltCacheFixed.SetLimits(4, 4, 4);
-    } else {
-        aSaltCacheFixed.SetLimits(2, 4, 6);
-    }
+    
+    // 4 guarantees that we follow the correct salt
+    // pattern for operation groups 1 and 2
+    aSaltCacheFixed.SetLimits(4, 6, 6);
+    
     
     GSymbolCache aSBoxCache;
     for (int i=0; i<pSBoxes.size(); i++) {
         aSBoxCache.AddItem(&(pSBoxes[i]));
     }
-    if (pSaltsFixed.size() <= 4) {
+    if (pSalts.size() <= 4) {
         aSBoxCache.SetLimits(2, 3, 4);
     } else {
         aSBoxCache.SetLimits(4, 6, 8);
     }
-    
-    auto PopRandomScratchSalt = [&]() -> GSymbol {
-        aSaltCacheScratch.Fetch(1);
-        return *(aSaltCacheScratch.mBus[0]);
-    };
     
     auto PopRandomFixedSalt = [&]() -> GSymbol {
         aSaltCacheFixed.Fetch(1);
@@ -439,41 +473,188 @@ bool CSPRNG::Bake(GSymbol pDest,
     };
     
     auto PrismSet = [&](GExpr pExpr) {
+        if (pIgnorePrism) {
+            return;
+        }
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, pExpr));
     };
 
     auto PrismDiffuse = [&]() {
+        if (pIgnorePrism) {
+            return;
+        }
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, DiffuseRandom(GExpr::Symbol(pPrism))));
     };
     
     bool aPrismAddCadence = Random::Bool();
-
     
-    auto PrismTerm = [&](GSymbol pSymbol) -> GExpr {
-        int aWhich = Random::Get(4);
-        
-        if (aWhich == 0) {
-            return GExpr::Symbol(pSymbol);
-        } else if (aWhich == 1) {
-            return RotMostlyMedium(GExpr::Symbol(pSymbol));
-        } else if (aWhich == 2) {
-            return RotMediumHighRandom(GExpr::Symbol(pSymbol));
+    auto EmitComment = [&](const std::string &pText) {
+        if (pText.empty() || !aDisableComments) {
+            pStatements->push_back(GStatement::Comment(pText));
+        }
+    };
+    
+    struct PrismScheduleTerm {
+        GSymbol mSymbol;
+        bool mRotate = false;
+    };
+    
+    struct PrismScheduleSaltPlug {
+        bool mAdd = true;
+        GSymbol mSalt;
+    };
+    
+    struct PrismScheduleUpdate {
+        std::vector<PrismScheduleTerm> mTerms;
+        std::vector<PrismScheduleSaltPlug> mSaltPlugs;
+    };
+    
+    std::vector<PrismScheduleUpdate> aPrismSchedule(4);
+    
+    auto UpdateLoad = [&](int pUpdateIndex) -> int {
+        if ((pUpdateIndex < 0) || (pUpdateIndex >= static_cast<int>(aPrismSchedule.size()))) {
+            return 0;
+        }
+        const PrismScheduleUpdate &aUpdate = aPrismSchedule[static_cast<std::size_t>(pUpdateIndex)];
+        return static_cast<int>(aUpdate.mTerms.size() + aUpdate.mSaltPlugs.size());
+    };
+    
+    auto PickLeastOccupiedIndex = [&](const std::vector<int> &pCandidateUpdates) -> int {
+        if (pCandidateUpdates.empty()) {
+            return 0;
         }
         
-        return GExpr::Xor(GExpr::Symbol(pSymbol), RotMostlyMedium(GExpr::Symbol(pCarry)));
-    };
-
-    auto FetchSBoxPack4 = [&]() -> std::array<GSymbol, 4> {
-        aSBoxCache.Fetch(4);
+        int aBestLoad = UpdateLoad(pCandidateUpdates[0]);
+        for (std::size_t i = 1U; i < pCandidateUpdates.size(); ++i) {
+            const int aLoad = UpdateLoad(pCandidateUpdates[i]);
+            if (aLoad < aBestLoad) {
+                aBestLoad = aLoad;
+            }
+        }
         
-        return {
-            *(aSBoxCache.mBus[0]),
-            *(aSBoxCache.mBus[1]),
-            *(aSBoxCache.mBus[2]),
-            *(aSBoxCache.mBus[3])
-        };
+        std::vector<int> aLeastOccupied;
+        for (std::size_t i = 0U; i < pCandidateUpdates.size(); ++i) {
+            if (UpdateLoad(pCandidateUpdates[i]) == aBestLoad) {
+                aLeastOccupied.push_back(pCandidateUpdates[i]);
+            }
+        }
+        
+        if (aLeastOccupied.empty()) {
+            return pCandidateUpdates[0];
+        }
+        
+        return aLeastOccupied[static_cast<std::size_t>(Random::Get(static_cast<int>(aLeastOccupied.size())))];
     };
     
+    auto AssignTermToUpdate = [&](int pUpdateIndex,
+                                  GSymbol pSymbol) {
+        if ((pUpdateIndex < 0) || (pUpdateIndex >= static_cast<int>(aPrismSchedule.size()))) {
+            return;
+        }
+        PrismScheduleTerm aTerm;
+        aTerm.mSymbol = pSymbol;
+        aTerm.mRotate = false;
+        aPrismSchedule[static_cast<std::size_t>(pUpdateIndex)].mTerms.push_back(aTerm);
+    };
+    
+    auto AssignTermToLeastOccupied = [&](const std::vector<int> &pCandidateUpdates,
+                                         GSymbol pSymbol) {
+        const int aUpdateIndex = PickLeastOccupiedIndex(pCandidateUpdates);
+        AssignTermToUpdate(aUpdateIndex, pSymbol);
+    };
+    
+    // Fixed anchors:
+    // Update 1 == prism update #2 (overall update 2): pOrbiterC
+    // Update 3 == prism update #4 (overall update 4): pOrbiterB
+    // Update 4 == prism update #5 (overall update 5): pOrbiterD
+    AssignTermToUpdate(0, pOrbiterC);
+    AssignTermToUpdate(2, pOrbiterB);
+    AssignTermToUpdate(3, pOrbiterD);
+    
+    // pWandererA goes to update 4 or 5.
+    AssignTermToUpdate(Random::Bool() ? 2 : 3, pWandererA);
+    
+    // Distribute carry/previous/cross to least-occupied updates.
+    std::vector<GSymbol> aRemainingPrismTerms = { pCarry, pPrevious, pStreamCross };
+    Random::Shuffle(&aRemainingPrismTerms);
+    for (std::size_t i = 0U; i < aRemainingPrismTerms.size(); ++i) {
+        AssignTermToLeastOccupied({0, 1, 2, 3}, aRemainingPrismTerms[i]);
+    }
+    
+    // Make 2 salt plugs mandatory for now; assign to least-occupied updates.
+    for (int aPlugIndex = 0; aPlugIndex < 2; ++aPlugIndex) {
+        const int aUpdateIndex = PickLeastOccupiedIndex({0, 1, 2, 3});
+        PrismScheduleSaltPlug aPlug;
+        aPlug.mAdd = Random::Bool();
+        aPlug.mSalt = PopRandomFixedSalt();
+        aPrismSchedule[static_cast<std::size_t>(aUpdateIndex)].mSaltPlugs.push_back(aPlug);
+    }
+    
+    // Rotate 1-2 terms per update (or all terms if fewer than that).
+    for (std::size_t aUpdateIndex = 0U; aUpdateIndex < aPrismSchedule.size(); ++aUpdateIndex) {
+        std::vector<PrismScheduleTerm> &aTerms = aPrismSchedule[aUpdateIndex].mTerms;
+        if (aTerms.empty()) {
+            continue;
+        }
+        
+        std::vector<int> aIndices;
+        for (std::size_t i = 0U; i < aTerms.size(); ++i) {
+            aIndices.push_back(static_cast<int>(i));
+            aTerms[i].mRotate = false;
+        }
+        Random::Shuffle(&aIndices);
+        
+        int aRotateCount = 1 + Random::Get(2); // 1..2
+        if (aRotateCount > static_cast<int>(aTerms.size())) {
+            aRotateCount = static_cast<int>(aTerms.size());
+        }
+        
+        for (int i = 0; i < aRotateCount; ++i) {
+            aTerms[static_cast<std::size_t>(aIndices[static_cast<std::size_t>(i)])].mRotate = true;
+        }
+    }
+    
+    auto BuildPrismTermExpr = [&](int pUpdateIndex) -> GExpr {
+        if ((pUpdateIndex < 0) || (pUpdateIndex >= static_cast<int>(aPrismSchedule.size()))) {
+            return GExpr::Symbol(pCarry);
+        }
+        
+        const PrismScheduleUpdate &aUpdate = aPrismSchedule[static_cast<std::size_t>(pUpdateIndex)];
+        const std::vector<PrismScheduleTerm> &aTerms = aUpdate.mTerms;
+        if (aTerms.empty()) {
+            return GExpr::Symbol(pCarry);
+        }
+        
+        auto MakeTermExpr = [&](const PrismScheduleTerm &pTerm) -> GExpr {
+            GExpr aExpr = GExpr::Symbol(pTerm.mSymbol);
+            if (pTerm.mRotate) {
+                aExpr = RotMediumHighRandom(aExpr);
+            }
+            return aExpr;
+        };
+        
+        GExpr aExpr = MakeTermExpr(aTerms[0]);
+        for (std::size_t i = 1U; i < aTerms.size(); ++i) {
+            GExpr aNextExpr = MakeTermExpr(aTerms[i]);
+            if (Random::Bool()) {
+                aExpr = GExpr::Add(aExpr, aNextExpr);
+            } else {
+                aExpr = GExpr::Xor(aExpr, aNextExpr);
+            }
+        }
+        
+        for (std::size_t i = 0U; i < aUpdate.mSaltPlugs.size(); ++i) {
+            aExpr = CreatePlug(aExpr,
+                               aUpdate.mSaltPlugs[i].mAdd,
+                               aUpdate.mSaltPlugs[i].mSalt,
+                               &aRotCacheMedium,
+                               &aPlugPack,
+                               &aRecentPlugDeque);
+        }
+        
+        return aExpr;
+    };
+
     auto FetchSBoxPack8 = [&]() -> std::array<GSymbol, 8> {
         aSBoxCache.Fetch(8);
         
@@ -491,7 +672,7 @@ bool CSPRNG::Bake(GSymbol pDest,
     
     auto MakeRandomLoopSaltPair = [&]() -> std::pair<GExpr, GExpr> {
         GExpr aFixedSaltExpr;
-        GExpr aScratchSaltExpr;
+        GExpr aSecondSaltExpr;
         
         if (Random::Bool()) {
             aFixedSaltExpr = GQuick::MakeReadBufferOffsetExpression(
@@ -499,8 +680,8 @@ bool CSPRNG::Bake(GSymbol pDest,
                 pLoopIndex
             );
             
-            aScratchSaltExpr = GQuick::MakeReadBufferOffsetExpressionInverted(
-                PopRandomScratchSalt(),
+            aSecondSaltExpr = GQuick::MakeReadBufferOffsetExpressionInverted(
+                PopRandomFixedSalt(),
                 pLoopIndex
             );
         } else {
@@ -509,22 +690,22 @@ bool CSPRNG::Bake(GSymbol pDest,
                 pLoopIndex
             );
             
-            aScratchSaltExpr = GQuick::MakeReadBufferOffsetExpression(
-                PopRandomScratchSalt(),
+            aSecondSaltExpr = GQuick::MakeReadBufferOffsetExpression(
+                PopRandomFixedSalt(),
                 pLoopIndex
             );
         }
         
-        return { aFixedSaltExpr, aScratchSaltExpr };
+        return { aFixedSaltExpr, aSecondSaltExpr };
     };
     
     
     {
         
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("scatter = mix(secure_a, secure_b, previous)"));
-        pStatements->push_back(GStatement::Comment(""));
+        
+        
+        EmitComment("scatter = mix(secure_a, secure_b, previous)");
+        
         
         GExpr aMainSnowPartA;
         GExpr aMainSnowPartB;
@@ -532,47 +713,46 @@ bool CSPRNG::Bake(GSymbol pDest,
         int aWhichMainSnow = Random::Get(2);
         if (aWhichMainSnow == 0) {
             aMainSnowPartA = GExpr::ShiftL(GExpr::Symbol(pCurrent), GExpr::Const64(32));
-            aMainSnowPartB = GExpr::Symbol(pCross);
+            aMainSnowPartB = GExpr::Symbol(pStreamCross);
             aMainSnowPartC = GExpr::RotL64(GExpr::Symbol(pPrevious), GExpr::Const64(PopMediumRotation()));
         } else {
             aMainSnowPartA = GExpr::Symbol(pCurrent);
-            aMainSnowPartB = GExpr::ShiftL(GExpr::Symbol(pCross), GExpr::Const64(32));
+            aMainSnowPartB = GExpr::ShiftL(GExpr::Symbol(pStreamCross), GExpr::Const64(32));
             aMainSnowPartC = GExpr::RotL64(GExpr::Symbol(pPrevious), GExpr::Const64(PopMediumRotation()));
         }
         GExpr aMainSnowGuts = GExpr::Xor(aMainSnowPartA, GExpr::Xor(aMainSnowPartB, aMainSnowPartC));
         GExpr aMainSnow = GExpr::DiffuseA(aMainSnowGuts);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pScatter, aMainSnow));
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
+        
+        
     }
     
     {
         int aHotA = aHotIndex++;
         int aHotB = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("a = s0 + rot(e) + hot.add + plug[+];"));
-        pStatements->push_back(GStatement::Comment("b = s1 ^ rot(previous) ^ hot.add ^ plug[^];"));
-        pStatements->push_back(GStatement::Comment("c = s2 + rot(cross) + fixedSalt[i/~i] + scratchSalt[~i/i];"));
-        pStatements->push_back(GStatement::Comment("d = rot(carry) ^ rot(e) ^ fixedSalt[i/~i] ^ scratchSalt[~i/i];"));
-        pStatements->push_back(GStatement::Comment("prism = e;"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("a = s0 + rot(e) + hot.add + plug[+];");
+        EmitComment("b = s1 ^ rot(previous) ^ hot.add ^ plug[^];");
+        EmitComment("c = s2 + rot(cross) + fixedSalt[i/~i] + fixedSalt[~i/i];");
+        EmitComment("d = rot(carry) ^ rot(e) ^ fixedSalt[i/~i] ^ fixedSalt[~i/i];");
+        EmitComment("prism = e;");
+        
         GExpr aExprOrbitA = GExpr::Symbol(pWandererA);
         aExprOrbitA = GExpr::Add(aExprOrbitA, RotMostlyMedium(GExpr::Symbol(pCurrent)));
         aExprOrbitA = GExpr::Add(aExprOrbitA, GExpr::Const64(pHotPack.mPair[aHotA].mAdd));
-        aExprOrbitA = CreatePlug(aExprOrbitA, true, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitA = CreatePlug(aExprOrbitA, true, pRecipeSaltA, &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterA, aExprOrbitA));
         
         GExpr aExprOrbitB = GExpr::Symbol(pWandererB);
         aExprOrbitB = GExpr::Xor(aExprOrbitB, RotMediumHighRandom(GExpr::Symbol(pPrevious)));
         aExprOrbitB = GExpr::Xor(aExprOrbitB, GExpr::Const64(pHotPack.mPair[aHotB].mAdd));
-        aExprOrbitB = CreatePlug(aExprOrbitB, false, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitB = CreatePlug(aExprOrbitB, false, pRecipeSaltB, &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterB, aExprOrbitB));
         
         auto aSaltPairC = MakeRandomLoopSaltPair();
         
         GExpr aExprOrbitC = GExpr::Symbol(pWandererC);
-        aExprOrbitC = GExpr::Add(aExprOrbitC, RotMediumHighRandom(GExpr::Symbol(pCross)));
+        aExprOrbitC = GExpr::Add(aExprOrbitC, RotMediumHighRandom(GExpr::Symbol(pStreamCross)));
         aExprOrbitC = GExpr::Add(aExprOrbitC, aSaltPairC.first);
         aExprOrbitC = GExpr::Add(aExprOrbitC, aSaltPairC.second);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterC, aExprOrbitC));
@@ -587,8 +767,8 @@ bool CSPRNG::Bake(GSymbol pDest,
         
         PrismSet(GExpr::Symbol(pCurrent));
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
+        
+        
     }
     
     {
@@ -596,145 +776,143 @@ bool CSPRNG::Bake(GSymbol pDest,
         int aHotD = aHotIndex++;
         int aHotPrism = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("a = a + b + hot.add + plug[+];"));
-        pStatements->push_back(GStatement::Comment("d = d ^ a ^ hot.add ^ plug[^];"));
-        pStatements->push_back(GStatement::Comment("d = rot(d * hot.mul);"));
-        pStatements->push_back(GStatement::Comment("prism = (prism OP mix(c) OP hot.add) * hot.mul;"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("a = a + b + hot.add + plug[+];");
+        EmitComment("d = d ^ a ^ hot.add ^ plug[^];");
+        EmitComment("d = rot(d * hot.mul);");
+        
         
         GExpr aExprOrbitA = GExpr::Symbol(pOrbiterA);
         aExprOrbitA = GExpr::Add(aExprOrbitA, GExpr::Symbol(pOrbiterB));
         aExprOrbitA = GExpr::Add(aExprOrbitA, GExpr::Const64(pHotPack.mPair[aHotA].mAdd));
-        aExprOrbitA = CreatePlug(aExprOrbitA, true, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitA = CreatePlug(aExprOrbitA, true, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterA, aExprOrbitA));
         
         GExpr aExprOrbitD = GExpr::Symbol(pOrbiterD);
         aExprOrbitD = GExpr::Xor(aExprOrbitD, GExpr::Symbol(pOrbiterA));
         aExprOrbitD = GExpr::Xor(aExprOrbitD, GExpr::Const64(pHotPack.mPair[aHotD].mAdd));
-        aExprOrbitD = CreatePlug(aExprOrbitD, false, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitD = CreatePlug(aExprOrbitD, false, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterD, aExprOrbitD));
         
         aExprOrbitD = GExpr::Mul(GExpr::Symbol(pOrbiterD), GExpr::Const64(pHotPack.mPair[aHotD].mMul));
         aExprOrbitD = RotMediumHighRandom(aExprOrbitD);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterD, aExprOrbitD));
         
-        GExpr aExprPrism = GExpr::Symbol(pPrism);
-        GExpr aExprPrismTerm = PrismTerm(pOrbiterC);
-        
-        if (aPrismAddCadence) {
-            aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
-        } else {
-            aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+        if (!pIgnorePrism) {
+            GExpr aExprPrism = GExpr::Symbol(pPrism);
+            GExpr aExprPrismTerm = BuildPrismTermExpr(0);
+            
+            if (aPrismAddCadence) {
+                aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            } else {
+                aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            }
+            
+            aPrismAddCadence = !aPrismAddCadence;
+            
+            aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
+            pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         }
         
-        aPrismAddCadence = !aPrismAddCadence;
         
-        aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
-        pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
-    }
-    
+        }
+        
     {
         int aHotC = aHotIndex++;
         int aHotB = aHotIndex++;
         int aHotPrism = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("c = c + d + hot.add + plug[+];"));
-        pStatements->push_back(GStatement::Comment("b = b ^ c ^ hot.add ^ plug[^];"));
-        pStatements->push_back(GStatement::Comment("b = rot(b);"));
-        pStatements->push_back(GStatement::Comment("prism = (prism OP mix(a) OP hot.add) * hot.mul;"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("c = c + d + hot.add + plug[+];");
+        EmitComment("b = b ^ c ^ hot.add ^ plug[^];");
+        EmitComment("b = rot(b);");
+        EmitComment("prism = (prism OP mix(a) OP hot.add) * hot.mul;");
+        
         
         GExpr aExprOrbitC = GExpr::Symbol(pOrbiterC);
         aExprOrbitC = GExpr::Add(aExprOrbitC, GExpr::Symbol(pOrbiterD));
         aExprOrbitC = GExpr::Add(aExprOrbitC, GExpr::Const64(pHotPack.mPair[aHotC].mAdd));
-        aExprOrbitC = CreatePlug(aExprOrbitC, true, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitC = CreatePlug(aExprOrbitC, true, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterC, aExprOrbitC));
         
         GExpr aExprOrbitB = GExpr::Symbol(pOrbiterB);
         aExprOrbitB = GExpr::Xor(aExprOrbitB, GExpr::Symbol(pOrbiterC));
         aExprOrbitB = GExpr::Xor(aExprOrbitB, GExpr::Const64(pHotPack.mPair[aHotB].mAdd));
-        aExprOrbitB = CreatePlug(aExprOrbitB, false, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitB = CreatePlug(aExprOrbitB, false, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterB, aExprOrbitB));
         
         aExprOrbitB = RotMediumHighRandom(GExpr::Symbol(pOrbiterB));
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterB, aExprOrbitB));
         
-        GExpr aExprPrism = GExpr::Symbol(pPrism);
-        GExpr aExprPrismTerm = PrismTerm(pOrbiterA);
-        
-        if (aPrismAddCadence) {
-            aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
-        } else {
-            aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+        if (!pIgnorePrism) {
+            GExpr aExprPrism = GExpr::Symbol(pPrism);
+            GExpr aExprPrismTerm = BuildPrismTermExpr(1);
+            
+            if (aPrismAddCadence) {
+                aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            } else {
+                aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            }
+            
+            aPrismAddCadence = !aPrismAddCadence;
+            
+            aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
+            pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         }
         
-        aPrismAddCadence = !aPrismAddCadence;
         
-        aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
-        pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
     }
     
-    //TODO: Remove after wider hot pairs
-    aHotIndex = 0;
-
     {
         int aHotA = aHotIndex++;
         int aHotD = aHotIndex++;
         int aHotPrism = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("a = a + b + hot.add + plug[+];"));
-        pStatements->push_back(GStatement::Comment("d = d ^ a ^ hot.add ^ plug[^];"));
-        pStatements->push_back(GStatement::Comment("d = rot(d * hot.mul);"));
-        pStatements->push_back(GStatement::Comment("prism = (prism OP mix(b) OP hot.add) * hot.mul;"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("a = a + b + hot.add + plug[+];");
+        EmitComment("d = d ^ a ^ hot.add ^ plug[^];");
+        EmitComment("d = rot(d * hot.mul);");
+        
         
         GExpr aExprOrbitA = GExpr::Symbol(pOrbiterA);
         aExprOrbitA = GExpr::Add(aExprOrbitA, GExpr::Symbol(pOrbiterB));
         aExprOrbitA = GExpr::Add(aExprOrbitA, GExpr::Const64(pHotPack.mPair[aHotA].mAdd));
-        aExprOrbitA = CreatePlug(aExprOrbitA, true, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitA = CreatePlug(aExprOrbitA, true, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterA, aExprOrbitA));
         
         GExpr aExprOrbitD = GExpr::Symbol(pOrbiterD);
         aExprOrbitD = GExpr::Xor(aExprOrbitD, GExpr::Symbol(pOrbiterA));
         aExprOrbitD = GExpr::Xor(aExprOrbitD, GExpr::Const64(pHotPack.mPair[aHotD].mAdd));
-        aExprOrbitD = CreatePlug(aExprOrbitD, false, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitD = CreatePlug(aExprOrbitD, false, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterD, aExprOrbitD));
         
         aExprOrbitD = GExpr::Mul(GExpr::Symbol(pOrbiterD), GExpr::Const64(pHotPack.mPair[aHotD].mMul));
         aExprOrbitD = RotMediumHighRandom(aExprOrbitD);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterD, aExprOrbitD));
         
-        GExpr aExprPrism = GExpr::Symbol(pPrism);
-        GExpr aExprPrismTerm = PrismTerm(pOrbiterB);
-        
-        if (aPrismAddCadence) {
-            aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
-        } else {
-            aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+        if (!pIgnorePrism) {
+            GExpr aExprPrism = GExpr::Symbol(pPrism);
+            GExpr aExprPrismTerm = BuildPrismTermExpr(2);
+            
+            if (aPrismAddCadence) {
+                aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            } else {
+                aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            }
+            
+            aPrismAddCadence = !aPrismAddCadence;
+            
+            aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
+            pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         }
         
-        aPrismAddCadence = !aPrismAddCadence;
         
-        aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
-        pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
     }
     
     {
@@ -742,62 +920,61 @@ bool CSPRNG::Bake(GSymbol pDest,
         int aHotB = aHotIndex++;
         int aHotPrism = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("c = c + d + hot.add + plug[+];"));
-        pStatements->push_back(GStatement::Comment("b = b ^ c ^ hot.add ^ plug[^];"));
-        pStatements->push_back(GStatement::Comment("b = rot(b * hot.mul);"));
-        pStatements->push_back(GStatement::Comment("prism = (prism OP mix(d) OP hot.add) * hot.mul;"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("c = c + d + hot.add + plug[+];");
+        EmitComment("b = b ^ c ^ hot.add ^ plug[^];");
+        EmitComment("b = rot(b * hot.mul);");
+        
         
         GExpr aExprOrbitC = GExpr::Symbol(pOrbiterC);
         aExprOrbitC = GExpr::Add(aExprOrbitC, GExpr::Symbol(pOrbiterD));
         aExprOrbitC = GExpr::Add(aExprOrbitC, GExpr::Const64(pHotPack.mPair[aHotC].mAdd));
-        aExprOrbitC = CreatePlug(aExprOrbitC, true, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitC = CreatePlug(aExprOrbitC, true, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterC, aExprOrbitC));
         
         GExpr aExprOrbitB = GExpr::Symbol(pOrbiterB);
         aExprOrbitB = GExpr::Xor(aExprOrbitB, GExpr::Symbol(pOrbiterC));
         aExprOrbitB = GExpr::Xor(aExprOrbitB, GExpr::Const64(pHotPack.mPair[aHotB].mAdd));
-        aExprOrbitB = CreatePlug(aExprOrbitB, false, PopRandomScratchSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
+        aExprOrbitB = CreatePlug(aExprOrbitB, false, PopRandomFixedSalt(), &aRotCacheMedium, &aPlugPack, &aRecentPlugDeque);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterB, aExprOrbitB));
         
         aExprOrbitB = GExpr::Mul(GExpr::Symbol(pOrbiterB), GExpr::Const64(pHotPack.mPair[aHotB].mMul));
         aExprOrbitB = RotMediumHighRandom(aExprOrbitB);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pOrbiterB, aExprOrbitB));
         
-        GExpr aExprPrism = GExpr::Symbol(pPrism);
-        GExpr aExprPrismTerm = PrismTerm(pOrbiterD);
-        
-        if (aPrismAddCadence) {
-            aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
-        } else {
-            aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
-            aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+        if (!pIgnorePrism) {
+            GExpr aExprPrism = GExpr::Symbol(pPrism);
+            GExpr aExprPrismTerm = BuildPrismTermExpr(3);
+            
+            if (aPrismAddCadence) {
+                aExprPrism = GExpr::Add(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Add(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            } else {
+                aExprPrism = GExpr::Xor(aExprPrism, aExprPrismTerm);
+                aExprPrism = GExpr::Xor(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mAdd));
+            }
+            
+            aPrismAddCadence = !aPrismAddCadence;
+            
+            aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
+            pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         }
         
-        aPrismAddCadence = !aPrismAddCadence;
         
-        aExprPrism = GExpr::Mul(aExprPrism, GExpr::Const64(pHotPack.mPair[aHotPrism].mMul));
-        pStatements->push_back(GQuick::MakeAssignVariableStatement(pPrism, aExprPrism));
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
     }
     
     
     {
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("e = mix(a, b, c, d)"));
-        pStatements->push_back(GStatement::Comment("e = diffuse(e OP scatter)"));
+        EmitComment("e = mix(a, b, c, d)");
+        EmitComment("e = diffuse(e OP scatter)");
         
         if (pDestWriteInverted) {
-            pStatements->push_back(GStatement::Comment("dest[~i] = e"));
+            EmitComment("dest[~i] = e");
         } else {
-            pStatements->push_back(GStatement::Comment("dest[i] = e"));
+            EmitComment("dest[i] = e");
         }
         
-        pStatements->push_back(GStatement::Comment(""));
+        
         
         GSymbol aMainUpdateComponentA;
         GSymbol aMainUpdateComponentB;
@@ -853,182 +1030,99 @@ bool CSPRNG::Bake(GSymbol pDest,
             pStatements->push_back(GQuick::MakeAssignDestStatement(pDest, pLoopIndex, pCurrent));
         }
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
+        
+        
     }
     
-    {
+    if (!pIgnorePrism) {
         std::vector<GStatement> aTempStatements;
-        GStatement aStatement;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("prism = diffuse(prism)"));
-        pStatements->push_back(GStatement::Comment("feedback gate: e = gate(e, prism)"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("prism = diffuse(prism)");
+        EmitComment("feedback gate: e = gate(e, prism)");
+        
         
         PrismDiffuse();
         
+        auto aSBoxes = FetchSBoxPack8();
+        GSymbol aSBoxA = aSBoxes[0];
+        GSymbol aSBoxB = aSBoxes[1];
+        GSymbol aSBoxC = aSBoxes[2];
+        GSymbol aSBoxD = aSBoxes[3];
+        GSymbol aSBoxE = aSBoxes[4];
+        GSymbol aSBoxF = aSBoxes[5];
+        GSymbol aSBoxG = aSBoxes[6];
+        GSymbol aSBoxH = aSBoxes[7];
         
-        {
-            std::vector<GStatement> aTempStatements;
-            
-            pStatements->push_back(GStatement::Comment(""));
-            pStatements->push_back(GStatement::Comment("prism = diffuse(prism)"));
-            pStatements->push_back(GStatement::Comment("feedback gate: e = gate(e, prism)"));
-            pStatements->push_back(GStatement::Comment(""));
-            
-            PrismDiffuse();
-            
-            if ((pSBoxes.size() >= 8) && (pMixTypes8.size() > 0)) {
-                auto aSBoxes = FetchSBoxPack8();
-                GSymbol aSBoxA = aSBoxes[0];
-                GSymbol aSBoxB = aSBoxes[1];
-                GSymbol aSBoxC = aSBoxes[2];
-                GSymbol aSBoxD = aSBoxes[3];
-                GSymbol aSBoxE = aSBoxes[4];
-                GSymbol aSBoxF = aSBoxes[5];
-                GSymbol aSBoxG = aSBoxes[6];
-                GSymbol aSBoxH = aSBoxes[7];
-                
-                if (Random::Bool()) {
-                    aMix648Cache.Fetch(2);
-                    
-                    GExpr aMixOptionA = GExpr::Mix64_8(GExpr::Symbol(pCurrent), aMix648Cache.mBus[0],
-                                                       (std::uint64_t)PopRandomRotation(),
-                                                       aSBoxA, aSBoxB, aSBoxC, aSBoxD,
-                                                       aSBoxE, aSBoxF, aSBoxG, aSBoxH);
-                    GExpr aMixOptionB = GExpr::Mix64_8(GExpr::Symbol(pCurrent), aMix648Cache.mBus[1],
-                                                       (std::uint64_t)PopRandomRotation(),
-                                                       aSBoxA, aSBoxB, aSBoxC, aSBoxD,
-                                                       aSBoxE, aSBoxF, aSBoxG, aSBoxH);
-                    
-                    GStatement aMixStatementA = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionA);
-                    GStatement aMixStatementB = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionB);
-                    
-                    GSelect aSelect = GSelect::Random2();
-                    aSelect.AddStatementA(aMixStatementA);
-                    aSelect.AddStatementB(aMixStatementB);
-                    
-                    if (!aSelect.Bake(pPrism, &aTempStatements, pErrorMessage)) {
-                        printf("CSPRNG failed to bake feedback gate select 8-box (2 case): %s\n", pErrorMessage->c_str());
-                        return false;
-                    }
-                    
-                    TwistArray::Append(pStatements, &aTempStatements);
-                    aTempStatements.clear();
-                } else {
-                    aMix648Cache.Fetch(4);
-                    
-                    GExpr aMixOptionA = GExpr::Mix64_8(GExpr::Symbol(pCurrent), aMix648Cache.mBus[0],
-                                                       (std::uint64_t)PopRandomRotation(),
-                                                       aSBoxA, aSBoxB, aSBoxC, aSBoxD,
-                                                       aSBoxE, aSBoxF, aSBoxG, aSBoxH);
-                    GExpr aMixOptionB = GExpr::Mix64_8(GExpr::Symbol(pCurrent), aMix648Cache.mBus[1],
-                                                       (std::uint64_t)PopRandomRotation(),
-                                                       aSBoxA, aSBoxB, aSBoxC, aSBoxD,
-                                                       aSBoxE, aSBoxF, aSBoxG, aSBoxH);
-                    GExpr aMixOptionC = GExpr::Mix64_8(GExpr::Symbol(pCurrent), aMix648Cache.mBus[2],
-                                                       (std::uint64_t)PopRandomRotation(),
-                                                       aSBoxA, aSBoxB, aSBoxC, aSBoxD,
-                                                       aSBoxE, aSBoxF, aSBoxG, aSBoxH);
-                    GExpr aMixOptionD = GExpr::Mix64_8(GExpr::Symbol(pCurrent), aMix648Cache.mBus[3],
-                                                       (std::uint64_t)PopRandomRotation(),
-                                                       aSBoxA, aSBoxB, aSBoxC, aSBoxD,
-                                                       aSBoxE, aSBoxF, aSBoxG, aSBoxH);
-                    
-                    GStatement aMixStatementA = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionA);
-                    GStatement aMixStatementB = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionB);
-                    GStatement aMixStatementC = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionC);
-                    GStatement aMixStatementD = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionD);
-                    
-                    GSelect aSelect = GSelect::Random4();
-                    aSelect.AddStatementA(aMixStatementA);
-                    aSelect.AddStatementB(aMixStatementB);
-                    aSelect.AddStatementC(aMixStatementC);
-                    aSelect.AddStatementD(aMixStatementD);
-                    
-                    if (!aSelect.Bake(pPrism, &aTempStatements, pErrorMessage)) {
-                        printf("CSPRNG failed to bake feedback gate select 8-box (4 case): %s\n", pErrorMessage->c_str());
-                        return false;
-                    }
-                    
-                    TwistArray::Append(pStatements, &aTempStatements);
-                    aTempStatements.clear();
-                }
-            } else {
-                auto aSBoxes = FetchSBoxPack4();
-                GSymbol aSBoxA = aSBoxes[0];
-                GSymbol aSBoxB = aSBoxes[1];
-                GSymbol aSBoxC = aSBoxes[2];
-                GSymbol aSBoxD = aSBoxes[3];
-                
-                if (Random::Bool()) {
-                    aMix644Cache.Fetch(2);
-                    
-                    GExpr aMixOptionA = GExpr::Mix64_4(GExpr::Symbol(pCurrent), aMix644Cache.mBus[0],
-                                                       (std::uint64_t)PopRandomRotation(), aSBoxA, aSBoxB, aSBoxC, aSBoxD);
-                    GExpr aMixOptionB = GExpr::Mix64_4(GExpr::Symbol(pCurrent), aMix644Cache.mBus[1],
-                                                       (std::uint64_t)PopRandomRotation(), aSBoxA, aSBoxB, aSBoxC, aSBoxD);
-                    
-                    GStatement aMixStatementA = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionA);
-                    GStatement aMixStatementB = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionB);
-                    
-                    GSelect aSelect = GSelect::Random2();
-                    aSelect.AddStatementA(aMixStatementA);
-                    aSelect.AddStatementB(aMixStatementB);
-                    
-                    if (!aSelect.Bake(pPrism, &aTempStatements, pErrorMessage)) {
-                        printf("CSPRNG failed to bake feedback gate select 4-box (2 case): %s\n", pErrorMessage->c_str());
-                        return false;
-                    }
-                    
-                    TwistArray::Append(pStatements, &aTempStatements);
-                    aTempStatements.clear();
-                } else {
-                    aMix644Cache.Fetch(4);
-                    
-                    GExpr aMixOptionA = GExpr::Mix64_4(GExpr::Symbol(pCurrent), aMix644Cache.mBus[0],
-                                                       (std::uint64_t)PopRandomRotation(), aSBoxA, aSBoxB, aSBoxC, aSBoxD);
-                    GExpr aMixOptionB = GExpr::Mix64_4(GExpr::Symbol(pCurrent), aMix644Cache.mBus[1],
-                                                       (std::uint64_t)PopRandomRotation(), aSBoxA, aSBoxB, aSBoxC, aSBoxD);
-                    GExpr aMixOptionC = GExpr::Mix64_4(GExpr::Symbol(pCurrent), aMix644Cache.mBus[2],
-                                                       (std::uint64_t)PopRandomRotation(), aSBoxA, aSBoxB, aSBoxC, aSBoxD);
-                    GExpr aMixOptionD = GExpr::Mix64_4(GExpr::Symbol(pCurrent), aMix644Cache.mBus[3],
-                                                       (std::uint64_t)PopRandomRotation(), aSBoxA, aSBoxB, aSBoxC, aSBoxD);
-                    
-                    GStatement aMixStatementA = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionA);
-                    GStatement aMixStatementB = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionB);
-                    GStatement aMixStatementC = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionC);
-                    GStatement aMixStatementD = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionD);
-                    
-                    GSelect aSelect = GSelect::Random4();
-                    aSelect.AddStatementA(aMixStatementA);
-                    aSelect.AddStatementB(aMixStatementB);
-                    aSelect.AddStatementC(aMixStatementC);
-                    aSelect.AddStatementD(aMixStatementD);
-                    
-                    if (!aSelect.Bake(pPrism, &aTempStatements, pErrorMessage)) {
-                        printf("CSPRNG failed to bake feedback gate select 4-box (4 case): %s\n", pErrorMessage->c_str());
-                        return false;
-                    }
-                    
-                    TwistArray::Append(pStatements, &aTempStatements);
-                    aTempStatements.clear();
-                }
-            }
-            
-            pStatements->push_back(GStatement::Comment(""));
-            pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
+        std::vector<GSymbol> aSBoxesBase;
+        aSBoxesBase.push_back(aSBoxA);
+        aSBoxesBase.push_back(aSBoxB);
+        aSBoxesBase.push_back(aSBoxC);
+        aSBoxesBase.push_back(aSBoxD);
+        aSBoxesBase.push_back(aSBoxE);
+        aSBoxesBase.push_back(aSBoxF);
+        aSBoxesBase.push_back(aSBoxG);
+        aSBoxesBase.push_back(aSBoxH);
+        
+        std::vector<GSymbol> aSBoxesPermutationA = aSBoxesBase;
+        std::vector<GSymbol> aSBoxesPermutationB = aSBoxesBase;
+        std::vector<GSymbol> aSBoxesPermutationC = aSBoxesBase;
+        std::vector<GSymbol> aSBoxesPermutationD = aSBoxesBase;
+        Random::Shuffle(&aSBoxesPermutationA);
+        Random::Shuffle(&aSBoxesPermutationB);
+        Random::Shuffle(&aSBoxesPermutationC);
+        Random::Shuffle(&aSBoxesPermutationD);
+        
+        const int aCaseCount = 2 + Random::Get(3); // 2, 3, or 4
+        aMix648Cache.Fetch(aCaseCount);
+        
+        auto MakeMixOptionFromPermutation = [&](int pMixIndex, const std::vector<GSymbol> &pPermutation) -> GExpr {
+            return GExpr::Mix64_8(GExpr::Symbol(pCurrent),
+                                  aMix648Cache.mBus[pMixIndex],
+                                  static_cast<std::uint64_t>(PopRandomRotation()),
+                                  pPermutation[0], pPermutation[1], pPermutation[2], pPermutation[3],
+                                  pPermutation[4], pPermutation[5], pPermutation[6], pPermutation[7]);
+        };
+        
+        GExpr aMixOptionA = MakeMixOptionFromPermutation(0, aSBoxesPermutationA);
+        GExpr aMixOptionB = MakeMixOptionFromPermutation(1, aSBoxesPermutationB);
+        GStatement aMixStatementA = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionA);
+        GStatement aMixStatementB = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionB);
+        
+        GSelect aSelect = (aCaseCount == 2) ? GSelect::Random2() : GSelect::Random4();
+        aSelect.AddStatementA(aMixStatementA);
+        aSelect.AddStatementB(aMixStatementB);
+        
+        if (aCaseCount >= 3) {
+            GExpr aMixOptionC = MakeMixOptionFromPermutation(2, aSBoxesPermutationC);
+            GStatement aMixStatementC = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionC);
+            aSelect.AddStatementC(aMixStatementC);
         }
+        
+        if (aCaseCount >= 4) {
+            GExpr aMixOptionD = MakeMixOptionFromPermutation(3, aSBoxesPermutationD);
+            GStatement aMixStatementD = GQuick::MakeAssignVariableStatement(pCurrent, aMixOptionD);
+            aSelect.AddStatementD(aMixStatementD);
+        }
+        
+        if (!aSelect.Bake(pPrism, &aTempStatements, pErrorMessage)) {
+            printf("CSPRNG failed to bake feedback gate select 8-box (%d case): %s\n",
+                   aCaseCount,
+                   pErrorMessage->c_str());
+            return false;
+        }
+        
+        TwistArray::Append(pStatements, &aTempStatements);
+        aTempStatements.clear();
+        
+        
     }
     
     {
         int aHotS0 = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("s0 = s0 + (e ^ previous ^ d);"));
-        pStatements->push_back(GStatement::Comment("s0 = rot((s0 + loopSalt[i/~i]) * hot.mul);"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("s0 = s0 + (e ^ previous ^ d);");
+        EmitComment("s0 = rot((s0 + loopSalt[i/~i]) * hot.mul);");
+        
         
         GExpr aFeedbackFresh = GExpr::Symbol(pCurrent);
         GExpr aFeedbackPrevious = GExpr::Symbol(pPrevious);
@@ -1048,7 +1142,7 @@ bool CSPRNG::Bake(GSymbol pDest,
         GExpr aExprWandererA = GExpr::Add(GExpr::Symbol(pWandererA), aFeedbackExpr);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pWandererA, aExprWandererA));
         
-        GSymbol aLoopSalt = Random::Bool() ? PopRandomFixedSalt() : PopRandomScratchSalt();
+        GSymbol aLoopSalt = PopRandomFixedSalt();
         GExpr aLoopSaltExpr;
         
         if (Random::Bool()) {
@@ -1062,23 +1156,19 @@ bool CSPRNG::Bake(GSymbol pDest,
         aExprWandererA = RotMediumHigh(aExprWandererA);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pWandererA, aExprWandererA));
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
+        
+        
     }
-    
-    //TODO: aHotIndex overflow again
-    aHotIndex = 0;
     
     {
         int aHotS1 = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("s1 = s1 ^ (e + cross + a);"));
-        pStatements->push_back(GStatement::Comment("s1 = rot((s1 ^ loopSalt[i/~i]) * hot.mul);"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("s1 = s1 ^ (e + cross + a);");
+        EmitComment("s1 = rot((s1 ^ loopSalt[i/~i]) * hot.mul);");
+        
         
         GExpr aFeedbackFresh = GExpr::Symbol(pCurrent);
-        GExpr aFeedbackCross = GExpr::Symbol(pCross);
+        GExpr aFeedbackCross = GExpr::Symbol(pStreamCross);
         GExpr aFeedbackA = GExpr::Symbol(pOrbiterA);
         
         int aRotateFeedbackTerm = Random::Get(3);
@@ -1095,7 +1185,7 @@ bool CSPRNG::Bake(GSymbol pDest,
         GExpr aExprWandererB = GExpr::Xor(GExpr::Symbol(pWandererB), aFeedbackExpr);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pWandererB, aExprWandererB));
         
-        GSymbol aLoopSalt = Random::Bool() ? PopRandomFixedSalt() : PopRandomScratchSalt();
+        GSymbol aLoopSalt = PopRandomFixedSalt();
         GExpr aLoopSaltExpr;
         
         if (Random::Bool()) {
@@ -1108,18 +1198,14 @@ bool CSPRNG::Bake(GSymbol pDest,
         aExprWandererB = GExpr::Mul(aExprWandererB, GExpr::Const64(pHotPack.mPair[aHotS1].mMul));
         aExprWandererB = RotMediumHigh(aExprWandererB);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pWandererB, aExprWandererB));
-        
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
     }
     
     {
         int aHotS2 = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("s2 = s2 + (b ^ c ^ loopSalt[i/~i]);"));
-        pStatements->push_back(GStatement::Comment("s2 = rot(s2 * hot.mul);"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("s2 = s2 + (b ^ c ^ loopSalt[i/~i]);");
+        EmitComment("s2 = rot(s2 * hot.mul);");
+        
         
         GExpr aFeedbackB = GExpr::Symbol(pOrbiterB);
         GExpr aFeedbackC = GExpr::Symbol(pOrbiterC);
@@ -1131,7 +1217,7 @@ bool CSPRNG::Bake(GSymbol pDest,
             aFeedbackC = RotMediumHighRandom(aFeedbackC);
         }
         
-        GSymbol aLoopSalt = Random::Bool() ? PopRandomFixedSalt() : PopRandomScratchSalt();
+        GSymbol aLoopSalt = PopRandomFixedSalt();
         GExpr aLoopSaltExpr;
         
         if (Random::Bool()) {
@@ -1149,18 +1235,17 @@ bool CSPRNG::Bake(GSymbol pDest,
         aExprWandererC = RotMediumHigh(aExprWandererC);
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pWandererC, aExprWandererC));
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
+        
+        
     }
     
     {
         int aHotCarry = aHotIndex++;
         
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment("carry = carry + (s0 ^ s1 ^ s2 ^ e);"));
-        pStatements->push_back(GStatement::Comment("carry = rot(carry * hot.mul);"));
-        pStatements->push_back(GStatement::Comment("carry = carry ^ (carry >> rshift);"));
-        pStatements->push_back(GStatement::Comment(""));
+        EmitComment("carry = carry + (s0 ^ s1 ^ s2 ^ e);");
+        EmitComment("carry = rot(carry * hot.mul);");
+        EmitComment("carry = carry ^ (carry >> rshift);");
+        
         
         GExpr aFeedbackS0 = GExpr::Symbol(pWandererA);
         GExpr aFeedbackS1 = GExpr::Symbol(pWandererB);
@@ -1194,11 +1279,7 @@ bool CSPRNG::Bake(GSymbol pDest,
         aExprCarry = GExpr::Xor(GExpr::Symbol(pCarry),
                                 GExpr::ShiftR(GExpr::Symbol(pCarry), GExpr::Const64(Random::Choice(aCarryShifts))));
         pStatements->push_back(GQuick::MakeAssignVariableStatement(pCarry, aExprCarry));
-        
-        pStatements->push_back(GStatement::Comment(""));
-        pStatements->push_back(GStatement::Comment(">>>>>>>>>>>>>>>>>>>>>>>>[ BUILD THE BEAST ]<<<<<<<<<<<<<<<<<<<<<<<<"));
     }
-     
     
     return true;
     

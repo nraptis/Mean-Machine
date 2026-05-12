@@ -2,7 +2,7 @@
 //  GSBoxFamily.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/2/26.
+//  Created by Xenegos of the Revel on 5/2/26.
 //
 
 #ifndef GSBoxFamily_hpp

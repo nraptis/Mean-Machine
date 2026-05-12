@@ -12,6 +12,8 @@
 #include <bit>
 #include <cstring>
 
+
+
 TwistCryptoScoring::TwistCryptoScoring() {
     
 }
@@ -20,61 +22,49 @@ TwistCryptoScoring::~TwistCryptoScoring() {
     
 }
 
-std::int32_t TwistCryptoScoring::ComputeDifferenceDistributionTableMax_256(const std::uint8_t *pData, const int pLength) {
-    
-    std::int32_t aCounts[256];
+
+std::int32_t TwistCryptoScoring::ComputeDDTMax_SBox(const std::uint8_t *pData) {
     std::int32_t aResult = 0;
-    for (int aInputDifference = 1; aInputDifference < 256; ++aInputDifference) {
-        std::memset(aCounts, 0, sizeof(std::int32_t) * 256);
-        for (int aInput = 0; aInput < 256; ++aInput) {
+    for (int aInputDifference = 1; aInputDifference < S_SBOX; ++aInputDifference) {
+        std::memset(mHistogram, 0, sizeof(mHistogram));
+        for (int aInput = 0; aInput < S_SBOX; ++aInput) {
             const int aPairedInput = aInput ^ aInputDifference;
             const std::uint8_t aOutputDifference = pData[aInput] ^ pData[aPairedInput];
-            ++aCounts[aOutputDifference];
+            ++mHistogram[aOutputDifference];
         }
-        
-        // Find the largest count for this input difference
-        for (int aOutputDifference = 0; aOutputDifference < 256; ++aOutputDifference) {
-            if (aCounts[aOutputDifference] > aResult) {
-                aResult = aCounts[aOutputDifference];
+        for (int aOutputDifference = 0; aOutputDifference < S_SBOX; ++aOutputDifference) {
+            if (mHistogram[aOutputDifference] > aResult) {
+                aResult = mHistogram[aOutputDifference];
             }
         }
     }
     return aResult;
 }
 
-std::int32_t TwistCryptoScoring::ComputeLinearCorrelationMax_256(const std::uint8_t *pData, const int pLength) {
-    
-    std::int32_t aSpectrum[256];
+std::int32_t TwistCryptoScoring::ComputeWalsh_SBox(const std::uint8_t *pData) {
     std::int32_t aResult = 0;
-
-    // Loop over all non-zero output masks
-    for (int aOutputMask = 1; aOutputMask < 256; ++aOutputMask) {
-
-        // Step 1: Build +/-1 signal based on parity of masked output
-        for (int aInput = 0; aInput < 256; ++aInput) {
-            
+    for (int aOutputMask = 1; aOutputMask < S_SBOX; ++aOutputMask) {
+        for (int aInput = 0; aInput < S_SBOX; ++aInput) {
             const std::uint8_t aValue = pData[aInput];
-
-            // Count parity of bits selected by mask
             const int aParity = std::popcount(static_cast<unsigned int>(aValue & aOutputMask)) & 1;
-            aSpectrum[aInput] = (aParity == 0) ? 1 : -1;
+            mSpectrum[aInput] = (aParity == 0) ? 1 : -1;
         }
 
         // Step 2: Fast Walsh-Hadamard Transform
-        for (int aStep = 1; aStep < 256; aStep <<= 1) {
-            for (int aIndex = 0; aIndex < 256; aIndex += (aStep << 1)) {
+        for (int aStep = 1; aStep < S_SBOX; aStep <<= 1) {
+            for (int aIndex = 0; aIndex < S_SBOX; aIndex += (aStep << 1)) {
                 for (int aOffset = 0; aOffset < aStep; ++aOffset) {
-                    const int aLeft = aSpectrum[aIndex + aOffset];
-                    const int aRight = aSpectrum[aIndex + aOffset + aStep];
-                    aSpectrum[aIndex + aOffset] = aLeft + aRight;
-                    aSpectrum[aIndex + aOffset + aStep] = aLeft - aRight;
+                    const int aLeft = mSpectrum[aIndex + aOffset];
+                    const int aRight = mSpectrum[aIndex + aOffset + aStep];
+                    mSpectrum[aIndex + aOffset] = aLeft + aRight;
+                    mSpectrum[aIndex + aOffset + aStep] = aLeft - aRight;
                 }
             }
         }
 
         // Step 3: Track maximum absolute correlation
-        for (int aInputMask = 0; aInputMask < 256; ++aInputMask) {
-            const int aValue = std::abs(aSpectrum[aInputMask]);
+        for (int aInputMask = 0; aInputMask < S_SBOX; ++aInputMask) {
+            const int aValue = std::abs(mSpectrum[aInputMask]);
             if (aValue > aResult) {
                 aResult = aValue;
             }
@@ -84,99 +74,51 @@ std::int32_t TwistCryptoScoring::ComputeLinearCorrelationMax_256(const std::uint
     return aResult;
 }
 
-std::int32_t TwistCryptoScoring::ComputeMinimumComponentAlgebraicDegree_256(const std::uint8_t *pData, const int pLength) {
+TwistCryptoMinMaxResponse TwistCryptoScoring::ComputeComponentAlgebraicDegrees_SBox(const std::uint8_t *pData) {
+    int aMaxComponentDegree = 0;
     int aMinComponentDegree = 8;
     
-    std::uint8_t aAnf[256];
-    memset(aAnf, 0, 256);
-    
+    memset(mBlock, 0, sizeof(mBlock));
     for (int aOutBit = 0; aOutBit < 8; ++aOutBit) {
-        for (int aX = 0; aX < 256; ++aX) {
-            aAnf[static_cast<std::size_t>(aX)] =
+        for (int aX = 0; aX < S_SBOX; ++aX) {
+            mBlock[static_cast<std::size_t>(aX)] =
             static_cast<std::uint8_t>((pData[static_cast<std::size_t>(aX)] >> aOutBit) & 1U);
         }
         
         for (int aBit = 0; aBit < 8; ++aBit) {
-            for (int aMask = 0; aMask < 256; ++aMask) {
+            for (int aMask = 0; aMask < S_SBOX; ++aMask) {
                 if ((aMask & (1 << aBit)) != 0) {
-                    aAnf[static_cast<std::size_t>(aMask)] ^=
-                    aAnf[static_cast<std::size_t>(aMask ^ (1 << aBit))];
+                    mBlock[static_cast<std::size_t>(aMask)] ^=
+                    mBlock[static_cast<std::size_t>(aMask ^ (1 << aBit))];
                 }
             }
         }
         
         int aDegree = 0;
-        for (int aMask = 1; aMask < 256; ++aMask) {
-            if (aAnf[static_cast<std::size_t>(aMask)] != 0U) {
-                aDegree = std::max(aDegree, std::popcount(static_cast<unsigned int>(aMask)));
-            }
-        }
-        aMinComponentDegree = std::min(aMinComponentDegree, aDegree);
-    }
-    return aMinComponentDegree;
-}
-
-std::int32_t TwistCryptoScoring::ComputeMaximumComponentAlgebraicDegree_256(const std::uint8_t *pData, const int pLength) {
-    int aMaxComponentDegree = 0;
-    
-    std::uint8_t aAnf[256];
-    memset(aAnf, 0, 256);
-    for (int aOutBit = 0; aOutBit < 8; ++aOutBit) {
-        for (int aX = 0; aX < 256; ++aX) {
-            aAnf[static_cast<std::size_t>(aX)] =
-            static_cast<std::uint8_t>((pData[static_cast<std::size_t>(aX)] >> aOutBit) & 1U);
-        }
-        
-        for (int aBit = 0; aBit < 8; ++aBit) {
-            for (int aMask = 0; aMask < 256; ++aMask) {
-                if ((aMask & (1 << aBit)) != 0) {
-                    aAnf[static_cast<std::size_t>(aMask)] ^=
-                    aAnf[static_cast<std::size_t>(aMask ^ (1 << aBit))];
-                }
-            }
-        }
-        
-        int aDegree = 0;
-        for (int aMask = 1; aMask < 256; ++aMask) {
-            if (aAnf[static_cast<std::size_t>(aMask)] != 0U) {
+        for (int aMask = 1; aMask < S_SBOX; ++aMask) {
+            if (mBlock[static_cast<std::size_t>(aMask)] != 0U) {
                 aDegree = std::max(aDegree, std::popcount(static_cast<unsigned int>(aMask)));
             }
         }
         aMaxComponentDegree = std::max(aMaxComponentDegree, aDegree);
-        
+        aMinComponentDegree = std::min(aMinComponentDegree, aDegree);
     }
-    return aMaxComponentDegree;
+    
+    TwistCryptoMinMaxResponse aResult;
+    aResult.mMin = aMinComponentDegree;
+    aResult.mMax = aMaxComponentDegree;
+    return aResult;
 }
 
-
-std::int32_t TwistCryptoScoring::ComputeSacMaxBias_256(const std::uint8_t *pData, const int pLength) {
+TwistCryptoMaxAverageResponse TwistCryptoScoring::ComputeSacBias_SBox(const std::uint8_t *pData) {
     int aSacMaxBias = 0;
-
-    for (int aInputBit = 0; aInputBit < 8; ++aInputBit) {
-        const int aDX = 1 << aInputBit;
-        for (int aOutputBit = 0; aOutputBit < 8; ++aOutputBit) {
-            int aChanged = 0;
-            for (int aX = 0; aX < 256; ++aX) {
-                const std::uint8_t aDelta =
-                static_cast<std::uint8_t>(pData[static_cast<std::size_t>(aX)] ^
-                                          pData[static_cast<std::size_t>(aX ^ aDX)]);
-                aChanged += (aDelta >> aOutputBit) & 1U;
-            }
-            const int aBias = std::abs(aChanged - 128);
-            aSacMaxBias = std::max(aSacMaxBias, aBias);
-        }
-    }
-    return aSacMaxBias;
-}
-
-float TwistCryptoScoring::ComputeSacAverageBias_256(const std::uint8_t *pData, const int pLength) {
     float aSacBiasTotal = 0.0;
     int aSacCount = 0;
     for (int aInputBit = 0; aInputBit < 8; ++aInputBit) {
         const int aDX = 1 << aInputBit;
         for (int aOutputBit = 0; aOutputBit < 8; ++aOutputBit) {
             int aChanged = 0;
-            for (int aX = 0; aX < 256; ++aX) {
+            for (int aX = 0; aX < S_SBOX; ++aX) {
                 const std::uint8_t aDelta =
                 static_cast<std::uint8_t>(pData[static_cast<std::size_t>(aX)] ^
                                           pData[static_cast<std::size_t>(aX ^ aDX)]);
@@ -184,644 +126,492 @@ float TwistCryptoScoring::ComputeSacAverageBias_256(const std::uint8_t *pData, c
             }
             const int aBias = std::abs(aChanged - 128);
             aSacBiasTotal += static_cast<float>(aBias);
+            if (aBias > aSacMaxBias) {
+                aSacMaxBias = aBias;
+            }
             ++aSacCount;
         }
     }
-    float aSacAverageBias = (aSacCount == 0) ? 0.0 : (aSacBiasTotal / static_cast<float>(aSacCount));
-    return aSacAverageBias;
-}
-
-std::int32_t TwistCryptoScoring::ComputeBicMaxBias_256(const std::uint8_t *pData, const int pLength) {
-    int aBicMaxBias = 0;
-    std::uint8_t aDeltaValues[256];
-    memset(aDeltaValues, 0, 256);
-    for (int aInputBit = 0; aInputBit < 8; ++aInputBit) {
-        const int aDX = 1 << aInputBit;
-        for (int aX = 0; aX < 256; ++aX) {
-            aDeltaValues[static_cast<std::size_t>(aX)] =
-            static_cast<std::uint8_t>(pData[static_cast<std::size_t>(aX)] ^ pData[static_cast<std::size_t>(aX ^ aDX)]);
-        }
-        for (int aBitA = 0; aBitA < 8; ++aBitA) {
-            for (int aBitB = aBitA + 1; aBitB < 8; ++aBitB) {
-                int aXorOnes = 0;
-                for (int aX = 0; aX < 256; ++aX) {
-                    const std::uint8_t aDelta = aDeltaValues[static_cast<std::size_t>(aX)];
-                    const int aPair = (((aDelta >> aBitA) & 1U) ^ ((aDelta >> aBitB) & 1U));
-                    aXorOnes += aPair;
-                }
-                const int aBias = std::abs(aXorOnes - 128);
-                aBicMaxBias = std::max(aBicMaxBias, aBias);
-            }
-        }
+    TwistCryptoMaxAverageResponse aResult;
+    aResult.mMax = aSacMaxBias;
+    aResult.mAverage = 0.0f;
+    if (aSacCount != 0) {
+        aResult.mAverage = (aSacBiasTotal / static_cast<float>(aSacCount));
     }
-    return aBicMaxBias;
+    return aResult;
+    
 }
 
-float TwistCryptoScoring::ComputeBicAverageBias_256(const std::uint8_t *pData, const int pLength) {
+TwistCryptoMaxAverageResponse TwistCryptoScoring::ComputeBicBias_SBox(const std::uint8_t *pData) {
     
     float aBicBiasTotal = 0.0;
     int aBicCount = 0;
+    int aBicMaxBias = 0;
     
-    std::uint8_t aDeltaValues[256];
-    memset(aDeltaValues, 0, 256);
+    memset(mBlock, 0, sizeof(mBlock));
     
     for (int aInputBit = 0; aInputBit < 8; ++aInputBit) {
         const int aDX = 1 << aInputBit;
-        for (int aX = 0; aX < 256; ++aX) {
-            aDeltaValues[static_cast<std::size_t>(aX)] =
+        for (int aX = 0; aX < S_SBOX; ++aX) {
+            mBlock[static_cast<std::size_t>(aX)] =
             static_cast<std::uint8_t>(pData[static_cast<std::size_t>(aX)] ^ pData[static_cast<std::size_t>(aX ^ aDX)]);
         }
         for (int aBitA = 0; aBitA < 8; ++aBitA) {
             for (int aBitB = aBitA + 1; aBitB < 8; ++aBitB) {
                 int aXorOnes = 0;
-                for (int aX = 0; aX < 256; ++aX) {
-                    const std::uint8_t aDelta = aDeltaValues[static_cast<std::size_t>(aX)];
+                for (int aX = 0; aX < S_SBOX; ++aX) {
+                    const std::uint8_t aDelta = mBlock[static_cast<std::size_t>(aX)];
                     const int aPair = (((aDelta >> aBitA) & 1U) ^ ((aDelta >> aBitB) & 1U));
                     aXorOnes += aPair;
                 }
                 const int aBias = std::abs(aXorOnes - 128);
                 aBicBiasTotal += static_cast<float>(aBias);
+                if (aBias > aBicMaxBias) {
+                    aBicMaxBias = aBias;
+                }
                 ++aBicCount;
             }
         }
     }
-    float aBicAverageBias = (aBicCount == 0) ? 0.0 : (aBicBiasTotal / static_cast<float>(aBicCount));
-    return aBicAverageBias;
+    
+    TwistCryptoMaxAverageResponse aResult;
+    aResult.mMax = aBicMaxBias;
+    aResult.mAverage = 0.0f;
+    if (aBicCount != 0) {
+        aResult.mAverage = (aBicBiasTotal / static_cast<float>(aBicCount));
+    }
+    return aResult;
 }
 
-std::int32_t TwistCryptoScoring::ComputeDifferentialSimilarityMax_256(const std::uint8_t *pDataA,
-                                                                      const std::uint8_t *pDataB,
-                                                                      const int pLength) {
-    
+std::int32_t TwistCryptoScoring::ComputeDifferentialSimilarityMax_SBox(const std::uint8_t *pDataA,
+                                                                      const std::uint8_t *pDataB) {
     std::int32_t aMaximumSameCount = 0;
-    
-    for (std::int32_t aInputDifference = 1; aInputDifference < 256; aInputDifference++) {
-        
+    for (std::int32_t aInputDifference = 1; aInputDifference < S_SBOX; aInputDifference++) {
         std::int32_t aSameCount = 0;
-        
-        for (std::int32_t aInputValue = 0; aInputValue < 256; aInputValue++) {
-            
-            std::uint8_t aOutputDifferenceA =
-                pDataA[aInputValue] ^ pDataA[aInputValue ^ aInputDifference];
-            
-            std::uint8_t aOutputDifferenceB =
-                pDataB[aInputValue] ^ pDataB[aInputValue ^ aInputDifference];
-            
+        for (std::int32_t aInputValue = 0; aInputValue < S_SBOX; aInputValue++) {
+            std::uint8_t aOutputDifferenceA = pDataA[aInputValue] ^ pDataA[aInputValue ^ aInputDifference];
+            std::uint8_t aOutputDifferenceB = pDataB[aInputValue] ^ pDataB[aInputValue ^ aInputDifference];
             if (aOutputDifferenceA == aOutputDifferenceB) {
                 aSameCount += 1;
             }
         }
-        
-        if (aSameCount > aMaximumSameCount) {
-            aMaximumSameCount = aSameCount;
-        }
+        if (aSameCount > aMaximumSameCount) { aMaximumSameCount = aSameCount; }
     }
-    
     return aMaximumSameCount;
 }
 
-std::int32_t TwistCryptoScoring::ComputeXorDistributionMax_256(const std::uint8_t *pDataA,
-                                                               const std::uint8_t *pDataB,
-                                                               const int pLength) {
+std::int32_t TwistCryptoScoring::ComputeXorDistributionMax_SBox(const std::uint8_t *pDataA,
+                                                               const std::uint8_t *pDataB) {
     
-    std::int32_t aHistogram[256] = {};
+    memset(mHistogram, 0, sizeof(mHistogram));
     
-    for (std::int32_t aIndex = 0; aIndex < 256; aIndex++) {
+    for (std::int32_t aIndex = 0; aIndex < S_SBOX; aIndex++) {
         std::uint8_t aDifference = pDataA[aIndex] ^ pDataB[aIndex];
-        aHistogram[aDifference] += 1;
+        mHistogram[aDifference] += 1;
     }
     
     std::int32_t aMaximumBucket = 0;
     
-    for (std::int32_t aIndex = 0; aIndex < 256; aIndex++) {
-        if (aHistogram[aIndex] > aMaximumBucket) {
-            aMaximumBucket = aHistogram[aIndex];
+    for (std::int32_t aIndex = 0; aIndex < S_SBOX; aIndex++) {
+        if (mHistogram[aIndex] > aMaximumBucket) {
+            aMaximumBucket = mHistogram[aIndex];
         }
     }
     
     return aMaximumBucket;
 }
 
-bool TwistCryptoScoring::Equal_256(const std::uint8_t *pDataA,
-                                              const std::uint8_t *pDataB) {
-    return (std::memcmp(pDataA, pDataB, 256) == 0);
+std::int32_t TwistCryptoScoring::ComputeSBoxSimilarityScore_SBox(const std::uint8_t *pDataA,
+                                                                const std::uint8_t *pDataB) {
+    const int aXor = ComputeXorDistributionMax_SBox(pDataA, pDataB);
+    const int aDifferential = ComputeDifferentialSimilarityMax_SBox(pDataA, pDataB);
+    return (aXor * 256) + aDifferential;
 }
 
-bool TwistCryptoScoring::Equal_128(const std::uint8_t *pDataA,
-                                   const std::uint8_t *pDataB) {
+std::int32_t TwistCryptoScoring::ComputeSaltHammingDistance_Salt(const std::uint64_t *pDataA,
+                                                                 const std::uint64_t *pDataB) {
     
-    for (int aIndex = 0; aIndex < 128; aIndex++) {
-        
-        if (pDataA[aIndex] != pDataB[aIndex]) {
+    std::int32_t aDistance = 0;
+    for (int aIndex = 0; aIndex < S_SALT; ++aIndex) {
+        aDistance += static_cast<std::int32_t>(
+            __builtin_popcountll(pDataA[aIndex] ^ pDataB[aIndex])
+        );
+    }
+    return aDistance;
+}
+
+bool TwistCryptoScoring::ComputeIsPermutation_SBox(const std::uint8_t *pData) {
+    std::memset(mBlock, 0, S_SBOX);
+    for (int aIndex = 0; aIndex < S_SBOX; aIndex++) {
+        std::uint8_t aValue = pData[aIndex];
+        if (mBlock[aValue] != 0) {
             return false;
         }
+        mBlock[aValue] = 1;
     }
-    
-    return true;
-}
-bool TwistCryptoScoring::ComputeIsPermutation_256(const std::uint8_t *pData,
-                                                  const int pLength) {
-    
-    std::uint8_t aSeen[256];
-    std::memset(aSeen, 0, 256);
-    
-    for (int aIndex = 0; aIndex < 256; aIndex++) {
-        
-        std::uint8_t aValue = pData[aIndex];
-        
-        if (aSeen[aValue] != 0) {
-            return false; // duplicate output → not a permutation
-        }
-        
-        aSeen[aValue] = 1;
-    }
-    
     return true;
 }
 
-
-void TwistCryptoScoring::PrintBox_256(const char *pName, const std::uint8_t *pData) {
+int TwistCryptoScoring::ComputeBitBalance_Salt(const std::uint64_t *pData) {
     
-    printf("\n%s\n", pName);
-    printf("--------------------------------------------------\n");
+    std::memset(mHistogram, 0, sizeof(mHistogram));
     
-    for (int aRow = 0; aRow < 16; aRow++) {
+    for (int i = 0; i < S_SALT; i++) {
+        std::uint64_t v = pData[i];
         
-        printf("[%02X] ", aRow << 4);
-        
-        for (int aCol = 0; aCol < 16; aCol++) {
-            int aIndex = (aRow << 4) | aCol;
-            printf("%02X ", pData[aIndex]);
-        }
-        
-        printf("\n");
-    }
-}
-
-
-
-
-
-
-/*
-int TwistCryptoScoring::ComputeSaltMixResponse_128(const std::uint8_t *pData) {
-    
-    int aScore = 0;
-    
-    std::uint16_t aValue = 0x1234;
-    
-    for (int i = 0; i < 64; i++) {
-        
-        std::uint8_t aSalt = pData[i & 127];
-        
-        std::uint16_t aBefore = aValue;
-        
-        aValue ^= aSalt;
-        aValue = TwistMix16::Mix161(
-            static_cast<Mix161Type>((i % 11) + 1),
-            aValue,
-            pData // treat salt as S-box-like input
-        );
-        
-        std::uint16_t aDiff = aBefore ^ aValue;
-        
-        // count changed bits
-        int aBits = __builtin_popcount(aDiff);
-        
-        aScore += aBits;
-    }
-    
-    return aScore;
-}
-*/
-
-int TwistCryptoScoring::ComputeSaltBitBalance_128(const std::uint8_t *pData) {
-    
-    int aBitCount[8] = {0};
-    
-    for (int i = 0; i < 128; i++) {
-        std::uint8_t v = pData[i];
-        
-        for (int b = 0; b < 8; b++) {
-            if (v & (1U << b)) {
-                aBitCount[b]++;
+        for (int b = 0; b < 64; b++) {
+            if (v & (1ULL << b)) {
+                mHistogram[b]++;
             }
         }
     }
     
     int aScore = 0;
+    const int aIdeal = S_SALT / 2;
     
-    for (int b = 0; b < 8; b++) {
-        int aDiff = std::abs(aBitCount[b] - 64); // ideal = 64
-        
-        // smaller diff = better → invert into score
-        aScore += (64 - aDiff);
+    for (int b = 0; b < 64; b++) {
+        const int aDiff = std::abs(static_cast<int>(mHistogram[b]) - aIdeal);
+        aScore += (aIdeal - aDiff);
     }
     
-    return aScore; // max = 512
+    return aScore;
 }
 
-int TwistCryptoScoring::ComputeSaltByteSpread_128(const std::uint8_t *pData) {
-    
-    bool aSeen[256] = {false};
-    
+int TwistCryptoScoring::ComputeByteSpread_Salt(const std::uint64_t *pData) {
+
+    std::memset(mHistogram, 0, sizeof(mHistogram));
+
     int aUnique = 0;
-    
-    for (int i = 0; i < 128; i++) {
-        std::uint8_t v = pData[i];
-        
-        if (!aSeen[v]) {
-            aSeen[v] = true;
+    const std::uint8_t *aBytes = reinterpret_cast<const std::uint8_t *>(pData);
+
+    for (int i = 0; i < S_SALT * static_cast<int>(sizeof(std::uint64_t)); i++) {
+        const std::uint8_t v = aBytes[i];
+        if (mHistogram[v] == 0) {
+            mHistogram[v] = 1;
             aUnique++;
         }
     }
-    
-    return aUnique; // max = 128
+
+    return aUnique;
 }
 
-int TwistCryptoScoring::ComputeSaltAdjacencyPenalty_128(const std::uint8_t *pData) {
+int TwistCryptoScoring::ComputeAdjacencyPenalty_Salt(const std::uint64_t *pData) {
+
     int aPenalty = 0;
-    for (int i=1; i<128; i++) {
-        std::uint8_t aValueA = pData[i];
-        std::uint8_t aValueB = pData[i - 1];
+
+    for (int i = 1; i < S_SALT; i++) {
+        const std::uint64_t aValueA = pData[i];
+        const std::uint64_t aValueB = pData[i - 1];
+        const int aDistance = static_cast<int>(__builtin_popcountll(aValueA ^ aValueB));
+
         if (aValueA == aValueB) {
+            aPenalty += 64;
+        } else if (aDistance < 8) {
+            aPenalty += 16;
+        } else if (aDistance < 16) {
             aPenalty += 4;
         }
-        else if ((aValueA ^ aValueB) < 4) {
-            aPenalty += 2;
-        }
     }
+
     return aPenalty;
 }
 
 
-int TwistCryptoScoring::ComputeSaltXorDrift_128(const std::uint8_t *pData) {
+int TwistCryptoScoring::ScorePercentileWeighted(int pValue,
+                                                int p01,
+                                                int p10,
+                                                int p20,
+                                                int p40,
+                                                int p60,
+                                                int p80,
+                                                int p90,
+                                                int p99,
+                                                int pWeight,
+                                                int *pRedFlagPoints) {
     
-    int aScore = 0;
-    
-    for (int i=1; i<128; i++) {
-        
-        std::uint8_t aValueA = pData[i];
-        std::uint8_t aValueB = pData[i - 1];
-        
-        std::uint8_t aXor = aValueA ^ aValueB;
-        
-        // count changed bits
-        int aBits = __builtin_popcount(aXor);
-        
-        aScore += aBits;
-    }
-    
-    return aScore; // max = 127 * 8 = 1016
-}
-
-
-std::uint64_t TwistCryptoScoring::ComputeSaltComprehensiveAgainstSBoxFamily(const std::uint8_t *pSalt,
-                                                                            std::uint8_t *pSBoxA,
-                                                                            std::uint8_t *pSBoxB,
-                                                                            std::uint8_t *pSBoxC,
-                                                                            std::uint8_t *pSBoxD,
-                                                                            std::uint8_t *pSBoxE,
-                                                                            std::uint8_t *pSBoxF,
-                                                                            std::uint8_t *pSBoxG,
-                                                                            std::uint8_t *pSBoxH) {
-    
-    std::uint8_t *aList[8];
-    int aListCount = 0;
-    
-    if (pSBoxA) { aList[aListCount++] = pSBoxA; }
-    if (pSBoxB) { aList[aListCount++] = pSBoxB; }
-    if (pSBoxC) { aList[aListCount++] = pSBoxC; }
-    if (pSBoxD) { aList[aListCount++] = pSBoxD; }
-    if (pSBoxE) { aList[aListCount++] = pSBoxE; }
-    if (pSBoxF) { aList[aListCount++] = pSBoxF; }
-    if (pSBoxG) { aList[aListCount++] = pSBoxG; }
-    if (pSBoxH) { aList[aListCount++] = pSBoxH; }
-    
-    std::uint64_t aScore = 0;
-    std::uint64_t aBaseValue = 0;
-    std::uint64_t aBefore = 0;
-    std::uint64_t aValue = aBaseValue;
-    
-    int aRotations[16] = {
-        1, 3, 5, 7,
-        11, 13, 19, 21,
-        27, 29, 35, 37,
-        43, 45, 51, 53
-    };
-    
-    for (int aSBoxIndexA = 0; aSBoxIndexA < aListCount; aSBoxIndexA++) {
-        
-        std::uint8_t *aBox = aList[aSBoxIndexA];
-        
-        aValue = aBaseValue;
-        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-            aBefore = aValue;
-            aValue = TwistMix64::GatePrism_1_8(aValue ^ pSalt[aSaltIndex], aBox);
-            aScore += __builtin_popcountll(aBefore ^ aValue);
-        }
-        
-        for (int aRotationIndex=0; aRotationIndex<16; aRotationIndex++) {
-            
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRoll_1_1(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRoll_1_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRoll_1_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurn_1_1(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurn_1_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurn_1_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBox);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-        }
-    }
-    
-    for (int aStartIndex = 0; aStartIndex < aListCount; aStartIndex++) {
-        
-        std::uint8_t *aBoxA = aList[((aStartIndex + 0) % aListCount)];
-        std::uint8_t *aBoxB = aList[((aStartIndex + 1) % aListCount)];
-        std::uint8_t *aBoxC = aList[((aStartIndex + 2) % aListCount)];
-        std::uint8_t *aBoxD = aList[((aStartIndex + 3) % aListCount)];
-        
-        aValue = aBaseValue;
-        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-            aBefore = aValue;
-            aValue = TwistMix64::GatePrismA_4_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-            aScore += __builtin_popcountll(aBefore ^ aValue);
-        }
-        
-        aValue = aBaseValue;
-        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-            aBefore = aValue;
-            aValue = TwistMix64::GatePrismB_4_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-            aScore += __builtin_popcountll(aBefore ^ aValue);
-        }
-        
-        aValue = aBaseValue;
-        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-            aBefore = aValue;
-            aValue = TwistMix64::GatePrismC_4_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-            aScore += __builtin_popcountll(aBefore ^ aValue);
-        }
-        
-        for (int aRotationIndex=0; aRotationIndex<16; aRotationIndex++) {
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRoll_4_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRollA_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRollB_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRollC_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurn_4_4(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurnA_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurnB_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurnC_4_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-        }
-    }
-    
-    for (int aStartIndex = 0; aStartIndex < aListCount; aStartIndex++) {
-        
-        std::uint8_t *aBoxA = aList[((aStartIndex + 0) % aListCount)];
-        std::uint8_t *aBoxB = aList[((aStartIndex + 1) % aListCount)];
-        std::uint8_t *aBoxC = aList[((aStartIndex + 2) % aListCount)];
-        std::uint8_t *aBoxD = aList[((aStartIndex + 3) % aListCount)];
-        std::uint8_t *aBoxE = aList[((aStartIndex + 4) % aListCount)];
-        std::uint8_t *aBoxF = aList[((aStartIndex + 5) % aListCount)];
-        std::uint8_t *aBoxG = aList[((aStartIndex + 6) % aListCount)];
-        std::uint8_t *aBoxH = aList[((aStartIndex + 7) % aListCount)];
-        
-        aValue = aBaseValue;
-        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-            aBefore = aValue;
-            aValue = TwistMix64::GatePrism_8_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxB, aBoxC, aBoxD, aBoxE, aBoxF, aBoxG, aBoxH);
-            aScore += __builtin_popcountll(aBefore ^ aValue);
-        }
-        
-        aValue = aBaseValue;
-        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-            aBefore = aValue;
-            aValue = TwistMix64::GatePrism_8_8(aValue ^ pSalt[aSaltIndex], aBoxH, aBoxB, aBoxF, aBoxD, aBoxE, aBoxC, aBoxG, aBoxA);
-            aScore += __builtin_popcountll(aBefore ^ aValue);
-        }
-        
-        aValue = aBaseValue;
-        for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-            aBefore = aValue;
-            aValue = TwistMix64::GatePrism_8_8(aValue ^ pSalt[aSaltIndex], aBoxA, aBoxG, aBoxC, aBoxE, aBoxD, aBoxF, aBoxB, aBoxH);
-            aScore += __builtin_popcountll(aBefore ^ aValue);
-        }
-        
-        
-        for (int aRotationIndex=0; aRotationIndex<16; aRotationIndex++) {
-
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRoll_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD, aBoxE, aBoxF, aBoxG, aBoxH);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRoll_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxH, aBoxB, aBoxF, aBoxD, aBoxE, aBoxC, aBoxG, aBoxA);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateRoll_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxG, aBoxC, aBoxE, aBoxD, aBoxF, aBoxB, aBoxH);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurn_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxB, aBoxC, aBoxD, aBoxE, aBoxF, aBoxG, aBoxH);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurn_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxH, aBoxB, aBoxF, aBoxD, aBoxE, aBoxC, aBoxG, aBoxA);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-            
-            aValue = aBaseValue;
-            for (int aSaltIndex = 0; aSaltIndex < S_SALT; aSaltIndex++) {
-                aBefore = aValue;
-                aValue = TwistMix64::GateTurn_8_8(aValue ^ pSalt[aSaltIndex], aRotations[aRotationIndex], aBoxA, aBoxG, aBoxC, aBoxE, aBoxD, aBoxF, aBoxB, aBoxH);
-                aScore += __builtin_popcountll(aBefore ^ aValue);
-            }
-        }
-    }
-    return aScore;
-}
-
-std::int32_t TwistCryptoScoring::ComputeMinimumCycle_256(const std::uint8_t *pData,
-                                                         const int pLength) {
-    
-    if ((pData == nullptr) || (pLength < 256)) {
+    if (pRedFlagPoints == nullptr) {
         return 0;
     }
     
-    std::int32_t aResult = 256;
+    double aPercent = 0.0;
     
-    for (int aStart = 0; aStart < 256; aStart++) {
-        
-        std::int32_t aSeen[256];
-        std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
-        
+    // Outside p01..p99 is the actual red-flag zone.
+    if (pValue < p01) {
+        *pRedFlagPoints += 1;
+        return 5;
+    } else if (pValue > p99) {
+        *pRedFlagPoints += 1;
+        return 5;
+    } else if (pValue < p10) {
+        const double t = static_cast<double>(pValue - p01) / static_cast<double>(p10 - p01);
+        aPercent = 5.0 + t * 15.0;
+        return static_cast<int>(((static_cast<double>(pWeight) * aPercent) / 100.0) + 0.5);
+    } else if (pValue < p20) {
+        const double t = static_cast<double>(pValue - p10) / static_cast<double>(p20 - p10);
+        aPercent = 20.0 + t * 40.0;
+        return static_cast<int>(((static_cast<double>(pWeight) * aPercent) / 100.0) + 0.5);
+    } else if (pValue < p40) {
+        const double t = static_cast<double>(pValue - p20) / static_cast<double>(p40 - p20);
+        aPercent = 60.0 + t * 40.0;
+        return static_cast<int>(((static_cast<double>(pWeight) * aPercent) / 100.0) + 0.5);
+    } else if (pValue <= p60) {
+        return pWeight;
+    } else if (pValue <= p80) {
+        const double t = static_cast<double>(pValue - p60) / static_cast<double>(p80 - p60);
+        aPercent = 100.0 - t * 40.0;
+        return static_cast<int>(((static_cast<double>(pWeight) * aPercent) / 100.0) + 0.5);
+    } else if (pValue <= p90) {
+        const double t = static_cast<double>(pValue - p80) / static_cast<double>(p90 - p80);
+        aPercent = 60.0 - t * 40.0;
+        return static_cast<int>(((static_cast<double>(pWeight) * aPercent) / 100.0) + 0.5);
+    } else {
+        const double t = static_cast<double>(pValue - p90) / static_cast<double>(p99 - p90);
+        aPercent = 20.0 - t * 15.0;
+        return static_cast<int>(((static_cast<double>(pWeight) * aPercent) / 100.0) + 0.5);
+    }
+}
+
+void TwistCryptoScoring::ComputeCombinedSaltGrade_Component_BitBalance(int pBitBalance,
+                                                                       int *pScore,
+                                                                       int *pRedFlagPoints) {
+    
+    if ((pScore == nullptr) || (pRedFlagPoints == nullptr)) {
+        return;
+    }
+    
+    *pScore += ScorePercentileWeighted(pBitBalance,
+                                       847,
+                                       863,
+                                       869,
+                                       877,
+                                       884,
+                                       892,
+                                       898,
+                                       912,
+                                       30,
+                                       pRedFlagPoints);
+}
+
+void TwistCryptoScoring::ComputeCombinedSaltGrade_Component_ByteSpread(int pByteSpread,
+                                                                       int *pScore,
+                                                                       int *pRedFlagPoints) {
+    
+    if ((pScore == nullptr) || (pRedFlagPoints == nullptr)) {
+        return;
+    }
+    
+    *pScore += ScorePercentileWeighted(pByteSpread,
+                                       150,
+                                       156,
+                                       158,
+                                       161,
+                                       163,
+                                       166,
+                                       168,
+                                       174,
+                                       35,
+                                       pRedFlagPoints);
+}
+
+void TwistCryptoScoring::ComputeCombinedSaltGrade_Component_XorDrift(int pXorDrift,
+                                                                     int *pScore,
+                                                                     int *pRedFlagPoints) {
+    
+    if ((pScore == nullptr) || (pRedFlagPoints == nullptr)) {
+        return;
+    }
+    
+    *pScore += ScorePercentileWeighted(pXorDrift,
+                                       972,
+                                       996,
+                                       1004,
+                                       1018,
+                                       1030,
+                                       1044,
+                                       1052,
+                                       1076,
+                                       30,
+                                       pRedFlagPoints);
+}
+
+void TwistCryptoScoring::ComputeCombinedSaltGrade_Component_AdjacencyPenalty(int pAdjacencyPenalty,
+                                                                             int *pScore,
+                                                                             int *pRedFlagPoints) {
+    
+    if ((pScore == nullptr) || (pRedFlagPoints == nullptr)) {
+        *pScore += 5;
+        return;
+    }
+    
+    if (pAdjacencyPenalty == 0) {
+        return;
+    }
+    
+    if (pAdjacencyPenalty <= 8) {
+        *pRedFlagPoints += 1;
+    } else {
+        *pRedFlagPoints += 2;
+    }
+}
+
+int TwistCryptoScoring::ComputeCombinedSaltGrade(const std::uint64_t *pData) {
+    
+    if (pData == nullptr) {
+        return 0;
+    }
+    
+    const int aAdjacencyPenalty = ComputeAdjacencyPenalty_Salt(pData);
+    const int aBitBalance = ComputeBitBalance_Salt(pData);
+    const int aByteSpread = ComputeByteSpread_Salt(pData);
+    const int aXorDrift = ComputeXorDrift_Salt(pData);
+    
+    int aHealthyScore = 0;
+    int aRedFlagPoints = 0;
+    
+    ComputeCombinedSaltGrade_Component_BitBalance(aBitBalance, &aHealthyScore, &aRedFlagPoints);
+    ComputeCombinedSaltGrade_Component_ByteSpread(aByteSpread, &aHealthyScore, &aRedFlagPoints);
+    ComputeCombinedSaltGrade_Component_XorDrift(aXorDrift, &aHealthyScore, &aRedFlagPoints);
+    ComputeCombinedSaltGrade_Component_AdjacencyPenalty(aAdjacencyPenalty, &aHealthyScore, &aRedFlagPoints);
+    
+    if (aRedFlagPoints > 0) {
+        // max aRedFlagPoints is [2 + 1 + 1 + 1] = 5
+        return (aHealthyScore / 4) // [0 - 25]
+        - aRedFlagPoints * 5;
+    } else {
+        return aHealthyScore;
+    }
+}
+
+int TwistCryptoScoring::ComputeXorDrift_Salt(const std::uint64_t *pData) {
+    int aScore = 0;
+    
+    for (int i = 0, j = S_SALT - 1; i < S_SALT; j = i++) {
+        aScore += static_cast<int>(__builtin_popcountll(pData[i] ^ pData[j]));
+    }
+    
+    return aScore;
+}
+
+std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL0AfterGate_SBox(const std::uint8_t *pData) {
+    std::int32_t aResult = S_SBOX;
+
+    for (int aStart = 0; aStart < S_SBOX; aStart++) {
+        std::memset(mCycleBlock, 0xFF, sizeof(mCycleBlock));
+
         std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
         std::int32_t aStep = 0;
-        
-        while (aSeen[aValue] < 0) {
-            
-            aSeen[aValue] = aStep;
+
+        while (mCycleBlock[aValue] == -1) {
+            mCycleBlock[aValue] = aStep;
             aValue = pData[aValue];
             aStep += 1;
         }
-        
-        const std::int32_t aCycleLength = aStep - aSeen[aValue];
-        
+
+        const std::int32_t aCycleLength = aStep - mCycleBlock[aValue];
         if (aCycleLength < aResult) {
             aResult = aCycleLength;
         }
     }
-    
+
     return aResult;
 }
 
-std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL3AfterGate_256(const std::uint8_t *pData,
-                                                                       const int pLength) {
-    
-    if ((pData == nullptr) || (pLength < 256)) {
-        return 0;
-    }
-    
-    std::int32_t aResult = 256;
-    for (int aStart = 0; aStart < 256; aStart++) {
-        std::int32_t aSeen[256];
-        std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
+std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL1AfterGate_SBox(const std::uint8_t *pData) {
+    std::int32_t aResult = S_SBOX;
+
+    for (int aStart = 0; aStart < S_SBOX; aStart++) {
+        std::memset(mCycleBlock, 0xFF, sizeof(mCycleBlock));
+
         std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
         std::int32_t aStep = 0;
-        while (aSeen[aValue] < 0) {
-            aSeen[aValue] = aStep;
+
+        while (mCycleBlock[aValue] == -1) {
+            mCycleBlock[aValue] = aStep;
+            aValue = pData[aValue];
+            aValue = static_cast<std::uint8_t>((aValue << 1U) | (aValue >> 7U));
+            aStep += 1;
+        }
+
+        const std::int32_t aCycleLength = aStep - mCycleBlock[aValue];
+        if (aCycleLength < aResult) {
+            aResult = aCycleLength;
+        }
+    }
+
+    return aResult;
+}
+
+std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL3AfterGate_SBox(const std::uint8_t *pData) {
+    std::int32_t aResult = S_SBOX;
+
+    for (int aStart = 0; aStart < S_SBOX; aStart++) {
+        std::memset(mCycleBlock, 0xFF, sizeof(mCycleBlock));
+
+        std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
+        std::int32_t aStep = 0;
+
+        while (mCycleBlock[aValue] == -1) {
+            mCycleBlock[aValue] = aStep;
             aValue = pData[aValue];
             aValue = static_cast<std::uint8_t>((aValue << 3U) | (aValue >> 5U));
             aStep += 1;
         }
-        const std::int32_t aCycleLength = aStep - aSeen[aValue];
+
+        const std::int32_t aCycleLength = aStep - mCycleBlock[aValue];
         if (aCycleLength < aResult) {
             aResult = aCycleLength;
         }
     }
+
     return aResult;
 }
 
-std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL5AfterGate_256(const std::uint8_t *pData,
-                                                                       const int pLength) {
-    
-    if ((pData == nullptr) || (pLength < 256)) {
-        return 0;
-    }
-    
-    std::int32_t aResult = 256;
-    for (int aStart = 0; aStart < 256; aStart++) {
-        std::int32_t aSeen[256];
-        std::memset(aSeen, 0xFF, sizeof(std::int32_t) * 256);
+std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL5AfterGate_SBox(const std::uint8_t *pData) {
+    std::int32_t aResult = S_SBOX;
+
+    for (int aStart = 0; aStart < S_SBOX; aStart++) {
+        std::memset(mCycleBlock, 0xFF, sizeof(mCycleBlock));
+
         std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
         std::int32_t aStep = 0;
-        while (aSeen[aValue] < 0) {
-            aSeen[aValue] = aStep;
+
+        while (mCycleBlock[aValue] == -1) {
+            mCycleBlock[aValue] = aStep;
             aValue = pData[aValue];
             aValue = static_cast<std::uint8_t>((aValue << 5U) | (aValue >> 3U));
             aStep += 1;
         }
-        const std::int32_t aCycleLength = aStep - aSeen[aValue];
+
+        const std::int32_t aCycleLength = aStep - mCycleBlock[aValue];
         if (aCycleLength < aResult) {
             aResult = aCycleLength;
         }
     }
+
+    return aResult;
+}
+
+std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL7AfterGate_SBox(const std::uint8_t *pData) {
+    std::int32_t aResult = S_SBOX;
+
+    for (int aStart = 0; aStart < S_SBOX; aStart++) {
+        std::memset(mCycleBlock, 0xFF, sizeof(mCycleBlock));
+
+        std::uint8_t aValue = static_cast<std::uint8_t>(aStart);
+        std::int32_t aStep = 0;
+
+        while (mCycleBlock[aValue] == -1) {
+            mCycleBlock[aValue] = aStep;
+            aValue = pData[aValue];
+            aValue = static_cast<std::uint8_t>((aValue << 7U) | (aValue >> 1U));
+            aStep += 1;
+        }
+
+        const std::int32_t aCycleLength = aStep - mCycleBlock[aValue];
+        if (aCycleLength < aResult) {
+            aResult = aCycleLength;
+        }
+    }
+
     return aResult;
 }

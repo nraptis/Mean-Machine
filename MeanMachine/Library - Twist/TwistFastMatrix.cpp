@@ -1460,6 +1460,64 @@ bool TwistFastMatrix::OpFromFunctionName(const std::string &pFunctionName,
     return false;
 }
 
+bool TwistFastMatrix::OpUsesArg1(TwistFastMatrixOp pOp) {
+    switch (pOp) {
+        case TwistFastMatrixOp::kRotateRow:
+        case TwistFastMatrixOp::kRotateCol:
+        case TwistFastMatrixOp::kSwapRows:
+        case TwistFastMatrixOp::kSwapRowsEven:
+        case TwistFastMatrixOp::kSwapRowsOdd:
+        case TwistFastMatrixOp::kSwapCols:
+        case TwistFastMatrixOp::kSwapColsEven:
+        case TwistFastMatrixOp::kSwapColsOdd:
+        case TwistFastMatrixOp::kSwapSixteenths:
+        case TwistFastMatrixOp::kReverseRow:
+        case TwistFastMatrixOp::kReverseRowEven:
+        case TwistFastMatrixOp::kReverseRowOdd:
+        case TwistFastMatrixOp::kReverseCol:
+        case TwistFastMatrixOp::kReverseColEven:
+        case TwistFastMatrixOp::kReverseColOdd:
+            return true;
+        default:
+            break;
+    }
+
+    if ((pOp >= TwistFastMatrixOp::kShiftRing28A) && (pOp <= TwistFastMatrixOp::kShiftRing8H)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool TwistFastMatrix::OpUsesArg2(TwistFastMatrixOp pOp) {
+    switch (pOp) {
+        case TwistFastMatrixOp::kRotateRow:
+        case TwistFastMatrixOp::kRotateCol:
+        case TwistFastMatrixOp::kSwapRows:
+        case TwistFastMatrixOp::kSwapRowsEven:
+        case TwistFastMatrixOp::kSwapRowsOdd:
+        case TwistFastMatrixOp::kSwapCols:
+        case TwistFastMatrixOp::kSwapColsEven:
+        case TwistFastMatrixOp::kSwapColsOdd:
+        case TwistFastMatrixOp::kSwapSixteenths:
+            return true;
+        default:
+            return false;
+    }
+}
+
+std::uint8_t TwistFastMatrix::OpValueByteCount(TwistFastMatrixOp pOp) {
+    const bool aUsesArg1 = OpUsesArg1(pOp);
+    const bool aUsesArg2 = OpUsesArg2(pOp);
+    if (aUsesArg1 && aUsesArg2) {
+        return 2U;
+    }
+    if (aUsesArg1) {
+        return 1U;
+    }
+    return 0U;
+}
+
 std::string TwistFastMatrix::UnrollSchemeToken(TwistFastMatrixUnrollScheme pScheme) {
     switch (pScheme) {
         case TwistFastMatrixUnrollScheme::kA: return "TwistFastMatrixUnrollScheme::kA";

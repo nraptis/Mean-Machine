@@ -2,15 +2,15 @@
 //  GSelect.cpp
 //  MeanMachine
 //
-//  Created by Dragon on 4/30/26.
+//  Created by Xenegos of the Revel on 4/30/26.
 //
 
 #include "GSelect.hpp"
-#include "TwistSelect.hpp"
 #include "Random.hpp"
 
 #include <cstdio>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -49,6 +49,52 @@ GStatement RawLineWithPrefix(const std::string &pLine,
     return aStatement;
 }
 
+void AppendSwitchSelectStatements(const std::string &pSelectVariableName,
+                                  const std::vector<const std::vector<GStatement> *> &pBuckets,
+                                  std::vector<GStatement> *pOutput) {
+    if ((pOutput == NULL) || pBuckets.empty()) {
+        return;
+    }
+
+    if (pBuckets.size() == 1U) {
+        AppendStatements(pOutput, pBuckets[0]);
+        return;
+    }
+
+    pOutput->push_back(GStatement::RawLine("switch (" + pSelectVariableName + " % " + std::to_string(static_cast<unsigned int>(pBuckets.size())) + "U) {"));
+    for (std::size_t aCaseIndex = 0U; aCaseIndex < pBuckets.size(); ++aCaseIndex) {
+        pOutput->push_back(RawLineWithPrefix("case " + std::to_string(static_cast<unsigned int>(aCaseIndex)) + "U: {", "\t"));
+        AppendStatementsWithPrefix(pOutput, pBuckets[aCaseIndex], "\t\t");
+        pOutput->push_back(RawLineWithPrefix("break;", "\t\t"));
+        pOutput->push_back(RawLineWithPrefix("}", "\t"));
+    }
+    pOutput->push_back(GStatement::RawLine("}"));
+}
+
+void CollectPopulatedSelectBuckets(const std::vector<GStatement> *pStatementsA,
+                                   const std::vector<GStatement> *pStatementsB,
+                                   const std::vector<GStatement> *pStatementsC,
+                                   const std::vector<GStatement> *pStatementsD,
+                                   std::vector<const std::vector<GStatement> *> *pBuckets) {
+    if (pBuckets == NULL) {
+        return;
+    }
+    pBuckets->clear();
+
+    if ((pStatementsA != NULL) && !pStatementsA->empty()) {
+        pBuckets->push_back(pStatementsA);
+    }
+    if ((pStatementsB != NULL) && !pStatementsB->empty()) {
+        pBuckets->push_back(pStatementsB);
+    }
+    if ((pStatementsC != NULL) && !pStatementsC->empty()) {
+        pBuckets->push_back(pStatementsC);
+    }
+    if ((pStatementsD != NULL) && !pStatementsD->empty()) {
+        pBuckets->push_back(pStatementsD);
+    }
+}
+
 } // namespace
 
 GSelect::GSelect() {
@@ -60,104 +106,37 @@ GSelect::GSelect() {
 
 GSelect GSelect::Random4() {
     GSelect aResult;
-    
-    std::vector<TwistSelectResult4> aList = TwistSelect::GetAll4();
-    
-    if (aList.size() <= 0) { return aResult; }
-    
-    
-    TwistSelectResult4 aChoice = aList[Random::Get((int)aList.size())];
-    
-    aResult.mMask = aChoice.mMask;
-    aResult.mThresholdA = Random::Get(aChoice.mRangeA.mLo, aChoice.mRangeA.mHi);
-    aResult.mThresholdB = Random::Get(aChoice.mRangeB.mLo, aChoice.mRangeB.mHi);
-    aResult.mThresholdC = Random::Get(aChoice.mRangeC.mLo, aChoice.mRangeC.mHi);
+    aResult.mMask = Random::GetByte();
+    aResult.mThresholdA = Random::GetByte();
+    aResult.mThresholdB = Random::GetByte();
+    aResult.mThresholdC = Random::GetByte();
     return aResult;
 }
 
 GSelect GSelect::Random2() {
     GSelect aResult;
-    
-    std::vector<TwistSelectResult2> aList = TwistSelect::GetAll2();
-    
-    if (aList.size() <= 0) { return aResult; }
-    
-    
-    TwistSelectResult2 aChoice = aList[Random::Get((int)aList.size())];
-    
-    aResult.mMask = aChoice.mMask;
-    aResult.mThresholdA = Random::Get(aChoice.mRangeA.mLo, aChoice.mRangeA.mHi);
+    aResult.mMask = Random::GetByte();
+    aResult.mThresholdA = Random::GetByte();
+    aResult.mThresholdB = 0U;
+    aResult.mThresholdC = 0U;
     return aResult;
 }
 
 GSelect GSelect::Demo4(int pIndex1, int pIndex2) {
     GSelect aResult;
-    
-    std::vector<TwistSelectResult4> aList = TwistSelect::GetAll4();
-    
-    if (aList.size() <= 0) { return aResult; }
-    
-    pIndex1 = (pIndex1 % ((int)aList.size()));
-    
-    if (pIndex1 < 0) {
-        pIndex1 += aList.size();
-    }
-    
-    TwistSelectResult4 aChoice = aList[pIndex1];
-    
-    aResult.mMask = aChoice.mMask;
-    
-    aResult.mThresholdA = aChoice.mRangeA.mLo;
-    aResult.mThresholdB = aChoice.mRangeB.mLo;
-    aResult.mThresholdC = aChoice.mRangeC.mLo;
-    
-    int aRangeA = (aChoice.mRangeA.mHi - aChoice.mRangeA.mLo + 1);
-    if (aRangeA > 1) {
-        int aOffset = (pIndex2 % aRangeA);
-        aResult.mThresholdA += aOffset;
-    }
-    
-    int aRangeB = (aChoice.mRangeB.mHi - aChoice.mRangeB.mLo + 1);
-    if (aRangeB > 1) {
-        int aOffset = (pIndex2 % aRangeB);
-        aResult.mThresholdB += aOffset;
-    }
-    
-    int aRangeC = (aChoice.mRangeC.mHi - aChoice.mRangeC.mLo + 1);
-    if (aRangeC > 1) {
-        int aOffset = (pIndex2 % aRangeC);
-        aResult.mThresholdC += aOffset;
-    }
-    
+    aResult.mMask = static_cast<std::uint8_t>(pIndex1 & 0xFF);
+    aResult.mThresholdA = static_cast<std::uint8_t>(pIndex2 & 0xFF);
+    aResult.mThresholdB = static_cast<std::uint8_t>((pIndex1 + pIndex2) & 0xFF);
+    aResult.mThresholdC = static_cast<std::uint8_t>((pIndex1 ^ pIndex2) & 0xFF);
     return aResult;
 }
 
 GSelect GSelect::Demo2(int pIndex1, int pIndex2) {
-    
     GSelect aResult;
-    
-    std::vector<TwistSelectResult2> aList = TwistSelect::GetAll2();
-    
-    if (aList.size() <= 0) { return aResult; }
-    
-    pIndex1 = (pIndex1 % ((int)aList.size()));
-    
-    if (pIndex1 < 0) {
-        pIndex1 += aList.size();
-    }
-    
-    TwistSelectResult2 aChoice = aList[pIndex1];
-    
-    aResult.mMask = aChoice.mMask;
-    
-    aResult.mThresholdA = aChoice.mRangeA.mLo;
-    
-    int aRangeA = (aChoice.mRangeA.mHi - aChoice.mRangeA.mLo + 1);
-    if (aRangeA > 1) {
-        int aOffset = (pIndex2 % aRangeA);
-        aResult.mThresholdA += aOffset;
-    }
-    
+    aResult.mMask = static_cast<std::uint8_t>(pIndex1 & 0xFF);
+    aResult.mThresholdA = static_cast<std::uint8_t>(pIndex2 & 0xFF);
+    aResult.mThresholdB = 0U;
+    aResult.mThresholdC = 0U;
     return aResult;
 }
 
@@ -256,36 +235,20 @@ bool GSelect::Bake(GSymbol pSelectVariable,
     const std::vector<GStatement> *aStatementsC = &mStatementsCOwned;
     const std::vector<GStatement> *aStatementsD = &mStatementsDOwned;
 
-    const bool aUseFourWay = !aStatementsC->empty() || !aStatementsD->empty();
+    std::vector<const std::vector<GStatement> *> aBuckets;
+    CollectPopulatedSelectBuckets(aStatementsA, aStatementsB, aStatementsC, aStatementsD, &aBuckets);
+    if (aBuckets.empty()) {
+        SetError(pErrorMessage, "GSelect::Bake requires at least one non-empty statement bucket.");
+        return false;
+    }
+    if (aBuckets.size() > 4U) {
+        SetError(pErrorMessage, "GSelect::Bake supports at most four populated statement buckets.");
+        return false;
+    }
 
     std::vector<GStatement> aResult;
     aResult.push_back(GStatement::Assign(GTarget::Symbol(pSelectVariable), pSelectValueExpr));
-
-    const std::string aSelectName = pSelectVariable.mName;
-    char aMaskToken[16];
-    std::snprintf(aMaskToken, sizeof(aMaskToken), "0x%02XU", static_cast<unsigned int>(mMask));
-    const std::string aSelectMaskedExpr = "(" + aSelectName + " & " + std::string(aMaskToken) + ")";
-    if (!aUseFourWay) {
-        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {"));
-        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t");
-        aResult.push_back(GStatement::RawLine("} else {"));
-        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t");
-        aResult.push_back(GStatement::RawLine("}"));
-    } else {
-        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdB)) + ") {"));
-        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdC)) + ") {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsD, "\t\t");
-        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsC, "\t\t");
-        aResult.push_back(RawLineWithPrefix("}", "\t"));
-        aResult.push_back(GStatement::RawLine("} else {"));
-        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t\t");
-        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t\t");
-        aResult.push_back(RawLineWithPrefix("}", "\t"));
-        aResult.push_back(GStatement::RawLine("}"));
-    }
+    AppendSwitchSelectStatements(pSelectVariable.mName, aBuckets, &aResult);
 
     *pStatements = std::move(aResult);
     return true;
@@ -308,34 +271,19 @@ bool GSelect::Bake(GSymbol pSelectValue,
     const std::vector<GStatement> *aStatementsC = &mStatementsCOwned;
     const std::vector<GStatement> *aStatementsD = &mStatementsDOwned;
 
-    const bool aUseFourWay = !aStatementsC->empty() || !aStatementsD->empty();
+    std::vector<const std::vector<GStatement> *> aBuckets;
+    CollectPopulatedSelectBuckets(aStatementsA, aStatementsB, aStatementsC, aStatementsD, &aBuckets);
+    if (aBuckets.empty()) {
+        SetError(pErrorMessage, "GSelect::Bake requires at least one non-empty statement bucket.");
+        return false;
+    }
+    if (aBuckets.size() > 4U) {
+        SetError(pErrorMessage, "GSelect::Bake supports at most four populated statement buckets.");
+        return false;
+    }
 
     std::vector<GStatement> aResult;
-    const std::string aSelectName = pSelectValue.mName;
-    char aMaskToken[16];
-    std::snprintf(aMaskToken, sizeof(aMaskToken), "0x%02XU", static_cast<unsigned int>(mMask));
-    const std::string aSelectMaskedExpr = "(" + aSelectName + " & " + std::string(aMaskToken) + ")";
-    if (!aUseFourWay) {
-        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {"));
-        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t");
-        aResult.push_back(GStatement::RawLine("} else {"));
-        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t");
-        aResult.push_back(GStatement::RawLine("}"));
-    } else {
-        aResult.push_back(GStatement::RawLine("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdB)) + ") {"));
-        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdC)) + ") {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsD, "\t\t");
-        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsC, "\t\t");
-        aResult.push_back(RawLineWithPrefix("}", "\t"));
-        aResult.push_back(GStatement::RawLine("} else {"));
-        aResult.push_back(RawLineWithPrefix("if (" + aSelectMaskedExpr + " > " + std::to_string(static_cast<int>(mThresholdA)) + ") {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsB, "\t\t");
-        aResult.push_back(RawLineWithPrefix("} else {", "\t"));
-        AppendStatementsWithPrefix(&aResult, aStatementsA, "\t\t");
-        aResult.push_back(RawLineWithPrefix("}", "\t"));
-        aResult.push_back(GStatement::RawLine("}"));
-    }
+    AppendSwitchSelectStatements(pSelectValue.mName, aBuckets, &aResult);
 
     *pStatements = std::move(aResult);
     return true;

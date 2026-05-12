@@ -46,8 +46,6 @@ enum class GExprType : std::uint8_t {
     kShiftL = 11,
     kShiftR = 12,
     kOr = 13,
-    kMix64_1 = 14,
-    kMix64_4 = 15,
     kMix64_8 = 16,
     kRotL64 = 17,
     kDiffuseA64 = 18,
@@ -78,8 +76,6 @@ public:
     GSymbol                             mReadWrapOracleSymbol;
     int                                 mReadWrapOffset;
 
-    Mix64Type_1                         mMix64Type1;
-    Mix64Type_4                         mMix64Type4;
     Mix64Type_8                         mMix64Type8;
     bool                                mMix64UseAmount;
     std::uint64_t                       mMix64Amount;
@@ -179,15 +175,6 @@ public:
     static GExpr                        ShiftR(const GSymbol &a, std::uint64_t b);
     static GExpr                        ShiftR(const GExpr &a, std::uint64_t b);
     
-    static GExpr                        Mix64_1(const GExpr &pValue,
-                                                Mix64Type_1 pMixType,
-                                                const GSymbol &pSBoxA);
-    static GExpr                        Mix64_4(const GExpr &pValue,
-                                                Mix64Type_4 pMixType,
-                                                const GSymbol &pSBoxA,
-                                                const GSymbol &pSBoxB,
-                                                const GSymbol &pSBoxC,
-                                                const GSymbol &pSBoxD);
     static GExpr                        Mix64_8(const GExpr &pValue,
                                                 Mix64Type_8 pMixType,
                                                 const GSymbol &pSBoxA,
@@ -198,17 +185,6 @@ public:
                                                 const GSymbol &pSBoxF,
                                                 const GSymbol &pSBoxG,
                                                 const GSymbol &pSBoxH);
-    static GExpr                        Mix64_1(const GExpr &pValue,
-                                                Mix64Type_1 pMixType,
-                                                std::uint64_t pAmount,
-                                                const GSymbol &pSBoxA);
-    static GExpr                        Mix64_4(const GExpr &pValue,
-                                                Mix64Type_4 pMixType,
-                                                std::uint64_t pAmount,
-                                                const GSymbol &pSBoxA,
-                                                const GSymbol &pSBoxB,
-                                                const GSymbol &pSBoxC,
-                                                const GSymbol &pSBoxD);
     static GExpr                        Mix64_8(const GExpr &pValue,
                                                 Mix64Type_8 pMixType,
                                                 std::uint64_t pAmount,

@@ -49,8 +49,21 @@ public:
     GTwistExpander();
     ~GTwistExpander() override;
 
+    void                                KDF(TwistDomain pDomain,
+                                            std::uint64_t pDomainConstantPublicIngress,
+                                            std::uint64_t pDomainConstantPrivateIngress,
+                                            std::uint64_t pDomainConstantCrossIngress,
+                                            std::uint64_t *pDomainSaltA,
+                                            std::uint64_t *pDomainSaltB,
+                                            std::uint64_t *pDomainSaltC,
+                                            std::uint64_t *pDomainSaltD,
+                                            std::uint64_t *pDomainSaltE,
+                                            std::uint64_t *pDomainSaltF) override;
+
     void                                Seed(TwistWorkSpace *pWorkspace,
                                              TwistCryptoGenerator *pCryptoGenerator,
+                                             TwistFarmSBox *pFarmSBox,
+                                             TwistFarmSalt *pFarmSalt,
                                              std::uint8_t *pSource,
                                              std::uint8_t *pPassword,
                                              unsigned int pPasswordByteLength) override;
@@ -68,6 +81,7 @@ public:
     void                                RefreshTablePointers();
 
     std::string                         mNameBase;
+    TwistProgramBranch                  mKDF; // KDF branch
     TwistProgramBranch                  mSeeder; // Seed branch
     TwistProgramBranch                  mTwister; // Twist branch
 
@@ -79,11 +93,19 @@ public:
     std::vector<std::uint8_t>           _mSBoxB;
     std::vector<std::uint8_t>           _mSBoxC;
     std::vector<std::uint8_t>           _mSBoxD;
+    std::vector<std::uint8_t>           _mSBoxE;
+    std::vector<std::uint8_t>           _mSBoxF;
+    std::vector<std::uint8_t>           _mSBoxG;
+    std::vector<std::uint8_t>           _mSBoxH;
 
-    std::vector<std::uint8_t>           _mSaltA;
-    std::vector<std::uint8_t>           _mSaltB;
-    std::vector<std::uint8_t>           _mSaltC;
-    std::vector<std::uint8_t>           _mSaltD;
+    std::vector<std::uint64_t>          _mSaltA;
+    std::vector<std::uint64_t>          _mSaltB;
+    std::vector<std::uint64_t>          _mSaltC;
+    std::vector<std::uint64_t>          _mSaltD;
+    std::vector<std::uint64_t>          _mSaltE;
+    std::vector<std::uint64_t>          _mSaltF;
+    std::vector<std::uint64_t>          _mSaltG;
+    std::vector<std::uint64_t>          _mSaltH;
 };
 
 #endif /* GGTwistExpander_hpp */

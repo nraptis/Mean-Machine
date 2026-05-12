@@ -2,7 +2,7 @@
 //  GQuickStatement.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/1/26.
+//  Created by Xenegos of the Revel on 5/1/26.
 //
 
 #ifndef GQuickStatement_hpp
@@ -128,6 +128,31 @@ public:
     static GStatement                               ShiftLeftEqualBufferInverted(const GSymbol pSymbol, const GSymbol pOtherSymbol, const GSymbol pIndex, const int pOffset);
     static GStatement                               RotateLeftEqualBufferInverted(const GSymbol pSymbol, const GSymbol pOtherSymbol, const GSymbol pIndex, const int pOffset);
     
+    static GExpr                                    RotL64(const GExpr &pExpr, int pRotation);
+    static GExpr                                    RotL64(const GSymbol &pSymbol, int pRotation);
+    
+    static GExpr                                    MulConstRotL64(const GSymbol &pSymbol, std::uint64_t pMul, int pRotation);
+    
+    static GExpr                                    AddChain(const std::vector<GExpr> &pExprs);
+    static GExpr                                    XorChain(const std::vector<GExpr> &pExprs);
+    
+    static GExpr                                    MakeReadBufferOffsetExpressionDirected(const GSymbol pBuffer,
+                                                        const GSymbol pIndex,
+                                                        bool pInverted,
+                                                        std::uint32_t pOffset);
+
+    static GExpr                                    MakeReadBufferOffsetExpressionDirected(const GSymbol pBuffer,
+                                                        GExpr pIndex,
+                                                        bool pInverted,
+                                                        std::uint32_t pOffset);
+    
+    static GStatement                               MakeAssignDestStatement(const GSymbol pDest,
+                                              const GSymbol pIndex,
+                                              const GExpr pValue);
+
+    static GStatement                               MakeAssignDestStatementInverted(const GSymbol pDest,
+                                                      const GSymbol pIndex,
+                                                      const GExpr pValue);
     
 };
 

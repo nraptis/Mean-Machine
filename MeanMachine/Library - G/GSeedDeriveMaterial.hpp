@@ -2,7 +2,7 @@
 //  GSeedDeriveMaterial.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 4/29/26.
+//  Created by Xenegos of the Revel on 4/29/26.
 //
 
 #ifndef GSeedDeriveMaterial_hpp
@@ -25,6 +25,8 @@
 #include "GFamily.hpp"
 #include "GMemory.hpp"
 #include "CSPRNG.hpp"
+#include "CSPKDF.hpp"
+
 #include "GCache.hpp"
 
 #define SEED_WORK_LANE_COUNT 4
@@ -36,10 +38,8 @@ public:
     GSeedDeriveMaterial();
     ~GSeedDeriveMaterial();
     
-    bool                                    PlanPhaseA(std::string *pErrorMessage);
-    bool                                    BuildPhaseA(TwistProgramBranch &pBranch, std::string *pErrorMessage);
-    bool                                    BuildSnow(TwistProgramBranch &pBranch, std::string *pErrorMessage);
-    bool                                    BuildZero(GSymbol pSymbol, TwistProgramBranch &pBranch, std::string *pErrorMessage);
+    bool                                    Plan(std::string *pErrorMessage);
+    bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
     
     GSymbol                                 mLoopIndex;
     
@@ -52,7 +52,7 @@ public:
     GSymbol                                 mPrevious;
     
     GSymbol                                 mCarry;
-    GSymbol                                 mCross;
+    GSymbol                                 mStreamCross;
     
     GSymbol                                 mWandererA;
     GSymbol                                 mWandererB;
@@ -64,38 +64,32 @@ public:
     GSymbol                                 mOrbitC;
     GSymbol                                 mOrbitD;
     
+    GSymbol                                 mPlugKeyA;
+    GSymbol                                 mPlugKeyB;
     
 private:
     
-    std::vector<GSymbol>                    mListSBoxesA;
-    std::vector<GSymbol>                    mListSBoxesB;
-    std::vector<GSymbol>                    mListSBoxesC;
-    
-    std::vector<GSymbol>                    mListSaltsA;
-    std::vector<GSymbol>                    mListSaltsB;
-    std::vector<GSymbol>                    mListScratchSalts;
+    std::vector<GSymbol>                    mListSBoxes;
+    std::vector<GSymbol>                    mListSalts;
     
     std::vector<GSymbol>                    mListWorkers;
     std::vector<GSymbol>                    mListExpansion;
     
+    std::vector<GSymbol>                    mListOperationLanes;
+    
     
     void                                    Reset();
     
-    GSymbol                                 mValueSBoxes[8][SEED_WORK_LANE_COUNT];
+    GSymbol                                 mChunkGlobalRecipeSalt[SEED_WORK_LANE_COUNT];
+    GSymbol                                 mRecipeSaltA[SEED_WORK_LANE_COUNT][2];
+    GSymbol                                 mRecipeSaltB[SEED_WORK_LANE_COUNT][2];
+    
+    std::vector<GSymbol>                    mPlugSalts[SEED_WORK_LANE_COUNT];
+    std::vector<GSymbol>                    mOrderedSBoxes[SEED_WORK_LANE_COUNT];
     
     GSymbol                                 mDestBuffer[SEED_WORK_LANE_COUNT];
     bool                                    mDestReverse[SEED_WORK_LANE_COUNT];
     GSnowType                               mSnowType[SEED_WORK_LANE_COUNT];
-    
-    GBoxFamily                              mBoxFamilyA;
-    GBoxFamily                              mBoxFamilyB;
-    GBoxFamily                              mBoxFamilyC;
-    
-    GBoxFamily                              mSaltFamilyA;
-    GBoxFamily                              mSaltFamilyB;
-    
-    GBoxFamily                              mScratchSaltFamily;
-    
     
     GHotPack                                mHotPacks[SEED_WORK_LANE_COUNT];
     

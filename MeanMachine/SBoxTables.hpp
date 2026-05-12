@@ -30,6 +30,7 @@ public:
     // ddt: 4 wal: 32 deg: (7, 7) sac: (5.125000, 16) bic: (6.571429, 16)
     static std::vector<std::uint8_t>                            GetDefaultD();
 
+    static void                                                 InjectRandomEight(GTwistExpander *pExpander);
     static void                                                 InjectRandomFour(GTwistExpander *pExpander);
     
     

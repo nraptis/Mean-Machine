@@ -22,6 +22,7 @@ public:
     static std::vector<std::uint8_t>                            GetDefaultC();
     static std::vector<std::uint8_t>                            GetDefaultD();
 
+    static void                                                 InjectRandomEight(GTwistExpander *pExpander);
     static void                                                 InjectRandomFour(GTwistExpander *pExpander);
 };
 

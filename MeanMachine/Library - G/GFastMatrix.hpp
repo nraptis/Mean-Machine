@@ -260,6 +260,7 @@ public:
         return true;
     }
 
+    /*
     bool BakeUnrollRandom(GSymbol pDest,
                           GSymbol pLoopIndex,
                           std::uint8_t pUnrollByte,
@@ -270,6 +271,7 @@ public:
         return BakeUnrollRandom(pDest, pLoopIndex, aRandomScheme, pUnrollByte, pStatements, pErrorMessage);
     }
 
+    
     bool BakeUnrollRandom(GSymbol pDest,
                           GSymbol pLoopIndex,
                           TwistFastMatrixUnrollScheme pUnrollScheme,
@@ -279,6 +281,7 @@ public:
         return BakeUnroll(pDest, pLoopIndex, pUnrollScheme, pUnrollByte, pStatements, pErrorMessage);
     }
 
+    
     bool BakeUnroll(GSymbol pDest,
                     GSymbol pLoopIndex,
                     TwistFastMatrixUnrollScheme pUnrollScheme,
@@ -305,6 +308,19 @@ public:
         pStatements->push_back(GStatement::RawLine(aLine));
         return true;
     }
+    */
+    
+    /*
+    bool BakeUnroll(GSymbol pDest,
+                    GSymbol pLoopIndex,
+                    TwistFastMatrixUnrollScheme pUnrollScheme,
+                    GSymbol pUnrollByte,
+                    std::vector<GStatement> *pStatements,
+                    std::string *pErrorMessage) const {
+        
+        
+    }
+    */
 
     bool BakeUnroll(GSymbol pDest,
                     GSymbol pLoopIndex,

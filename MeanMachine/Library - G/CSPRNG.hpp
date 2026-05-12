@@ -2,7 +2,7 @@
 //  CSPRNG.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 5/2/26.
+//  Created by Xenegos of the Revel on 5/2/26.
 //
 
 #ifndef CSPRNG_hpp
@@ -41,7 +41,7 @@ struct CSPRNGPlugPack {
     GSymbol mInput;
     GSymbol mPrevious;
     GSymbol mScatter;
-    GSymbol mCross;
+    GSymbol mStreamCross;
     GSymbol mCarry;
     GSymbol mWandererA;
     GSymbol mWandererB;
@@ -78,9 +78,10 @@ public:
                      GSymbol pPrevious,
                      
                      GSymbol pPrism,
+                     bool pIgnorePrism,
                      GSymbol pScatter,
                      
-                     GSymbol pCross,
+                     GSymbol pStreamCross,
                      GSymbol pCarry,
                      
                      GSymbol pWandererA,
@@ -92,16 +93,17 @@ public:
                      GSymbol pOrbiterC,
                      GSymbol pOrbiterD,
                      
+                     GSymbol pRecipeSaltA,
+                     GSymbol pRecipeSaltB,
+                     
                      std::vector<GSymbol> pSBoxes,
-                     std::vector<GSymbol> pSaltsFixed,
-                     std::vector<GSymbol> pSaltsScratch,
+                     std::vector<GSymbol> pSalts,
                      
                      std::vector<int> pRotationsLow,
                      std::vector<int> pRotationsMedium,
                      std::vector<int> pRotationsHigh,
                      std::vector<int> pRotationsRandom,
                      
-                     std::vector<Mix64Type_4> pMixTypes4,
                      std::vector<Mix64Type_8> pMixTypes8,
                      
                      
@@ -111,5 +113,7 @@ public:
                      std::string *pErrorMessage);
     
 };
+
+
 
 #endif /* CSPRNG_hpp */

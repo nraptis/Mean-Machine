@@ -2,7 +2,7 @@
 //  GLoopMixBrew.hpp
 //  MeanMachine
 //
-//  Created by Dragon on 4/29/26.
+//  Created by Xenegos of the Revel on 4/29/26.
 //
 
 #ifndef GLoopMixBrew_hpp
@@ -83,8 +83,6 @@ public:
     GSymbol                                     mMixSBoxH;
 
     Mix64Family                                 mMix64Family = Mix64Family::kInv;
-    Mix64Type_1                                 mMix64Type1 = Mix64Type_1::kInv;
-    Mix64Type_4                                 mMix64Type4 = Mix64Type_4::kInv;
     Mix64Type_8                                 mMix64Type8 = Mix64Type_8::kInv;
     std::uint64_t                               mMix64Amount = 0U;
     bool                                        mMix64UseAmount = false;
@@ -95,24 +93,12 @@ public:
     
     void                                        SetRandomOrderEnabled(bool pState);
     
-    
-    // Valid rotation amounts: 3, 5, 7, 11
-    void                                        SetMix_1_Random(GSymbol pSBoxA);
-    void                                        SetMix_4_Random(GSymbol pSBoxA, GSymbol pSBoxB, GSymbol pSBoxC, GSymbol pSBoxD);
     void                                        SetMix_8_Random(GSymbol pSBoxA, GSymbol pSBoxB, GSymbol pSBoxC, GSymbol pSBoxD,
                                                                 GSymbol pSBoxE, GSymbol pSBoxF, GSymbol pSBoxG, GSymbol pSBoxH);
-
-    void                                        SetMix_1(Mix64Type_1 pMixType, GSymbol pSBoxA);
-    void                                        SetMix_4(Mix64Type_4 pMixType, GSymbol pSBoxA, GSymbol pSBoxB, GSymbol pSBoxC, GSymbol pSBoxD);
     void                                        SetMix_8(Mix64Type_8 pMixType, GSymbol pSBoxA, GSymbol pSBoxB, GSymbol pSBoxC, GSymbol pSBoxD,
                                                          GSymbol pSBoxE, GSymbol pSBoxF, GSymbol pSBoxG, GSymbol pSBoxH);
-
-    void                                        SetMix_1(Mix64Type_1 pMixType, std::uint64_t pAmount, GSymbol pSBoxA);
-    void                                        SetMix_4(Mix64Type_4 pMixType, std::uint64_t pAmount, GSymbol pSBoxA, GSymbol pSBoxB, GSymbol pSBoxC, GSymbol pSBoxD);
     void                                        SetMix_8(Mix64Type_8 pMixType, std::uint64_t pAmount, GSymbol pSBoxA, GSymbol pSBoxB, GSymbol pSBoxC, GSymbol pSBoxD,
                                                          GSymbol pSBoxE, GSymbol pSBoxF, GSymbol pSBoxG, GSymbol pSBoxH);
-    
-    
     
     bool                                        IsValidSBox(GSymbol pSymbol);
     

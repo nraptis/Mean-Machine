@@ -55,7 +55,12 @@ public:
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
-        aGenerator.Make(aSource, aSBoxA, aSBoxB, aSBoxC, aSBoxD);
+        /*
+        aGenerator.StepA_MakeSBoxes(aSource,
+                                    aSBoxA, aSBoxB, aSBoxC, aSBoxD,
+                                    nullptr, nullptr, nullptr, nullptr,
+                                    nullptr, nullptr, nullptr, nullptr);
+        */
         return true;
     }
 
@@ -101,31 +106,28 @@ public:
         std::uint8_t *aSBoxB = nullptr;
         std::uint8_t *aSBoxC = nullptr;
         std::uint8_t *aSBoxD = nullptr;
-        std::uint8_t *aExistingSBoxA = nullptr;
-        std::uint8_t *aExistingSBoxB = nullptr;
-        std::uint8_t *aExistingSBoxC = nullptr;
-        std::uint8_t *aExistingSBoxD = nullptr;
+        std::uint8_t *aExistingSBoxAPtr = nullptr;
+        std::uint8_t *aExistingSBoxBPtr = nullptr;
+        std::uint8_t *aExistingSBoxCPtr = nullptr;
+        std::uint8_t *aExistingSBoxDPtr = nullptr;
 
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSource, "source", &aSource, pErrorMessage)) { return false; }
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxA, "existing sbox A", &aExistingSBoxA, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxB, "existing sbox B", &aExistingSBoxB, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxC, "existing sbox C", &aExistingSBoxC, pErrorMessage)) { return false; }
-        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxD, "existing sbox D", &aExistingSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxA, "existing sbox A", &aExistingSBoxAPtr, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxB, "existing sbox B", &aExistingSBoxBPtr, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxC, "existing sbox C", &aExistingSBoxCPtr, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSBoxD, "existing sbox D", &aExistingSBoxDPtr, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
-        aGenerator.Make(aSource,
-                        aSBoxA,
-                        aSBoxB,
-                        aSBoxC,
-                        aSBoxD,
-                        aExistingSBoxA,
-                        aExistingSBoxB,
-                        aExistingSBoxC,
-                        aExistingSBoxD);
+        /*
+        aGenerator.StepA_MakeSBoxes(aSource,
+                                    aSBoxA, aSBoxB, aSBoxC, aSBoxD,
+                                    aExistingSBoxAPtr, aExistingSBoxBPtr, aExistingSBoxCPtr, aExistingSBoxDPtr,
+                                    nullptr, nullptr, nullptr, nullptr);
+        */
         return true;
     }
 
@@ -181,21 +183,19 @@ public:
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltB, "salt B", &aSaltB, pErrorMessage)) { return false; }
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltC, "salt C", &aSaltC, pErrorMessage)) { return false; }
         if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSaltD, "salt D", &aSaltD, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
-        aGenerator.Salt(aSource,
-                        aSaltA,
-                        aSaltB,
-                        aSaltC,
-                        aSaltD,
-                        aSBoxA,
-                        aSBoxB,
-                        aSBoxC,
-                        aSBoxD);
+        /*
+        aGenerator.StepB_MakeSalts(aSource,
+                                   aSaltA, aSaltB, aSaltC, aSaltD,
+                                   aSBoxA, aSBoxB, aSBoxC, aSBoxD,
+                                   nullptr, nullptr, nullptr, nullptr,
+                                   nullptr, nullptr, nullptr, nullptr);
+        */
         return true;
     }
 
@@ -287,33 +287,23 @@ public:
         if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSaltB, "existing salt B", &aExistingSaltB, pErrorMessage)) { return false; }
         if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSaltC, "existing salt C", &aExistingSaltC, pErrorMessage)) { return false; }
         if (!ResolveOptionalBuffer(pWorkspace, pExpander, pExistingSaltD, "existing salt D", &aExistingSaltD, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxE, "sbox E", &aSBoxE, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxF, "sbox F", &aSBoxF, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxG, "sbox G", &aSBoxG, pErrorMessage)) { return false; }
-        if (!ResolveRequiredBuffer(pWorkspace, pExpander, pSBoxH, "sbox H", &aSBoxH, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxA, "sbox A", &aSBoxA, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxB, "sbox B", &aSBoxB, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxC, "sbox C", &aSBoxC, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxD, "sbox D", &aSBoxD, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxE, "sbox E", &aSBoxE, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxF, "sbox F", &aSBoxF, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxG, "sbox G", &aSBoxG, pErrorMessage)) { return false; }
+        if (!ResolveOptionalBuffer(pWorkspace, pExpander, pSBoxH, "sbox H", &aSBoxH, pErrorMessage)) { return false; }
 
         TwistCryptoGenerator aGenerator;
-        aGenerator.Salt(aSource,
-                        aSaltA,
-                        aSaltB,
-                        aSaltC,
-                        aSaltD,
-                        aExistingSaltA,
-                        aExistingSaltB,
-                        aExistingSaltC,
-                        aExistingSaltD,
-                        aSBoxA,
-                        aSBoxB,
-                        aSBoxC,
-                        aSBoxD,
-                        aSBoxE,
-                        aSBoxF,
-                        aSBoxG,
-                        aSBoxH);
+        /*
+        aGenerator.StepB_MakeSalts(aSource,
+                                   aSaltA, aSaltB, aSaltC, aSaltD,
+                                   aSBoxA, aSBoxB, aSBoxC, aSBoxD,
+                                   aSBoxE, aSBoxF, aSBoxG, aSBoxH,
+                                   aExistingSaltA, aExistingSaltB, aExistingSaltC, aExistingSaltD);
+        */
         return true;
     }
 

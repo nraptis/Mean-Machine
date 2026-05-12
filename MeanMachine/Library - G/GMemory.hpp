@@ -7,6 +7,7 @@
 #define GMemory_hpp
 
 #include "GSeedProgram.hpp"
+#include <algorithm>
 
 class GMemory {
 public:
@@ -56,40 +57,20 @@ public:
             return false;
         }
 
-        if (IsWideScratchSaltSlot(pDest.mSlot)) {
-            return BakeGrow(pDest, pSource, pStatements, pErrorMessage);
-        }
-        if (IsWideScratchSaltSlot(pSource.mSlot)) {
-            SetError(pErrorMessage, "GMemory byte copy cannot use scratch-salt source buffers.");
+        const int aDestLength = TwistWorkSpace::GetBufferLength(pDest.mSlot);
+        const int aSourceLength = TwistWorkSpace::GetBufferLength(pSource.mSlot);
+        if ((aDestLength <= 0) || (aSourceLength <= 0)) {
+            SetError(pErrorMessage, "GMemory copy source/destination length resolved to <= 0.");
             return false;
         }
 
-        const std::string aLine = "TwistMemory::CopyBlock(" +
+        const int aCopyLength = std::min(aDestLength, aSourceLength);
+        const std::string aLine = "TwistMemory::Copy(" +
             BufAliasName(pDest.mSlot) + ", " +
-            BufAliasName(pSource.mSlot) + ");";
+            BufAliasName(pSource.mSlot) + ", " +
+            std::to_string(static_cast<unsigned int>(aCopyLength)) + "U);";
         pStatements->push_back(GStatement::RawLine(aLine));
         return true;
-    }
-
-    bool BakeGrow(GSymbol pDest,
-                  GSymbol pSource,
-                  std::vector<GStatement> *pStatements,
-                  std::string *pErrorMessage) const {
-        return BakeGrowWithMethod("Grow", pDest, pSource, pStatements, pErrorMessage);
-    }
-
-    bool BakeGrowA(GSymbol pDest,
-                   GSymbol pSource,
-                   std::vector<GStatement> *pStatements,
-                   std::string *pErrorMessage) const {
-        return BakeGrowWithMethod("GrowA", pDest, pSource, pStatements, pErrorMessage);
-    }
-
-    bool BakeGrowB(GSymbol pDest,
-                   GSymbol pSource,
-                   std::vector<GStatement> *pStatements,
-                   std::string *pErrorMessage) const {
-        return BakeGrowWithMethod("GrowB", pDest, pSource, pStatements, pErrorMessage);
     }
     
     bool BakeSwap(GSymbol pBufferA,
@@ -115,53 +96,6 @@ public:
     }
     
 private:
-    bool BakeGrowWithMethod(const std::string &pMethod,
-                            GSymbol pDest,
-                            GSymbol pSource,
-                            std::vector<GStatement> *pStatements,
-                            std::string *pErrorMessage) const {
-        if (pStatements == nullptr) {
-            SetError(pErrorMessage, "GMemory output statement list was null.");
-            return false;
-        }
-        if (!pDest.IsBuf() || !pSource.IsBuf()) {
-            SetError(pErrorMessage, "GMemory grow symbols must both be buffer symbols.");
-            return false;
-        }
-        if (!IsWideScratchSaltSlot(pDest.mSlot)) {
-            SetError(pErrorMessage, "GMemory grow destination must be a scratch-salt buffer.");
-            return false;
-        }
-        if (IsWideScratchSaltSlot(pSource.mSlot)) {
-            SetError(pErrorMessage, "GMemory grow source must be a byte buffer.");
-            return false;
-        }
-
-        const int aLength = TwistWorkSpace::GetBufferLength(pSource.mSlot);
-        if (aLength <= 0) {
-            SetError(pErrorMessage, "GMemory grow source length resolved to <= 0.");
-            return false;
-        }
-
-        const std::string aLine = "TwistMemory::" + pMethod + "(" +
-            BufAliasName(pDest.mSlot) + ", " +
-            BufAliasName(pSource.mSlot) + ", " +
-            std::to_string(static_cast<unsigned int>(aLength)) + "U);";
-        pStatements->push_back(GStatement::RawLine(aLine));
-        return true;
-    }
-    static bool IsWideScratchSaltSlot(TwistWorkSpaceSlot pSlot) {
-        switch (pSlot) {
-            case TwistWorkSpaceSlot::kScratchSaltA:
-            case TwistWorkSpaceSlot::kScratchSaltB:
-            case TwistWorkSpaceSlot::kScratchSaltC:
-            case TwistWorkSpaceSlot::kScratchSaltD:
-                return true;
-            default:
-                return false;
-        }
-    }
-
     static void SetError(std::string *pErrorMessage,
                          const std::string &pMessage) {
         if (pErrorMessage != nullptr) {

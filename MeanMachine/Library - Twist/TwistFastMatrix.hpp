@@ -241,6 +241,9 @@ public:
     static bool                                 OpFromToken(const std::string &pToken, TwistFastMatrixOp *pOp);
     static std::string                          GetFunctionName(TwistFastMatrixOp pOp);
     static bool                                 OpFromFunctionName(const std::string &pFunctionName, TwistFastMatrixOp *pOp);
+    static bool                                 OpUsesArg1(TwistFastMatrixOp pOp);
+    static bool                                 OpUsesArg2(TwistFastMatrixOp pOp);
+    static std::uint8_t                         OpValueByteCount(TwistFastMatrixOp pOp);
     static std::string                          UnrollSchemeToken(TwistFastMatrixUnrollScheme pScheme);
     static bool                                 UnrollSchemeFromToken(const std::string &pToken,
                                                                       TwistFastMatrixUnrollScheme *pScheme);
@@ -676,7 +679,6 @@ o o o o o o o o
     void                                        ShiftRing8F(std::uint8_t pAmount, std::uint8_t pArg2 = 0U);
     void                                        ShiftRing8G(std::uint8_t pAmount, std::uint8_t pArg2 = 0U);
     void                                        ShiftRing8H(std::uint8_t pAmount, std::uint8_t pArg2 = 0U);
-    
     
     void                                        RotateRight(std::uint8_t pArg1 = 0U, std::uint8_t pArg2 = 0U);
     void                                        RotateRightBlocks(std::uint8_t pArg1 = 0U, std::uint8_t pArg2 = 0U);

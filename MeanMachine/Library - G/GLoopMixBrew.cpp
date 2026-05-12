@@ -2,7 +2,7 @@
 //  GLoopMixBrew.cpp
 //  MeanMachine
 //
-//  Created by Dragon on 4/29/26.
+//  Created by Xenegos of the Revel on 4/29/26.
 //
 
 #include "GLoopMixBrew.hpp"
@@ -158,36 +158,6 @@ bool Mix64Type8NeedsAmount(const Mix64Type_8 pType) {
 }
 } // namespace
 
-void GLoopMixBrew::SetMix_1_Random(GSymbol pSBoxA) {
-    std::vector<Mix64Type_1> aOptions = TwistMix64::GetAll_1();
-    Mix64Type_1 aChosenType = Mix64Type_1::kInv;
-    if (!aOptions.empty()) {
-        aChosenType = Random::Choice(aOptions);
-    }
-    if (Mix64Type1NeedsAmount(aChosenType)) {
-        const std::vector<std::uint64_t> aRotates = {3U, 5U, 7U, 11U};
-        SetMix_1(aChosenType, Random::Choice(aRotates), pSBoxA);
-    } else {
-        SetMix_1(aChosenType, pSBoxA);
-    }
-}
-
-void GLoopMixBrew::SetMix_4_Random(GSymbol pSBoxA,
-                                   GSymbol pSBoxB,
-                                   GSymbol pSBoxC,
-                                   GSymbol pSBoxD) {
-    std::vector<Mix64Type_4> aOptions = TwistMix64::GetAll_4();
-    Mix64Type_4 aChosenType = Mix64Type_4::kInv;
-    if (!aOptions.empty()) {
-        aChosenType = Random::Choice(aOptions);
-    }
-    if (Mix64Type4NeedsAmount(aChosenType)) {
-        const std::vector<std::uint64_t> aRotates = {3U, 5U, 7U, 11U};
-        SetMix_4(aChosenType, Random::Choice(aRotates), pSBoxA, pSBoxB, pSBoxC, pSBoxD);
-    } else {
-        SetMix_4(aChosenType, pSBoxA, pSBoxB, pSBoxC, pSBoxD);
-    }
-}
 
 void GLoopMixBrew::SetMix_8_Random(GSymbol pSBoxA,
                                    GSymbol pSBoxB,
@@ -210,44 +180,6 @@ void GLoopMixBrew::SetMix_8_Random(GSymbol pSBoxA,
     }
 }
 
-void GLoopMixBrew::SetMix_1(Mix64Type_1 pMixType, GSymbol pSBoxA) {
-    mMix64Family = Mix64Family::k1;
-    mMix64Type1 = pMixType;
-    mMix64Type4 = Mix64Type_4::kInv;
-    mMix64Type8 = Mix64Type_8::kInv;
-    mMix64UseAmount = false;
-    mMix64Amount = 0U;
-    mMixSBoxA = pSBoxA;
-    mMixSBoxB.Invalidate();
-    mMixSBoxC.Invalidate();
-    mMixSBoxD.Invalidate();
-    mMixSBoxE.Invalidate();
-    mMixSBoxF.Invalidate();
-    mMixSBoxG.Invalidate();
-    mMixSBoxH.Invalidate();
-}
-
-void GLoopMixBrew::SetMix_4(Mix64Type_4 pMixType,
-                            GSymbol pSBoxA,
-                            GSymbol pSBoxB,
-                            GSymbol pSBoxC,
-                            GSymbol pSBoxD) {
-    mMix64Family = Mix64Family::k4;
-    mMix64Type1 = Mix64Type_1::kInv;
-    mMix64Type4 = pMixType;
-    mMix64Type8 = Mix64Type_8::kInv;
-    mMix64UseAmount = false;
-    mMix64Amount = 0U;
-    mMixSBoxA = pSBoxA;
-    mMixSBoxB = pSBoxB;
-    mMixSBoxC = pSBoxC;
-    mMixSBoxD = pSBoxD;
-    mMixSBoxE.Invalidate();
-    mMixSBoxF.Invalidate();
-    mMixSBoxG.Invalidate();
-    mMixSBoxH.Invalidate();
-}
-
 void GLoopMixBrew::SetMix_8(Mix64Type_8 pMixType,
                             GSymbol pSBoxA,
                             GSymbol pSBoxB,
@@ -258,8 +190,6 @@ void GLoopMixBrew::SetMix_8(Mix64Type_8 pMixType,
                             GSymbol pSBoxG,
                             GSymbol pSBoxH) {
     mMix64Family = Mix64Family::k8;
-    mMix64Type1 = Mix64Type_1::kInv;
-    mMix64Type4 = Mix64Type_4::kInv;
     mMix64Type8 = pMixType;
     mMix64UseAmount = false;
     mMix64Amount = 0U;
@@ -271,23 +201,6 @@ void GLoopMixBrew::SetMix_8(Mix64Type_8 pMixType,
     mMixSBoxF = pSBoxF;
     mMixSBoxG = pSBoxG;
     mMixSBoxH = pSBoxH;
-}
-
-void GLoopMixBrew::SetMix_1(Mix64Type_1 pMixType, std::uint64_t pAmount, GSymbol pSBoxA) {
-    SetMix_1(pMixType, pSBoxA);
-    mMix64UseAmount = true;
-    mMix64Amount = pAmount;
-}
-
-void GLoopMixBrew::SetMix_4(Mix64Type_4 pMixType,
-                            std::uint64_t pAmount,
-                            GSymbol pSBoxA,
-                            GSymbol pSBoxB,
-                            GSymbol pSBoxC,
-                            GSymbol pSBoxD) {
-    SetMix_4(pMixType, pSBoxA, pSBoxB, pSBoxC, pSBoxD);
-    mMix64UseAmount = true;
-    mMix64Amount = pAmount;
 }
 
 void GLoopMixBrew::SetMix_8(Mix64Type_8 pMixType,
@@ -306,18 +219,6 @@ void GLoopMixBrew::SetMix_8(Mix64Type_8 pMixType,
 }
 
 GExpr GLoopMixBrew::BuildMixExpr(const GExpr &pInput) const {
-    if (mMix64Family == Mix64Family::k1) {
-        if (mMix64UseAmount) {
-            return GExpr::Mix64_1(pInput, mMix64Type1, mMix64Amount, mMixSBoxA);
-        }
-        return GExpr::Mix64_1(pInput, mMix64Type1, mMixSBoxA);
-    }
-    if (mMix64Family == Mix64Family::k4) {
-        if (mMix64UseAmount) {
-            return GExpr::Mix64_4(pInput, mMix64Type4, mMix64Amount, mMixSBoxA, mMixSBoxB, mMixSBoxC, mMixSBoxD);
-        }
-        return GExpr::Mix64_4(pInput, mMix64Type4, mMixSBoxA, mMixSBoxB, mMixSBoxC, mMixSBoxD);
-    }
     if (mMix64Family == Mix64Family::k8) {
         if (mMix64UseAmount) {
             return GExpr::Mix64_8(pInput, mMix64Type8, mMix64Amount, mMixSBoxA, mMixSBoxB, mMixSBoxC, mMixSBoxD, mMixSBoxE, mMixSBoxF, mMixSBoxG, mMixSBoxH);
@@ -376,45 +277,7 @@ bool GLoopMixBrew::Bake(TargetCombineMode pCombineModeBefore,
         return false;
     }
     
-    if (mMix64Family == Mix64Family::k1) {
-        if (mMix64Type1 == Mix64Type_1::kInv) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GLoopMixBrew.Error: Mix family is k1, but mix type is invalid.";
-            }
-            return false;
-        }
-        if (!IsValidSBox(mMixSBoxA)) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GLoopMixBrew.Error: Mix family is k1, but s-box A is not valid.";
-            }
-            return false;
-        }
-        if (Mix64Type1NeedsAmount(mMix64Type1) && !mMix64UseAmount) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GLoopMixBrew.Error: Mix family is k1, selected type requires an amount.";
-            }
-            return false;
-        }
-    } else if (mMix64Family == Mix64Family::k4) {
-        if (mMix64Type4 == Mix64Type_4::kInv) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GLoopMixBrew.Error: Mix family is k4, but mix type is invalid.";
-            }
-            return false;
-        }
-        if (!IsValidSBox(mMixSBoxA) || !IsValidSBox(mMixSBoxB) || !IsValidSBox(mMixSBoxC) || !IsValidSBox(mMixSBoxD)) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GLoopMixBrew.Error: Mix family is k4, but one or more s-box symbols are not valid.";
-            }
-            return false;
-        }
-        if (Mix64Type4NeedsAmount(mMix64Type4) && !mMix64UseAmount) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GLoopMixBrew.Error: Mix family is k4, selected type requires an amount.";
-            }
-            return false;
-        }
-    } else if (mMix64Family == Mix64Family::k8) {
+    if (mMix64Family == Mix64Family::k8) {
         if (mMix64Type8 == Mix64Type_8::kInv) {
             if (pErrorMessage != nullptr) {
                 *pErrorMessage = "GLoopMixBrew.Error: Mix family is k8, but mix type is invalid.";

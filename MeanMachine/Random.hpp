@@ -42,6 +42,31 @@ public:
         const std::size_t aIndex = static_cast<std::size_t>(Get(static_cast<int>(pItems.size())));
         return pItems[aIndex];
     }
+    
+    template <typename T>
+    static T ChoiceIgnoring(const std::vector<T> &pItems, const std::vector<T> &pIgnore) {
+        std::vector<T> aChoices;
+        for (const auto &aItem: pItems) {
+            bool aIgnore = false;
+            for (const auto &aIgnoredItem: pIgnore) {
+                if (aItem == aIgnoredItem) {
+                    aIgnore = true;
+                    break;
+                }
+            }
+            
+            if (aIgnore == false) {
+                aChoices.push_back(aItem);
+            }
+        }
+        
+        if (aChoices.empty()) {
+            return T();
+        }
+        
+        const std::size_t aIndex = static_cast<std::size_t>(Get(static_cast<int>(aChoices.size())));
+        return aChoices[aIndex];
+    }
 
     template <typename T>
     static void                         Shuffle(std::vector<T> *pItems) {

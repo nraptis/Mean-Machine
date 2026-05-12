@@ -10,7 +10,7 @@
 
 SBoxMaterial::SBoxMaterial() {
     
-    mOutputDirectoryPassers = "_sbox_permuted/";
+    mOutputDirectoryPassers = "_sbox_permuted_filter/";
     //mOutputDirectoryPassers = "good_noisers/";
     
     mOutputFilePrefix = "sbox_scanned_";
