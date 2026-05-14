@@ -10,13 +10,17 @@
 #include <vector>
 
 #define S_BLOCK 16384 // 4,096 // 2,048
+
 #define S_SBOX 256
+#define S_SBOX_DIVIDE_BITSHIFT 8
+
 #define S_SALT 32
 #define S_SALT_DIVIDE_BITSHIFT 5
 
+
 #define S_BLOCK1 16383
 #define S_SBOX1 255
-#define S_SALT1 (S_SALT - 1)
+#define S_SALT1 31
 
 #define CRYPTO_MAX_DEPTH 16
 #define CRYPTO_MAX_DEPTH1 16

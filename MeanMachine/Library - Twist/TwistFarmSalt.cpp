@@ -90,18 +90,11 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
     aFillListCount = 1;
     
     const int aBattleCount = std::min<int>(24, SALT_CANDIDATE_COUNT);
-
-    if (SALT_CANDIDATE_COUNT > 1) {
-        const int aHamming = mAnalyzer.ComputeSaltHammingDistance_Salt(mCandidateSalt[0],
-                                                                       mCandidateSalt[1]);
-        printf("sample hamming: %d\n", aHamming);
-    }
-
-    while (aFillListCount < aFillListSize) {
+    while (aFillListCount<aFillListSize) {
         int aBestIndex = -1;
         int aBestMinHammingDistance = -1;
         
-        for (int i = 0; i < aBattleCount; i++) {
+        for (int i=0; i<aBattleCount; i++) {
             
             if (mCandidateClaimed[i] != 0) {
                 continue;
@@ -109,7 +102,7 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
             
             int aMinHammingDistance = std::numeric_limits<int>::max();
             
-            for (int j = 0; j < aFillListCount; j++) {
+            for (int j=0; j<aFillListCount; j++) {
                 const int aDistance =
                     mAnalyzer.ComputeSaltHammingDistance_Salt(mFillSalt[j],
                                                               mCandidateSalt[i]);
@@ -143,9 +136,7 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
         
         aFillListCount++;
     }
-    
 }
-
 
 void TwistFarmSalt::Reset() {
     mCount = 0ULL;

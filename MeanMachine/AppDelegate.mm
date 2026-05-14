@@ -82,12 +82,12 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
     
-    /*
+    
     unsigned char aPassword[3];
 
     int aNumber = 0;
     
-    int aBlockCount = 2;
+    int aBlockCount = 1;
 
     TwistWorkSpace aWorkSpace;
     TwistCryptoGenerator aCryptoGenerator;
@@ -105,40 +105,35 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     
     int aCOunt = 0;
     for (int aLetter1 = 'a'; aLetter1 <= 'z'; aLetter1++) {
-        for (int aLetter2 = 'a'; aLetter2 <= 'z'; aLetter2++) {
-            for (int aLetter3 = 'a'; aLetter3 <= 'z'; aLetter3++) {
-                
-                
-                
-                aPassword[0] = static_cast<unsigned char>(aLetter1);
-                aPassword[1] = static_cast<unsigned char>(aLetter2);
-                aPassword[2] = static_cast<unsigned char>(aLetter3);
-                
-                LardExpander::UnrollPasswordToSource(aSource,
-                                                     aPassword,
-                                                     3,
-                                                     aDataLength);
-                
-                LardExpander aExpander;
-                aExpander.mDataLength = aDataLength;
-                aExpander.mPassword = aSource;
-                aExpander.mLaneA = aLaneA;
-                aExpander.mLaneB = aLaneB;
-                aExpander.mLaneC = aLaneC;
-                aExpander.mLaneD = aRig.mData;
-                
-                aExpander.Roll();
-                
-                aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
-
-                printf("exported %d\n", aNumber);
-            }
-        }
+        
+        aPassword[0] = static_cast<unsigned char>(aLetter1);
+        //aPassword[1] = static_cast<unsigned char>(aLetter2);
+        //aPassword[2] = static_cast<unsigned char>(aLetter3);
+        
+        
+        LardExpander::UnrollPasswordToSource(aSource,
+                                             aPassword,
+                                             1,
+                                             aDataLength);
+        
+        LardExpander aExpander;
+        aExpander.mDataLength = aDataLength;
+        aExpander.mPassword = aSource;
+        aExpander.mLaneA = aLaneA;
+        aExpander.mLaneB = aLaneB;
+        aExpander.mLaneC = aLaneC;
+        aExpander.mLaneD = aRig.mData;
+        
+        aExpander.Roll();
+        
+        aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
+        
+        printf("exported %d\n", aNumber);
+        
     }
     
-    
     return;
-    */
+    
     
     if (IsRunningUnderXCTest() == false) {
         GSeedRunKDF aKDF;

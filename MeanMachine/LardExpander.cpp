@@ -99,25 +99,11 @@ void LardExpander::Roll() {
     std::size_t aPlugKeyA = 0;
     std::size_t aPlugKeyB = 0;
     
-    std::uint64_t aState = 0x9E3779B97F4A7C15ULL;
-
+    std::uint64_t aState = 0x00;
     for (std::uint32_t aIndex = 0U; aIndex < mDataLength; aIndex += 1U) {
-        
-        const std::uint8_t aPasswordByte = mPassword[aIndex];
-
-        /*
-        const std::uint8_t aTap = mSBoxA[
-            static_cast<std::uint8_t>(aState) ^ aPasswordByte
-        ];
-        */
-
-        aState += static_cast<std::uint64_t>(aPasswordByte);
-        //aState ^= static_cast<std::uint64_t>(aTap) << 32U;
-        //aState ^= static_cast<std::uint64_t>(mSBoxB[aIndex & 0xFFU]) << 8U;
-        
-        aState = TwistMix64::DiffuseA(aState + static_cast<std::uint64_t>(aIndex));
-
-        mLaneD[aIndex] = static_cast<std::uint8_t>(aState >> 56U);
+        aState = RotL64(aState, 3) ^ mPassword[aIndex];
+        aState = RotL64(aState, 3) ^ (aState * 3333333333333333333ULL);
+        mLaneD[aIndex] = (aState >> 56);
     }
     return;
     

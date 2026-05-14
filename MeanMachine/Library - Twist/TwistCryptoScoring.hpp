@@ -51,6 +51,9 @@ public:
     std::int32_t ComputeMinimumCycleRotL5AfterGate_SBox(const std::uint8_t *pData);
     std::int32_t ComputeMinimumCycleRotL7AfterGate_SBox(const std::uint8_t *pData);
     
+    std::int32_t ComputeSameFunctionCount_SBox(const std::uint8_t *pDataA,
+                                                                   const std::uint8_t *pDataB);
+        
     std::int32_t ComputeDifferentialSimilarityMax_SBox(const std::uint8_t *pDataA,
                                                        const std::uint8_t *pDataB);
     
@@ -108,13 +111,55 @@ public:
                                                     int p99,
                                                     int pWeight,
                                                     int *pRedFlagPoints);
-        
+    
+    static int ScoreLowerIsBetterCurve(float pValue,
+                                       float pBest,
+                                       float pWorst,
+                                       int pMaxPoints);
+    
     void ComputeCombinedSaltGrade_Component_BitBalance(int pBitBalance, int *pScore, int *pRedFlagPoints);
     void ComputeCombinedSaltGrade_Component_ByteSpread(int pByteSpread, int *pScore, int *pRedFlagPoints);
     void ComputeCombinedSaltGrade_Component_AdjacencyPenalty(int pAdjacencyPenalty, int *pScore, int *pRedFlagPoints);
     void ComputeCombinedSaltGrade_Component_XorDrift(int pXorDrift, int *pScore, int *pRedFlagPoints);
-    
     int ComputeCombinedSaltGrade(const std::uint64_t *pData); // [0 - 100], [0 - 10 usually means red flag detected]
+    
+    
+    // ---------------------------------------------------------------------
+    // Combined S-box grading
+    // ---------------------------------------------------------------------
+    //
+    // This grade is intended to rank S-box candidates only after they have
+    // already passed the structural permutation gate.
+    //
+    // For the current S-box construction:
+    //
+    //     S(x) = Mout * inverse(Min * x ^ seed) ^ constant
+    //
+    // when Min and Mout are invertible, the generated S-box is a permutation.
+    // In testing, verified permutation candidates from this family consistently
+    // have the expected inverse-family headline properties:
+    //
+    //     DDT max  = 4
+    //     Walsh    = 32
+    //     BIC max  = 16
+    //
+    // In a 1,000,000-candidate sample, BIC max was 16 for almost every
+    // permutation candidate, with a rare BIC max of 12 appearing once.
+    //
+    // Because DDT max, Walsh, and BIC max are effectively invariant for this
+    // family, they are not useful ranking signals. The combined grade focuses
+    // on the metrics that still vary meaningfully between valid candidates:
+    //
+    //     SAC average: 50 points
+    //     BIC average: 40 points
+    //     SAC max:     10 points
+    //
+    // BIC max is intentionally omitted from the score.
+    //
+    void ComputeCombinedSBoxGrade_Component_SacMax(int pSacMax, int *pScore, int *pRedFlagPoints);
+    void ComputeCombinedSBoxGrade_Component_SacAverage(float pSacAverage, int *pScore, int *pRedFlagPoints);
+    void ComputeCombinedSBoxGrade_Component_BicAverage(float pBicAverage, int *pScore, int *pRedFlagPoints);
+    int ComputeCombinedSBoxGrade(const std::uint8_t *pData);
     
 private:
     

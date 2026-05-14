@@ -183,6 +183,17 @@ TwistCryptoMaxAverageResponse TwistCryptoScoring::ComputeBicBias_SBox(const std:
     return aResult;
 }
 
+std::int32_t TwistCryptoScoring::ComputeSameFunctionCount_SBox(const std::uint8_t *pDataA,
+                                                               const std::uint8_t *pDataB) {
+    std::int32_t aSameCount = 0;
+    for (int i=0; i<S_SBOX; i++) {
+        if (pDataA[i] == pDataB[i]) {
+            aSameCount++;
+        }
+    }
+    return aSameCount;
+}
+
 std::int32_t TwistCryptoScoring::ComputeDifferentialSimilarityMax_SBox(const std::uint8_t *pDataA,
                                                                       const std::uint8_t *pDataB) {
     std::int32_t aMaximumSameCount = 0;
@@ -371,6 +382,19 @@ int TwistCryptoScoring::ScorePercentileWeighted(int pValue,
     }
 }
 
+int TwistCryptoScoring::ScoreLowerIsBetterCurve(float pValue,
+                                   float pBest,
+                                   float pWorst,
+                                                int pMaxPoints) {
+    float aPercent = (pValue - pBest) / (pWorst - pBest);
+    float aKeep = 1.0f - aPercent;
+    float aPointsf = static_cast<float>(pMaxPoints) * aKeep * aKeep;
+    int aPoints = static_cast<int>(aPointsf + 0.5f);
+    if (aPoints > pMaxPoints) { aPoints = pMaxPoints; }
+    if (aPoints < 0) { aPoints = 0; }
+    return aPoints;
+}
+
 void TwistCryptoScoring::ComputeCombinedSaltGrade_Component_BitBalance(int pBitBalance,
                                                                        int *pScore,
                                                                        int *pRedFlagPoints) {
@@ -455,10 +479,6 @@ void TwistCryptoScoring::ComputeCombinedSaltGrade_Component_AdjacencyPenalty(int
 }
 
 int TwistCryptoScoring::ComputeCombinedSaltGrade(const std::uint64_t *pData) {
-    
-    if (pData == nullptr) {
-        return 0;
-    }
     
     const int aAdjacencyPenalty = ComputeAdjacencyPenalty_Salt(pData);
     const int aBitBalance = ComputeBitBalance_Salt(pData);
@@ -614,4 +634,60 @@ std::int32_t TwistCryptoScoring::ComputeMinimumCycleRotL7AfterGate_SBox(const st
     }
 
     return aResult;
+}
+
+void TwistCryptoScoring::ComputeCombinedSBoxGrade_Component_SacMax(int pSacMax, int *pScore, int *pRedFlagPoints) {
+    if (pSacMax <= 12) {
+        *pScore += 10;
+    } else {
+        *pScore += 5;
+    }
+}
+
+void TwistCryptoScoring::ComputeCombinedSBoxGrade_Component_SacAverage(float pSacAverage,
+                                                                       int *pScore,
+                                                                       int *pRedFlagPoints) {
+    if (pSacAverage < 8.0f) {
+        *pScore += ScoreLowerIsBetterCurve(pSacAverage, 5.50f, 8.00f, 50);
+    }
+    
+    if (pSacAverage > 8.00f) {
+        *pRedFlagPoints += 2;
+    } else if (pSacAverage > 7.75f) {
+        *pRedFlagPoints += 1;
+    }
+}
+
+void TwistCryptoScoring::ComputeCombinedSBoxGrade_Component_BicAverage(float pBicAverage,
+                                                                       int *pScore,
+                                                                       int *pRedFlagPoints) {
+    if (pBicAverage < 7.5f) {
+        *pScore += ScoreLowerIsBetterCurve(pBicAverage, 6.25f, 7.5f, 40);
+    }
+    if (pBicAverage > 7.50f) {
+        *pRedFlagPoints += 2;
+    } else if (pBicAverage > 7.25f) {
+        *pRedFlagPoints += 1;
+    }
+}
+
+int TwistCryptoScoring::ComputeCombinedSBoxGrade(const std::uint8_t *pData) {
+    TwistCryptoMaxAverageResponse aSacBias = ComputeSacBias_SBox(pData);
+    TwistCryptoMaxAverageResponse aBicBias = ComputeBicBias_SBox(pData);
+    int aHealthyScore = 0;
+    int aRedFlagPoints = 0;
+    ComputeCombinedSBoxGrade_Component_SacAverage(aSacBias.mAverage,
+                                                  &aHealthyScore,
+                                                  &aRedFlagPoints);
+    ComputeCombinedSBoxGrade_Component_SacMax(static_cast<int>(aSacBias.mMax),
+                                              &aHealthyScore,
+                                              &aRedFlagPoints);
+    ComputeCombinedSBoxGrade_Component_BicAverage(aBicBias.mAverage,
+                                                  &aHealthyScore,
+                                                  &aRedFlagPoints);
+    if (aRedFlagPoints > 0) {
+        // max red flag points is 4
+        return (aHealthyScore / 5) - (aRedFlagPoints * 5);
+    }
+    return aHealthyScore;
 }
