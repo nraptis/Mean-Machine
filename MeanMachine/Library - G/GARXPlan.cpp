@@ -1246,10 +1246,10 @@ GARXPlan::GARXPlan() {
 }
 
 GARXPlan::~GARXPlan() {
-    for (int aIndex=0; aIndex<mPassPlans.size(); aIndex++) {
-        delete mPassPlans[aIndex];
+    for (int aIndex=0; aIndex<mPasses.size(); aIndex++) {
+        delete mPasses[aIndex];
     }
-    mPassPlans.clear();
+    mPasses.clear();
 }
 
 bool GARXPlan::Bake(GARXPlan *pPlan) {
@@ -1288,10 +1288,10 @@ bool GARXPlan::Configure(GARXPlan *pPlan) {
         pPlan->mFormat = &GARXFormatSixSixFour::Shared();
     }
     
-    for (GARXPassPlan *aPassPlan: pPlan->mPassPlans) {
+    for (GARXPassPlan *aPassPlan: pPlan->mPasses) {
             delete aPassPlan;
     }
-    pPlan->mPassPlans.clear();
+    pPlan->mPasses.clear();
     
     const std::vector<GARXType> aOrbiters = pPlan->mFormat->OrbiterTypes();
     if (aOrbiters.empty()) {
@@ -1392,10 +1392,10 @@ bool GARXPlan::Configure(GARXPlan *pPlan) {
         aCarryGroup->mStatements.push_back(aCarryStatement);
         aPassPlan->mGroups.push_back(aCarryGroup);
 
-        pPlan->mPassPlans.push_back(aPassPlan);
+        pPlan->mPasses.push_back(aPassPlan);
     }
     
-    for (GARXPassPlan *aPassPlan: pPlan->mPassPlans) {
+    for (GARXPassPlan *aPassPlan: pPlan->mPasses) {
         
         for (std::size_t g = 0; g < aPassPlan->mGroups.size(); g++) {
             
@@ -1423,7 +1423,7 @@ bool GARXPlan::Configure_ProceedWithGroups(GARXPlan *pPlan) {
     }
     
     int aPassIndex = 0;
-    for (GARXPassPlan *aPassPlan: pPlan->mPassPlans) {
+    for (GARXPassPlan *aPassPlan: pPlan->mPasses) {
         if (aPassPlan == nullptr) {
             return false;
         }
@@ -1650,16 +1650,16 @@ bool GARXPlan::IsValid(GARXPlan *pPlan) {
         pPlan->mFormat = &GARXFormatSixSixFour::Shared();
     }
     
-    if (pPlan->mPassPlans.size() != pPlan->mSkeleton.mPasses.size()) {
+    if (pPlan->mPasses.size() != pPlan->mSkeleton.mPasses.size()) {
         printf("re-roll: pass count mismatch, passPlans=%zu skeletonPasses=%zu\n",
-               pPlan->mPassPlans.size(),
+               pPlan->mPasses.size(),
                pPlan->mSkeleton.mPasses.size());
         return false;
     }
     
-    for (std::size_t aPassIndex = 0; aPassIndex < pPlan->mPassPlans.size(); aPassIndex++) {
+    for (std::size_t aPassIndex = 0; aPassIndex < pPlan->mPasses.size(); aPassIndex++) {
         
-        GARXPassPlan *aPassPlan = pPlan->mPassPlans[aPassIndex];
+        GARXPassPlan *aPassPlan = pPlan->mPasses[aPassIndex];
         
         if (aPassPlan == nullptr) {
             printf("re-roll: pass %zu is null\n", aPassIndex);

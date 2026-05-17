@@ -6,8 +6,6 @@
 //
 
 #include "GSeedRunKDF.hpp"
-#include "GMoxPlanner.hpp"
-#include "GMoxPresets.hpp"
 #include "GIndexShuffle.hpp"
 #include "GRunMatrixDiffusion.hpp"
 
@@ -114,21 +112,15 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
         pErrorMessage->clear();
     }
 
-    GMoxPlan aPlan;
-    const GMoxModel aModel = GMoxPresets::SixBalanced();
-    if (!GMoxPlanner::Bake(&aPlan, aModel, pErrorMessage)) {
+    
+    GARXPlan aPlan;
+    if (!GARXPlan::Bake(&aPlan)) {
         if (pErrorMessage != nullptr && pErrorMessage->empty()) {
-            *pErrorMessage = "failed to bake GMox plan for KDF pass";
+            *pErrorMessage = "failed to bake GARXPlan plan for KDF pass";
         }
         return false;
     }
-    if (aPlan.mPasses.empty() || (aPlan.mPasses[0] == nullptr)) {
-        if (pErrorMessage != nullptr && pErrorMessage->empty()) {
-            *pErrorMessage = "GMox plan had no pass plan";
-        }
-        return false;
-    }
-
+    
     GBatch aBatch;
     
     std::vector<GSymbol> aInputBuffers = {
@@ -239,7 +231,7 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
                                                          mSecretCurrent);
         aLoop.AddBody(&aStatement);
         
-        if (!CSPKDF2::Bake(aPlan.mPasses[aPassIndex],
+        if (!CSPKDF::Bake(aPlan.mPasses[aPassIndex],
                           aDestBuffers[aPassIndex],
                           false,
                           mLoopIndex,

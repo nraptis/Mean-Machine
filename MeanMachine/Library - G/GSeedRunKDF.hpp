@@ -8,13 +8,11 @@
 #ifndef GSeedRunKDF_hpp
 #define GSeedRunKDF_hpp
 
-#include "GLoopFragmentComposer.hpp"
 #include "TwistWorkSpace.hpp"
 #include "GTermExpander.hpp"
 #include "GTwistExpander.hpp"
 #include "GQuick.hpp"
 #include "GMagicNumbers.hpp"
-#include "GFamily.hpp"
 #include "CSPKDF.hpp"
 #include <string>
 

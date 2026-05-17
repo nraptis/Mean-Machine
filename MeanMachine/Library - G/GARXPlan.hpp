@@ -91,7 +91,7 @@ public:
     
     const GARXFormat                              *mFormat;
     GARXSkeleton                                    mSkeleton;
-    std::vector<GARXPassPlan *>                     mPassPlans;
+    std::vector<GARXPassPlan *>                     mPasses;
     
     static bool                                     IsValid(GARXPlan *pPlan);
     static bool                                     Bake(GARXPlan *pPlan);

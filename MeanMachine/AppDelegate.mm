@@ -34,9 +34,6 @@
 #include "TwistCryptoScoring.hpp"
 #include "Rig.hpp"
 #include "GARXPlan.hpp"
-#include "GMoxPlanner.hpp"
-#include "GMoxPresets.hpp"
-#include "GMoxPrinter.hpp"
 
 
 namespace {
