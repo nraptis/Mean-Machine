@@ -20,9 +20,6 @@ public:
 
     bool                                Plan(std::string *pErrorMessage);
     bool                                Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
-
-    GSymbol                             mSampleKDFTarget;
 };
 
 #endif /* GSeedRunSeed_hpp */
-

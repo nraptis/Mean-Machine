@@ -18,6 +18,33 @@ using GRuntimeScalar = std::uint64_t;
 struct GStatement;
 struct GLoop;
 
+struct GScopeRules {
+    std::unordered_map<std::string, int>      mReadPreferredMinimum;
+    std::unordered_map<std::string, int>      mReadPreferredMaximum;
+
+    void                                        SetReadPreferredMinimum(GSymbol pSymbol, int pCount);
+    void                                        SetReadPreferredMaximum(GSymbol pSymbol, int pCount);
+    int                                         GetReadPreferredMinimum(GSymbol pSymbol) const;
+    int                                         GetReadPreferredMaximum(GSymbol pSymbol) const;
+};
+
+struct GScopeState {
+    std::unordered_map<std::string, int>      mReadCounts;
+
+    void                                        Clear();
+    void                                        Consume(GScopeState pScopeState);
+    void                                        Consume(GLoop pLoop);
+    void                                        Consume(GStatement pStatement);
+    void                                        Consume(GSymbol pSymbol);
+    void                                        Consume(GExpr pExpr);
+
+    void                                        RegisterRead(GSymbol pSymbol);
+    void                                        RegisterRead(GExpr pExpr);
+
+    int                                         GetReadCount(GSymbol pSymbol, int pCount = 0) const;
+    int                                         GetReadCount(GExpr pExpr, int pCount = 0) const;
+};
+
 struct GTarget {
     GSymbol                                     mSymbol;
     std::shared_ptr<GExpr>                      mIndex;
@@ -43,7 +70,9 @@ struct GTarget {
 
 enum class GAssignType : std::uint8_t {
     kInvalid = 0,
-    kSet = 1
+    kSet = 1,
+    kAddAssign = 2,
+    kXorAssign = 3
 };
 
 enum class GStatementType : std::uint8_t {
@@ -63,6 +92,10 @@ struct GStatement {
 
     static GStatement                   Assign(const GTarget &pTarget,
                                             const GExpr &pExpression);
+    static GStatement                   AddAssign(const GTarget &pTarget,
+                                                 const GExpr &pExpression);
+    static GStatement                   XorAssign(const GTarget &pTarget,
+                                                 const GExpr &pExpression);
     static GStatement                   RawLine(const std::string &pRawLine);
     static GStatement                   Comment(const std::string &pComment);
     static GStatement                   EmptyLine();
@@ -122,10 +155,12 @@ struct GLoop {
 
     void                                AddBodyComment(std::string);
     void                                AddBodyEmptyLine();
+    void                                AddBody(GStatement &pStatement);
     void                                AddBody(GStatement *pStatement);
     void                                AddBody(GStatement pStatement);
     void                                AddBody(std::vector<GStatement> *pStatements);
     
+    void                                AddInitialization(GStatement &pStatement);
     void                                AddInitialization(GStatement *pStatement);
     
 };
@@ -207,10 +242,13 @@ struct GBatch {
     std::string                         mName;
     std::vector<GLoop>                  mLoops;
     std::vector<GBatchWorkItem>         mWorkItems;
+    GScopeState                         mScopeStateLocal;
+    GScopeState                         mScopeStateGlobal;
 
     GBatch();
 
     bool                                IsInvalid() const;
+    void                                CommitLoop(const GLoop &pLoop);
     void                                CommitLoop(GLoop *pLoop);
     void                                CommitWhile(GWhile *pWhile);
     void                                CommitStatements(std::vector<GStatement> *pStatements);
@@ -223,6 +261,7 @@ struct GBatch {
     int                                 CountLoopsWriting(TwistWorkSpaceSlot pSlot) const;
 
     std::vector<std::string>            CollectVariableNames() const;
+    std::vector<GSymbol>                CollectReferencedBuffers() const;
     std::vector<TwistWorkSpaceSlot>     CollectReferencedSlots() const;
 
     std::string                         ToPrettyString() const;

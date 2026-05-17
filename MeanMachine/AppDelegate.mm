@@ -27,24 +27,17 @@
 #include "TwistFastMatrix.hpp"
 #include "Random.hpp"
 #include "GTwistExpander.hpp"
-#include "TwistCryptoGenerator.hpp"
-#include "GSeedDeriveMaterial.hpp"
 #include "GSeedRunKDF.hpp"
-#include "LardExpander.hpp"
-
-#include "GSeedMatrixRollups.hpp"
-
 #include "TwistFarmSalt.hpp"
 #include "TwistFarmSBox.hpp"
-
-#include "TwistExpander_Gollum.hpp"
-
 #include "TwistSnow.hpp"
-#include "SBoxMaterial.hpp"
 #include "TwistCryptoScoring.hpp"
-#include "ByteString.hpp"
 #include "Rig.hpp"
 #include "GARXPlan.hpp"
+#include "GMoxPlanner.hpp"
+#include "GMoxPresets.hpp"
+#include "GMoxPrinter.hpp"
+
 
 namespace {
 
@@ -82,7 +75,60 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
     
+    /*
+    GMoxPlan plan;
+    GMoxModel model = GMoxPresets::FourCompact();
+
+    std::string error;
+    if (GMoxPlanner::Bake(&plan, model, &error)) {
+        GMoxPrinter::Print(plan);
+    }
+    */
     
+    if (IsRunningUnderXCTest() == false) {
+        GSeedRunKDF aKDF;
+        std::string aError;
+        GTwistExpander aExpander;
+        aExpander.mNameBase = "Carbon";
+        
+        if (!aKDF.Plan(&aError)) {
+            printf("error on GSeedRunKDF.Plan\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aKDF.Build(aExpander.mKDF, &aError)) {
+            printf("error on GSeedRunKDF.Build\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        aExpander.mSeed.AddLine("// [phase ii]");
+     
+        /*
+        GSeedMatrixRollups aMatr;
+        if (!aMatr.Plan(&aError)) {
+            printf("error on GSeedMatrixRollups.Plan\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        
+        if (!aMatr.Build(aExpander.mSeed, &aError)) {
+            printf("error on GSeedMatrixRollups.Build\n");
+            printf("%s\n", aError.c_str());
+            return;
+        }
+        */
+        
+        if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
+            !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError)) {
+            printf("expander export failed: %s\n", aError.c_str());
+            return;
+        }
+        
+    }
+    
+    /*
     unsigned char aPassword[3];
 
     int aNumber = 0;
@@ -90,7 +136,6 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     int aBlockCount = 1;
 
     TwistWorkSpace aWorkSpace;
-    TwistCryptoGenerator aCryptoGenerator;
     TwistFarmSBox aFarmSBox;
     TwistFarmSalt aFarmSalt;
 
@@ -135,46 +180,8 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     return;
     
     
-    if (IsRunningUnderXCTest() == false) {
-        GSeedRunKDF aKDF;
-        std::string aError;
-        GTwistExpander aExpander;
-        aExpander.mNameBase = "Carbon";
-        
-        if (!aKDF.Plan(&aError)) {
-            printf("error on GSeedRunKDF.Plan\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-        
-        if (!aKDF.Build(aExpander.mKDF, &aError)) {
-            printf("error on GSeedRunKDF.Build\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-        
-        aExpander.mSeeder.AddLine("// [phase ii]");
-     
-        GSeedMatrixRollups aMatr;
-        if (!aMatr.Plan(&aError)) {
-            printf("error on GSeedMatrixRollups.Plan\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-        
-        if (!aMatr.Build(aExpander.mSeeder, &aError)) {
-            printf("error on GSeedMatrixRollups.Build\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-        
-        if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
-            !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError)) {
-            printf("expander export failed: %s\n", aError.c_str());
-            return;
-        }
-        
-    }
+    
+    */
     
      
     /*
@@ -202,7 +209,6 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     int aNumber = 0;
     
     TwistWorkSpace aWorkSpace;
-    TwistCryptoGenerator aCryptoGenerator;
     TwistFarmSBox aFarmSBox;
     TwistFarmSalt aFarmSalt;
     
@@ -225,7 +231,6 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
             //    aRig.Run(&aShire, aPassword, 2);
             
             aExpander.Seed(&aWorkSpace,
-                           &aCryptoGenerator,
                            &aFarmSBox,
                            &aFarmSalt,
                            aSource,
@@ -329,13 +334,13 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
             return;
         }
         
-        if (!aDer.Build(aExpander.mSeeder, &aError)) {
+        if (!aDer.Build(aExpander.mSeed, &aError)) {
             printf("error on GSeedDeriveMaterial.Build\n");
             printf("%s\n", aError.c_str());
             return;
         }
         
-        aExpander.mSeeder.AddLine("// [phase ii]");
+        aExpander.mSeed.AddLine("// [phase ii]");
         
         
         GSeedMatrixRollups aMatr;
@@ -345,7 +350,7 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
             return;
         }
         
-        if (!aMatr.Build(aExpander.mSeeder, &aError)) {
+        if (!aMatr.Build(aExpander.mSeed, &aError)) {
             printf("error on GSeedMatrixRollups.Build\n");
             printf("%s\n", aError.c_str());
             return;
@@ -365,7 +370,6 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     // if (IsRunningUnderXCTest()) { return; }
     
     /*
-    TwistCryptoGenerator aGen;
     TwistCryptoScoring aAnalyzer;
 
     std::uint8_t aSource[S_BLOCK];
@@ -474,12 +478,12 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     
     GTwistExpander aExpander;
     
-    aExpander.mSeeder.AddBatch(aBatch1);
-    aExpander.mSeeder.AddBatch(aBatch2);
+    aExpander.mSeed.AddBatch(aBatch1);
+    aExpander.mSeed.AddBatch(aBatch2);
     
-    aExpander.mSeeder.AddAssignByteLine("aValue", Random::Get(200000000));
-    aExpander.mSeeder.AddAssignByteLine("aCarry", Random::Get(200000000));
-    aExpander.mSeeder.AddAssignByteLine("aPermute", Random::Get(200000000));
+    aExpander.mSeed.AddAssignByteLine("aValue", Random::Get(200000000));
+    aExpander.mSeed.AddAssignByteLine("aCarry", Random::Get(200000000));
+    aExpander.mSeed.AddAssignByteLine("aPermute", Random::Get(200000000));
     
     aExpander.mNameBase = "Froyo";
     

@@ -12,17 +12,6 @@
 #include <cstddef>
 #include <cstdint>
 
-inline std::uint64_t Hash(const std::uint8_t *pData, const std::size_t pLength) {
-    std::uint64_t aResult = 5381;
-    const std::uint8_t *aCeiling = pData + pLength;
-    while (pData < aCeiling) {
-        std::uint64_t aChar = *pData;
-        aResult = ((aResult << 5) + aResult) ^ aChar;
-        pData += 1;
-    }
-    return aResult;
-}
-
 inline std::uint8_t RotL8(std::uint8_t pValue, std::uint8_t pAmount) {
     std::uint8_t aAmount = static_cast<std::uint8_t>(pAmount & 7U);
     if (aAmount == 0U) { return pValue; }

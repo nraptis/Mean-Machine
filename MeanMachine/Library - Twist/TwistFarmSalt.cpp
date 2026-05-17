@@ -8,10 +8,6 @@
 #include "TwistFarmSalt.hpp"
 
 TwistFarmSalt::TwistFarmSalt() {
-    mCount = 0ULL;
-    std::memset(mSalt, 0, sizeof(mSalt));
-    std::memset(mScore, 0, sizeof(mScore));
-    //std::memset(mCandidate, 0, sizeof(mCandidate));
     
 }
 
@@ -138,155 +134,24 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
     }
 }
 
-void TwistFarmSalt::Reset() {
-    mCount = 0ULL;
+void TwistFarmSalt::Derive(const std::uint8_t *pSource,
+                           TwistDomainSeedRoundMaterial *pRoundMaterial) {
+    if (pRoundMaterial == nullptr) {
+        return;
+    }
+    Derive(pSource,
+           pRoundMaterial->mSaltA,
+           pRoundMaterial->mSaltB,
+           pRoundMaterial->mSaltC,
+           pRoundMaterial->mSaltD,
+           pRoundMaterial->mSaltE,
+           pRoundMaterial->mSaltF);
 }
 
-    // We try to get to pTargetCount passing salt grading.
-    // if we failed, we return false.
-    bool TwistFarmSalt::TillBytes(const std::uint8_t *pSource,
-                                  const std::uint8_t *pSnow,
-                                  std::uint64_t pTargetCount) {
-        
-        /*
-        if ((pSource == nullptr) || (pSnow == nullptr)) {
-            return false;
-        }
-        if (pTargetCount == 0ULL) {
-            return true;
-        }
-        
-        if (pTargetCount > kCapacity) {
-            pTargetCount = kCapacity;
-        }
-        
-        static constexpr int kCandidateCountPerPass = 512;
-        static constexpr int kMaxAcceptPerPass = 12;
-        
-        int aAcceptedThisPass = 0;
-        bool aHaveFallback = false;
-        std::uint64_t aFallbackSalt[S_SALT];
-        std::uint64_t aFallbackScore = 0ULL;
-        
-        for (int aCandidateIndex = 0; aCandidateIndex < kCandidateCountPerPass; ++aCandidateIndex) {
-            BuildCandidate(pSource, pSnow, static_cast<std::uint32_t>(aCandidateIndex));
-            
-            const int aBitBalance = mAnalyzer.ComputeBitBalance_Salt(mCandidate);
-            const int aByteSpread = mAnalyzer.ComputeByteSpread_Salt(mCandidate);
-            const int aXorDrift = mAnalyzer.ComputeXorDrift_Salt(mCandidate);
-            const int aAdjacencyPenalty = mAnalyzer.ComputeAdjacencyPenalty_Salt(mCandidate);
-            const int aMinDistance = ComputeNearestDistance(mCandidate);
-            
-            std::int64_t aScoreSigned =
-            static_cast<std::int64_t>(aBitBalance * 8 + aByteSpread * 16 + aXorDrift * 4)
-            - static_cast<std::int64_t>(aAdjacencyPenalty * 6)
-            + static_cast<std::int64_t>(std::max(aMinDistance, 0) * 2);
-            if (aScoreSigned < 0) {
-                aScoreSigned = 0;
-            }
-            const std::uint64_t aScore = static_cast<std::uint64_t>(aScoreSigned);
-            
-            if ((!aHaveFallback) || (aScore > aFallbackScore)) {
-                std::memcpy(aFallbackSalt, mCandidate, sizeof(aFallbackSalt));
-                aFallbackScore = aScore;
-                aHaveFallback = true;
-            }
-            
-            const bool aPassThreshold =
-            (aBitBalance >= 640) &&
-            (aByteSpread >= 96) &&
-            (aXorDrift >= 704) &&
-            (aAdjacencyPenalty <= 320) &&
-            (aMinDistance >= 640);
-            if (!aPassThreshold) {
-                continue;
-            }
-            
-            if (!AppendAccepted(mCandidate, aScore)) {
-                break;
-            }
-            
-            ++aAcceptedThisPass;
-            if ((mCount >= pTargetCount) || (aAcceptedThisPass >= kMaxAcceptPerPass)) {
-                break;
-            }
-        }
-        
-        if ((aAcceptedThisPass == 0) && aHaveFallback && (mCount < pTargetCount)) {
-            (void)AppendAccepted(aFallbackSalt, aFallbackScore);
-        }
-        
-        return (mCount >= pTargetCount);
-        */
-        return 1;
+void TwistFarmSalt::Derive(const std::uint8_t *pSource,
+                           TwistDomainRoundMaterial *pRoundMaterial) {
+    if (pRoundMaterial == nullptr) {
+        return;
     }
-
-
-void TwistFarmSalt::BuildCandidate(const std::uint8_t *pSource,
-                        const std::uint8_t *pSnow,
-                                   std::uint32_t pCandidateIndex) {
-    /*
-    std::uint32_t aSourceSlot = (pCandidateIndex * 3251U) & S_BLOCK1;
-    std::uint32_t aSnowSlot = (pCandidateIndex * 4933U) & S_BLOCK1;
-    std::uint64_t aCarry = 0x9E3779B97F4A7C15ULL ^
-    (static_cast<std::uint64_t>(pCandidateIndex) * 0xD6E8FEB86659FD93ULL);
-    
-    for (std::uint32_t aWordIndex = 0U; aWordIndex < S_SALT; ++aWordIndex) {
-        std::uint64_t aWord = 0ULL;
-        
-        for (std::uint32_t aByteIndex = 0U; aByteIndex < 8U; ++aByteIndex) {
-            const std::uint8_t aSourceByte = pSource[aSourceSlot];
-            const std::uint8_t aSnowByte = pSnow[aSnowSlot];
-            const std::uint8_t aMixedByte = static_cast<std::uint8_t>(
-                                                                      aSourceByte ^
-                                                                      aSnowByte ^
-                                                                      static_cast<std::uint8_t>((pCandidateIndex + aWordIndex + aByteIndex) * 17U));
-            
-            aWord |= (static_cast<std::uint64_t>(aMixedByte) << (aByteIndex * 8U));
-            
-            aSourceSlot = (aSourceSlot * 1427U + aSnowByte + aWordIndex + aByteIndex + pCandidateIndex) & S_BLOCK1;
-            aSnowSlot = (aSnowSlot * 5741U + aSourceByte + aWordIndex + aByteIndex + pCandidateIndex) & S_BLOCK1;
-        }
-        
-        aCarry ^= aWord + (static_cast<std::uint64_t>(aWordIndex) * 0x100000001B3ULL);
-        aCarry = RotL64(aCarry, 11U + (aWordIndex * 7U));
-        aCarry *= 0x9E3779B185EBCA87ULL;
-        
-        std::uint64_t aOut = aCarry ^ RotL64(aWord, aWordIndex * 13U + pCandidateIndex);
-        aOut ^= (static_cast<std::uint64_t>(aSourceSlot) << 32U);
-        aOut ^= static_cast<std::uint64_t>(aSnowSlot);
-        
-        mCandidate[aWordIndex] = aOut;
-    }
-    */
+    Derive(pSource, static_cast<TwistDomainSeedRoundMaterial *>(pRoundMaterial));
 }
-
-int TwistFarmSalt::ComputeNearestDistance(const std::uint64_t *pCandidate) {
-    if (mCount == 0ULL) {
-        return S_SALT * 64;
-    }
-    
-    int aBest = std::numeric_limits<int>::max();
-    const std::uint64_t aEnd = std::min<std::uint64_t>(mCount, kCapacity);
-    for (std::uint64_t i = 0ULL; i < aEnd; ++i) {
-        const int aDistance = mAnalyzer.ComputeSaltHammingDistance_Salt(pCandidate, mSalt[i]);
-        if (aDistance < aBest) {
-            aBest = aDistance;
-        }
-    }
-    return aBest;
-}
-
-    
-bool TwistFarmSalt::AppendAccepted(const std::uint64_t *pCandidate,
-                                   std::uint64_t pScore) {
-    if (mCount >= kCapacity) {
-        return false;
-    }
-    
-    std::memcpy(mSalt[mCount], pCandidate, sizeof(mSalt[mCount]));
-    mScore[mCount] = pScore;
-    ++mCount;
-    return true;
-}
-

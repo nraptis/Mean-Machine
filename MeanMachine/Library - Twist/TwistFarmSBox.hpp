@@ -22,17 +22,6 @@ public:
     
     TwistFarmSBox();
     
-    void                                Reset();
-    
-    // We try to get to pTargetCount passing s-boxes.
-    // if we failed, we return false.
-    bool                                TillBytes(const std::uint8_t *pSource,
-                                                  const std::uint8_t *pSnow,
-                                                  std::uint64_t pTargetCount);
-    
-    inline std::uint8_t                 ApplyMatrix8(const std::uint8_t *pMatrix,
-                                                     std::uint8_t pValue);
-    
     void                                Derive(const std::uint8_t *pSource,
                                                std::uint8_t *pSBoxA,
                                                std::uint8_t *pSBoxB,
@@ -42,6 +31,8 @@ public:
                                                std::uint8_t *pSBoxF,
                                                std::uint8_t *pSBoxG,
                                                std::uint8_t *pSBoxH);
+    void                                Derive(const std::uint8_t *pSource,
+                                               TwistDomainRoundMaterial *pRoundMaterial);
     
     std::uint8_t                        *mCandidateSBox[SBOX_CANDIDATE_COUNT];
     std::uint8_t                        mCandidateSBoxFlat[SBOX_CANDIDATE_COUNT * S_SBOX];
@@ -49,23 +40,20 @@ public:
     std::int32_t                        mCandidateClaimed[SBOX_CANDIDATE_COUNT];
     std::uint8_t                        *mFillSBox[SBOX_CANDIDATE_COUNT];
     
-    std::uint8_t                        mSBox[1024][256];
-    std::uint8_t                        mSBoxBase[256];
-    
-    std::uint64_t                       mCount;
     
 private:
+    
+    inline std::uint8_t                 ApplyMatrix8(const std::uint8_t *pMatrix,
+                                                     std::uint8_t pValue);
+    
+    
     TwistCryptoScoring                  mAnalyzer;
     std::uint8_t                        mExp[512];
     std::uint8_t                        mLog[256];
     int                                 mExponents[5];
     bool                                mTablesBuilt;
-    std::uint8_t                        mMatrix[8];
-    
     std::uint8_t                        mInputMatrix[8];
     std::uint8_t                        mOutputMatrix[8];
-    
-    std::uint8_t                        mObscure[53];
     
     
     

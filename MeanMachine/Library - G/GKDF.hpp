@@ -17,6 +17,7 @@
 class GKDF {
 public:
     bool                                Bake(TwistDomain pDomain,
+                                             GSymbol pSourceBuffer,
                                              GSymbol pKDFBuffer,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);

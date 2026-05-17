@@ -17,11 +17,6 @@ struct GARXPlugZone {
     int                 mEndIndex;
 };
 
-class GARXPlugMapper {
-public:
-    GARXPlugMapper(std::vector<GARXStatementGroup *> pStatementGroups);
-    std::vector<GARXStatementGroup *> mStatementGroups;
-    bool AttemptAssignment();
-};
+bool GARXAssignPlugs(std::vector<GARXStatementGroup *> &pStatementGroups);
 
 #endif /* GARXPlugMapper_hpp */

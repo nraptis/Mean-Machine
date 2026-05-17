@@ -10,7 +10,6 @@
 #include "Random.hpp"
 #include "SBoxTables.hpp"
 #include "SaltTables.hpp"
-#include "TwistCryptoGenerator.hpp"
 #include "TwistFarmSBox.hpp"
 
 #include <algorithm>
@@ -284,6 +283,20 @@ bool ParseTables(const JsonValue &pRoot,
     if ((aTables == nullptr) || !aTables->is_object()) {
         return true;
     }
+    const JsonValue *aDomainBundleInbuilt = aTables->find("domain_bundle_inbuilt");
+
+    auto ResolveTableValue = [&](const char *pKey) -> const JsonValue * {
+        if (pKey == nullptr) {
+            return nullptr;
+        }
+        if ((aDomainBundleInbuilt != nullptr) && aDomainBundleInbuilt->is_object()) {
+            const JsonValue *aValue = aDomainBundleInbuilt->find(pKey);
+            if (aValue != nullptr) {
+                return aValue;
+            }
+        }
+        return aTables->find(pKey);
+    };
 
     if (!ParseByteArray(aTables->find("sbox_a"), &pExpander->_mSBoxA, pErrorMessage)) { return false; }
     if (!ParseByteArray(aTables->find("sbox_b"), &pExpander->_mSBoxB, pErrorMessage)) { return false; }
@@ -296,7 +309,7 @@ bool ParseTables(const JsonValue &pRoot,
 
     auto ParseSaltWithLegacyFallback = [&](const char *pKey,
                                            std::vector<std::uint64_t> *pSaltOut) -> bool {
-        const JsonValue *aSaltValue = aTables->find(pKey);
+        const JsonValue *aSaltValue = ResolveTableValue(pKey);
         if (!ParseUInt64Array(aSaltValue, pSaltOut, pErrorMessage)) {
             return false;
         }
@@ -315,14 +328,96 @@ bool ParseTables(const JsonValue &pRoot,
         return true;
     };
 
-    if (!ParseSaltWithLegacyFallback("salt_a", &pExpander->_mSaltA)) { return false; }
-    if (!ParseSaltWithLegacyFallback("salt_b", &pExpander->_mSaltB)) { return false; }
-    if (!ParseSaltWithLegacyFallback("salt_c", &pExpander->_mSaltC)) { return false; }
-    if (!ParseSaltWithLegacyFallback("salt_d", &pExpander->_mSaltD)) { return false; }
-    if (!ParseSaltWithLegacyFallback("salt_e", &pExpander->_mSaltE)) { return false; }
-    if (!ParseSaltWithLegacyFallback("salt_f", &pExpander->_mSaltF)) { return false; }
-    if (!ParseSaltWithLegacyFallback("salt_g", &pExpander->_mSaltG)) { return false; }
-    if (!ParseSaltWithLegacyFallback("salt_h", &pExpander->_mSaltH)) { return false; }
+    auto ParseLegacySaltOnly = [&](const char *pKey) -> bool {
+        std::vector<std::uint64_t> aDiscardedSalt;
+        return ParseSaltWithLegacyFallback(pKey, &aDiscardedSalt);
+    };
+
+    if (!ParseLegacySaltOnly("salt_a")) { return false; }
+    if (!ParseLegacySaltOnly("salt_b")) { return false; }
+    if (!ParseLegacySaltOnly("salt_c")) { return false; }
+    if (!ParseLegacySaltOnly("salt_d")) { return false; }
+    if (!ParseLegacySaltOnly("salt_e")) { return false; }
+    if (!ParseLegacySaltOnly("salt_f")) { return false; }
+    if (!ParseLegacySaltOnly("salt_g")) { return false; }
+    if (!ParseLegacySaltOnly("salt_h")) { return false; }
+
+    auto ParseMaterialObject = [&](const char *pKey,
+                                   TwistDomainSeedRoundMaterial *pDest) -> bool {
+        if ((pKey == nullptr) || (pDest == nullptr)) {
+            return true;
+        }
+        const JsonValue *aObject = ResolveTableValue(pKey);
+        if (aObject == nullptr) {
+            return true;
+        }
+        if (!aObject->is_object()) {
+            SetError(pErrorMessage, "domain material entry was not an object: " + std::string(pKey));
+            return false;
+        }
+
+        auto ParseLane = [&](const char *pLaneKey, std::uint64_t *pLaneDest) -> bool {
+            if ((pLaneKey == nullptr) || (pLaneDest == nullptr)) {
+                return true;
+            }
+            std::vector<std::uint64_t> aWide;
+            if (!ParseUInt64Array(aObject->find(pLaneKey), &aWide, pErrorMessage)) {
+                return false;
+            }
+            if (aWide.empty()) {
+                std::vector<std::uint8_t> aLegacyBytes;
+                if (!ParseByteArray(aObject->find(pLaneKey), &aLegacyBytes, pErrorMessage)) {
+                    return false;
+                }
+                for (std::uint8_t aByte : aLegacyBytes) {
+                    aWide.push_back(static_cast<std::uint64_t>(aByte));
+                }
+            }
+            if (aWide.empty()) {
+                return true;
+            }
+            if (aWide.size() < static_cast<std::size_t>(S_SALT)) {
+                aWide.resize(static_cast<std::size_t>(S_SALT), 0ULL);
+            }
+            if (aWide.size() > static_cast<std::size_t>(S_SALT)) {
+                aWide.resize(static_cast<std::size_t>(S_SALT));
+            }
+            std::memcpy(pLaneDest,
+                        aWide.data(),
+                        sizeof(std::uint64_t) * static_cast<std::size_t>(S_SALT));
+            return true;
+        };
+
+        if (!ParseLane("salt_a", pDest->mSaltA)) { return false; }
+        if (!ParseLane("salt_b", pDest->mSaltB)) { return false; }
+        if (!ParseLane("salt_c", pDest->mSaltC)) { return false; }
+        if (!ParseLane("salt_d", pDest->mSaltD)) { return false; }
+        if (!ParseLane("salt_e", pDest->mSaltE)) { return false; }
+        if (!ParseLane("salt_f", pDest->mSaltF)) { return false; }
+        return true;
+    };
+
+    if (!ParseMaterialObject("mats_key_a_wanderer", &pExpander->mDomainBundleInbuilt.mKeyASalts.mUnwind)) { return false; }
+    if (!ParseMaterialObject("mats_key_a_orbiter", &pExpander->mDomainBundleInbuilt.mKeyASalts.mOrbiter)) { return false; }
+    if (!ParseMaterialObject("mats_key_a_seeder", &pExpander->mDomainBundleInbuilt.mKeyASalts.mOrbiterInit)) { return false; }
+    if (!ParseMaterialObject("mats_key_b_wanderer", &pExpander->mDomainBundleInbuilt.mKeyBSalts.mUnwind)) { return false; }
+    if (!ParseMaterialObject("mats_key_b_orbiter", &pExpander->mDomainBundleInbuilt.mKeyBSalts.mOrbiter)) { return false; }
+    if (!ParseMaterialObject("mats_key_b_seeder", &pExpander->mDomainBundleInbuilt.mKeyBSalts.mOrbiterInit)) { return false; }
+    if (!ParseMaterialObject("mats_mask_a_wanderer", &pExpander->mDomainBundleInbuilt.mMaskASalts.mUnwind)) { return false; }
+    if (!ParseMaterialObject("mats_mask_a_orbiter", &pExpander->mDomainBundleInbuilt.mMaskASalts.mOrbiter)) { return false; }
+    if (!ParseMaterialObject("mats_mask_a_seeder", &pExpander->mDomainBundleInbuilt.mMaskASalts.mOrbiterInit)) { return false; }
+    if (!ParseMaterialObject("mats_mask_b_wanderer", &pExpander->mDomainBundleInbuilt.mMaskBSalts.mUnwind)) { return false; }
+    if (!ParseMaterialObject("mats_mask_b_orbiter", &pExpander->mDomainBundleInbuilt.mMaskBSalts.mOrbiter)) { return false; }
+    if (!ParseMaterialObject("mats_mask_b_seeder", &pExpander->mDomainBundleInbuilt.mMaskBSalts.mOrbiterInit)) { return false; }
+    if (!ParseMaterialObject("mats_work_lane_wanderer", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mUnwind)) { return false; }
+    if (!ParseMaterialObject("mats_work_lane_orbiter", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mOrbiter)) { return false; }
+    if (!ParseMaterialObject("mats_work_lane_seeder", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mOrbiterInit)) { return false; }
+    if (!ParseMaterialObject("mats_mask_lane_wanderer", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mUnwind)) { return false; }
+    if (!ParseMaterialObject("mats_mask_lane_orbiter", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mOrbiter)) { return false; }
+    if (!ParseMaterialObject("mats_mask_lane_seeder", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mOrbiterInit)) { return false; }
+    if (!ParseMaterialObject("mats_operation_lane_wanderer", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mUnwind)) { return false; }
+    if (!ParseMaterialObject("mats_operation_lane_orbiter", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mOrbiter)) { return false; }
+    if (!ParseMaterialObject("mats_operation_lane_seeder", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mOrbiterInit)) { return false; }
 
     auto ParseDomainConstantOptional = [&](const char *pKey,
                                            std::uint64_t *pDest) -> bool {
@@ -330,7 +425,7 @@ bool ParseTables(const JsonValue &pRoot,
             return true;
         }
 
-        const JsonValue *aValue = aTables->find(pKey);
+        const JsonValue *aValue = ResolveTableValue(pKey);
         if (aValue == nullptr) {
             return true;
         }
@@ -361,17 +456,80 @@ bool ParseTables(const JsonValue &pRoot,
         return false;
     };
 
-    if (!ParseDomainConstantOptional("domain_constant_public_ingress", &pExpander->mDomainConstantPublicIngress)) { return false; }
-    if (!ParseDomainConstantOptional("domain_constant_private_ingress", &pExpander->mDomainConstantPrivateIngress)) { return false; }
-    if (!ParseDomainConstantOptional("domain_constant_cross_ingress", &pExpander->mDomainConstantCrossIngress)) { return false; }
-
+    std::uint64_t aDiscardedDomainConstant = 0ULL;
+    if (!ParseDomainConstantOptional("domain_constant_public_ingress", &aDiscardedDomainConstant)) { return false; }
+    if (!ParseDomainConstantOptional("domain_constant_private_ingress", &aDiscardedDomainConstant)) { return false; }
+    if (!ParseDomainConstantOptional("domain_constant_cross_ingress", &aDiscardedDomainConstant)) { return false; }
+    
+    auto ParseDomainConstantFromObject = [&](const JsonValue *pObject,
+                                             const char *pFieldKey,
+                                             std::uint64_t *pDest) -> bool {
+        if ((pObject == nullptr) || (pFieldKey == nullptr) || (pDest == nullptr)) {
+            return true;
+        }
+        const JsonValue *aField = pObject->find(pFieldKey);
+        if (aField == nullptr) {
+            return true;
+        }
+        if (aField->is_number()) {
+            const double aNumber = aField->as_number();
+            if (aNumber < 0.0) {
+                SetError(pErrorMessage, "domain constant field was negative: " + std::string(pFieldKey));
+                return false;
+            }
+            *pDest = static_cast<std::uint64_t>(aNumber);
+            return true;
+        }
+        if (aField->is_string()) {
+            const std::string aText = aField->as_string();
+            char *aEnd = nullptr;
+            const unsigned long long aParsed = std::strtoull(aText.c_str(), &aEnd, 0);
+            if ((aEnd == nullptr) || (*aEnd != '\0')) {
+                SetError(pErrorMessage, "domain constant field had invalid string value: " + std::string(pFieldKey));
+                return false;
+            }
+            *pDest = static_cast<std::uint64_t>(aParsed);
+            return true;
+        }
+        SetError(pErrorMessage, "domain constant field had invalid type: " + std::string(pFieldKey));
+        return false;
+    };
+    
+    auto ParseDomainConstantsObject = [&](const char *pKey,
+                                          TwistDomainConstants *pDest) -> bool {
+        if ((pKey == nullptr) || (pDest == nullptr)) {
+            return true;
+        }
+        
+        const JsonValue *aObject = ResolveTableValue(pKey);
+        if (aObject == nullptr) {
+            return true;
+        }
+        if (!aObject->is_object()) {
+            SetError(pErrorMessage, "domain constants entry was not an object: " + std::string(pKey));
+            return false;
+        }
+        if (!ParseDomainConstantFromObject(aObject, "public_ingress", &pDest->mDomainConstantPublicIngress)) { return false; }
+        if (!ParseDomainConstantFromObject(aObject, "private_ingress", &pDest->mDomainConstantPrivateIngress)) { return false; }
+        if (!ParseDomainConstantFromObject(aObject, "cross_ingress", &pDest->mDomainConstantCrossIngress)) { return false; }
+        return true;
+    };
+    
+    if (!ParseDomainConstantsObject("constants_key_a", &pExpander->mDomainBundleInbuilt.mKeyAConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_key_b", &pExpander->mDomainBundleInbuilt.mKeyBConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_mask_a", &pExpander->mDomainBundleInbuilt.mMaskAConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_mask_b", &pExpander->mDomainBundleInbuilt.mMaskBConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_work_lane", &pExpander->mDomainBundleInbuilt.mWorkLaneConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_mask_lane", &pExpander->mDomainBundleInbuilt.mMaskLaneConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_operation_lane", &pExpander->mDomainBundleInbuilt.mOperationLaneConstants)) { return false; }
+    
     auto ParseDomainSaltOptional = [&](const char *pKey,
                                        std::uint64_t *pDest) -> bool {
         if ((pKey == nullptr) || (pDest == nullptr)) {
             return true;
         }
 
-        const JsonValue *aDomainValue = aTables->find(pKey);
+        const JsonValue *aDomainValue = ResolveTableValue(pKey);
         if (aDomainValue == nullptr) {
             return true;
         }
@@ -408,47 +566,23 @@ bool ParseTables(const JsonValue &pRoot,
         return true;
     };
 
-    if (!ParseDomainSaltOptional("domain_salt_keybox_a", pExpander->mDomainSaltKeyBoxA)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_b", pExpander->mDomainSaltKeyBoxB)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_c", pExpander->mDomainSaltKeyBoxC)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_d", pExpander->mDomainSaltKeyBoxD)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_e", pExpander->mDomainSaltKeyBoxE)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_f", pExpander->mDomainSaltKeyBoxF)) { return false; }
+    std::uint64_t aDiscardedSalt[S_SALT];
+    std::memset(aDiscardedSalt, 0, sizeof(aDiscardedSalt));
+    if (!ParseDomainSaltOptional("domain_salt_keybox_a", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_keybox_b", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_keybox_c", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_keybox_d", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_keybox_e", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_keybox_f", aDiscardedSalt)) { return false; }
 
-    if (!ParseDomainSaltOptional("domain_salt_maskbox_a", pExpander->mDomainSaltMaskBoxA)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_maskbox_b", pExpander->mDomainSaltMaskBoxB)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_maskbox_c", pExpander->mDomainSaltMaskBoxC)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_maskbox_d", pExpander->mDomainSaltMaskBoxD)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_maskbox_e", pExpander->mDomainSaltMaskBoxE)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_maskbox_f", pExpander->mDomainSaltMaskBoxF)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_source_a", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_source_b", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_source_c", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_source_d", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_source_e", aDiscardedSalt)) { return false; }
+    if (!ParseDomainSaltOptional("domain_salt_source_f", aDiscardedSalt)) { return false; }
 
-    if (!ParseDomainSaltOptional("domain_salt_wanderer_a", pExpander->mDomainSaltWandererA)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_wanderer_b", pExpander->mDomainSaltWandererB)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_wanderer_c", pExpander->mDomainSaltWandererC)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_wanderer_d", pExpander->mDomainSaltWandererD)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_wanderer_e", pExpander->mDomainSaltWandererE)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_wanderer_f", pExpander->mDomainSaltWandererF)) { return false; }
-
-    if (!ParseDomainSaltOptional("domain_salt_orbiter_a", pExpander->mDomainSaltOrbiterA)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_orbiter_b", pExpander->mDomainSaltOrbiterB)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_orbiter_c", pExpander->mDomainSaltOrbiterC)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_orbiter_d", pExpander->mDomainSaltOrbiterD)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_orbiter_e", pExpander->mDomainSaltOrbiterE)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_orbiter_f", pExpander->mDomainSaltOrbiterF)) { return false; }
-
-    if (!ParseDomainSaltOptional("domain_salt_prism_a", pExpander->mDomainSaltPrismA)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_prism_b", pExpander->mDomainSaltPrismB)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_prism_c", pExpander->mDomainSaltPrismC)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_prism_d", pExpander->mDomainSaltPrismD)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_prism_e", pExpander->mDomainSaltPrismE)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_prism_f", pExpander->mDomainSaltPrismF)) { return false; }
-
-    if (!ParseDomainSaltOptional("domain_salt_source_a", pExpander->mDomainSaltSourceA)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_b", pExpander->mDomainSaltSourceB)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_c", pExpander->mDomainSaltSourceC)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_d", pExpander->mDomainSaltSourceD)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_e", pExpander->mDomainSaltSourceE)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_f", pExpander->mDomainSaltSourceF)) { return false; }
+    pExpander->SyncDomainBundleInbuiltFromLegacy();
 
     return true;
 }
@@ -579,6 +713,21 @@ bool ResolveAliasSlot(const std::string &pAlias,
             aToken = TrimCopy(aToken.substr(0U, aBracketPos));
         }
 
+        const std::size_t aMatsPos = aToken.find("mMats");
+        if (aMatsPos != std::string::npos) {
+            std::string aMatsToken = TrimCopy(aToken.substr(aMatsPos));
+            while (!aMatsToken.empty()) {
+                const char aLast = aMatsToken.back();
+                if ((aLast == ';') || (aLast == ')')) {
+                    aMatsToken.pop_back();
+                    aMatsToken = TrimCopy(aMatsToken);
+                    continue;
+                }
+                break;
+            }
+            return aMatsToken;
+        }
+
         const std::size_t aArrowPos = aToken.rfind("->");
         const std::size_t aDotPos = aToken.rfind('.');
         std::size_t aMemberPos = std::string::npos;
@@ -599,126 +748,26 @@ bool ResolveAliasSlot(const std::string &pAlias,
     };
 
     const std::string aAlias = NormalizeAliasToken(pAlias);
+    std::string aKeyToken = aAlias;
+    if (aKeyToken.rfind("bufkey:", 0U) == 0U) {
+        aKeyToken = aKeyToken.substr(7U);
+    }
+    TwistBufferKey aParsedKey;
+    if (BufferKeyFromToken(aKeyToken, &aParsedKey)) {
+        const TwistWorkSpaceSlot aResolvedSlot = ResolveBufferSlot(GSymbol::Buf(aParsedKey));
+        if (aResolvedSlot != TwistWorkSpaceSlot::kInvalid) {
+            *pSlotOut = aResolvedSlot;
+            return true;
+        }
+    }
 
-    static const TwistWorkSpaceSlot kKnownSlots[] = {
-        TwistWorkSpaceSlot::kSource,
-        TwistWorkSpaceSlot::kDest,
-
-        TwistWorkSpaceSlot::kSaltA,
-        TwistWorkSpaceSlot::kSaltB,
-        TwistWorkSpaceSlot::kSaltC,
-        TwistWorkSpaceSlot::kSaltD,
-        TwistWorkSpaceSlot::kSaltE,
-        TwistWorkSpaceSlot::kSaltF,
-        TwistWorkSpaceSlot::kSaltG,
-        TwistWorkSpaceSlot::kSaltH,
-        TwistWorkSpaceSlot::kDomainSaltKeyBoxA,
-        TwistWorkSpaceSlot::kDomainSaltKeyBoxB,
-        TwistWorkSpaceSlot::kDomainSaltKeyBoxC,
-        TwistWorkSpaceSlot::kDomainSaltKeyBoxD,
-        TwistWorkSpaceSlot::kDomainSaltKeyBoxE,
-        TwistWorkSpaceSlot::kDomainSaltKeyBoxF,
-        TwistWorkSpaceSlot::kDomainSaltMaskBoxA,
-        TwistWorkSpaceSlot::kDomainSaltMaskBoxB,
-        TwistWorkSpaceSlot::kDomainSaltMaskBoxC,
-        TwistWorkSpaceSlot::kDomainSaltMaskBoxD,
-        TwistWorkSpaceSlot::kDomainSaltMaskBoxE,
-        TwistWorkSpaceSlot::kDomainSaltMaskBoxF,
-        TwistWorkSpaceSlot::kDomainSaltWandererA,
-        TwistWorkSpaceSlot::kDomainSaltWandererB,
-        TwistWorkSpaceSlot::kDomainSaltWandererC,
-        TwistWorkSpaceSlot::kDomainSaltWandererD,
-        TwistWorkSpaceSlot::kDomainSaltWandererE,
-        TwistWorkSpaceSlot::kDomainSaltWandererF,
-        TwistWorkSpaceSlot::kDomainSaltOrbiterA,
-        TwistWorkSpaceSlot::kDomainSaltOrbiterB,
-        TwistWorkSpaceSlot::kDomainSaltOrbiterC,
-        TwistWorkSpaceSlot::kDomainSaltOrbiterD,
-        TwistWorkSpaceSlot::kDomainSaltOrbiterE,
-        TwistWorkSpaceSlot::kDomainSaltOrbiterF,
-        TwistWorkSpaceSlot::kDomainSaltPrismA,
-        TwistWorkSpaceSlot::kDomainSaltPrismB,
-        TwistWorkSpaceSlot::kDomainSaltPrismC,
-        TwistWorkSpaceSlot::kDomainSaltPrismD,
-        TwistWorkSpaceSlot::kDomainSaltPrismE,
-        TwistWorkSpaceSlot::kDomainSaltPrismF,
-        TwistWorkSpaceSlot::kDomainSaltSourceA,
-        TwistWorkSpaceSlot::kDomainSaltSourceB,
-        TwistWorkSpaceSlot::kDomainSaltSourceC,
-        TwistWorkSpaceSlot::kDomainSaltSourceD,
-        TwistWorkSpaceSlot::kDomainSaltSourceE,
-        TwistWorkSpaceSlot::kDomainSaltSourceF,
-        TwistWorkSpaceSlot::kSaltA,
-        TwistWorkSpaceSlot::kSaltB,
-        TwistWorkSpaceSlot::kSaltC,
-        TwistWorkSpaceSlot::kSaltD,
-        TwistWorkSpaceSlot::kDerivedSaltA,
-        TwistWorkSpaceSlot::kDerivedSaltB,
-        TwistWorkSpaceSlot::kDerivedSaltC,
-        TwistWorkSpaceSlot::kDerivedSaltD,
-        TwistWorkSpaceSlot::kDerivedSaltE,
-        TwistWorkSpaceSlot::kDerivedSaltF,
-        TwistWorkSpaceSlot::kDerivedSaltG,
-        TwistWorkSpaceSlot::kDerivedSaltH,
-        TwistWorkSpaceSlot::kDerivedSaltOrbiterA,
-        TwistWorkSpaceSlot::kDerivedSaltOrbiterB,
-        TwistWorkSpaceSlot::kDerivedSaltOrbiterC,
-        TwistWorkSpaceSlot::kDerivedSaltOrbiterD,
-        TwistWorkSpaceSlot::kDerivedSaltWandererA,
-        TwistWorkSpaceSlot::kDerivedSaltWandererB,
-        TwistWorkSpaceSlot::kDerivedSaltWandererC,
-        TwistWorkSpaceSlot::kDerivedSaltWandererD,
-
-        TwistWorkSpaceSlot::kSBoxA,
-        TwistWorkSpaceSlot::kSBoxB,
-        TwistWorkSpaceSlot::kSBoxC,
-        TwistWorkSpaceSlot::kSBoxD,
-        TwistWorkSpaceSlot::kSBoxE,
-        TwistWorkSpaceSlot::kSBoxF,
-        TwistWorkSpaceSlot::kSBoxG,
-        TwistWorkSpaceSlot::kSBoxH,
-        TwistWorkSpaceSlot::kDerivedSBoxA,
-        TwistWorkSpaceSlot::kDerivedSBoxB,
-        TwistWorkSpaceSlot::kDerivedSBoxC,
-        TwistWorkSpaceSlot::kDerivedSBoxD,
-        TwistWorkSpaceSlot::kDerivedSBoxE,
-        TwistWorkSpaceSlot::kDerivedSBoxF,
-        TwistWorkSpaceSlot::kDerivedSBoxG,
-        TwistWorkSpaceSlot::kDerivedSBoxH,
-
-        TwistWorkSpaceSlot::kSeedExpansionLaneA,
-        TwistWorkSpaceSlot::kSeedExpansionLaneB,
-        TwistWorkSpaceSlot::kSeedExpansionLaneC,
-        TwistWorkSpaceSlot::kSeedExpansionLaneD,
-
-        TwistWorkSpaceSlot::kWorkLaneA,
-        TwistWorkSpaceSlot::kWorkLaneB,
-        TwistWorkSpaceSlot::kWorkLaneC,
-        TwistWorkSpaceSlot::kWorkLaneD,
-
-        TwistWorkSpaceSlot::kOperationLaneA,
-        TwistWorkSpaceSlot::kOperationLaneB,
-
-        TwistWorkSpaceSlot::kMaskLaneA,
-        TwistWorkSpaceSlot::kMaskLaneB,
-
-        TwistWorkSpaceSlot::kKeyBoxUnrolledA,
-        TwistWorkSpaceSlot::kKeyBoxUnrolledB,
-        TwistWorkSpaceSlot::kKeyRowReadA,
-        TwistWorkSpaceSlot::kKeyRowReadB,
-        TwistWorkSpaceSlot::kKeyRowWriteA,
-        TwistWorkSpaceSlot::kKeyRowWriteB,
-
-        TwistWorkSpaceSlot::kMaskBoxUnrolledA,
-        TwistWorkSpaceSlot::kMaskBoxUnrolledB,
-        TwistWorkSpaceSlot::kMaskRowReadA,
-        TwistWorkSpaceSlot::kMaskRowReadB,
-        TwistWorkSpaceSlot::kMaskRowWriteA,
-        TwistWorkSpaceSlot::kMaskRowWriteB
-    };
-
-    for (TwistWorkSpaceSlot aSlot : kKnownSlots) {
-        if (BufAliasName(aSlot) == aAlias) {
+    for (int aValue = 0; aValue <= 255; ++aValue) {
+        const TwistWorkSpaceSlot aSlot = static_cast<TwistWorkSpaceSlot>(aValue);
+        const std::string aSlotAlias = BufAliasName(aSlot);
+        if ((aSlotAlias == "aInvalidBuffer") || (aSlotAlias == "invalid")) {
+            continue;
+        }
+        if (aSlotAlias == aAlias) {
             *pSlotOut = aSlot;
             return true;
         }
@@ -730,74 +779,44 @@ bool ResolveAliasSlot(const std::string &pAlias,
     };
 
     static const AliasSlotPair kWorkspaceFieldAliases[] = {
-        {"mSaltA", TwistWorkSpaceSlot::kSaltA},
-        {"mSaltB", TwistWorkSpaceSlot::kSaltB},
-        {"mSaltC", TwistWorkSpaceSlot::kSaltC},
-        {"mSaltD", TwistWorkSpaceSlot::kSaltD},
-        {"mSaltE", TwistWorkSpaceSlot::kSaltE},
-        {"mSaltF", TwistWorkSpaceSlot::kSaltF},
-        {"mSaltG", TwistWorkSpaceSlot::kSaltG},
-        {"mSaltH", TwistWorkSpaceSlot::kSaltH},
-        {"mDomainSaltKeyBoxA", TwistWorkSpaceSlot::kDomainSaltKeyBoxA},
-        {"mDomainSaltKeyBoxB", TwistWorkSpaceSlot::kDomainSaltKeyBoxB},
-        {"mDomainSaltKeyBoxC", TwistWorkSpaceSlot::kDomainSaltKeyBoxC},
-        {"mDomainSaltKeyBoxD", TwistWorkSpaceSlot::kDomainSaltKeyBoxD},
-        {"mDomainSaltKeyBoxE", TwistWorkSpaceSlot::kDomainSaltKeyBoxE},
-        {"mDomainSaltKeyBoxF", TwistWorkSpaceSlot::kDomainSaltKeyBoxF},
-        {"mDomainSaltMaskBoxA", TwistWorkSpaceSlot::kDomainSaltMaskBoxA},
-        {"mDomainSaltMaskBoxB", TwistWorkSpaceSlot::kDomainSaltMaskBoxB},
-        {"mDomainSaltMaskBoxC", TwistWorkSpaceSlot::kDomainSaltMaskBoxC},
-        {"mDomainSaltMaskBoxD", TwistWorkSpaceSlot::kDomainSaltMaskBoxD},
-        {"mDomainSaltMaskBoxE", TwistWorkSpaceSlot::kDomainSaltMaskBoxE},
-        {"mDomainSaltMaskBoxF", TwistWorkSpaceSlot::kDomainSaltMaskBoxF},
-        {"mDomainSaltWandererA", TwistWorkSpaceSlot::kDomainSaltWandererA},
-        {"mDomainSaltWandererB", TwistWorkSpaceSlot::kDomainSaltWandererB},
-        {"mDomainSaltWandererC", TwistWorkSpaceSlot::kDomainSaltWandererC},
-        {"mDomainSaltWandererD", TwistWorkSpaceSlot::kDomainSaltWandererD},
-        {"mDomainSaltWandererE", TwistWorkSpaceSlot::kDomainSaltWandererE},
-        {"mDomainSaltWandererF", TwistWorkSpaceSlot::kDomainSaltWandererF},
-        {"mDomainSaltOrbiterA", TwistWorkSpaceSlot::kDomainSaltOrbiterA},
-        {"mDomainSaltOrbiterB", TwistWorkSpaceSlot::kDomainSaltOrbiterB},
-        {"mDomainSaltOrbiterC", TwistWorkSpaceSlot::kDomainSaltOrbiterC},
-        {"mDomainSaltOrbiterD", TwistWorkSpaceSlot::kDomainSaltOrbiterD},
-        {"mDomainSaltOrbiterE", TwistWorkSpaceSlot::kDomainSaltOrbiterE},
-        {"mDomainSaltOrbiterF", TwistWorkSpaceSlot::kDomainSaltOrbiterF},
-        {"mDomainSaltPrismA", TwistWorkSpaceSlot::kDomainSaltPrismA},
-        {"mDomainSaltPrismB", TwistWorkSpaceSlot::kDomainSaltPrismB},
-        {"mDomainSaltPrismC", TwistWorkSpaceSlot::kDomainSaltPrismC},
-        {"mDomainSaltPrismD", TwistWorkSpaceSlot::kDomainSaltPrismD},
-        {"mDomainSaltPrismE", TwistWorkSpaceSlot::kDomainSaltPrismE},
-        {"mDomainSaltPrismF", TwistWorkSpaceSlot::kDomainSaltPrismF},
-        {"mDomainSaltSourceA", TwistWorkSpaceSlot::kDomainSaltSourceA},
-        {"mDomainSaltSourceB", TwistWorkSpaceSlot::kDomainSaltSourceB},
-        {"mDomainSaltSourceC", TwistWorkSpaceSlot::kDomainSaltSourceC},
-        {"mDomainSaltSourceD", TwistWorkSpaceSlot::kDomainSaltSourceD},
-        {"mDomainSaltSourceE", TwistWorkSpaceSlot::kDomainSaltSourceE},
-        {"mDomainSaltSourceF", TwistWorkSpaceSlot::kDomainSaltSourceF},
-        {"mDerivedSaltA", TwistWorkSpaceSlot::kDerivedSaltA},
-        {"mDerivedSaltB", TwistWorkSpaceSlot::kDerivedSaltB},
-        {"mDerivedSaltC", TwistWorkSpaceSlot::kDerivedSaltC},
-        {"mDerivedSaltD", TwistWorkSpaceSlot::kDerivedSaltD},
-        {"mDerivedSaltE", TwistWorkSpaceSlot::kDerivedSaltE},
-        {"mDerivedSaltF", TwistWorkSpaceSlot::kDerivedSaltF},
-        {"mDerivedSaltG", TwistWorkSpaceSlot::kDerivedSaltG},
-        {"mDerivedSaltH", TwistWorkSpaceSlot::kDerivedSaltH},
-        {"mDerivedSaltOrbiterA", TwistWorkSpaceSlot::kDerivedSaltOrbiterA},
-        {"mDerivedSaltOrbiterB", TwistWorkSpaceSlot::kDerivedSaltOrbiterB},
-        {"mDerivedSaltOrbiterC", TwistWorkSpaceSlot::kDerivedSaltOrbiterC},
-        {"mDerivedSaltOrbiterD", TwistWorkSpaceSlot::kDerivedSaltOrbiterD},
-        {"mDerivedSaltWandererA", TwistWorkSpaceSlot::kDerivedSaltWandererA},
-        {"mDerivedSaltWandererB", TwistWorkSpaceSlot::kDerivedSaltWandererB},
-        {"mDerivedSaltWandererC", TwistWorkSpaceSlot::kDerivedSaltWandererC},
-        {"mDerivedSaltWandererD", TwistWorkSpaceSlot::kDerivedSaltWandererD},
-        {"mSBoxA", TwistWorkSpaceSlot::kSBoxA},
-        {"mSBoxB", TwistWorkSpaceSlot::kSBoxB},
-        {"mSBoxC", TwistWorkSpaceSlot::kSBoxC},
-        {"mSBoxD", TwistWorkSpaceSlot::kSBoxD},
-        {"mSBoxE", TwistWorkSpaceSlot::kSBoxE},
-        {"mSBoxF", TwistWorkSpaceSlot::kSBoxF},
-        {"mSBoxG", TwistWorkSpaceSlot::kSBoxG},
-        {"mSBoxH", TwistWorkSpaceSlot::kSBoxH},
+        {"mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA},
+        {"mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB},
+        {"mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterC},
+        {"mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterD},
+        {"mSaltE", TwistWorkSpaceSlot::kParamDomainSaltUnwindE},
+        {"mSaltF", TwistWorkSpaceSlot::kParamDomainSaltUnwindF},
+        {"mMatsWorkLaneOrbiterInit.mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA},
+        {"mMatsWorkLaneOrbiterInit.mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB},
+        {"mMatsWorkLaneOrbiterInit.mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterC},
+        {"mMatsWorkLaneOrbiterInit.mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterD},
+        {"mMatsWorkLaneOrbiterInit.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltUnwindE},
+        {"mMatsWorkLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltUnwindF},
+        {"mMatsWorkLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltUnwindE},
+        {"mMatsWorkLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltUnwindF},
+        {"mMatsWorkLaneOrbiter.mSaltA", TwistWorkSpaceSlot::kDerivedSaltOrbiterA},
+        {"mMatsWorkLaneOrbiter.mSaltB", TwistWorkSpaceSlot::kDerivedSaltOrbiterB},
+        {"mMatsWorkLaneOrbiter.mSaltC", TwistWorkSpaceSlot::kDerivedSaltOrbiterC},
+        {"mMatsWorkLaneOrbiter.mSaltD", TwistWorkSpaceSlot::kDerivedSaltOrbiterD},
+        {"mMatsWorkLaneUnwind.mSaltA", TwistWorkSpaceSlot::kDerivedSaltUnwindA},
+        {"mMatsWorkLaneUnwind.mSaltB", TwistWorkSpaceSlot::kDerivedSaltUnwindB},
+        {"mMatsWorkLaneUnwind.mSaltC", TwistWorkSpaceSlot::kDerivedSaltUnwindC},
+        {"mMatsWorkLaneUnwind.mSaltD", TwistWorkSpaceSlot::kDerivedSaltUnwindD},
+        {"mSBoxA", TwistWorkSpaceSlot::kParamDomainSBoxA},
+        {"mSBoxB", TwistWorkSpaceSlot::kParamDomainSBoxB},
+        {"mSBoxC", TwistWorkSpaceSlot::kParamDomainSBoxC},
+        {"mSBoxD", TwistWorkSpaceSlot::kParamDomainSBoxD},
+        {"mSBoxE", TwistWorkSpaceSlot::kParamDomainSBoxE},
+        {"mSBoxF", TwistWorkSpaceSlot::kParamDomainSBoxF},
+        {"mSBoxG", TwistWorkSpaceSlot::kParamDomainSBoxG},
+        {"mSBoxH", TwistWorkSpaceSlot::kParamDomainSBoxH},
+        {"mMatsWorkLaneOrbiterInit.mSBoxA", TwistWorkSpaceSlot::kDerivedSBoxA},
+        {"mMatsWorkLaneOrbiterInit.mSBoxB", TwistWorkSpaceSlot::kDerivedSBoxB},
+        {"mMatsWorkLaneOrbiterInit.mSBoxC", TwistWorkSpaceSlot::kDerivedSBoxC},
+        {"mMatsWorkLaneOrbiterInit.mSBoxD", TwistWorkSpaceSlot::kDerivedSBoxD},
+        {"mMatsWorkLaneOrbiterInit.mSBoxE", TwistWorkSpaceSlot::kDerivedSBoxE},
+        {"mMatsWorkLaneOrbiterInit.mSBoxF", TwistWorkSpaceSlot::kDerivedSBoxF},
+        {"mMatsWorkLaneOrbiterInit.mSBoxG", TwistWorkSpaceSlot::kDerivedSBoxG},
+        {"mMatsWorkLaneOrbiterInit.mSBoxH", TwistWorkSpaceSlot::kDerivedSBoxH},
         {"mDerivedSBoxA", TwistWorkSpaceSlot::kDerivedSBoxA},
         {"mDerivedSBoxB", TwistWorkSpaceSlot::kDerivedSBoxB},
         {"mDerivedSBoxC", TwistWorkSpaceSlot::kDerivedSBoxC},
@@ -810,14 +829,50 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mExpandLaneB", TwistWorkSpaceSlot::kSeedExpansionLaneB},
         {"mExpandLaneC", TwistWorkSpaceSlot::kSeedExpansionLaneC},
         {"mExpandLaneD", TwistWorkSpaceSlot::kSeedExpansionLaneD},
+        {"mExpandLaneE", TwistWorkSpaceSlot::kSeedExpansionLaneE},
+        {"mExpandLaneF", TwistWorkSpaceSlot::kSeedExpansionLaneF},
         {"mWorkLaneA", TwistWorkSpaceSlot::kWorkLaneA},
         {"mWorkLaneB", TwistWorkSpaceSlot::kWorkLaneB},
         {"mWorkLaneC", TwistWorkSpaceSlot::kWorkLaneC},
         {"mWorkLaneD", TwistWorkSpaceSlot::kWorkLaneD},
+        {"mWorkLaneE", TwistWorkSpaceSlot::kWorkLaneE},
+        {"mWorkLaneF", TwistWorkSpaceSlot::kWorkLaneF},
         {"mOperationLaneA", TwistWorkSpaceSlot::kOperationLaneA},
         {"mOperationLaneB", TwistWorkSpaceSlot::kOperationLaneB},
+        {"mOperationLaneC", TwistWorkSpaceSlot::kOperationLaneC},
+        {"mOperationLaneD", TwistWorkSpaceSlot::kOperationLaneD},
+        {"mOperationLaneE", TwistWorkSpaceSlot::kOperationLaneE},
+        {"mOperationLaneF", TwistWorkSpaceSlot::kOperationLaneF},
         {"mMaskLaneA", TwistWorkSpaceSlot::kMaskLaneA},
-        {"mMaskLaneB", TwistWorkSpaceSlot::kMaskLaneB}
+        {"mMaskLaneB", TwistWorkSpaceSlot::kMaskLaneB},
+        {"mKeyBoxUnrolledA", TwistWorkSpaceSlot::kKeyBoxUnrolledA},
+        {"mKeyBoxUnrolledB", TwistWorkSpaceSlot::kKeyBoxUnrolledB},
+        {"mKeyBoxUnrolledC", TwistWorkSpaceSlot::kMaskBoxUnrolledA},
+        {"mKeyBoxUnrolledD", TwistWorkSpaceSlot::kMaskBoxUnrolledB},
+        {"aKeyBoxUnrolledC", TwistWorkSpaceSlot::kMaskBoxUnrolledA},
+        {"aKeyBoxUnrolledD", TwistWorkSpaceSlot::kMaskBoxUnrolledB},
+        {"mKeyRowReadA", TwistWorkSpaceSlot::kKeyRowReadA},
+        {"mKeyRowReadB", TwistWorkSpaceSlot::kKeyRowReadB},
+        {"mKeyRowReadC", TwistWorkSpaceSlot::kMaskRowReadA},
+        {"mKeyRowReadD", TwistWorkSpaceSlot::kMaskRowReadB},
+        {"aKeyRowReadC", TwistWorkSpaceSlot::kMaskRowReadA},
+        {"aKeyRowReadD", TwistWorkSpaceSlot::kMaskRowReadB},
+        {"mKeyRowWriteA", TwistWorkSpaceSlot::kKeyRowWriteA},
+        {"mKeyRowWriteB", TwistWorkSpaceSlot::kKeyRowWriteB},
+        {"mKeyRowWriteC", TwistWorkSpaceSlot::kMaskRowWriteA},
+        {"mKeyRowWriteD", TwistWorkSpaceSlot::kMaskRowWriteB},
+        {"aKeyRowWriteC", TwistWorkSpaceSlot::kMaskRowWriteA},
+        {"aKeyRowWriteD", TwistWorkSpaceSlot::kMaskRowWriteB},
+        {"mMaskBoxUnrolledA", TwistWorkSpaceSlot::kMaskBoxUnrolledA},
+        {"mMaskBoxUnrolledB", TwistWorkSpaceSlot::kMaskBoxUnrolledB},
+        {"mMaskRowReadA", TwistWorkSpaceSlot::kMaskRowReadA},
+        {"mMaskRowReadB", TwistWorkSpaceSlot::kMaskRowReadB},
+        {"mMaskRowWriteA", TwistWorkSpaceSlot::kMaskRowWriteA},
+        {"mMaskRowWriteB", TwistWorkSpaceSlot::kMaskRowWriteB},
+        {"mIndexList256A", TwistWorkSpaceSlot::kIndexList256A},
+        {"mIndexList256B", TwistWorkSpaceSlot::kIndexList256B},
+        {"mIndexList256C", TwistWorkSpaceSlot::kIndexList256C},
+        {"mIndexList256D", TwistWorkSpaceSlot::kIndexList256D}
     };
 
     for (const AliasSlotPair &aPair : kWorkspaceFieldAliases) {
@@ -903,7 +958,6 @@ bool ParseCryptoCallArguments(const std::string &pLine,
 bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
                                     TwistWorkSpace *pWorkspace,
                                     TwistExpander *pExpander,
-                                    TwistCryptoGenerator *pCryptoGenerator,
                                     std::string *pErrorMessage) {
     enum class CryptoMethod : std::uint8_t {
         kStepA_MakeSBoxes = 0,
@@ -933,19 +987,19 @@ bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
         ((aMethod == CryptoMethod::kStepD_MakeSalts) && (aArgs.size() == 25U));
     if (!aValidCount) {
         if (aMethod == CryptoMethod::kStepA_MakeSBoxes) {
-            SetError(pErrorMessage, "TwistCryptoGenerator::StepA_MakeSBoxes expects 13 arguments.");
+            SetError(pErrorMessage, "StepA_MakeSBoxes expects 13 arguments.");
         } else if (aMethod == CryptoMethod::kStepB_MakeSalts) {
-            SetError(pErrorMessage, "TwistCryptoGenerator::StepB_MakeSalts expects 17 arguments.");
+            SetError(pErrorMessage, "StepB_MakeSalts expects 17 arguments.");
         } else if (aMethod == CryptoMethod::kStepC_MakeSBoxes) {
-            SetError(pErrorMessage, "TwistCryptoGenerator::StepC_MakeSBoxes expects 21 arguments.");
+            SetError(pErrorMessage, "StepC_MakeSBoxes expects 21 arguments.");
         } else {
-            SetError(pErrorMessage, "TwistCryptoGenerator::StepD_MakeSalts expects 25 arguments.");
+            SetError(pErrorMessage, "StepD_MakeSalts expects 25 arguments.");
         }
         return false;
     }
 
-    if ((pWorkspace == nullptr) || (pExpander == nullptr) || (pCryptoGenerator == nullptr)) {
-        SetError(pErrorMessage, "TwistCryptoGenerator call execution was missing required runtime inputs.");
+    if ((pWorkspace == nullptr) || (pExpander == nullptr)) {
+        SetError(pErrorMessage, "Legacy crypto-step call execution was missing required runtime inputs.");
         return false;
     }
 
@@ -954,13 +1008,17 @@ bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
     for (const std::string &aAlias : aArgs) {
         TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
         if (!ResolveAliasSlot(aAlias, &aSlot)) {
-            SetError(pErrorMessage, "Unknown buffer alias in TwistCryptoGenerator call: " + aAlias);
+            SetError(pErrorMessage, "Unknown buffer alias in legacy crypto-step call: " + aAlias);
             return false;
         }
 
-        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace,
-                                                          pExpander,
-                                                          aSlot);
+        TwistBufferKey aMappedKey;
+        std::uint8_t *aBuffer = nullptr;
+        if (TwistWorkSpace::TryLegacySlotToBufferKey(aSlot, &aMappedKey)) {
+            aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aMappedKey);
+        } else {
+            aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSlot);
+        }
         if (aBuffer == nullptr) {
             SetError(pErrorMessage, "Resolved null buffer for alias: " + aAlias);
             return false;
@@ -969,155 +1027,287 @@ bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
     }
 
     if (aMethod == CryptoMethod::kStepA_MakeSBoxes) {
-        /*
-        pCryptoGenerator->StepA_MakeSBoxes(aBuffers[0],
-                                           aBuffers[1], aBuffers[2], aBuffers[3], aBuffers[4],
-                                           aBuffers[5], aBuffers[6], aBuffers[7], aBuffers[8],
-                                           aBuffers[9], aBuffers[10], aBuffers[11], aBuffers[12]);
-        */
+        (void)aBuffers;
         return true;
     }
 
     if (aMethod == CryptoMethod::kStepB_MakeSalts) {
-        /*
-        pCryptoGenerator->StepB_MakeSalts(aBuffers[0],
-                                          aBuffers[1], aBuffers[2], aBuffers[3], aBuffers[4],
-                                          aBuffers[5], aBuffers[6], aBuffers[7], aBuffers[8],
-                                          aBuffers[9], aBuffers[10], aBuffers[11], aBuffers[12],
-                                          aBuffers[13], aBuffers[14], aBuffers[15], aBuffers[16]);
-        */
         return true;
     }
 
     if (aMethod == CryptoMethod::kStepC_MakeSBoxes) {
-        /*
-        pCryptoGenerator->StepC_MakeSBoxes(aBuffers[0],
-                                           aBuffers[1], aBuffers[2], aBuffers[3], aBuffers[4],
-                                           aBuffers[5], aBuffers[6], aBuffers[7], aBuffers[8],
-                                           aBuffers[9], aBuffers[10], aBuffers[11], aBuffers[12],
-                                           aBuffers[13], aBuffers[14], aBuffers[15], aBuffers[16],
-                                           aBuffers[17], aBuffers[18], aBuffers[19], aBuffers[20]);
-        */
         return true;
     }
 
     if (aMethod == CryptoMethod::kStepD_MakeSalts) {
-        /*
-        pCryptoGenerator->StepD_MakeSalts(aBuffers[0],
-                                          aBuffers[1], aBuffers[2], aBuffers[3], aBuffers[4],
-                                          aBuffers[5], aBuffers[6], aBuffers[7], aBuffers[8],
-                                          aBuffers[9], aBuffers[10], aBuffers[11], aBuffers[12],
-                                          aBuffers[13], aBuffers[14], aBuffers[15], aBuffers[16],
-                                          aBuffers[17], aBuffers[18], aBuffers[19], aBuffers[20],
-                                          aBuffers[21], aBuffers[22], aBuffers[23], aBuffers[24]);
-        */
         return true;
     }
-    SetError(pErrorMessage, "Unsupported TwistCryptoGenerator step call.");
+    SetError(pErrorMessage, "Unsupported legacy crypto-step call.");
     return false;
 }
 
 bool ExecuteCryptoMakeLine(const std::string &pLine,
                            TwistWorkSpace *pWorkspace,
                            TwistExpander *pExpander,
-                           TwistCryptoGenerator *pCryptoGenerator,
                            std::string *pErrorMessage) {
-    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pCryptoGenerator, pErrorMessage);
+    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pErrorMessage);
 }
 
 bool ExecuteCryptoSaltLine(const std::string &pLine,
                            TwistWorkSpace *pWorkspace,
                            TwistExpander *pExpander,
-                           TwistCryptoGenerator *pCryptoGenerator,
                            std::string *pErrorMessage) {
-    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pCryptoGenerator, pErrorMessage);
+    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pErrorMessage);
 }
 
-bool ParseTwistDomainToken(const std::string &pToken,
-                           TwistDomain *pDomainOut) {
-    if (pDomainOut == nullptr) {
-        return false;
+std::string NormalizeRoundMaterialToken(const std::string &pToken) {
+    std::string aToken = TrimCopy(pToken);
+    while (!aToken.empty() && (aToken.front() == '&')) {
+        aToken.erase(aToken.begin());
+        aToken = TrimCopy(aToken);
+    }
+    while ((aToken.size() >= 2U) && (aToken.front() == '(') && (aToken.back() == ')')) {
+        aToken = TrimCopy(aToken.substr(1U, aToken.size() - 2U));
     }
 
-    const std::string aToken = TrimCopy(pToken);
-    const std::string kPrefix = "TwistDomain::";
-    if (aToken.rfind(kPrefix, 0U) == 0U) {
-        const std::string aName = aToken.substr(kPrefix.size());
-        if (aName == "kInv") { *pDomainOut = TwistDomain::kInv; return true; }
-        if (aName == "kSalts") { *pDomainOut = TwistDomain::kSalts; return true; }
-        if (aName == "kSBoxes") { *pDomainOut = TwistDomain::kSBoxes; return true; }
-        if (aName == "kKeyBoxA") { *pDomainOut = TwistDomain::kKeyBoxA; return true; }
-        if (aName == "kKeyBoxB") { *pDomainOut = TwistDomain::kKeyBoxB; return true; }
-        if (aName == "kMaskBoxA") { *pDomainOut = TwistDomain::kMaskBoxA; return true; }
-        if (aName == "kMaskBoxB") { *pDomainOut = TwistDomain::kMaskBoxB; return true; }
-        if (aName == "kSaltsKeyAWanderer") { *pDomainOut = TwistDomain::kSaltsKeyAWanderer; return true; }
-        if (aName == "kSaltsKeyAOrbiter") { *pDomainOut = TwistDomain::kSaltsKeyAOrbiter; return true; }
-        if (aName == "kSaltsKeyASeeder") { *pDomainOut = TwistDomain::kSaltsKeyASeeder; return true; }
-        if (aName == "kSaltsKeyBWanderer") { *pDomainOut = TwistDomain::kSaltsKeyBWanderer; return true; }
-        if (aName == "kSaltsKeyBOrbiter") { *pDomainOut = TwistDomain::kSaltsKeyBOrbiter; return true; }
-        if (aName == "kSaltsKeyBSeeder") { *pDomainOut = TwistDomain::kSaltsKeyBSeeder; return true; }
-        if (aName == "kSaltsMaskAWanderer") { *pDomainOut = TwistDomain::kSaltsMaskAWanderer; return true; }
-        if (aName == "kSaltsMaskAOrbiter") { *pDomainOut = TwistDomain::kSaltsMaskAOrbiter; return true; }
-        if (aName == "kSaltsMaskASeeder") { *pDomainOut = TwistDomain::kSaltsMaskASeeder; return true; }
-        if (aName == "kSaltsMaskBWanderer") { *pDomainOut = TwistDomain::kSaltsMaskBWanderer; return true; }
-        if (aName == "kSaltsMaskBOrbiter") { *pDomainOut = TwistDomain::kSaltsMaskBOrbiter; return true; }
-        if (aName == "kSaltsMaskBSeeder") { *pDomainOut = TwistDomain::kSaltsMaskBSeeder; return true; }
-        if (aName == "kSaltsWorkLaneWanderer") { *pDomainOut = TwistDomain::kSaltsWorkLaneWanderer; return true; }
-        if (aName == "kSaltsWorkLaneOrbiter") { *pDomainOut = TwistDomain::kSaltsWorkLaneOrbiter; return true; }
-        if (aName == "kSaltsWorkLaneSeeder") { *pDomainOut = TwistDomain::kSaltsWorkLaneSeeder; return true; }
-        if (aName == "kSaltsMaskLaneWanderer") { *pDomainOut = TwistDomain::kSaltsMaskLaneWanderer; return true; }
-        if (aName == "kSaltsMaskLaneOrbiter") { *pDomainOut = TwistDomain::kSaltsMaskLaneOrbiter; return true; }
-        if (aName == "kSaltsMaskLaneSeeder") { *pDomainOut = TwistDomain::kSaltsMaskLaneSeeder; return true; }
-        if (aName == "kSaltsOperationLaneWanderer") { *pDomainOut = TwistDomain::kSaltsOperationLaneWanderer; return true; }
-        if (aName == "kSaltsOperationLaneOrbiter") { *pDomainOut = TwistDomain::kSaltsOperationLaneOrbiter; return true; }
-        if (aName == "kSaltsOperationLaneSeeder") { *pDomainOut = TwistDomain::kSaltsOperationLaneSeeder; return true; }
-        if (aName == "kSBoxesKeyA") { *pDomainOut = TwistDomain::kSBoxesKeyA; return true; }
-        if (aName == "kSBoxesKeyB") { *pDomainOut = TwistDomain::kSBoxesKeyB; return true; }
-        if (aName == "kSBoxesMaskA") { *pDomainOut = TwistDomain::kSBoxesMaskA; return true; }
-        if (aName == "kSBoxesMaskB") { *pDomainOut = TwistDomain::kSBoxesMaskB; return true; }
-        if (aName == "kSBoxesWorkLane") { *pDomainOut = TwistDomain::kSBoxesWorkLane; return true; }
-        if (aName == "kSBoxesMaskLane") { *pDomainOut = TwistDomain::kSBoxesMaskLane; return true; }
-        if (aName == "kSBoxesOperationLane") { *pDomainOut = TwistDomain::kSBoxesOperationLane; return true; }
-        return false;
+    const char *kPrefixes[] = {
+        "pWorkspace->",
+        "(*pWorkspace).",
+        "this->",
+        "pExpander->",
+        "(*pExpander)."
+    };
+    for (const char *aPrefix : kPrefixes) {
+        const std::string aPrefixText(aPrefix);
+        if (aToken.rfind(aPrefixText, 0U) == 0U) {
+            aToken = TrimCopy(aToken.substr(aPrefixText.size()));
+            break;
+        }
     }
-
-    char *aEnd = nullptr;
-    const unsigned long long aParsed = std::strtoull(aToken.c_str(), &aEnd, 0);
-    if ((aEnd == nullptr) || (*aEnd != '\0')) {
-        return false;
-    }
-    *pDomainOut = static_cast<TwistDomain>(static_cast<std::uint8_t>(aParsed & 0xFFULL));
-    return true;
+    return aToken;
 }
 
-bool ParseDomainConstantToken(const std::string &pToken,
-                              const TwistExpander *pExpander,
-                              std::uint64_t *pValueOut) {
-    if ((pExpander == nullptr) || (pValueOut == nullptr)) {
+std::string NormalizeConstantsToken(const std::string &pToken) {
+    std::string aToken = TrimCopy(pToken);
+    while (!aToken.empty() && (aToken.front() == '&')) {
+        aToken.erase(aToken.begin());
+        aToken = TrimCopy(aToken);
+    }
+    while ((aToken.size() >= 2U) && (aToken.front() == '(') && (aToken.back() == ')')) {
+        aToken = TrimCopy(aToken.substr(1U, aToken.size() - 2U));
+    }
+
+    const char *kPrefixes[] = {
+        "pWorkspace->",
+        "(*pWorkspace).",
+        "this->",
+        "pExpander->",
+        "(*pExpander)."
+    };
+    for (const char *aPrefix : kPrefixes) {
+        const std::string aPrefixText(aPrefix);
+        if (aToken.rfind(aPrefixText, 0U) == 0U) {
+            aToken = TrimCopy(aToken.substr(aPrefixText.size()));
+            break;
+        }
+    }
+    return aToken;
+}
+
+bool ResolveConstantsToken(const std::string &pToken,
+                           TwistExpander *pExpander,
+                           TwistDomainConstants **pConstantsResolved) {
+    if ((pExpander == nullptr) || (pConstantsResolved == nullptr)) {
         return false;
     }
 
-    const std::string aToken = TrimCopy(pToken);
-    if (aToken == "mDomainConstantPublicIngress" || aToken == "pDomainConstantPublicIngress") {
-        *pValueOut = pExpander->mDomainConstantPublicIngress;
-        return true;
-    }
-    if (aToken == "mDomainConstantPrivateIngress" || aToken == "pDomainConstantPrivateIngress") {
-        *pValueOut = pExpander->mDomainConstantPrivateIngress;
-        return true;
-    }
-    if (aToken == "mDomainConstantCrossIngress" || aToken == "pDomainConstantCrossIngress") {
-        *pValueOut = pExpander->mDomainConstantCrossIngress;
-        return true;
-    }
-
-    char *aEnd = nullptr;
-    const unsigned long long aParsed = std::strtoull(aToken.c_str(), &aEnd, 0);
-    if ((aEnd == nullptr) || (*aEnd != '\0')) {
+    const std::string aToken = NormalizeConstantsToken(pToken);
+    if (aToken.empty()) {
         return false;
     }
-    *pValueOut = static_cast<std::uint64_t>(aParsed);
-    return true;
+
+    if ((aToken == "mConstantsKeyA") ||
+        (aToken == "mDomainBundleInbuilt.mKeyAConstants") ||
+        (aToken == "mDomainBundle.mKeyAConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mKeyAConstants);
+        return true;
+    }
+    if ((aToken == "mConstantsKeyB") ||
+        (aToken == "mDomainBundleInbuilt.mKeyBConstants") ||
+        (aToken == "mDomainBundle.mKeyBConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mKeyBConstants);
+        return true;
+    }
+    if ((aToken == "mConstantsMaskA") ||
+        (aToken == "mDomainBundleInbuilt.mMaskAConstants") ||
+        (aToken == "mDomainBundle.mMaskAConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mMaskAConstants);
+        return true;
+    }
+    if ((aToken == "mConstantsMaskB") ||
+        (aToken == "mDomainBundleInbuilt.mMaskBConstants") ||
+        (aToken == "mDomainBundle.mMaskBConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mMaskBConstants);
+        return true;
+    }
+    if ((aToken == "mConstantsWorkLane") ||
+        (aToken == "mDomainBundleInbuilt.mWorkLaneConstants") ||
+        (aToken == "mDomainBundle.mWorkLaneConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mWorkLaneConstants);
+        return true;
+    }
+    if ((aToken == "mConstantsMaskLane") ||
+        (aToken == "mDomainBundleInbuilt.mMaskLaneConstants") ||
+        (aToken == "mDomainBundle.mMaskLaneConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mMaskLaneConstants);
+        return true;
+    }
+    if ((aToken == "mConstantsOperationLane") ||
+        (aToken == "mDomainBundleInbuilt.mOperationLaneConstants") ||
+        (aToken == "mDomainBundle.mOperationLaneConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mOperationLaneConstants);
+        return true;
+    }
+    return false;
+}
+
+bool ResolveSaltSetToken(const std::string &pToken,
+                         TwistWorkSpace *pWorkspace,
+                         TwistExpander *pExpander,
+                         TwistDomainSaltSet **pSaltSetResolved) {
+    if (pSaltSetResolved == nullptr) {
+        return false;
+    }
+
+    const std::string aToken = NormalizeRoundMaterialToken(pToken);
+    if (aToken.empty()) {
+        return false;
+    }
+
+    auto TryWorkspaceSet = [&](const std::string &pName,
+                               TwistDomainSaltSet *pSet) -> bool {
+        if ((pWorkspace == nullptr) || (pSet == nullptr)) {
+            return false;
+        }
+        if (aToken != pName) {
+            return false;
+        }
+        *pSaltSetResolved = pSet;
+        return true;
+    };
+
+    if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSalts", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSalts", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
+
+    // Legacy compatibility tokens.
+    if (TryWorkspaceSet("mMatsKeyAOrbiterInit", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAOrbiter", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAUnwind", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiterInit", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiter", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBUnwind", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiterInit", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiter", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAUnwind", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBUnwind", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneOrbiterInit", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneOrbiter", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneUnwind", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneUnwind", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneOrbiterInit", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneOrbiter", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneUnwind", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
+
+    if (pExpander != nullptr) {
+        auto TryExpanderSet = [&](const std::string &pName,
+                                  TwistDomainSaltSet *pSet) -> bool {
+            if (pSet == nullptr) {
+                return false;
+            }
+            if (aToken != pName) {
+                return false;
+            }
+            *pSaltSetResolved = pSet;
+            return true;
+        };
+
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASalts", &pExpander->mDomainBundleInbuilt.mKeyASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSalts", &pExpander->mDomainBundleInbuilt.mKeyBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASalts", &pExpander->mDomainBundleInbuilt.mMaskASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSalts", &pExpander->mDomainBundleInbuilt.mMaskBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSalts", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSalts", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSalts", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts)) { return true; }
+    }
+
+    return false;
+}
+
+bool ResolveSBoxSetToken(const std::string &pToken,
+                         TwistWorkSpace *pWorkspace,
+                         TwistExpander *pExpander,
+                         TwistDomainSBoxSet **pSBoxSetResolved) {
+    if (pSBoxSetResolved == nullptr) {
+        return false;
+    }
+
+    const std::string aToken = NormalizeRoundMaterialToken(pToken);
+    if (aToken.empty()) {
+        return false;
+    }
+
+    auto TryWorkspaceSet = [&](const std::string &pName,
+                               TwistDomainSBoxSet *pSet) -> bool {
+        if ((pWorkspace == nullptr) || (pSet == nullptr)) {
+            return false;
+        }
+        if (aToken != pName) {
+            return false;
+        }
+        *pSBoxSetResolved = pSet;
+        return true;
+    };
+
+    if (TryWorkspaceSet("mDomainBundle.mKeyASBoxes", &pWorkspace->mDomainBundle.mKeyASBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyBSBoxes", &pWorkspace->mDomainBundle.mKeyBSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskASBoxes", &pWorkspace->mDomainBundle.mMaskASBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskBSBoxes", &pWorkspace->mDomainBundle.mMaskBSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSBoxes", &pWorkspace->mDomainBundle.mWorkLaneSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSBoxes", &pWorkspace->mDomainBundle.mMaskLaneSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSBoxes", &pWorkspace->mDomainBundle.mOperationLaneSBoxes)) { return true; }
+
+    if (pExpander != nullptr) {
+        auto TryExpanderSet = [&](const std::string &pName,
+                                  TwistDomainSBoxSet *pSet) -> bool {
+            if (pSet == nullptr) {
+                return false;
+            }
+            if (aToken != pName) {
+                return false;
+            }
+            *pSBoxSetResolved = pSet;
+            return true;
+        };
+
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASBoxes", &pExpander->mDomainBundleInbuilt.mKeyASBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSBoxes", &pExpander->mDomainBundleInbuilt.mKeyBSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASBoxes", &pExpander->mDomainBundleInbuilt.mMaskASBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSBoxes", &pExpander->mDomainBundleInbuilt.mMaskBSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSBoxes", &pExpander->mDomainBundleInbuilt.mWorkLaneSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSBoxes", &pExpander->mDomainBundleInbuilt.mMaskLaneSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSBoxes", &pExpander->mDomainBundleInbuilt.mOperationLaneSBoxes)) { return true; }
+    }
+
+    return false;
 }
 
 bool ExecuteKDFLine(const std::string &pLine,
@@ -1134,66 +1324,76 @@ bool ExecuteKDFLine(const std::string &pLine,
         return false;
     }
 
-    if (aArgs.size() != 10U) {
-        SetError(pErrorMessage, "KDF call expects exactly 10 arguments.");
+    if ((aArgs.size() == 10U) || (aArgs.size() == 6U)) {
+        SetError(pErrorMessage, "Legacy KDF call shape is no longer supported.");
+        return false;
+    }
+    if (aArgs.size() != 5U) {
+        SetError(pErrorMessage, "KDF call expects exactly 5 arguments.");
         return false;
     }
 
-    TwistDomain aDomain = TwistDomain::kInv;
-    if (!ParseTwistDomainToken(aArgs[0], &aDomain)) {
-        SetError(pErrorMessage, "KDF call domain token was invalid: " + aArgs[0]);
+    TwistWorkSpaceSlot aSourceSlot = TwistWorkSpaceSlot::kInvalid;
+    if (!ResolveAliasSlot(aArgs[0], &aSourceSlot)) {
+        SetError(pErrorMessage, "KDF source alias was invalid: " + aArgs[0]);
+        return false;
+    }
+    TwistWorkSpaceSlot aDestSlot = TwistWorkSpaceSlot::kInvalid;
+    if (!ResolveAliasSlot(aArgs[1], &aDestSlot)) {
+        SetError(pErrorMessage, "KDF destination alias was invalid: " + aArgs[1]);
         return false;
     }
 
-    std::uint64_t aDomainPublic = 0ULL;
-    std::uint64_t aDomainPrivate = 0ULL;
-    std::uint64_t aDomainCross = 0ULL;
-    if (!ParseDomainConstantToken(aArgs[1], pExpander, &aDomainPublic)) {
-        SetError(pErrorMessage, "KDF public domain constant token was invalid: " + aArgs[1]);
+    TwistBufferKey aSourceKey;
+    std::uint8_t *aSource = nullptr;
+    if (TwistWorkSpace::TryLegacySlotToBufferKey(aSourceSlot, &aSourceKey)) {
+        aSource = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSourceKey);
+    } else {
+        aSource = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSourceSlot);
+    }
+    if (aSource == nullptr) {
+        SetError(pErrorMessage, "KDF source alias resolved to null: " + aArgs[0]);
         return false;
     }
-    if (!ParseDomainConstantToken(aArgs[2], pExpander, &aDomainPrivate)) {
-        SetError(pErrorMessage, "KDF private domain constant token was invalid: " + aArgs[2]);
-        return false;
+    TwistBufferKey aDestKey;
+    std::uint8_t *aDest = nullptr;
+    if (TwistWorkSpace::TryLegacySlotToBufferKey(aDestSlot, &aDestKey)) {
+        aDest = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aDestKey);
+    } else {
+        aDest = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aDestSlot);
     }
-    if (!ParseDomainConstantToken(aArgs[3], pExpander, &aDomainCross)) {
-        SetError(pErrorMessage, "KDF cross domain constant token was invalid: " + aArgs[3]);
+    if (aDest == nullptr) {
+        SetError(pErrorMessage, "KDF destination alias resolved to null: " + aArgs[1]);
         return false;
     }
 
-    std::uint64_t *aOutputBuffers[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
-    for (std::size_t i = 0U; i < 6U; ++i) {
-        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
-        if (!ResolveAliasSlot(aArgs[4U + i], &aSlot)) {
-            SetError(pErrorMessage, "KDF output alias was invalid: " + aArgs[4U + i]);
-            return false;
-        }
-
-        std::uint8_t *aBytes = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSlot);
-        if (aBytes == nullptr) {
-            SetError(pErrorMessage, "KDF output alias resolved to null: " + aArgs[4U + i]);
-            return false;
-        }
-        aOutputBuffers[i] = reinterpret_cast<std::uint64_t *>(aBytes);
+    TwistDomainConstants *aConstants = nullptr;
+    if (!ResolveConstantsToken(aArgs[2], pExpander, &aConstants)) {
+        SetError(pErrorMessage, "KDF constants token was invalid: " + aArgs[2]);
+        return false;
+    }
+    TwistDomainSaltSet *aSaltSet = nullptr;
+    if (!ResolveSaltSetToken(aArgs[3], pWorkspace, pExpander, &aSaltSet)) {
+        SetError(pErrorMessage, "KDF salt-set token was invalid: " + aArgs[3]);
+        return false;
+    }
+    TwistDomainSBoxSet *aSBoxSet = nullptr;
+    if (!ResolveSBoxSetToken(aArgs[4], pWorkspace, pExpander, &aSBoxSet)) {
+        SetError(pErrorMessage, "KDF sbox-set token was invalid: " + aArgs[4]);
+        return false;
     }
 
-    pExpander->KDF(aDomain,
-                   aDomainPublic,
-                   aDomainPrivate,
-                   aDomainCross,
-                   aOutputBuffers[0],
-                   aOutputBuffers[1],
-                   aOutputBuffers[2],
-                   aOutputBuffers[3],
-                   aOutputBuffers[4],
-                   aOutputBuffers[5]);
+    pExpander->KDF(aSource,
+                   aDest,
+                   aConstants,
+                   aSaltSet,
+                   aSBoxSet);
     return true;
 }
 
 bool ApplyBranchStringLine(const std::string &pRawLine,
                            TwistWorkSpace *pWorkspace,
                            TwistExpander *pExpander,
-                           TwistCryptoGenerator *pCryptoGenerator,
                            std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                            std::string *pErrorMessage) {
     if ((pWorkspace == nullptr) || (pVariables == nullptr)) {
@@ -1202,7 +1402,7 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
     }
 
     std::string aLineError;
-    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, pExpander, pCryptoGenerator, &aLineError);
+    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, pExpander, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -1211,7 +1411,7 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedCryptoSalt = ExecuteCryptoSaltLine(pRawLine, pWorkspace, pExpander, pCryptoGenerator, &aLineError);
+    const bool aExecutedCryptoSalt = ExecuteCryptoSaltLine(pRawLine, pWorkspace, pExpander, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -1285,11 +1485,10 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
 bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
                             TwistWorkSpace *pWorkspace,
                             TwistExpander *pExpander,
-                            TwistCryptoGenerator *pCryptoGenerator,
                             std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                             std::string *pErrorMessage) {
     for (const std::string &aRawLine : pLines) {
-        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pExpander, pCryptoGenerator, pVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pExpander, pVariables, pErrorMessage)) {
             return false;
         }
     }
@@ -1328,7 +1527,6 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
 bool ExecuteBranch(const TwistProgramBranch &pBranch,
                    TwistWorkSpace *pWorkspace,
                    TwistExpander *pExpander,
-                   TwistCryptoGenerator *pCryptoGenerator,
                    std::string *pErrorMessage) {
     if (pWorkspace == nullptr) {
         SetError(pErrorMessage, "Branch execution received a null workspace.");
@@ -1338,7 +1536,7 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
     std::unordered_map<std::string, GRuntimeScalar> aVariables;
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
-        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, pCryptoGenerator, &aVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, &aVariables, pErrorMessage)) {
             return false;
         }
         return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkspace, pExpander, &aVariables, pErrorMessage);
@@ -1353,7 +1551,6 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
             if (!ApplyBranchStringLine(pBranch.GetStringLines()[aStep.mIndex],
                                        pWorkspace,
                                        pExpander,
-                                       pCryptoGenerator,
                                        &aVariables,
                                        pErrorMessage)) {
                 return false;
@@ -1409,15 +1606,6 @@ void GTwistExpander::RefreshTablePointers() {
     EnsureTableSize(&_mSBoxG, S_SBOX, true);
     EnsureTableSize(&_mSBoxH, S_SBOX, true);
 
-    EnsureTableSize(&_mSaltA, S_SALT, false);
-    EnsureTableSize(&_mSaltB, S_SALT, false);
-    EnsureTableSize(&_mSaltC, S_SALT, false);
-    EnsureTableSize(&_mSaltD, S_SALT, false);
-    EnsureTableSize(&_mSaltE, S_SALT, false);
-    EnsureTableSize(&_mSaltF, S_SALT, false);
-    EnsureTableSize(&_mSaltG, S_SALT, false);
-    EnsureTableSize(&_mSaltH, S_SALT, false);
-
     memcpy(mSBoxA, _mSBoxA.data(), S_SBOX);
     memcpy(mSBoxB, _mSBoxB.data(), S_SBOX);
     memcpy(mSBoxC, _mSBoxC.data(), S_SBOX);
@@ -1426,60 +1614,60 @@ void GTwistExpander::RefreshTablePointers() {
     memcpy(mSBoxF, _mSBoxF.data(), S_SBOX);
     memcpy(mSBoxG, _mSBoxG.data(), S_SBOX);
     memcpy(mSBoxH, _mSBoxH.data(), S_SBOX);
-    
-    memcpy(mSaltA, _mSaltA.data(), sizeof(mSaltA));
-    memcpy(mSaltB, _mSaltB.data(), sizeof(mSaltB));
-    memcpy(mSaltC, _mSaltC.data(), sizeof(mSaltC));
-    memcpy(mSaltD, _mSaltD.data(), sizeof(mSaltD));
-    memcpy(mSaltE, _mSaltE.data(), sizeof(mSaltE));
-    memcpy(mSaltF, _mSaltF.data(), sizeof(mSaltF));
-    memcpy(mSaltG, _mSaltG.data(), sizeof(mSaltG));
-    memcpy(mSaltH, _mSaltH.data(), sizeof(mSaltH));
-    
+
+    SyncDomainBundleInbuiltFromLegacy();
 }
 
-void GTwistExpander::KDF(TwistDomain pDomain,
-                         std::uint64_t pDomainConstantPublicIngress,
-                         std::uint64_t pDomainConstantPrivateIngress,
-                         std::uint64_t pDomainConstantCrossIngress,
-                         std::uint64_t *pDomainSaltA,
-                         std::uint64_t *pDomainSaltB,
-                         std::uint64_t *pDomainSaltC,
-                         std::uint64_t *pDomainSaltD,
-                         std::uint64_t *pDomainSaltE,
-                         std::uint64_t *pDomainSaltF) {
-    TwistExpander::KDF(pDomain,
-                       pDomainConstantPublicIngress,
-                       pDomainConstantPrivateIngress,
-                       pDomainConstantCrossIngress,
-                       pDomainSaltA,
-                       pDomainSaltB,
-                       pDomainSaltC,
-                       pDomainSaltD,
-                       pDomainSaltE,
-                       pDomainSaltF);
+void GTwistExpander::KDF(std::uint8_t *pSource,
+                         std::uint8_t *pDest,
+                         TwistDomainConstants *pDomainConstants,
+                         TwistDomainSaltSet *pDomainSaltSet,
+                         TwistDomainSBoxSet *pDomainSBoxSet) {
+    TwistExpander::KDF(pSource,
+                       pDest,
+                       pDomainConstants,
+                       pDomainSaltSet,
+                       pDomainSBoxSet);
+
+    if ((mWorkspace == nullptr) || (pSource == nullptr) || (pDest == nullptr) ||
+        (pDomainConstants == nullptr) ||
+        (pDomainSaltSet == nullptr) ||
+        (pDomainSBoxSet == nullptr)) {
+        return;
+    }
+
+    std::string aError;
+    if (!ExecuteBranch(mKDF, mWorkspace, this, &aError)) {
+        std::printf("fatal: GTwistExpander::KDF failed: %s\n", aError.c_str());
+    }
 }
 
 void GTwistExpander::Seed(TwistWorkSpace *pWorkspace,
-                          TwistCryptoGenerator *pCryptoGenerator,
                           TwistFarmSBox *pFarmSBox,
                           TwistFarmSalt *pFarmSalt,
                           std::uint8_t *pSource,
                           std::uint8_t *pPassword,
                           unsigned int pPasswordByteLength) {
     RefreshTablePointers();
-    TwistExpander::Seed(pWorkspace, pCryptoGenerator, pFarmSBox, pFarmSalt, pSource, pPassword, pPasswordByteLength);
+    TwistExpander::Seed(pWorkspace, pFarmSBox, pFarmSalt, pSource, pPassword, pPasswordByteLength);
 
-    if ((pWorkspace == nullptr) || (pCryptoGenerator == nullptr) || (pFarmSBox == nullptr) || (pFarmSalt == nullptr)) {
+    if ((pWorkspace == nullptr) || (pFarmSBox == nullptr) || (pFarmSalt == nullptr)) {
         return;
     }
 
-    std::string aError;
-    if (!ExecuteBranch(mKDF, pWorkspace, this, pCryptoGenerator, &aError)) {
-        std::printf("fatal: GTwistExpander::Seed KDF failed: %s\n", aError.c_str());
-    }
+    KDF(pSource,
+        pWorkspace->mWorkLaneA,
+        &(mDomainBundleInbuilt.mWorkLaneConstants),
+        &(pWorkspace->mDomainBundle.mWorkLaneSalts),
+        &(pWorkspace->mDomainBundle.mWorkLaneSBoxes));
+    KDF(pWorkspace->mWorkLaneA,
+        pWorkspace->mWorkLaneB,
+        &(mDomainBundleInbuilt.mWorkLaneConstants),
+        &(pWorkspace->mDomainBundle.mWorkLaneSalts),
+        &(pWorkspace->mDomainBundle.mWorkLaneSBoxes));
 
-    if (!ExecuteBranch(mSeeder, pWorkspace, this, pCryptoGenerator, &aError)) {
+    std::string aError;
+    if (!ExecuteBranch(mSeed, pWorkspace, this, &aError)) {
         std::printf("fatal: GTwistExpander::Seed failed: %s\n", aError.c_str());
     }
 }
@@ -1516,20 +1704,10 @@ bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,
     }
 
     mKDF.Clear();
-    bool aDidParseKDF = ParseBranch(*aRoot, "kdf", &mKDF, pErrorMessage);
-    bool aDidParseSeed = ParseBranch(*aRoot, "seed", &mSeeder, pErrorMessage);
-    bool aDidParseTwist = ParseBranch(*aRoot, "twist", &mTwister, pErrorMessage);
-
-    if (!aDidParseKDF) {
-        (void)ParseBranch(*aRoot, "kdf_branch", &mKDF, pErrorMessage);
-    }
-    if (!aDidParseSeed) {
-        (void)ParseBranch(*aRoot, "seeder", &mSeeder, pErrorMessage);
-    }
-    if (!aDidParseTwist) {
-        (void)ParseBranch(*aRoot, "twister", &mTwister, pErrorMessage);
-    }
-
+    (void)ParseBranch(*aRoot, "kdf", &mKDF, pErrorMessage);
+    (void)ParseBranch(*aRoot, "seed", &mSeed, pErrorMessage);
+    (void)ParseBranch(*aRoot, "twist", &mTwister, pErrorMessage);
+    
     if (!ParseTables(*aRoot, this, pErrorMessage)) {
         return false;
     }

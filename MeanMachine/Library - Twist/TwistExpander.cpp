@@ -4,7 +4,6 @@
 //
 
 #include "TwistExpander.hpp"
-#include "TwistCryptoGenerator.hpp"
 #include "TwistFarmSBox.hpp"
 #include "TwistFarmSalt.hpp"
 
@@ -14,15 +13,6 @@
 #include <random>
 
 namespace {
-
-inline std::uint64_t RotL64(const std::uint64_t pValue,
-                            const unsigned int pBits) {
-    const unsigned int aShift = pBits & 63U;
-    if (aShift == 0U) {
-        return pValue;
-    }
-    return (pValue << aShift) | (pValue >> (64U - aShift));
-}
 
 inline std::uint64_t Mix64(std::uint64_t pValue) {
     pValue ^= (pValue >> 30U);
@@ -53,6 +43,50 @@ inline std::uint64_t ProcessKDFFreshnessNonce() {
     return kProcessNonce;
 }
 
+inline void CopyGlobalSBoxesToSet(TwistDomainSBoxSet *pDest,
+                                  const std::uint8_t *pSBoxA,
+                                  const std::uint8_t *pSBoxB,
+                                  const std::uint8_t *pSBoxC,
+                                  const std::uint8_t *pSBoxD,
+                                  const std::uint8_t *pSBoxE,
+                                  const std::uint8_t *pSBoxF,
+                                  const std::uint8_t *pSBoxG,
+                                  const std::uint8_t *pSBoxH) {
+    if (pDest == nullptr) {
+        return;
+    }
+    std::memcpy(pDest->mSBoxA, pSBoxA, sizeof(pDest->mSBoxA));
+    std::memcpy(pDest->mSBoxB, pSBoxB, sizeof(pDest->mSBoxB));
+    std::memcpy(pDest->mSBoxC, pSBoxC, sizeof(pDest->mSBoxC));
+    std::memcpy(pDest->mSBoxD, pSBoxD, sizeof(pDest->mSBoxD));
+    std::memcpy(pDest->mSBoxE, pSBoxE, sizeof(pDest->mSBoxE));
+    std::memcpy(pDest->mSBoxF, pSBoxF, sizeof(pDest->mSBoxF));
+    std::memcpy(pDest->mSBoxG, pSBoxG, sizeof(pDest->mSBoxG));
+    std::memcpy(pDest->mSBoxH, pSBoxH, sizeof(pDest->mSBoxH));
+}
+
+inline void CopySetToGlobalSBoxes(const TwistDomainSBoxSet *pSource,
+                                  std::uint8_t *pSBoxA,
+                                  std::uint8_t *pSBoxB,
+                                  std::uint8_t *pSBoxC,
+                                  std::uint8_t *pSBoxD,
+                                  std::uint8_t *pSBoxE,
+                                  std::uint8_t *pSBoxF,
+                                  std::uint8_t *pSBoxG,
+                                  std::uint8_t *pSBoxH) {
+    if (pSource == nullptr) {
+        return;
+    }
+    std::memcpy(pSBoxA, pSource->mSBoxA, S_SBOX);
+    std::memcpy(pSBoxB, pSource->mSBoxB, S_SBOX);
+    std::memcpy(pSBoxC, pSource->mSBoxC, S_SBOX);
+    std::memcpy(pSBoxD, pSource->mSBoxD, S_SBOX);
+    std::memcpy(pSBoxE, pSource->mSBoxE, S_SBOX);
+    std::memcpy(pSBoxF, pSource->mSBoxF, S_SBOX);
+    std::memcpy(pSBoxG, pSource->mSBoxG, S_SBOX);
+    std::memcpy(pSBoxH, pSource->mSBoxH, S_SBOX);
+}
+
 } // namespace
 
 TwistExpander::TwistExpander() {
@@ -63,53 +97,31 @@ TwistExpander::TwistExpander() {
     mDest = nullptr;
     mKDFCallCounter = 0ULL;
     mKDFSessionNonce = 0ULL;
-    mDomainConstantPublicIngress = Mix64(ProcessKDFFreshnessNonce() ^ 0x5055424C4943494EULL);
-    mDomainConstantPrivateIngress = Mix64(ProcessKDFFreshnessNonce() ^ 0x505249564154494EULL);
-    mDomainConstantCrossIngress = Mix64(ProcessKDFFreshnessNonce() ^ 0x43524F5353494E47ULL);
-    std::memset(mSaltA, 0, sizeof(mSaltA));
-    std::memset(mSaltB, 0, sizeof(mSaltB));
-    std::memset(mSaltC, 0, sizeof(mSaltC));
-    std::memset(mSaltD, 0, sizeof(mSaltD));
-    std::memset(mSaltE, 0, sizeof(mSaltE));
-    std::memset(mSaltF, 0, sizeof(mSaltF));
-    std::memset(mSaltG, 0, sizeof(mSaltG));
-    std::memset(mSaltH, 0, sizeof(mSaltH));
-    std::memset(mDomainSaltKeyBoxA, 0, sizeof(mDomainSaltKeyBoxA));
-    std::memset(mDomainSaltKeyBoxB, 0, sizeof(mDomainSaltKeyBoxB));
-    std::memset(mDomainSaltKeyBoxC, 0, sizeof(mDomainSaltKeyBoxC));
-    std::memset(mDomainSaltKeyBoxD, 0, sizeof(mDomainSaltKeyBoxD));
-    std::memset(mDomainSaltKeyBoxE, 0, sizeof(mDomainSaltKeyBoxE));
-    std::memset(mDomainSaltKeyBoxF, 0, sizeof(mDomainSaltKeyBoxF));
-    std::memset(mDomainSaltMaskBoxA, 0, sizeof(mDomainSaltMaskBoxA));
-    std::memset(mDomainSaltMaskBoxB, 0, sizeof(mDomainSaltMaskBoxB));
-    std::memset(mDomainSaltMaskBoxC, 0, sizeof(mDomainSaltMaskBoxC));
-    std::memset(mDomainSaltMaskBoxD, 0, sizeof(mDomainSaltMaskBoxD));
-    std::memset(mDomainSaltMaskBoxE, 0, sizeof(mDomainSaltMaskBoxE));
-    std::memset(mDomainSaltMaskBoxF, 0, sizeof(mDomainSaltMaskBoxF));
-    std::memset(mDomainSaltWandererA, 0, sizeof(mDomainSaltWandererA));
-    std::memset(mDomainSaltWandererB, 0, sizeof(mDomainSaltWandererB));
-    std::memset(mDomainSaltWandererC, 0, sizeof(mDomainSaltWandererC));
-    std::memset(mDomainSaltWandererD, 0, sizeof(mDomainSaltWandererD));
-    std::memset(mDomainSaltWandererE, 0, sizeof(mDomainSaltWandererE));
-    std::memset(mDomainSaltWandererF, 0, sizeof(mDomainSaltWandererF));
-    std::memset(mDomainSaltOrbiterA, 0, sizeof(mDomainSaltOrbiterA));
-    std::memset(mDomainSaltOrbiterB, 0, sizeof(mDomainSaltOrbiterB));
-    std::memset(mDomainSaltOrbiterC, 0, sizeof(mDomainSaltOrbiterC));
-    std::memset(mDomainSaltOrbiterD, 0, sizeof(mDomainSaltOrbiterD));
-    std::memset(mDomainSaltOrbiterE, 0, sizeof(mDomainSaltOrbiterE));
-    std::memset(mDomainSaltOrbiterF, 0, sizeof(mDomainSaltOrbiterF));
-    std::memset(mDomainSaltPrismA, 0, sizeof(mDomainSaltPrismA));
-    std::memset(mDomainSaltPrismB, 0, sizeof(mDomainSaltPrismB));
-    std::memset(mDomainSaltPrismC, 0, sizeof(mDomainSaltPrismC));
-    std::memset(mDomainSaltPrismD, 0, sizeof(mDomainSaltPrismD));
-    std::memset(mDomainSaltPrismE, 0, sizeof(mDomainSaltPrismE));
-    std::memset(mDomainSaltPrismF, 0, sizeof(mDomainSaltPrismF));
-    std::memset(mDomainSaltSourceA, 0, sizeof(mDomainSaltSourceA));
-    std::memset(mDomainSaltSourceB, 0, sizeof(mDomainSaltSourceB));
-    std::memset(mDomainSaltSourceC, 0, sizeof(mDomainSaltSourceC));
-    std::memset(mDomainSaltSourceD, 0, sizeof(mDomainSaltSourceD));
-    std::memset(mDomainSaltSourceE, 0, sizeof(mDomainSaltSourceE));
-    std::memset(mDomainSaltSourceF, 0, sizeof(mDomainSaltSourceF));
+    mActiveConstants = nullptr;
+    mActiveSaltSet = nullptr;
+    mActiveSBoxSet = nullptr;
+    std::memset(&mDomainBundleInbuilt, 0, sizeof(mDomainBundleInbuilt));
+    std::memset(&mDomainBundleEphemeral, 0, sizeof(mDomainBundleEphemeral));
+    auto SeedDomainConstants = [&](TwistDomainConstants *pConstants,
+                                   const std::uint64_t pDomainTag) {
+        if (pConstants == nullptr) {
+            return;
+        }
+        pConstants->mDomainConstantPublicIngress = Mix64((0x5055424C4943494EULL ^ pDomainTag) ^ ProcessKDFFreshnessNonce());
+        pConstants->mDomainConstantPrivateIngress = Mix64((0x505249564154494EULL ^ pDomainTag) ^ ProcessKDFFreshnessNonce());
+        pConstants->mDomainConstantCrossIngress = Mix64((0x43524F5353494E47ULL ^ pDomainTag) ^ ProcessKDFFreshnessNonce());
+    };
+    SeedDomainConstants(&mDomainBundleInbuilt.mKeyAConstants, 0x4B45595F415F4B44ULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mKeyBConstants, 0x4B45595F425F4B44ULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mMaskAConstants, 0x4D41534B415F4B44ULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mMaskBConstants, 0x4D41534B425F4B44ULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mWorkLaneConstants, 0x574F524B4C4E4B44ULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mMaskLaneConstants, 0x4D4C4E454D4B5344ULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mOperationLaneConstants, 0x4F504C4E4B44584FULL);
+    std::memset(mIndexList256A, 0, sizeof(mIndexList256A));
+    std::memset(mIndexList256B, 0, sizeof(mIndexList256B));
+    std::memset(mIndexList256C, 0, sizeof(mIndexList256C));
+    std::memset(mIndexList256D, 0, sizeof(mIndexList256D));
     std::memset(mSBoxA, 0, sizeof(mSBoxA));
     std::memset(mSBoxB, 0, sizeof(mSBoxB));
     std::memset(mSBoxC, 0, sizeof(mSBoxC));
@@ -118,141 +130,56 @@ TwistExpander::TwistExpander() {
     std::memset(mSBoxF, 0, sizeof(mSBoxF));
     std::memset(mSBoxG, 0, sizeof(mSBoxG));
     std::memset(mSBoxH, 0, sizeof(mSBoxH));
+    SyncDomainBundleInbuiltFromLegacy();
+    std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));
 }
 
 TwistExpander::~TwistExpander() {
     
 }
 
-void TwistExpander::KDF(TwistDomain pDomain,
-                        std::uint64_t pDomainConstantPublicIngress,
-                        std::uint64_t pDomainConstantPrivateIngress,
-                        std::uint64_t pDomainConstantCrossIngress,
-                        std::uint64_t *pDomainSaltA,
-                        std::uint64_t *pDomainSaltB,
-                        std::uint64_t *pDomainSaltC,
-                        std::uint64_t *pDomainSaltD,
-                        std::uint64_t *pDomainSaltE,
-                        std::uint64_t *pDomainSaltF) {
-    if ((pDomainSaltA == nullptr) || (pDomainSaltB == nullptr) || (pDomainSaltC == nullptr) ||
-        (pDomainSaltD == nullptr) || (pDomainSaltE == nullptr) || (pDomainSaltF == nullptr)) {
+void TwistExpander::SyncDomainBundleInbuiltFromLegacy() {
+    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mKeyASBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
+    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mKeyBSBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
+    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mMaskASBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
+    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mMaskBSBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
+    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mWorkLaneSBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
+    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mMaskLaneSBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
+    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mOperationLaneSBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
+}
+
+void TwistExpander::SyncLegacyFromDomainBundleInbuilt() {
+    CopySetToGlobalSBoxes(&mDomainBundleInbuilt.mWorkLaneSBoxes,
+                          mSBoxA,
+                          mSBoxB,
+                          mSBoxC,
+                          mSBoxD,
+                          mSBoxE,
+                          mSBoxF,
+                          mSBoxG,
+                          mSBoxH);
+}
+
+void TwistExpander::KDF(std::uint8_t *pSource,
+                        std::uint8_t *pDest,
+                        TwistDomainConstants *pDomainConstants,
+                        TwistDomainSaltSet *pDomainSaltSet,
+                        TwistDomainSBoxSet *pDomainSBoxSet) {
+    if ((pSource == nullptr) || (pDest == nullptr) ||
+        (pDomainConstants == nullptr) ||
+        (pDomainSaltSet == nullptr) ||
+        (pDomainSBoxSet == nullptr)) {
         return;
     }
 
-    std::uint64_t *aOutputs[6] = {
-        pDomainSaltA,
-        pDomainSaltB,
-        pDomainSaltC,
-        pDomainSaltD,
-        pDomainSaltE,
-        pDomainSaltF
-    };
-
-    static const std::uint64_t kDomainConstants[6] = {
-        0x243F6A8885A308D3ULL,
-        0x13198A2E03707344ULL,
-        0xA4093822299F31D0ULL,
-        0x082EFA98EC4E6C89ULL,
-        0x452821E638D01377ULL,
-        0xBE5466CF34E90C6CULL
-    };
-
-    const std::uint64_t aDomainTag = static_cast<std::uint64_t>(static_cast<std::uint8_t>(pDomain));
-    const std::uint64_t aDomainSalt = Mix64(0xC6A4A7935BD1E995ULL ^ (aDomainTag * 0x9E3779B185EBCA87ULL));
-    const std::uint64_t aCallIndex = mKDFCallCounter++;
-    const std::uint64_t aSessionNonce = mKDFSessionNonce;
-    const std::uint64_t aPublicIngressConstant = (pDomainConstantPublicIngress != 0ULL) ?
-        pDomainConstantPublicIngress : mDomainConstantPublicIngress;
-    const std::uint64_t aPrivateIngressConstant = (pDomainConstantPrivateIngress != 0ULL) ?
-        pDomainConstantPrivateIngress : mDomainConstantPrivateIngress;
-    const std::uint64_t aCrossIngressConstant = (pDomainConstantCrossIngress != 0ULL) ?
-        pDomainConstantCrossIngress : mDomainConstantCrossIngress;
-    std::uint64_t aState = 0x9E3779B97F4A7C15ULL ^
-                           Mix64(aCallIndex + 0xD1B54A32D192ED03ULL) ^
-                           Mix64(aSessionNonce ^ 0xA4093822299F31D0ULL) ^
-                           Mix64(aPublicIngressConstant ^ 0x243F6A8885A308D3ULL) ^
-                           Mix64(aPrivateIngressConstant ^ 0x13198A2E03707344ULL) ^
-                           Mix64(aCrossIngressConstant ^ 0xA4093822299F31D0ULL) ^
-                           aDomainSalt;
-
-    for (std::uint32_t i = 0U; i < S_SALT; ++i) {
-        const std::uint32_t aIdx = i & static_cast<std::uint32_t>(S_SALT1);
-        const std::uint32_t aIdxB = (i + 3U) & static_cast<std::uint32_t>(S_SALT1);
-        const std::uint32_t aIdxC = (i + 7U) & static_cast<std::uint32_t>(S_SALT1);
-
-        std::uint64_t aSourceBlend = 0ULL;
-        if (mSource != nullptr) {
-            const std::uint32_t aSourceIndexA = static_cast<std::uint32_t>((i * 131U + (aCallIndex * 17ULL)) & static_cast<std::uint64_t>(S_BLOCK1));
-            const std::uint32_t aSourceIndexB = static_cast<std::uint32_t>((i * 197U + (aCallIndex * 29ULL)) & static_cast<std::uint64_t>(S_BLOCK1));
-            const std::uint64_t aByteA = static_cast<std::uint64_t>(mSource[aSourceIndexA]);
-            const std::uint64_t aByteB = static_cast<std::uint64_t>(mSource[aSourceIndexB]);
-            aSourceBlend = (aByteA << 8U) | aByteB;
-        }
-
-        std::uint64_t aWorkspaceBlend = 0ULL;
-        if (mWorkspace != nullptr) {
-            const std::uint32_t aSourceIndexA = static_cast<std::uint32_t>((i * 131U + (aCallIndex * 17ULL)) & static_cast<std::uint64_t>(S_BLOCK1));
-            const std::uint32_t aSourceIndexB = static_cast<std::uint32_t>((i * 197U + (aCallIndex * 29ULL)) & static_cast<std::uint64_t>(S_BLOCK1));
-            const std::uint64_t aWorkA = static_cast<std::uint64_t>(mWorkspace->mWorkLaneA[aSourceIndexA]);
-            const std::uint64_t aWorkB = static_cast<std::uint64_t>(mWorkspace->mWorkLaneB[aSourceIndexB]);
-            const std::uint64_t aWorkC = static_cast<std::uint64_t>(mWorkspace->mWorkLaneC[aSourceIndexA]);
-            const std::uint64_t aWorkD = static_cast<std::uint64_t>(mWorkspace->mWorkLaneD[aSourceIndexB]);
-            aWorkspaceBlend = (aWorkA << 24U) ^ (aWorkB << 16U) ^ (aWorkC << 8U) ^ aWorkD;
-        }
-
-        const std::uint64_t aSaltBlend =
-            mSaltA[aIdx] ^
-            RotL64(mSaltB[aIdxB], 7U) ^
-            RotL64(mSaltC[aIdxC], 13U) ^
-            RotL64(mSaltD[aIdx], 19U) ^
-            RotL64(mSaltE[aIdxB], 29U) ^
-            RotL64(mSaltF[aIdxC], 37U) ^
-            RotL64(mSaltG[aIdx], 43U) ^
-            RotL64(mSaltH[aIdxB], 53U);
-
-        aState = Mix64(aState ^ aSaltBlend ^ aSourceBlend ^ aWorkspaceBlend ^
-                       RotL64(aPublicIngressConstant, (i * 3U) & 63U) ^
-                       RotL64(aPrivateIngressConstant, (i * 7U) & 63U) ^
-                       RotL64(aCrossIngressConstant, (i * 13U) & 63U) ^
-                       RotL64(aSessionNonce, (i * 11U) & 63U) ^
-                       RotL64(aDomainSalt, (i * 5U) & 63U) ^
-                       (0x9E3779B185EBCA87ULL * static_cast<std::uint64_t>(i + 1U)));
-
-        for (int lane = 0; lane < 6; ++lane) {
-            std::uint64_t aLaneValue = aState ^
-                                       kDomainConstants[lane] ^
-                                       RotL64(aPublicIngressConstant, static_cast<unsigned int>((lane * 5 + i) & 63U)) ^
-                                       RotL64(aPrivateIngressConstant, static_cast<unsigned int>((lane * 11 + i) & 63U)) ^
-                                       RotL64(aCrossIngressConstant, static_cast<unsigned int>((lane * 17 + i) & 63U)) ^
-                                       RotL64(aSessionNonce ^ kDomainConstants[lane],
-                                              static_cast<unsigned int>((lane * 7 + i) & 63U)) ^
-                                       RotL64(aSaltBlend, static_cast<unsigned int>((lane * 9 + i) & 63U));
-            aLaneValue = Mix64(aLaneValue + (static_cast<std::uint64_t>(lane + 1) * 0xD6E8FEB86659FD93ULL));
-            aOutputs[lane][i] = aLaneValue;
-        }
-    }
-}
-
-void TwistExpander::KDF(std::uint64_t *pDomainSaltA,
-                        std::uint64_t *pDomainSaltB,
-                        std::uint64_t *pDomainSaltC,
-                        std::uint64_t *pDomainSaltD,
-                        std::uint64_t *pDomainSaltE,
-                        std::uint64_t *pDomainSaltF) {
-    KDF(TwistDomain::kInv,
-        mDomainConstantPublicIngress,
-        mDomainConstantPrivateIngress,
-        mDomainConstantCrossIngress,
-        pDomainSaltA,
-        pDomainSaltB,
-        pDomainSaltC,
-        pDomainSaltD,
-        pDomainSaltE,
-        pDomainSaltF);
+    mSource = pSource;
+    mDest = pDest;
+    mActiveConstants = pDomainConstants;
+    mActiveSaltSet = pDomainSaltSet;
+    mActiveSBoxSet = pDomainSBoxSet;
 }
 
 void TwistExpander::Seed(TwistWorkSpace *pWorkspace,
-                         TwistCryptoGenerator *pCryptoGenerator,
                          TwistFarmSBox *pFarmSBox,
                          TwistFarmSalt *pFarmSalt,
                          std::uint8_t *pSource,
@@ -264,10 +191,6 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkspace,
     }
     if (pSource == nullptr) {
         std::printf("fatal: TwistExpander::Seed requires source buffer\n");
-        return;
-    }
-    if (pCryptoGenerator == nullptr) {
-        std::printf("fatal: TwistExpander::Seed requires crypto generator\n");
         return;
     }
     if (pFarmSBox == nullptr) {
@@ -287,44 +210,9 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkspace,
     UnrollPasswordToSource(pSource, pPassword, pPasswordByteLength);
     mKDFCallCounter = 0ULL;
     mKDFSessionNonce = ProcessKDFFreshnessNonce();
-    
-    KDF(TwistDomain::kKeyBoxA,
-        mDomainConstantPublicIngress,
-        mDomainConstantPrivateIngress,
-        mDomainConstantCrossIngress,
-        mDomainSaltKeyBoxA, mDomainSaltKeyBoxB, mDomainSaltKeyBoxC,
-        mDomainSaltKeyBoxD, mDomainSaltKeyBoxE, mDomainSaltKeyBoxF);
-    KDF(TwistDomain::kMaskBoxA,
-        mDomainConstantPublicIngress,
-        mDomainConstantPrivateIngress,
-        mDomainConstantCrossIngress,
-        mDomainSaltMaskBoxA, mDomainSaltMaskBoxB, mDomainSaltMaskBoxC,
-        mDomainSaltMaskBoxD, mDomainSaltMaskBoxE, mDomainSaltMaskBoxF);
-    KDF(TwistDomain::kSalts,
-        mDomainConstantPublicIngress,
-        mDomainConstantPrivateIngress,
-        mDomainConstantCrossIngress,
-        mDomainSaltWandererA, mDomainSaltWandererB, mDomainSaltWandererC,
-        mDomainSaltWandererD, mDomainSaltWandererE, mDomainSaltWandererF);
-    KDF(TwistDomain::kSBoxes,
-        mDomainConstantPublicIngress,
-        mDomainConstantPrivateIngress,
-        mDomainConstantCrossIngress,
-        mDomainSaltOrbiterA, mDomainSaltOrbiterB, mDomainSaltOrbiterC,
-        mDomainSaltOrbiterD, mDomainSaltOrbiterE, mDomainSaltOrbiterF);
-    KDF(TwistDomain::kKeyBoxB,
-        mDomainConstantPublicIngress,
-        mDomainConstantPrivateIngress,
-        mDomainConstantCrossIngress,
-        mDomainSaltPrismA, mDomainSaltPrismB, mDomainSaltPrismC,
-        mDomainSaltPrismD, mDomainSaltPrismE, mDomainSaltPrismF);
-    KDF(TwistDomain::kMaskBoxB,
-        mDomainConstantPublicIngress,
-        mDomainConstantPrivateIngress,
-        mDomainConstantCrossIngress,
-        mDomainSaltSourceA, mDomainSaltSourceB, mDomainSaltSourceC,
-        mDomainSaltSourceD, mDomainSaltSourceE, mDomainSaltSourceF);
-    
+    SyncDomainBundleInbuiltFromLegacy();
+    std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));
+    pWorkspace->mDomainBundle = mDomainBundleEphemeral;
 }
 
 void TwistExpander::TwistBlock(TwistWorkSpace *pWorkspace,

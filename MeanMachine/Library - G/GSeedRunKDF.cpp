@@ -6,7 +6,11 @@
 //
 
 #include "GSeedRunKDF.hpp"
-#include "GARXPlan.hpp"
+#include "GMoxPlanner.hpp"
+#include "GMoxPresets.hpp"
+#include "GIndexShuffle.hpp"
+#include "GRunMatrixDiffusion.hpp"
+
 #include <cstdio>
 
 GSeedRunKDF::GSeedRunKDF() {
@@ -17,89 +21,83 @@ GSeedRunKDF::~GSeedRunKDF() {
 }
 
 void GSeedRunKDF::Reset() {
-    mLoopIndex = VarSymbol("aIndex");
-    mSource = BufSymbol(TwistWorkSpaceSlot::kSource);
+    mLoopIndex = GSymbol::Var(TwistVariable::kIndex);
+    mSource = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kSource));
     
     
-    mStreamCurrent = VarSymbol("aPublicIngress");
-    mStreamPrevious = VarSymbol("aPublicPrevious");
-    mStreamScatter = VarSymbol("aPublicScatter");
+    mStreamCurrent = GSymbol::Var(TwistVariable::kPublicIngress);
+    mStreamPrevious = GSymbol::Var(TwistVariable::kPublicPrevious);
+    mStreamScatter = GSymbol::Var(TwistVariable::kPublicScatter);
     
     
-    mSecretCurrent = VarSymbol("aPrivateIngress");
-    mSecretPrevious = VarSymbol("aPrivatePrevious");
-    mSecretScatter = VarSymbol("aPrivateScatter");
-    mSecretWrite = VarSymbol("aPrivateWrite");
+    mSecretCurrent = GSymbol::Var(TwistVariable::kPrivateIngress);
+    mSecretPrevious = GSymbol::Var(TwistVariable::kPrivatePrevious);
+    mSecretScatter = GSymbol::Var(TwistVariable::kPrivateScatter);
+    mSecretWrite = GSymbol::Var(TwistVariable::kPrivateWrite);
     
-    mStreamCross = VarSymbol("aCrossIngress");
-    mCarry = VarSymbol("aCarry");
+    mStreamCross = GSymbol::Var(TwistVariable::kCrossIngress);
+    mCarry = GSymbol::Var(TwistVariable::kCarry);
 
-    mWandererA = VarSymbol("aWandererA");
-    mWandererB = VarSymbol("aWandererB");
-    mWandererC = VarSymbol("aWandererC");
-    mWandererD = VarSymbol("aWandererD");
-    mWandererE = VarSymbol("aWandererE");
-    mWandererF = VarSymbol("aWandererF");
+    mUnwindA = GSymbol::Var(TwistVariable::kUnwindA);
+    mUnwindB = GSymbol::Var(TwistVariable::kUnwindB);
+    mUnwindC = GSymbol::Var(TwistVariable::kUnwindC);
+    mUnwindD = GSymbol::Var(TwistVariable::kUnwindD);
+    mUnwindE = GSymbol::Var(TwistVariable::kUnwindE);
+    mUnwindF = GSymbol::Var(TwistVariable::kUnwindF);
 
-    mOrbiterA = VarSymbol("aOrbitA");
-    mOrbiterB = VarSymbol("aOrbitB");
-    mOrbiterC = VarSymbol("aOrbitC");
-    mOrbiterD = VarSymbol("aOrbitD");
-    mOrbiterE = VarSymbol("aOrbitE");
-    mOrbiterF = VarSymbol("aOrbitF");
+    mOrbiterA = GSymbol::Var(TwistVariable::kOrbiterA);
+    mOrbiterB = GSymbol::Var(TwistVariable::kOrbiterB);
+    mOrbiterC = GSymbol::Var(TwistVariable::kOrbiterC);
+    mOrbiterD = GSymbol::Var(TwistVariable::kOrbiterD);
+    mOrbiterE = GSymbol::Var(TwistVariable::kOrbiterE);
+    mOrbiterF = GSymbol::Var(TwistVariable::kOrbiterF);
 
-    mPlugKeyA = VarSymbol("aPlugKeyA");
-    mPlugKeyB = VarSymbol("aPlugKeyB");
+    mPlugKeyA = GSymbol::Var(TwistVariable::kPlugKeyA);
+    mPlugKeyB = GSymbol::Var(TwistVariable::kPlugKeyB);
+    mPlugKeyC = GSymbol::Var(TwistVariable::kPlugKeyC);
+    mPlugKeyD = GSymbol::Var(TwistVariable::kPlugKeyD);
+    mPlugKeyE = GSymbol::Var(TwistVariable::kPlugKeyE);
+    mPlugKeyF = GSymbol::Var(TwistVariable::kPlugKeyF);
 
-    mDomainSaltA = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceA);
-    mDomainSaltB = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceB);
-    mDomainSaltC = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceC);
-    mDomainSaltD = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceD);
-    mDomainSaltE = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceE);
-    mDomainSaltF = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceF);
-    
-    mPublicIngressDomainWord = VarSymbol("aPublicIngressDomainWord");
-    mPrivateIngressDomainWord = VarSymbol("aPrivateIngressDomainWord");
-    mCrossIngressDomainWord = VarSymbol("aCrossIngressDomainWord");
+    mPublicIngressDomainWord = GSymbol::Var(TwistVariable::kPublicIngressDomainWord);
+    mPrivateIngressDomainWord = GSymbol::Var(TwistVariable::kPrivateIngressDomainWord);
+    mCrossIngressDomainWord = GSymbol::Var(TwistVariable::kCrossIngressDomainWord);
     
     
 
     mListSBoxes.clear();
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxA));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxB));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxC));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxD));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxE));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxF));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxG));
-    mListSBoxes.push_back(BufSymbol(TwistWorkSpaceSlot::kSBoxH));
-
-    mListWorldSalts.clear();
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltA));
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltB));
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltC));
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltD));
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltE));
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltF));
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltG));
-    mListWorldSalts.push_back(BufSymbol(TwistWorkSpaceSlot::kSaltH));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kA)));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kB)));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kC)));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kD)));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kE)));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kF)));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kG)));
+    mListSBoxes.push_back(BufSymbol(TwistBufferKey::SBox(TwistSBoxOwner::kInbuilt, TwistDomainFamily::kWorkLane, TwistSBoxLane::kH)));
 
     mListWorkers.clear();
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
-    mListWorkers.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
+    mListWorkers.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kWorkLaneA)));
+    mListWorkers.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kWorkLaneB)));
+    mListWorkers.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kWorkLaneC)));
+    mListWorkers.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kWorkLaneD)));
+    mListWorkers.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kWorkLaneE)));
+    mListWorkers.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kWorkLaneF)));
     
     mListOpLanes.clear();
-    mListOpLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneA));
-    mListOpLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneB));
+    mListOpLanes.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kOperationLaneA)));
+    mListOpLanes.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kOperationLaneB)));
+    mListOpLanes.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kOperationLaneC)));
+    mListOpLanes.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kOperationLaneD)));
+    mListOpLanes.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kOperationLaneE)));
+    mListOpLanes.push_back(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kOperationLaneF)));
     
     const std::vector<GHotPack> aHotPacks = GMagicNumbers::GetHotPacks(1);
     if (!aHotPacks.empty()) {
         mHotPack = aHotPacks[0];
     } else {
-        mHotPack = GHotPack();
+    mHotPack = GHotPack();
     }
+
 }
 
 bool GSeedRunKDF::Plan(std::string *pErrorMessage) {
@@ -116,16 +114,17 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
         pErrorMessage->clear();
     }
 
-    GARXPlan aPlan;
-    if (!GARXPlan::Bake(&aPlan)) {
+    GMoxPlan aPlan;
+    const GMoxModel aModel = GMoxPresets::SixBalanced();
+    if (!GMoxPlanner::Bake(&aPlan, aModel, pErrorMessage)) {
         if (pErrorMessage != nullptr && pErrorMessage->empty()) {
-            *pErrorMessage = "failed to bake GARX plan for KDF pass";
+            *pErrorMessage = "failed to bake GMox plan for KDF pass";
         }
         return false;
     }
-    if (aPlan.mPassPlans.empty() || (aPlan.mPassPlans[0] == nullptr)) {
+    if (aPlan.mPasses.empty() || (aPlan.mPasses[0] == nullptr)) {
         if (pErrorMessage != nullptr && pErrorMessage->empty()) {
-            *pErrorMessage = "GARX plan had no pass plan";
+            *pErrorMessage = "GMox plan had no pass plan";
         }
         return false;
     }
@@ -161,14 +160,30 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
                                                               pInverted,
                                                               pOffset);
     };
+
+    std::vector<GStatement> aPrepStatements;
+    if (!GIndexShuffle::BakeExecute256(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256A)),
+                                       mListOpLanes[2],
+                                       &aPrepStatements,
+                                       pErrorMessage)) {
+        return false;
+    }
+    aBatch.CommitStatements(&aPrepStatements);
+    if (!GIndexShuffle::BakeExecute256(BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256B)),
+                                       mListOpLanes[3],
+                                       &aPrepStatements,
+                                       pErrorMessage)) {
+        return false;
+    }
+    aBatch.CommitStatements(&aPrepStatements);
     
     for (std::size_t aPassIndex = 0; aPassIndex < 4U; aPassIndex++) {
         
-        if (aPassIndex >= aPlan.mPassPlans.size() ||
-            aPlan.mPassPlans[aPassIndex] == nullptr) {
+        if (aPassIndex >= aPlan.mPasses.size() ||
+            aPlan.mPasses[aPassIndex] == nullptr) {
             
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GARX plan missing pass plan";
+                *pErrorMessage = "GMox plan missing pass plan";
             }
             return false;
         }
@@ -181,30 +196,14 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
         const GSymbol aInputBuffer = aInputBuffers[aPassIndex];
         const GSymbol aCrossBuffer = aCrossBuffers[aPassIndex];
         
-        const GExpr aPublicIngressDomainWordRead = GQuick::MakeReadBufferReadExpression(
-            mDomainSaltA,
-            GExpr::Const32(static_cast<int>(aPassIndex))
-        );
-        const GExpr aPrivateIngressDomainWordRead = GQuick::MakeReadBufferReadExpression(
-            mDomainSaltB,
-            GExpr::Const32(static_cast<int>((aPassIndex * 3U) % static_cast<std::size_t>(S_SALT)))
-        );
-        const GExpr aCrossIngressDomainWordRead = GQuick::MakeReadBufferReadExpression(
-            mDomainSaltC,
-            GExpr::Const32(static_cast<int>((aPassIndex * 5U) % static_cast<std::size_t>(S_SALT)))
-        );
-        
         aDomainStatements.push_back(
-            GQuick::MakeAssignVariableStatement(mPublicIngressDomainWord,
-                                                aPublicIngressDomainWordRead)
+            GStatement::RawLine(mPublicIngressDomainWord.mName + " = pConstants->mDomainConstantPublicIngress;")
         );
         aDomainStatements.push_back(
-            GQuick::MakeAssignVariableStatement(mPrivateIngressDomainWord,
-                                                aPrivateIngressDomainWordRead)
+            GStatement::RawLine(mPrivateIngressDomainWord.mName + " = pConstants->mDomainConstantPrivateIngress;")
         );
         aDomainStatements.push_back(
-            GQuick::MakeAssignVariableStatement(mCrossIngressDomainWord,
-                                                aCrossIngressDomainWordRead)
+            GStatement::RawLine(mCrossIngressDomainWord.mName + " = pConstants->mDomainConstantCrossIngress;")
         );
         aBatch.CommitStatements(&aDomainStatements);
         
@@ -240,7 +239,7 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
                                                          mSecretCurrent);
         aLoop.AddBody(&aStatement);
         
-        if (!CSPKDF::Bake(aPlan.mPassPlans[aPassIndex],
+        if (!CSPKDF2::Bake(aPlan.mPasses[aPassIndex],
                           aDestBuffers[aPassIndex],
                           false,
                           mLoopIndex,
@@ -288,12 +287,12 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
                           mCarry,
                           
                           mCarry,
-                          mWandererA,
-                          mWandererB,
-                          mWandererC,
-                          mWandererD,
-                          mWandererE,
-                          mWandererF,
+                          mUnwindA,
+                          mUnwindB,
+                          mUnwindC,
+                          mUnwindD,
+                          mUnwindE,
+                          mUnwindF,
                           
                           mOrbiterA,
                           mOrbiterB,
@@ -301,25 +300,17 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
                           mOrbiterD,
                           mOrbiterE,
                           mOrbiterF,
-                          
-                          mDomainSaltA,
-                          mDomainSaltB,
-                          mDomainSaltC,
-                          mDomainSaltD,
-                          mDomainSaltE,
-                          mDomainSaltF,
-                          
-                          mListWorldSalts[0],
-                          mListWorldSalts[1],
-                          mListWorldSalts[2],
-                          mListWorldSalts[3],
-                          mListWorldSalts[4],
-                          mListWorldSalts[5],
-                          mListWorldSalts[6],
-                          mListWorldSalts[7],
+
+                          nullptr,
+                          nullptr,
+                          nullptr,
                           
                           mPlugKeyA,
                           mPlugKeyB,
+                          mPlugKeyC,
+                          mPlugKeyD,
+                          mPlugKeyE,
+                          mPlugKeyF,
                           
                           mListSBoxes,
                           mHotPack,
@@ -328,7 +319,7 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
                           pErrorMessage)) {
             
             if (pErrorMessage != nullptr && pErrorMessage->empty()) {
-                *pErrorMessage = "CSPKDF::Bake failed";
+                *pErrorMessage = "CSPKDF2::Bake failed";
             }
             return false;
         }
@@ -337,6 +328,27 @@ bool GSeedRunKDF::Build(TwistProgramBranch &pBranch,
         aBatch.CommitLoop(&aLoop);
     }
     
+    
+    GRunMatrixDiffusionConfig aDiff;
+    aDiff.mSelect = GSymbol::Var(TwistVariable::kOrbiterE);
+    aDiff.mInputA = mListWorkers[0];
+    aDiff.mInputB = mListWorkers[1];
+    
+    aDiff.mOutputA = mListWorkers[0];
+    aDiff.mOutputB = mListOpLanes[1];
+    
+    aDiff.mShuffleEntropyA = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256A));
+    aDiff.mShuffleEntropyB = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256B));
+    aDiff.mShuffleEntropyC = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256C));
+    aDiff.mShuffleEntropyD = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256D));
+    
+    aDiff.mOperationSourceA = mListOpLanes[0];
+    aDiff.mOperationSourceB = mListOpLanes[1];
+    
+    GRunMatrixDiffusion aFuss;
+    if (!aFuss.Bake(aDiff, &aBatch, pErrorMessage)) {
+        printf("cain saw WA^\n");
+    }
     
     pBranch.AddBatch(aBatch);
     return true;

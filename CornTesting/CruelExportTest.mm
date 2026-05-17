@@ -9,7 +9,6 @@
 #import <XCTest/XCTest.h>
 #include "TwistWorkSpace.hpp"
 #include "Random.hpp"
-#include "TwistExpander_Gollum.hpp"
 #include "GTwistTwister.hpp"
 #include "GSeedDeriveMaterial.hpp"
 #include "GSeedMatrixRollups.hpp"
@@ -37,7 +36,8 @@
     
     // This is exported from something in G, as C++ code we can drop in over DemoExpander
 
-    TwistExpander_Gollum aExpanderA;
+    //TwistExpander_Gollum aExpanderA;
+    GTwistTwister aExpanderA;
     
     // This uses json load;
     GTwistTwister aExpanderB;
@@ -113,13 +113,12 @@
     
     
     
-    TwistCryptoGenerator aCryptoGenerator;
     TwistFarmSBox aFarmSBox;
     TwistFarmSalt aFarmSalt;
     
-    aExpanderA.Seed(&aWorkSpaceA, &aCryptoGenerator, &aFarmSBox, &aFarmSalt, aSourceA, (std::uint8_t *)pwd, ps);
+    aExpanderA.Seed(&aWorkSpaceA, &aFarmSBox, &aFarmSalt, aSourceA, (std::uint8_t *)pwd, ps);
     
-    aExpanderB.Seed(&aWorkSpaceB, &aCryptoGenerator, &aFarmSBox, &aFarmSalt, aSourceB, (std::uint8_t *)pwd, ps);
+    aExpanderB.Seed(&aWorkSpaceB, &aFarmSBox, &aFarmSalt, aSourceB, (std::uint8_t *)pwd, ps);
 
     
     for (int i=0;i<S_BLOCK;i++) {
@@ -347,7 +346,7 @@
 
     GTwistExpander aExpander;
     aExpander.mNameBase = "EmitCheck";
-    XCTAssertTrue(aRollups.Build(aExpander.mSeeder, &aError), "Build failed: %s", aError.c_str());
+    XCTAssertTrue(aRollups.Build(aExpander.mSeed, &aError), "Build failed: %s", aError.c_str());
 
     const std::string aExportRoot = "/private/tmp/mm_emit_check";
     XCTAssertTrue(aExpander.ExportCPPProjectRoot(aExportRoot, &aError), "Export failed: %s", aError.c_str());

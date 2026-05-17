@@ -385,12 +385,12 @@ std::array<TwistFastMatrix::DataOpFn, TwistFastMatrix::kDataOpByteCount> BuildTw
 
 TwistFastMatrix::TwistFastMatrix(const std::uint8_t (&pMatrix)[8][8]) {
     for (std::uint8_t aRowIndex = 0; aRowIndex < 8; ++aRowIndex) {
-        memcpy(mDataBase + (aRowIndex << 3), pMatrix[aRowIndex], 8);
+        memcpy(mData + (aRowIndex << 3), pMatrix[aRowIndex], 8);
     }
 }
 
 TwistFastMatrix::TwistFastMatrix(const TwistFastMatrix &pMatrix) {
-    memcpy(mDataBase, pMatrix.mDataBase, 64);
+    memcpy(mData, pMatrix.mData, 64);
 }
 
 TwistFastMatrix::TwistFastMatrix() {
@@ -398,7 +398,7 @@ TwistFastMatrix::TwistFastMatrix() {
 }
 
 void TwistFastMatrix::LoadAndReset(const std::uint8_t *pSource) {
-    memcpy(mDataBase, pSource, 64);
+    memcpy(mData, pSource, 64);
 }
 
 
@@ -1319,14 +1319,14 @@ void TwistFastMatrix::Store(std::uint8_t *pDest,
             break;
     }
     
-    memcpy(pDest +  0, mDataBase + (aOrder[0] << 3), 8);
-    memcpy(pDest +  8, mDataBase + (aOrder[1] << 3), 8);
-    memcpy(pDest + 16, mDataBase + (aOrder[2] << 3), 8);
-    memcpy(pDest + 24, mDataBase + (aOrder[3] << 3), 8);
-    memcpy(pDest + 32, mDataBase + (aOrder[4] << 3), 8);
-    memcpy(pDest + 40, mDataBase + (aOrder[5] << 3), 8);
-    memcpy(pDest + 48, mDataBase + (aOrder[6] << 3), 8);
-    memcpy(pDest + 56, mDataBase + (aOrder[7] << 3), 8);
+    memcpy(pDest +  0, mData + (aOrder[0] << 3), 8);
+    memcpy(pDest +  8, mData + (aOrder[1] << 3), 8);
+    memcpy(pDest + 16, mData + (aOrder[2] << 3), 8);
+    memcpy(pDest + 24, mData + (aOrder[3] << 3), 8);
+    memcpy(pDest + 32, mData + (aOrder[4] << 3), 8);
+    memcpy(pDest + 40, mData + (aOrder[5] << 3), 8);
+    memcpy(pDest + 48, mData + (aOrder[6] << 3), 8);
+    memcpy(pDest + 56, mData + (aOrder[7] << 3), 8);
 }
 
 void TwistFastMatrix::ExecuteOp(TwistFastMatrixOp pOp,
@@ -1554,9 +1554,9 @@ void TwistFastMatrix::SwapRows(std::uint8_t pRowA, std::uint8_t pRowB) {
 
     if (aRowA == aRowB) { return; }
 
-    memcpy(mTemp,          mDataBase + aRowA, 8);
-    memcpy(mDataBase + aRowA,  mDataBase + aRowB, 8);
-    memcpy(mDataBase + aRowB,  mTemp,         8);
+    memcpy(mTemp,          mData + aRowA, 8);
+    memcpy(mData + aRowA,  mData + aRowB, 8);
+    memcpy(mData + aRowB,  mTemp,         8);
 }
 
 void TwistFastMatrix::SwapRowsEven(std::uint8_t pRowA, std::uint8_t pRowB) {
@@ -1569,10 +1569,10 @@ void TwistFastMatrix::SwapRowsEven(std::uint8_t pRowA, std::uint8_t pRowB) {
     std::uint8_t aHold;
 
     // swap only even columns: 0,2,4,6
-    aHold = mDataBase[aRowA + 0]; mDataBase[aRowA + 0] = mDataBase[aRowB + 0]; mDataBase[aRowB + 0] = aHold;
-    aHold = mDataBase[aRowA + 2]; mDataBase[aRowA + 2] = mDataBase[aRowB + 2]; mDataBase[aRowB + 2] = aHold;
-    aHold = mDataBase[aRowA + 4]; mDataBase[aRowA + 4] = mDataBase[aRowB + 4]; mDataBase[aRowB + 4] = aHold;
-    aHold = mDataBase[aRowA + 6]; mDataBase[aRowA + 6] = mDataBase[aRowB + 6]; mDataBase[aRowB + 6] = aHold;
+    aHold = mData[aRowA + 0]; mData[aRowA + 0] = mData[aRowB + 0]; mData[aRowB + 0] = aHold;
+    aHold = mData[aRowA + 2]; mData[aRowA + 2] = mData[aRowB + 2]; mData[aRowB + 2] = aHold;
+    aHold = mData[aRowA + 4]; mData[aRowA + 4] = mData[aRowB + 4]; mData[aRowB + 4] = aHold;
+    aHold = mData[aRowA + 6]; mData[aRowA + 6] = mData[aRowB + 6]; mData[aRowB + 6] = aHold;
 }
 
 void TwistFastMatrix::SwapRowsOdd(std::uint8_t pRowA, std::uint8_t pRowB) {
@@ -1585,10 +1585,10 @@ void TwistFastMatrix::SwapRowsOdd(std::uint8_t pRowA, std::uint8_t pRowB) {
     std::uint8_t aHold;
 
     // swap only odd columns: 1,3,5,7
-    aHold = mDataBase[aRowA + 1]; mDataBase[aRowA + 1] = mDataBase[aRowB + 1]; mDataBase[aRowB + 1] = aHold;
-    aHold = mDataBase[aRowA + 3]; mDataBase[aRowA + 3] = mDataBase[aRowB + 3]; mDataBase[aRowB + 3] = aHold;
-    aHold = mDataBase[aRowA + 5]; mDataBase[aRowA + 5] = mDataBase[aRowB + 5]; mDataBase[aRowB + 5] = aHold;
-    aHold = mDataBase[aRowA + 7]; mDataBase[aRowA + 7] = mDataBase[aRowB + 7]; mDataBase[aRowB + 7] = aHold;
+    aHold = mData[aRowA + 1]; mData[aRowA + 1] = mData[aRowB + 1]; mData[aRowB + 1] = aHold;
+    aHold = mData[aRowA + 3]; mData[aRowA + 3] = mData[aRowB + 3]; mData[aRowB + 3] = aHold;
+    aHold = mData[aRowA + 5]; mData[aRowA + 5] = mData[aRowB + 5]; mData[aRowB + 5] = aHold;
+    aHold = mData[aRowA + 7]; mData[aRowA + 7] = mData[aRowB + 7]; mData[aRowB + 7] = aHold;
 }
 
 void TwistFastMatrix::ReverseRow(std::uint8_t pRow, std::uint8_t /*pArg2*/) {
@@ -1596,10 +1596,10 @@ void TwistFastMatrix::ReverseRow(std::uint8_t pRow, std::uint8_t /*pArg2*/) {
     std::uint8_t aBase = (pRow & 7) << 3;
     std::uint8_t aHold;
 
-    aHold = mDataBase[aBase + 0]; mDataBase[aBase + 0] = mDataBase[aBase + 7]; mDataBase[aBase + 7] = aHold;
-    aHold = mDataBase[aBase + 1]; mDataBase[aBase + 1] = mDataBase[aBase + 6]; mDataBase[aBase + 6] = aHold;
-    aHold = mDataBase[aBase + 2]; mDataBase[aBase + 2] = mDataBase[aBase + 5]; mDataBase[aBase + 5] = aHold;
-    aHold = mDataBase[aBase + 3]; mDataBase[aBase + 3] = mDataBase[aBase + 4]; mDataBase[aBase + 4] = aHold;
+    aHold = mData[aBase + 0]; mData[aBase + 0] = mData[aBase + 7]; mData[aBase + 7] = aHold;
+    aHold = mData[aBase + 1]; mData[aBase + 1] = mData[aBase + 6]; mData[aBase + 6] = aHold;
+    aHold = mData[aBase + 2]; mData[aBase + 2] = mData[aBase + 5]; mData[aBase + 5] = aHold;
+    aHold = mData[aBase + 3]; mData[aBase + 3] = mData[aBase + 4]; mData[aBase + 4] = aHold;
 }
 
 void TwistFastMatrix::ReverseRowEven(std::uint8_t pRow, std::uint8_t /*pArg2*/) {
@@ -1608,8 +1608,8 @@ void TwistFastMatrix::ReverseRowEven(std::uint8_t pRow, std::uint8_t /*pArg2*/) 
     std::uint8_t aHold;
 
     // even columns: 0,2,4,6
-    aHold = mDataBase[aBase + 0]; mDataBase[aBase + 0] = mDataBase[aBase + 6]; mDataBase[aBase + 6] = aHold;
-    aHold = mDataBase[aBase + 2]; mDataBase[aBase + 2] = mDataBase[aBase + 4]; mDataBase[aBase + 4] = aHold;
+    aHold = mData[aBase + 0]; mData[aBase + 0] = mData[aBase + 6]; mData[aBase + 6] = aHold;
+    aHold = mData[aBase + 2]; mData[aBase + 2] = mData[aBase + 4]; mData[aBase + 4] = aHold;
 }
 
 void TwistFastMatrix::ReverseRowOdd(std::uint8_t pRow, std::uint8_t /*pArg2*/) {
@@ -1618,8 +1618,8 @@ void TwistFastMatrix::ReverseRowOdd(std::uint8_t pRow, std::uint8_t /*pArg2*/) {
     std::uint8_t aHold;
 
     // odd columns: 1,3,5,7
-    aHold = mDataBase[aBase + 1]; mDataBase[aBase + 1] = mDataBase[aBase + 7]; mDataBase[aBase + 7] = aHold;
-    aHold = mDataBase[aBase + 3]; mDataBase[aBase + 3] = mDataBase[aBase + 5]; mDataBase[aBase + 5] = aHold;
+    aHold = mData[aBase + 1]; mData[aBase + 1] = mData[aBase + 7]; mData[aBase + 7] = aHold;
+    aHold = mData[aBase + 3]; mData[aBase + 3] = mData[aBase + 5]; mData[aBase + 5] = aHold;
 }
 
 void TwistFastMatrix::ReverseCol(std::uint8_t pCol, std::uint8_t /*pArg2*/) {
@@ -1627,10 +1627,10 @@ void TwistFastMatrix::ReverseCol(std::uint8_t pCol, std::uint8_t /*pArg2*/) {
     std::uint8_t aBase = (pCol & 7);
     std::uint8_t aHold;
 
-    aHold = mDataBase[(0 << 3) + aBase]; mDataBase[(0 << 3) + aBase] = mDataBase[(7 << 3) + aBase]; mDataBase[(7 << 3) + aBase] = aHold;
-    aHold = mDataBase[(1 << 3) + aBase]; mDataBase[(1 << 3) + aBase] = mDataBase[(6 << 3) + aBase]; mDataBase[(6 << 3) + aBase] = aHold;
-    aHold = mDataBase[(2 << 3) + aBase]; mDataBase[(2 << 3) + aBase] = mDataBase[(5 << 3) + aBase]; mDataBase[(5 << 3) + aBase] = aHold;
-    aHold = mDataBase[(3 << 3) + aBase]; mDataBase[(3 << 3) + aBase] = mDataBase[(4 << 3) + aBase]; mDataBase[(4 << 3) + aBase] = aHold;
+    aHold = mData[(0 << 3) + aBase]; mData[(0 << 3) + aBase] = mData[(7 << 3) + aBase]; mData[(7 << 3) + aBase] = aHold;
+    aHold = mData[(1 << 3) + aBase]; mData[(1 << 3) + aBase] = mData[(6 << 3) + aBase]; mData[(6 << 3) + aBase] = aHold;
+    aHold = mData[(2 << 3) + aBase]; mData[(2 << 3) + aBase] = mData[(5 << 3) + aBase]; mData[(5 << 3) + aBase] = aHold;
+    aHold = mData[(3 << 3) + aBase]; mData[(3 << 3) + aBase] = mData[(4 << 3) + aBase]; mData[(4 << 3) + aBase] = aHold;
 }
 
 void TwistFastMatrix::ReverseColEven(std::uint8_t pCol, std::uint8_t /*pArg2*/) {
@@ -1639,8 +1639,8 @@ void TwistFastMatrix::ReverseColEven(std::uint8_t pCol, std::uint8_t /*pArg2*/) 
     std::uint8_t aHold;
 
     // even rows: 0,2,4,6
-    aHold = mDataBase[(0 << 3) + aCol]; mDataBase[(0 << 3) + aCol] = mDataBase[(6 << 3) + aCol]; mDataBase[(6 << 3) + aCol] = aHold;
-    aHold = mDataBase[(2 << 3) + aCol]; mDataBase[(2 << 3) + aCol] = mDataBase[(4 << 3) + aCol]; mDataBase[(4 << 3) + aCol] = aHold;
+    aHold = mData[(0 << 3) + aCol]; mData[(0 << 3) + aCol] = mData[(6 << 3) + aCol]; mData[(6 << 3) + aCol] = aHold;
+    aHold = mData[(2 << 3) + aCol]; mData[(2 << 3) + aCol] = mData[(4 << 3) + aCol]; mData[(4 << 3) + aCol] = aHold;
 }
 
 void TwistFastMatrix::ReverseColOdd(std::uint8_t pCol, std::uint8_t /*pArg2*/) {
@@ -1649,8 +1649,8 @@ void TwistFastMatrix::ReverseColOdd(std::uint8_t pCol, std::uint8_t /*pArg2*/) {
     std::uint8_t aHold;
 
     // odd rows: 1,3,5,7
-    aHold = mDataBase[(1 << 3) + aCol]; mDataBase[(1 << 3) + aCol] = mDataBase[(7 << 3) + aCol]; mDataBase[(7 << 3) + aCol] = aHold;
-    aHold = mDataBase[(3 << 3) + aCol]; mDataBase[(3 << 3) + aCol] = mDataBase[(5 << 3) + aCol]; mDataBase[(5 << 3) + aCol] = aHold;
+    aHold = mData[(1 << 3) + aCol]; mData[(1 << 3) + aCol] = mData[(7 << 3) + aCol]; mData[(7 << 3) + aCol] = aHold;
+    aHold = mData[(3 << 3) + aCol]; mData[(3 << 3) + aCol] = mData[(5 << 3) + aCol]; mData[(5 << 3) + aCol] = aHold;
 }
 
 void TwistFastMatrix::RotateRow(std::uint8_t pRow, std::uint8_t pAmount) {
@@ -1662,10 +1662,10 @@ void TwistFastMatrix::RotateRow(std::uint8_t pRow, std::uint8_t pAmount) {
 
     for (std::uint8_t aColIndex = 0; aColIndex < 8; ++aColIndex) {
         mTemp[aColIndex] =
-            mDataBase[aBase + ((aColIndex + aAmount) & 7)];
+            mData[aBase + ((aColIndex + aAmount) & 7)];
     }
 
-    memcpy(mDataBase + aBase, mTemp, 8);
+    memcpy(mData + aBase, mTemp, 8);
 }
 
 void TwistFastMatrix::SwapCols(std::uint8_t pColA, std::uint8_t pColB) {
@@ -1681,9 +1681,9 @@ void TwistFastMatrix::SwapCols(std::uint8_t pColA, std::uint8_t pColB) {
 
         std::uint8_t aBase = aRowIndex << 3;
 
-        aHold = mDataBase[aBase + aColA];
-        mDataBase[aBase + aColA] = mDataBase[aBase + aColB];
-        mDataBase[aBase + aColB] = aHold;
+        aHold = mData[aBase + aColA];
+        mData[aBase + aColA] = mData[aBase + aColB];
+        mData[aBase + aColB] = aHold;
     }
 }
 
@@ -1701,9 +1701,9 @@ void TwistFastMatrix::SwapColsEven(std::uint8_t pColA, std::uint8_t pColB) {
 
         std::uint8_t aBase = aRowIndex << 3;
 
-        aHold = mDataBase[aBase + aColA];
-        mDataBase[aBase + aColA] = mDataBase[aBase + aColB];
-        mDataBase[aBase + aColB] = aHold;
+        aHold = mData[aBase + aColA];
+        mData[aBase + aColA] = mData[aBase + aColB];
+        mData[aBase + aColB] = aHold;
     }
 }
 
@@ -1721,9 +1721,9 @@ void TwistFastMatrix::SwapColsOdd(std::uint8_t pColA, std::uint8_t pColB) {
 
         std::uint8_t aBase = aRowIndex << 3;
 
-        aHold = mDataBase[aBase + aColA];
-        mDataBase[aBase + aColA] = mDataBase[aBase + aColB];
-        mDataBase[aBase + aColB] = aHold;
+        aHold = mData[aBase + aColA];
+        mData[aBase + aColA] = mData[aBase + aColB];
+        mData[aBase + aColB] = aHold;
     }
 }
 
@@ -1737,12 +1737,12 @@ void TwistFastMatrix::RotateCol(std::uint8_t pCol, std::uint8_t pAmount) {
     // gather
     for (std::uint8_t aRowIndex = 0; aRowIndex < 8; ++aRowIndex) {
         mTemp[aRowIndex] =
-            mDataBase[((aRowIndex + 8 - aAmount) & 7) << 3 | aCol];
+            mData[((aRowIndex + 8 - aAmount) & 7) << 3 | aCol];
     }
 
     // scatter
     for (std::uint8_t aRowIndex = 0; aRowIndex < 8; ++aRowIndex) {
-        mDataBase[(aRowIndex << 3) + aCol] = mTemp[aRowIndex];
+        mData[(aRowIndex << 3) + aCol] = mTemp[aRowIndex];
     }
 }
 
@@ -1770,201 +1770,201 @@ void TwistFastMatrix::SwapSixteenths(std::uint8_t pBlockA, std::uint8_t pBlockB)
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[aBaseA0 + aColA + 0];
-    mDataBase[aBaseA0 + aColA + 0] = mDataBase[aBaseB0 + aColB + 0];
-    mDataBase[aBaseB0 + aColB + 0] = aHold;
+    aHold = mData[aBaseA0 + aColA + 0];
+    mData[aBaseA0 + aColA + 0] = mData[aBaseB0 + aColB + 0];
+    mData[aBaseB0 + aColB + 0] = aHold;
 
     // (0,1)
-    aHold = mDataBase[aBaseA0 + aColA + 1];
-    mDataBase[aBaseA0 + aColA + 1] = mDataBase[aBaseB0 + aColB + 1];
-    mDataBase[aBaseB0 + aColB + 1] = aHold;
+    aHold = mData[aBaseA0 + aColA + 1];
+    mData[aBaseA0 + aColA + 1] = mData[aBaseB0 + aColB + 1];
+    mData[aBaseB0 + aColB + 1] = aHold;
 
     // (1,0)
-    aHold = mDataBase[aBaseA1 + aColA + 0];
-    mDataBase[aBaseA1 + aColA + 0] = mDataBase[aBaseB1 + aColB + 0];
-    mDataBase[aBaseB1 + aColB + 0] = aHold;
+    aHold = mData[aBaseA1 + aColA + 0];
+    mData[aBaseA1 + aColA + 0] = mData[aBaseB1 + aColB + 0];
+    mData[aBaseB1 + aColB + 0] = aHold;
 
     // (1,1)
-    aHold = mDataBase[aBaseA1 + aColA + 1];
-    mDataBase[aBaseA1 + aColA + 1] = mDataBase[aBaseB1 + aColB + 1];
-    mDataBase[aBaseB1 + aColB + 1] = aHold;
+    aHold = mData[aBaseA1 + aColA + 1];
+    mData[aBaseA1 + aColA + 1] = mData[aBaseB1 + aColB + 1];
+    mData[aBaseB1 + aColB + 1] = aHold;
 }
 
 // 90° clockwise
 void TwistFastMatrix::RotateRight(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
-    std::uint8_t *aSrc = mDataBase;
-    std::uint8_t *aDst = mTemp;
-    aDst[ 0] = aSrc[56]; aDst[ 1] = aSrc[48]; aDst[ 2] = aSrc[40]; aDst[ 3] = aSrc[32];
-    aDst[ 4] = aSrc[24]; aDst[ 5] = aSrc[16]; aDst[ 6] = aSrc[ 8]; aDst[ 7] = aSrc[ 0];
-    aDst[ 8] = aSrc[57]; aDst[ 9] = aSrc[49]; aDst[10] = aSrc[41]; aDst[11] = aSrc[33];
-    aDst[12] = aSrc[25]; aDst[13] = aSrc[17]; aDst[14] = aSrc[ 9]; aDst[15] = aSrc[ 1];
-    aDst[16] = aSrc[58]; aDst[17] = aSrc[50]; aDst[18] = aSrc[42]; aDst[19] = aSrc[34];
-    aDst[20] = aSrc[26]; aDst[21] = aSrc[18]; aDst[22] = aSrc[10]; aDst[23] = aSrc[ 2];
-    aDst[24] = aSrc[59]; aDst[25] = aSrc[51]; aDst[26] = aSrc[43]; aDst[27] = aSrc[35];
-    aDst[28] = aSrc[27]; aDst[29] = aSrc[19]; aDst[30] = aSrc[11]; aDst[31] = aSrc[ 3];
-    aDst[32] = aSrc[60]; aDst[33] = aSrc[52]; aDst[34] = aSrc[44]; aDst[35] = aSrc[36];
-    aDst[36] = aSrc[28]; aDst[37] = aSrc[20]; aDst[38] = aSrc[12]; aDst[39] = aSrc[ 4];
-    aDst[40] = aSrc[61]; aDst[41] = aSrc[53]; aDst[42] = aSrc[45]; aDst[43] = aSrc[37];
-    aDst[44] = aSrc[29]; aDst[45] = aSrc[21]; aDst[46] = aSrc[13]; aDst[47] = aSrc[ 5];
-    aDst[48] = aSrc[62]; aDst[49] = aSrc[54]; aDst[50] = aSrc[46]; aDst[51] = aSrc[38];
-    aDst[52] = aSrc[30]; aDst[53] = aSrc[22]; aDst[54] = aSrc[14]; aDst[55] = aSrc[ 6];
-    aDst[56] = aSrc[63]; aDst[57] = aSrc[55]; aDst[58] = aSrc[47]; aDst[59] = aSrc[39];
-    aDst[60] = aSrc[31]; aDst[61] = aSrc[23]; aDst[62] = aSrc[15]; aDst[63] = aSrc[ 7];
-    memcpy(mDataBase, mTemp, 64);
+    std::uint8_t *aSource = mData;
+    std::uint8_t *aDest = mTemp;
+    aDest[ 0] = aSource[56]; aDest[ 1] = aSource[48]; aDest[ 2] = aSource[40]; aDest[ 3] = aSource[32];
+    aDest[ 4] = aSource[24]; aDest[ 5] = aSource[16]; aDest[ 6] = aSource[ 8]; aDest[ 7] = aSource[ 0];
+    aDest[ 8] = aSource[57]; aDest[ 9] = aSource[49]; aDest[10] = aSource[41]; aDest[11] = aSource[33];
+    aDest[12] = aSource[25]; aDest[13] = aSource[17]; aDest[14] = aSource[ 9]; aDest[15] = aSource[ 1];
+    aDest[16] = aSource[58]; aDest[17] = aSource[50]; aDest[18] = aSource[42]; aDest[19] = aSource[34];
+    aDest[20] = aSource[26]; aDest[21] = aSource[18]; aDest[22] = aSource[10]; aDest[23] = aSource[ 2];
+    aDest[24] = aSource[59]; aDest[25] = aSource[51]; aDest[26] = aSource[43]; aDest[27] = aSource[35];
+    aDest[28] = aSource[27]; aDest[29] = aSource[19]; aDest[30] = aSource[11]; aDest[31] = aSource[ 3];
+    aDest[32] = aSource[60]; aDest[33] = aSource[52]; aDest[34] = aSource[44]; aDest[35] = aSource[36];
+    aDest[36] = aSource[28]; aDest[37] = aSource[20]; aDest[38] = aSource[12]; aDest[39] = aSource[ 4];
+    aDest[40] = aSource[61]; aDest[41] = aSource[53]; aDest[42] = aSource[45]; aDest[43] = aSource[37];
+    aDest[44] = aSource[29]; aDest[45] = aSource[21]; aDest[46] = aSource[13]; aDest[47] = aSource[ 5];
+    aDest[48] = aSource[62]; aDest[49] = aSource[54]; aDest[50] = aSource[46]; aDest[51] = aSource[38];
+    aDest[52] = aSource[30]; aDest[53] = aSource[22]; aDest[54] = aSource[14]; aDest[55] = aSource[ 6];
+    aDest[56] = aSource[63]; aDest[57] = aSource[55]; aDest[58] = aSource[47]; aDest[59] = aSource[39];
+    aDest[60] = aSource[31]; aDest[61] = aSource[23]; aDest[62] = aSource[15]; aDest[63] = aSource[ 7];
+    memcpy(mData, mTemp, 64);
 }
 
 // 90° counter-clockwise
 void TwistFastMatrix::RotateLeft(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
-    std::uint8_t *aDst = mTemp;
-    aDst[ 0] = aSrc[ 7]; aDst[ 1] = aSrc[15]; aDst[ 2] = aSrc[23]; aDst[ 3] = aSrc[31];
-    aDst[ 4] = aSrc[39]; aDst[ 5] = aSrc[47]; aDst[ 6] = aSrc[55]; aDst[ 7] = aSrc[63];
-    aDst[ 8] = aSrc[ 6]; aDst[ 9] = aSrc[14]; aDst[10] = aSrc[22]; aDst[11] = aSrc[30];
-    aDst[12] = aSrc[38]; aDst[13] = aSrc[46]; aDst[14] = aSrc[54]; aDst[15] = aSrc[62];
-    aDst[16] = aSrc[ 5]; aDst[17] = aSrc[13]; aDst[18] = aSrc[21]; aDst[19] = aSrc[29];
-    aDst[20] = aSrc[37]; aDst[21] = aSrc[45]; aDst[22] = aSrc[53]; aDst[23] = aSrc[61];
-    aDst[24] = aSrc[ 4]; aDst[25] = aSrc[12]; aDst[26] = aSrc[20]; aDst[27] = aSrc[28];
-    aDst[28] = aSrc[36]; aDst[29] = aSrc[44]; aDst[30] = aSrc[52]; aDst[31] = aSrc[60];
-    aDst[32] = aSrc[ 3]; aDst[33] = aSrc[11]; aDst[34] = aSrc[19]; aDst[35] = aSrc[27];
-    aDst[36] = aSrc[35]; aDst[37] = aSrc[43]; aDst[38] = aSrc[51]; aDst[39] = aSrc[59];
-    aDst[40] = aSrc[ 2]; aDst[41] = aSrc[10]; aDst[42] = aSrc[18]; aDst[43] = aSrc[26];
-    aDst[44] = aSrc[34]; aDst[45] = aSrc[42]; aDst[46] = aSrc[50]; aDst[47] = aSrc[58];
-    aDst[48] = aSrc[ 1]; aDst[49] = aSrc[ 9]; aDst[50] = aSrc[17]; aDst[51] = aSrc[25];
-    aDst[52] = aSrc[33]; aDst[53] = aSrc[41]; aDst[54] = aSrc[49]; aDst[55] = aSrc[57];
-    aDst[56] = aSrc[ 0]; aDst[57] = aSrc[ 8]; aDst[58] = aSrc[16]; aDst[59] = aSrc[24];
-    aDst[60] = aSrc[32]; aDst[61] = aSrc[40]; aDst[62] = aSrc[48]; aDst[63] = aSrc[56];
-    memcpy(mDataBase, mTemp, 64);
+    std::uint8_t *aSource = mData;
+    std::uint8_t *aDest = mTemp;
+    aDest[ 0] = aSource[ 7]; aDest[ 1] = aSource[15]; aDest[ 2] = aSource[23]; aDest[ 3] = aSource[31];
+    aDest[ 4] = aSource[39]; aDest[ 5] = aSource[47]; aDest[ 6] = aSource[55]; aDest[ 7] = aSource[63];
+    aDest[ 8] = aSource[ 6]; aDest[ 9] = aSource[14]; aDest[10] = aSource[22]; aDest[11] = aSource[30];
+    aDest[12] = aSource[38]; aDest[13] = aSource[46]; aDest[14] = aSource[54]; aDest[15] = aSource[62];
+    aDest[16] = aSource[ 5]; aDest[17] = aSource[13]; aDest[18] = aSource[21]; aDest[19] = aSource[29];
+    aDest[20] = aSource[37]; aDest[21] = aSource[45]; aDest[22] = aSource[53]; aDest[23] = aSource[61];
+    aDest[24] = aSource[ 4]; aDest[25] = aSource[12]; aDest[26] = aSource[20]; aDest[27] = aSource[28];
+    aDest[28] = aSource[36]; aDest[29] = aSource[44]; aDest[30] = aSource[52]; aDest[31] = aSource[60];
+    aDest[32] = aSource[ 3]; aDest[33] = aSource[11]; aDest[34] = aSource[19]; aDest[35] = aSource[27];
+    aDest[36] = aSource[35]; aDest[37] = aSource[43]; aDest[38] = aSource[51]; aDest[39] = aSource[59];
+    aDest[40] = aSource[ 2]; aDest[41] = aSource[10]; aDest[42] = aSource[18]; aDest[43] = aSource[26];
+    aDest[44] = aSource[34]; aDest[45] = aSource[42]; aDest[46] = aSource[50]; aDest[47] = aSource[58];
+    aDest[48] = aSource[ 1]; aDest[49] = aSource[ 9]; aDest[50] = aSource[17]; aDest[51] = aSource[25];
+    aDest[52] = aSource[33]; aDest[53] = aSource[41]; aDest[54] = aSource[49]; aDest[55] = aSource[57];
+    aDest[56] = aSource[ 0]; aDest[57] = aSource[ 8]; aDest[58] = aSource[16]; aDest[59] = aSource[24];
+    aDest[60] = aSource[32]; aDest[61] = aSource[40]; aDest[62] = aSource[48]; aDest[63] = aSource[56];
+    memcpy(mData, mTemp, 64);
 }
 
 void TwistFastMatrix::RotateRightBlocks(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
     // copy whole matrix to temp
-    memcpy(aTmp, aSrc, 64);
+    memcpy(aTmp, aSource, 64);
 
     // A <- C
-    aSrc[ 0] = aTmp[32]; aSrc[ 1] = aTmp[33]; aSrc[ 2] = aTmp[34]; aSrc[ 3] = aTmp[35];
-    aSrc[ 8] = aTmp[40]; aSrc[ 9] = aTmp[41]; aSrc[10] = aTmp[42]; aSrc[11] = aTmp[43];
-    aSrc[16] = aTmp[48]; aSrc[17] = aTmp[49]; aSrc[18] = aTmp[50]; aSrc[19] = aTmp[51];
-    aSrc[24] = aTmp[56]; aSrc[25] = aTmp[57]; aSrc[26] = aTmp[58]; aSrc[27] = aTmp[59];
+    aSource[ 0] = aTmp[32]; aSource[ 1] = aTmp[33]; aSource[ 2] = aTmp[34]; aSource[ 3] = aTmp[35];
+    aSource[ 8] = aTmp[40]; aSource[ 9] = aTmp[41]; aSource[10] = aTmp[42]; aSource[11] = aTmp[43];
+    aSource[16] = aTmp[48]; aSource[17] = aTmp[49]; aSource[18] = aTmp[50]; aSource[19] = aTmp[51];
+    aSource[24] = aTmp[56]; aSource[25] = aTmp[57]; aSource[26] = aTmp[58]; aSource[27] = aTmp[59];
 
     // B <- A
-    aSrc[ 4] = aTmp[ 0]; aSrc[ 5] = aTmp[ 1]; aSrc[ 6] = aTmp[ 2]; aSrc[ 7] = aTmp[ 3];
-    aSrc[12] = aTmp[ 8]; aSrc[13] = aTmp[ 9]; aSrc[14] = aTmp[10]; aSrc[15] = aTmp[11];
-    aSrc[20] = aTmp[16]; aSrc[21] = aTmp[17]; aSrc[22] = aTmp[18]; aSrc[23] = aTmp[19];
-    aSrc[28] = aTmp[24]; aSrc[29] = aTmp[25]; aSrc[30] = aTmp[26]; aSrc[31] = aTmp[27];
+    aSource[ 4] = aTmp[ 0]; aSource[ 5] = aTmp[ 1]; aSource[ 6] = aTmp[ 2]; aSource[ 7] = aTmp[ 3];
+    aSource[12] = aTmp[ 8]; aSource[13] = aTmp[ 9]; aSource[14] = aTmp[10]; aSource[15] = aTmp[11];
+    aSource[20] = aTmp[16]; aSource[21] = aTmp[17]; aSource[22] = aTmp[18]; aSource[23] = aTmp[19];
+    aSource[28] = aTmp[24]; aSource[29] = aTmp[25]; aSource[30] = aTmp[26]; aSource[31] = aTmp[27];
 
     // D <- B
-    aSrc[36] = aTmp[ 4]; aSrc[37] = aTmp[ 5]; aSrc[38] = aTmp[ 6]; aSrc[39] = aTmp[ 7];
-    aSrc[44] = aTmp[12]; aSrc[45] = aTmp[13]; aSrc[46] = aTmp[14]; aSrc[47] = aTmp[15];
-    aSrc[52] = aTmp[20]; aSrc[53] = aTmp[21]; aSrc[54] = aTmp[22]; aSrc[55] = aTmp[23];
-    aSrc[60] = aTmp[28]; aSrc[61] = aTmp[29]; aSrc[62] = aTmp[30]; aSrc[63] = aTmp[31];
+    aSource[36] = aTmp[ 4]; aSource[37] = aTmp[ 5]; aSource[38] = aTmp[ 6]; aSource[39] = aTmp[ 7];
+    aSource[44] = aTmp[12]; aSource[45] = aTmp[13]; aSource[46] = aTmp[14]; aSource[47] = aTmp[15];
+    aSource[52] = aTmp[20]; aSource[53] = aTmp[21]; aSource[54] = aTmp[22]; aSource[55] = aTmp[23];
+    aSource[60] = aTmp[28]; aSource[61] = aTmp[29]; aSource[62] = aTmp[30]; aSource[63] = aTmp[31];
 
     // C <- D
-    aSrc[32] = aTmp[36]; aSrc[33] = aTmp[37]; aSrc[34] = aTmp[38]; aSrc[35] = aTmp[39];
-    aSrc[40] = aTmp[44]; aSrc[41] = aTmp[45]; aSrc[42] = aTmp[46]; aSrc[43] = aTmp[47];
-    aSrc[48] = aTmp[52]; aSrc[49] = aTmp[53]; aSrc[50] = aTmp[54]; aSrc[51] = aTmp[55];
-    aSrc[56] = aTmp[60]; aSrc[57] = aTmp[61]; aSrc[58] = aTmp[62]; aSrc[59] = aTmp[63];
+    aSource[32] = aTmp[36]; aSource[33] = aTmp[37]; aSource[34] = aTmp[38]; aSource[35] = aTmp[39];
+    aSource[40] = aTmp[44]; aSource[41] = aTmp[45]; aSource[42] = aTmp[46]; aSource[43] = aTmp[47];
+    aSource[48] = aTmp[52]; aSource[49] = aTmp[53]; aSource[50] = aTmp[54]; aSource[51] = aTmp[55];
+    aSource[56] = aTmp[60]; aSource[57] = aTmp[61]; aSource[58] = aTmp[62]; aSource[59] = aTmp[63];
 }
 
 void TwistFastMatrix::RotateLeftBlocks(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
     // copy whole matrix to temp
-    memcpy(aTmp, aSrc, 64);
+    memcpy(aTmp, aSource, 64);
 
     // A <- B
-    aSrc[ 0] = aTmp[ 4]; aSrc[ 1] = aTmp[ 5]; aSrc[ 2] = aTmp[ 6]; aSrc[ 3] = aTmp[ 7];
-    aSrc[ 8] = aTmp[12]; aSrc[ 9] = aTmp[13]; aSrc[10] = aTmp[14]; aSrc[11] = aTmp[15];
-    aSrc[16] = aTmp[20]; aSrc[17] = aTmp[21]; aSrc[18] = aTmp[22]; aSrc[19] = aTmp[23];
-    aSrc[24] = aTmp[28]; aSrc[25] = aTmp[29]; aSrc[26] = aTmp[30]; aSrc[27] = aTmp[31];
+    aSource[ 0] = aTmp[ 4]; aSource[ 1] = aTmp[ 5]; aSource[ 2] = aTmp[ 6]; aSource[ 3] = aTmp[ 7];
+    aSource[ 8] = aTmp[12]; aSource[ 9] = aTmp[13]; aSource[10] = aTmp[14]; aSource[11] = aTmp[15];
+    aSource[16] = aTmp[20]; aSource[17] = aTmp[21]; aSource[18] = aTmp[22]; aSource[19] = aTmp[23];
+    aSource[24] = aTmp[28]; aSource[25] = aTmp[29]; aSource[26] = aTmp[30]; aSource[27] = aTmp[31];
 
     // B <- D
-    aSrc[ 4] = aTmp[36]; aSrc[ 5] = aTmp[37]; aSrc[ 6] = aTmp[38]; aSrc[ 7] = aTmp[39];
-    aSrc[12] = aTmp[44]; aSrc[13] = aTmp[45]; aSrc[14] = aTmp[46]; aSrc[15] = aTmp[47];
-    aSrc[20] = aTmp[52]; aSrc[21] = aTmp[53]; aSrc[22] = aTmp[54]; aSrc[23] = aTmp[55];
-    aSrc[28] = aTmp[60]; aSrc[29] = aTmp[61]; aSrc[30] = aTmp[62]; aSrc[31] = aTmp[63];
+    aSource[ 4] = aTmp[36]; aSource[ 5] = aTmp[37]; aSource[ 6] = aTmp[38]; aSource[ 7] = aTmp[39];
+    aSource[12] = aTmp[44]; aSource[13] = aTmp[45]; aSource[14] = aTmp[46]; aSource[15] = aTmp[47];
+    aSource[20] = aTmp[52]; aSource[21] = aTmp[53]; aSource[22] = aTmp[54]; aSource[23] = aTmp[55];
+    aSource[28] = aTmp[60]; aSource[29] = aTmp[61]; aSource[30] = aTmp[62]; aSource[31] = aTmp[63];
 
     // D <- C
-    aSrc[36] = aTmp[32]; aSrc[37] = aTmp[33]; aSrc[38] = aTmp[34]; aSrc[39] = aTmp[35];
-    aSrc[44] = aTmp[40]; aSrc[45] = aTmp[41]; aSrc[46] = aTmp[42]; aSrc[47] = aTmp[43];
-    aSrc[52] = aTmp[48]; aSrc[53] = aTmp[49]; aSrc[54] = aTmp[50]; aSrc[55] = aTmp[51];
-    aSrc[60] = aTmp[56]; aSrc[61] = aTmp[57]; aSrc[62] = aTmp[58]; aSrc[63] = aTmp[59];
+    aSource[36] = aTmp[32]; aSource[37] = aTmp[33]; aSource[38] = aTmp[34]; aSource[39] = aTmp[35];
+    aSource[44] = aTmp[40]; aSource[45] = aTmp[41]; aSource[46] = aTmp[42]; aSource[47] = aTmp[43];
+    aSource[52] = aTmp[48]; aSource[53] = aTmp[49]; aSource[54] = aTmp[50]; aSource[55] = aTmp[51];
+    aSource[60] = aTmp[56]; aSource[61] = aTmp[57]; aSource[62] = aTmp[58]; aSource[63] = aTmp[59];
 
     // C <- A
-    aSrc[32] = aTmp[ 0]; aSrc[33] = aTmp[ 1]; aSrc[34] = aTmp[ 2]; aSrc[35] = aTmp[ 3];
-    aSrc[40] = aTmp[ 8]; aSrc[41] = aTmp[ 9]; aSrc[42] = aTmp[10]; aSrc[43] = aTmp[11];
-    aSrc[48] = aTmp[16]; aSrc[49] = aTmp[17]; aSrc[50] = aTmp[18]; aSrc[51] = aTmp[19];
-    aSrc[56] = aTmp[24]; aSrc[57] = aTmp[25]; aSrc[58] = aTmp[26]; aSrc[59] = aTmp[27];
+    aSource[32] = aTmp[ 0]; aSource[33] = aTmp[ 1]; aSource[34] = aTmp[ 2]; aSource[35] = aTmp[ 3];
+    aSource[40] = aTmp[ 8]; aSource[41] = aTmp[ 9]; aSource[42] = aTmp[10]; aSource[43] = aTmp[11];
+    aSource[48] = aTmp[16]; aSource[49] = aTmp[17]; aSource[50] = aTmp[18]; aSource[51] = aTmp[19];
+    aSource[56] = aTmp[24]; aSource[57] = aTmp[25]; aSource[58] = aTmp[26]; aSource[59] = aTmp[27];
 }
 
 void TwistFastMatrix::RotateRightQuarterA(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[ 0] = aSrc[24]; aTmp[ 1] = aSrc[16]; aTmp[ 2] = aSrc[ 8]; aTmp[ 3] = aSrc[ 0];
-    aTmp[ 8] = aSrc[25]; aTmp[ 9] = aSrc[17]; aTmp[10] = aSrc[ 9]; aTmp[11] = aSrc[ 1];
-    aTmp[16] = aSrc[26]; aTmp[17] = aSrc[18]; aTmp[18] = aSrc[10]; aTmp[19] = aSrc[ 2];
-    aTmp[24] = aSrc[27]; aTmp[25] = aSrc[19]; aTmp[26] = aSrc[11]; aTmp[27] = aSrc[ 3];
+    aTmp[ 0] = aSource[24]; aTmp[ 1] = aSource[16]; aTmp[ 2] = aSource[ 8]; aTmp[ 3] = aSource[ 0];
+    aTmp[ 8] = aSource[25]; aTmp[ 9] = aSource[17]; aTmp[10] = aSource[ 9]; aTmp[11] = aSource[ 1];
+    aTmp[16] = aSource[26]; aTmp[17] = aSource[18]; aTmp[18] = aSource[10]; aTmp[19] = aSource[ 2];
+    aTmp[24] = aSource[27]; aTmp[25] = aSource[19]; aTmp[26] = aSource[11]; aTmp[27] = aSource[ 3];
 
-    aSrc[ 0] = aTmp[ 0]; aSrc[ 1] = aTmp[ 1]; aSrc[ 2] = aTmp[ 2]; aSrc[ 3] = aTmp[ 3];
-    aSrc[ 8] = aTmp[ 8]; aSrc[ 9] = aTmp[ 9]; aSrc[10] = aTmp[10]; aSrc[11] = aTmp[11];
-    aSrc[16] = aTmp[16]; aSrc[17] = aTmp[17]; aSrc[18] = aTmp[18]; aSrc[19] = aTmp[19];
-    aSrc[24] = aTmp[24]; aSrc[25] = aTmp[25]; aSrc[26] = aTmp[26]; aSrc[27] = aTmp[27];
+    aSource[ 0] = aTmp[ 0]; aSource[ 1] = aTmp[ 1]; aSource[ 2] = aTmp[ 2]; aSource[ 3] = aTmp[ 3];
+    aSource[ 8] = aTmp[ 8]; aSource[ 9] = aTmp[ 9]; aSource[10] = aTmp[10]; aSource[11] = aTmp[11];
+    aSource[16] = aTmp[16]; aSource[17] = aTmp[17]; aSource[18] = aTmp[18]; aSource[19] = aTmp[19];
+    aSource[24] = aTmp[24]; aSource[25] = aTmp[25]; aSource[26] = aTmp[26]; aSource[27] = aTmp[27];
 }
 
 void TwistFastMatrix::RotateRightQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[ 4] = aSrc[28]; aTmp[ 5] = aSrc[20]; aTmp[ 6] = aSrc[12]; aTmp[ 7] = aSrc[ 4];
-    aTmp[12] = aSrc[29]; aTmp[13] = aSrc[21]; aTmp[14] = aSrc[13]; aTmp[15] = aSrc[ 5];
-    aTmp[20] = aSrc[30]; aTmp[21] = aSrc[22]; aTmp[22] = aSrc[14]; aTmp[23] = aSrc[ 6];
-    aTmp[28] = aSrc[31]; aTmp[29] = aSrc[23]; aTmp[30] = aSrc[15]; aTmp[31] = aSrc[ 7];
+    aTmp[ 4] = aSource[28]; aTmp[ 5] = aSource[20]; aTmp[ 6] = aSource[12]; aTmp[ 7] = aSource[ 4];
+    aTmp[12] = aSource[29]; aTmp[13] = aSource[21]; aTmp[14] = aSource[13]; aTmp[15] = aSource[ 5];
+    aTmp[20] = aSource[30]; aTmp[21] = aSource[22]; aTmp[22] = aSource[14]; aTmp[23] = aSource[ 6];
+    aTmp[28] = aSource[31]; aTmp[29] = aSource[23]; aTmp[30] = aSource[15]; aTmp[31] = aSource[ 7];
 
-    aSrc[ 4] = aTmp[ 4]; aSrc[ 5] = aTmp[ 5]; aSrc[ 6] = aTmp[ 6]; aSrc[ 7] = aTmp[ 7];
-    aSrc[12] = aTmp[12]; aSrc[13] = aTmp[13]; aSrc[14] = aTmp[14]; aSrc[15] = aTmp[15];
-    aSrc[20] = aTmp[20]; aSrc[21] = aTmp[21]; aSrc[22] = aTmp[22]; aSrc[23] = aTmp[23];
-    aSrc[28] = aTmp[28]; aSrc[29] = aTmp[29]; aSrc[30] = aTmp[30]; aSrc[31] = aTmp[31];
+    aSource[ 4] = aTmp[ 4]; aSource[ 5] = aTmp[ 5]; aSource[ 6] = aTmp[ 6]; aSource[ 7] = aTmp[ 7];
+    aSource[12] = aTmp[12]; aSource[13] = aTmp[13]; aSource[14] = aTmp[14]; aSource[15] = aTmp[15];
+    aSource[20] = aTmp[20]; aSource[21] = aTmp[21]; aSource[22] = aTmp[22]; aSource[23] = aTmp[23];
+    aSource[28] = aTmp[28]; aSource[29] = aTmp[29]; aSource[30] = aTmp[30]; aSource[31] = aTmp[31];
 }
 
 void TwistFastMatrix::RotateRightQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[32] = aSrc[56]; aTmp[33] = aSrc[48]; aTmp[34] = aSrc[40]; aTmp[35] = aSrc[32];
-    aTmp[40] = aSrc[57]; aTmp[41] = aSrc[49]; aTmp[42] = aSrc[41]; aTmp[43] = aSrc[33];
-    aTmp[48] = aSrc[58]; aTmp[49] = aSrc[50]; aTmp[50] = aSrc[42]; aTmp[51] = aSrc[34];
-    aTmp[56] = aSrc[59]; aTmp[57] = aSrc[51]; aTmp[58] = aSrc[43]; aTmp[59] = aSrc[35];
+    aTmp[32] = aSource[56]; aTmp[33] = aSource[48]; aTmp[34] = aSource[40]; aTmp[35] = aSource[32];
+    aTmp[40] = aSource[57]; aTmp[41] = aSource[49]; aTmp[42] = aSource[41]; aTmp[43] = aSource[33];
+    aTmp[48] = aSource[58]; aTmp[49] = aSource[50]; aTmp[50] = aSource[42]; aTmp[51] = aSource[34];
+    aTmp[56] = aSource[59]; aTmp[57] = aSource[51]; aTmp[58] = aSource[43]; aTmp[59] = aSource[35];
 
-    aSrc[32] = aTmp[32]; aSrc[33] = aTmp[33]; aSrc[34] = aTmp[34]; aSrc[35] = aTmp[35];
-    aSrc[40] = aTmp[40]; aSrc[41] = aTmp[41]; aSrc[42] = aTmp[42]; aSrc[43] = aTmp[43];
-    aSrc[48] = aTmp[48]; aSrc[49] = aTmp[49]; aSrc[50] = aTmp[50]; aSrc[51] = aTmp[51];
-    aSrc[56] = aTmp[56]; aSrc[57] = aTmp[57]; aSrc[58] = aTmp[58]; aSrc[59] = aTmp[59];
+    aSource[32] = aTmp[32]; aSource[33] = aTmp[33]; aSource[34] = aTmp[34]; aSource[35] = aTmp[35];
+    aSource[40] = aTmp[40]; aSource[41] = aTmp[41]; aSource[42] = aTmp[42]; aSource[43] = aTmp[43];
+    aSource[48] = aTmp[48]; aSource[49] = aTmp[49]; aSource[50] = aTmp[50]; aSource[51] = aTmp[51];
+    aSource[56] = aTmp[56]; aSource[57] = aTmp[57]; aSource[58] = aTmp[58]; aSource[59] = aTmp[59];
 }
 
 void TwistFastMatrix::RotateRightQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[36] = aSrc[60]; aTmp[37] = aSrc[52]; aTmp[38] = aSrc[44]; aTmp[39] = aSrc[36];
-    aTmp[44] = aSrc[61]; aTmp[45] = aSrc[53]; aTmp[46] = aSrc[45]; aTmp[47] = aSrc[37];
-    aTmp[52] = aSrc[62]; aTmp[53] = aSrc[54]; aTmp[54] = aSrc[46]; aTmp[55] = aSrc[38];
-    aTmp[60] = aSrc[63]; aTmp[61] = aSrc[55]; aTmp[62] = aSrc[47]; aTmp[63] = aSrc[39];
+    aTmp[36] = aSource[60]; aTmp[37] = aSource[52]; aTmp[38] = aSource[44]; aTmp[39] = aSource[36];
+    aTmp[44] = aSource[61]; aTmp[45] = aSource[53]; aTmp[46] = aSource[45]; aTmp[47] = aSource[37];
+    aTmp[52] = aSource[62]; aTmp[53] = aSource[54]; aTmp[54] = aSource[46]; aTmp[55] = aSource[38];
+    aTmp[60] = aSource[63]; aTmp[61] = aSource[55]; aTmp[62] = aSource[47]; aTmp[63] = aSource[39];
 
-    aSrc[36] = aTmp[36]; aSrc[37] = aTmp[37]; aSrc[38] = aTmp[38]; aSrc[39] = aTmp[39];
-    aSrc[44] = aTmp[44]; aSrc[45] = aTmp[45]; aSrc[46] = aTmp[46]; aSrc[47] = aTmp[47];
-    aSrc[52] = aTmp[52]; aSrc[53] = aTmp[53]; aSrc[54] = aTmp[54]; aSrc[55] = aTmp[55];
-    aSrc[60] = aTmp[60]; aSrc[61] = aTmp[61]; aSrc[62] = aTmp[62]; aSrc[63] = aTmp[63];
+    aSource[36] = aTmp[36]; aSource[37] = aTmp[37]; aSource[38] = aTmp[38]; aSource[39] = aTmp[39];
+    aSource[44] = aTmp[44]; aSource[45] = aTmp[45]; aSource[46] = aTmp[46]; aSource[47] = aTmp[47];
+    aSource[52] = aTmp[52]; aSource[53] = aTmp[53]; aSource[54] = aTmp[54]; aSource[55] = aTmp[55];
+    aSource[60] = aTmp[60]; aSource[61] = aTmp[61]; aSource[62] = aTmp[62]; aSource[63] = aTmp[63];
 }
 
 void TwistFastMatrix::RotateRightEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -1976,66 +1976,66 @@ void TwistFastMatrix::RotateRightEachQuarter(std::uint8_t /*pArg1*/, std::uint8_
 
 void TwistFastMatrix::RotateLeftQuarterA(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[ 0] = aSrc[ 3]; aTmp[ 1] = aSrc[11]; aTmp[ 2] = aSrc[19]; aTmp[ 3] = aSrc[27];
-    aTmp[ 8] = aSrc[ 2]; aTmp[ 9] = aSrc[10]; aTmp[10] = aSrc[18]; aTmp[11] = aSrc[26];
-    aTmp[16] = aSrc[ 1]; aTmp[17] = aSrc[ 9]; aTmp[18] = aSrc[17]; aTmp[19] = aSrc[25];
-    aTmp[24] = aSrc[ 0]; aTmp[25] = aSrc[ 8]; aTmp[26] = aSrc[16]; aTmp[27] = aSrc[24];
+    aTmp[ 0] = aSource[ 3]; aTmp[ 1] = aSource[11]; aTmp[ 2] = aSource[19]; aTmp[ 3] = aSource[27];
+    aTmp[ 8] = aSource[ 2]; aTmp[ 9] = aSource[10]; aTmp[10] = aSource[18]; aTmp[11] = aSource[26];
+    aTmp[16] = aSource[ 1]; aTmp[17] = aSource[ 9]; aTmp[18] = aSource[17]; aTmp[19] = aSource[25];
+    aTmp[24] = aSource[ 0]; aTmp[25] = aSource[ 8]; aTmp[26] = aSource[16]; aTmp[27] = aSource[24];
 
-    aSrc[ 0] = aTmp[ 0]; aSrc[ 1] = aTmp[ 1]; aSrc[ 2] = aTmp[ 2]; aSrc[ 3] = aTmp[ 3];
-    aSrc[ 8] = aTmp[ 8]; aSrc[ 9] = aTmp[ 9]; aSrc[10] = aTmp[10]; aSrc[11] = aTmp[11];
-    aSrc[16] = aTmp[16]; aSrc[17] = aTmp[17]; aSrc[18] = aTmp[18]; aSrc[19] = aTmp[19];
-    aSrc[24] = aTmp[24]; aSrc[25] = aTmp[25]; aSrc[26] = aTmp[26]; aSrc[27] = aTmp[27];
+    aSource[ 0] = aTmp[ 0]; aSource[ 1] = aTmp[ 1]; aSource[ 2] = aTmp[ 2]; aSource[ 3] = aTmp[ 3];
+    aSource[ 8] = aTmp[ 8]; aSource[ 9] = aTmp[ 9]; aSource[10] = aTmp[10]; aSource[11] = aTmp[11];
+    aSource[16] = aTmp[16]; aSource[17] = aTmp[17]; aSource[18] = aTmp[18]; aSource[19] = aTmp[19];
+    aSource[24] = aTmp[24]; aSource[25] = aTmp[25]; aSource[26] = aTmp[26]; aSource[27] = aTmp[27];
 }
 
 void TwistFastMatrix::RotateLeftQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[ 4] = aSrc[ 7]; aTmp[ 5] = aSrc[15]; aTmp[ 6] = aSrc[23]; aTmp[ 7] = aSrc[31];
-    aTmp[12] = aSrc[ 6]; aTmp[13] = aSrc[14]; aTmp[14] = aSrc[22]; aTmp[15] = aSrc[30];
-    aTmp[20] = aSrc[ 5]; aTmp[21] = aSrc[13]; aTmp[22] = aSrc[21]; aTmp[23] = aSrc[29];
-    aTmp[28] = aSrc[ 4]; aTmp[29] = aSrc[12]; aTmp[30] = aSrc[20]; aTmp[31] = aSrc[28];
+    aTmp[ 4] = aSource[ 7]; aTmp[ 5] = aSource[15]; aTmp[ 6] = aSource[23]; aTmp[ 7] = aSource[31];
+    aTmp[12] = aSource[ 6]; aTmp[13] = aSource[14]; aTmp[14] = aSource[22]; aTmp[15] = aSource[30];
+    aTmp[20] = aSource[ 5]; aTmp[21] = aSource[13]; aTmp[22] = aSource[21]; aTmp[23] = aSource[29];
+    aTmp[28] = aSource[ 4]; aTmp[29] = aSource[12]; aTmp[30] = aSource[20]; aTmp[31] = aSource[28];
 
-    aSrc[ 4] = aTmp[ 4]; aSrc[ 5] = aTmp[ 5]; aSrc[ 6] = aTmp[ 6]; aSrc[ 7] = aTmp[ 7];
-    aSrc[12] = aTmp[12]; aSrc[13] = aTmp[13]; aSrc[14] = aTmp[14]; aSrc[15] = aTmp[15];
-    aSrc[20] = aTmp[20]; aSrc[21] = aTmp[21]; aSrc[22] = aTmp[22]; aSrc[23] = aTmp[23];
-    aSrc[28] = aTmp[28]; aSrc[29] = aTmp[29]; aSrc[30] = aTmp[30]; aSrc[31] = aTmp[31];
+    aSource[ 4] = aTmp[ 4]; aSource[ 5] = aTmp[ 5]; aSource[ 6] = aTmp[ 6]; aSource[ 7] = aTmp[ 7];
+    aSource[12] = aTmp[12]; aSource[13] = aTmp[13]; aSource[14] = aTmp[14]; aSource[15] = aTmp[15];
+    aSource[20] = aTmp[20]; aSource[21] = aTmp[21]; aSource[22] = aTmp[22]; aSource[23] = aTmp[23];
+    aSource[28] = aTmp[28]; aSource[29] = aTmp[29]; aSource[30] = aTmp[30]; aSource[31] = aTmp[31];
 }
 
 void TwistFastMatrix::RotateLeftQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[32] = aSrc[35]; aTmp[33] = aSrc[43]; aTmp[34] = aSrc[51]; aTmp[35] = aSrc[59];
-    aTmp[40] = aSrc[34]; aTmp[41] = aSrc[42]; aTmp[42] = aSrc[50]; aTmp[43] = aSrc[58];
-    aTmp[48] = aSrc[33]; aTmp[49] = aSrc[41]; aTmp[50] = aSrc[49]; aTmp[51] = aSrc[57];
-    aTmp[56] = aSrc[32]; aTmp[57] = aSrc[40]; aTmp[58] = aSrc[48]; aTmp[59] = aSrc[56];
+    aTmp[32] = aSource[35]; aTmp[33] = aSource[43]; aTmp[34] = aSource[51]; aTmp[35] = aSource[59];
+    aTmp[40] = aSource[34]; aTmp[41] = aSource[42]; aTmp[42] = aSource[50]; aTmp[43] = aSource[58];
+    aTmp[48] = aSource[33]; aTmp[49] = aSource[41]; aTmp[50] = aSource[49]; aTmp[51] = aSource[57];
+    aTmp[56] = aSource[32]; aTmp[57] = aSource[40]; aTmp[58] = aSource[48]; aTmp[59] = aSource[56];
 
-    aSrc[32] = aTmp[32]; aSrc[33] = aTmp[33]; aSrc[34] = aTmp[34]; aSrc[35] = aTmp[35];
-    aSrc[40] = aTmp[40]; aSrc[41] = aTmp[41]; aSrc[42] = aTmp[42]; aSrc[43] = aTmp[43];
-    aSrc[48] = aTmp[48]; aSrc[49] = aTmp[49]; aSrc[50] = aTmp[50]; aSrc[51] = aTmp[51];
-    aSrc[56] = aTmp[56]; aSrc[57] = aTmp[57]; aSrc[58] = aTmp[58]; aSrc[59] = aTmp[59];
+    aSource[32] = aTmp[32]; aSource[33] = aTmp[33]; aSource[34] = aTmp[34]; aSource[35] = aTmp[35];
+    aSource[40] = aTmp[40]; aSource[41] = aTmp[41]; aSource[42] = aTmp[42]; aSource[43] = aTmp[43];
+    aSource[48] = aTmp[48]; aSource[49] = aTmp[49]; aSource[50] = aTmp[50]; aSource[51] = aTmp[51];
+    aSource[56] = aTmp[56]; aSource[57] = aTmp[57]; aSource[58] = aTmp[58]; aSource[59] = aTmp[59];
 }
 
 void TwistFastMatrix::RotateLeftQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[36] = aSrc[39]; aTmp[37] = aSrc[47]; aTmp[38] = aSrc[55]; aTmp[39] = aSrc[63];
-    aTmp[44] = aSrc[38]; aTmp[45] = aSrc[46]; aTmp[46] = aSrc[54]; aTmp[47] = aSrc[62];
-    aTmp[52] = aSrc[37]; aTmp[53] = aSrc[45]; aTmp[54] = aSrc[53]; aTmp[55] = aSrc[61];
-    aTmp[60] = aSrc[36]; aTmp[61] = aSrc[44]; aTmp[62] = aSrc[52]; aTmp[63] = aSrc[60];
+    aTmp[36] = aSource[39]; aTmp[37] = aSource[47]; aTmp[38] = aSource[55]; aTmp[39] = aSource[63];
+    aTmp[44] = aSource[38]; aTmp[45] = aSource[46]; aTmp[46] = aSource[54]; aTmp[47] = aSource[62];
+    aTmp[52] = aSource[37]; aTmp[53] = aSource[45]; aTmp[54] = aSource[53]; aTmp[55] = aSource[61];
+    aTmp[60] = aSource[36]; aTmp[61] = aSource[44]; aTmp[62] = aSource[52]; aTmp[63] = aSource[60];
 
-    aSrc[36] = aTmp[36]; aSrc[37] = aTmp[37]; aSrc[38] = aTmp[38]; aSrc[39] = aTmp[39];
-    aSrc[44] = aTmp[44]; aSrc[45] = aTmp[45]; aSrc[46] = aTmp[46]; aSrc[47] = aTmp[47];
-    aSrc[52] = aTmp[52]; aSrc[53] = aTmp[53]; aSrc[54] = aTmp[54]; aSrc[55] = aTmp[55];
-    aSrc[60] = aTmp[60]; aSrc[61] = aTmp[61]; aSrc[62] = aTmp[62]; aSrc[63] = aTmp[63];
+    aSource[36] = aTmp[36]; aSource[37] = aTmp[37]; aSource[38] = aTmp[38]; aSource[39] = aTmp[39];
+    aSource[44] = aTmp[44]; aSource[45] = aTmp[45]; aSource[46] = aTmp[46]; aSource[47] = aTmp[47];
+    aSource[52] = aTmp[52]; aSource[53] = aTmp[53]; aSource[54] = aTmp[54]; aSource[55] = aTmp[55];
+    aSource[60] = aTmp[60]; aSource[61] = aTmp[61]; aSource[62] = aTmp[62]; aSource[63] = aTmp[63];
 }
 
 void TwistFastMatrix::RotateLeftEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2048,90 +2048,90 @@ void TwistFastMatrix::RotateLeftEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t
 // main diagonal flip (same as transpose)
 void TwistFastMatrix::TransposeMainDiagonal(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
     std::uint8_t aHold;
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[ 8]; mDataBase[ 8] = aHold;
-    aHold = mDataBase[ 2]; mDataBase[ 2] = mDataBase[16]; mDataBase[16] = aHold;
-    aHold = mDataBase[ 3]; mDataBase[ 3] = mDataBase[24]; mDataBase[24] = aHold;
-    aHold = mDataBase[ 4]; mDataBase[ 4] = mDataBase[32]; mDataBase[32] = aHold;
-    aHold = mDataBase[ 5]; mDataBase[ 5] = mDataBase[40]; mDataBase[40] = aHold;
-    aHold = mDataBase[ 6]; mDataBase[ 6] = mDataBase[48]; mDataBase[48] = aHold;
-    aHold = mDataBase[ 7]; mDataBase[ 7] = mDataBase[56]; mDataBase[56] = aHold;
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[17]; mDataBase[17] = aHold;
-    aHold = mDataBase[11]; mDataBase[11] = mDataBase[25]; mDataBase[25] = aHold;
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[33]; mDataBase[33] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[41]; mDataBase[41] = aHold;
-    aHold = mDataBase[14]; mDataBase[14] = mDataBase[49]; mDataBase[49] = aHold;
-    aHold = mDataBase[15]; mDataBase[15] = mDataBase[57]; mDataBase[57] = aHold;
-    aHold = mDataBase[19]; mDataBase[19] = mDataBase[26]; mDataBase[26] = aHold;
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[34]; mDataBase[34] = aHold;
-    aHold = mDataBase[21]; mDataBase[21] = mDataBase[42]; mDataBase[42] = aHold;
-    aHold = mDataBase[22]; mDataBase[22] = mDataBase[50]; mDataBase[50] = aHold;
-    aHold = mDataBase[23]; mDataBase[23] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[28]; mDataBase[28] = mDataBase[35]; mDataBase[35] = aHold;
-    aHold = mDataBase[29]; mDataBase[29] = mDataBase[43]; mDataBase[43] = aHold;
-    aHold = mDataBase[30]; mDataBase[30] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[31]; mDataBase[31] = mDataBase[59]; mDataBase[59] = aHold;
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[44]; mDataBase[44] = aHold;
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[52]; mDataBase[52] = aHold;
-    aHold = mDataBase[39]; mDataBase[39] = mDataBase[60]; mDataBase[60] = aHold;
-    aHold = mDataBase[46]; mDataBase[46] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[47]; mDataBase[47] = mDataBase[61]; mDataBase[61] = aHold;
-    aHold = mDataBase[55]; mDataBase[55] = mDataBase[62]; mDataBase[62] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[ 8]; mData[ 8] = aHold;
+    aHold = mData[ 2]; mData[ 2] = mData[16]; mData[16] = aHold;
+    aHold = mData[ 3]; mData[ 3] = mData[24]; mData[24] = aHold;
+    aHold = mData[ 4]; mData[ 4] = mData[32]; mData[32] = aHold;
+    aHold = mData[ 5]; mData[ 5] = mData[40]; mData[40] = aHold;
+    aHold = mData[ 6]; mData[ 6] = mData[48]; mData[48] = aHold;
+    aHold = mData[ 7]; mData[ 7] = mData[56]; mData[56] = aHold;
+    aHold = mData[10]; mData[10] = mData[17]; mData[17] = aHold;
+    aHold = mData[11]; mData[11] = mData[25]; mData[25] = aHold;
+    aHold = mData[12]; mData[12] = mData[33]; mData[33] = aHold;
+    aHold = mData[13]; mData[13] = mData[41]; mData[41] = aHold;
+    aHold = mData[14]; mData[14] = mData[49]; mData[49] = aHold;
+    aHold = mData[15]; mData[15] = mData[57]; mData[57] = aHold;
+    aHold = mData[19]; mData[19] = mData[26]; mData[26] = aHold;
+    aHold = mData[20]; mData[20] = mData[34]; mData[34] = aHold;
+    aHold = mData[21]; mData[21] = mData[42]; mData[42] = aHold;
+    aHold = mData[22]; mData[22] = mData[50]; mData[50] = aHold;
+    aHold = mData[23]; mData[23] = mData[58]; mData[58] = aHold;
+    aHold = mData[28]; mData[28] = mData[35]; mData[35] = aHold;
+    aHold = mData[29]; mData[29] = mData[43]; mData[43] = aHold;
+    aHold = mData[30]; mData[30] = mData[51]; mData[51] = aHold;
+    aHold = mData[31]; mData[31] = mData[59]; mData[59] = aHold;
+    aHold = mData[37]; mData[37] = mData[44]; mData[44] = aHold;
+    aHold = mData[38]; mData[38] = mData[52]; mData[52] = aHold;
+    aHold = mData[39]; mData[39] = mData[60]; mData[60] = aHold;
+    aHold = mData[46]; mData[46] = mData[53]; mData[53] = aHold;
+    aHold = mData[47]; mData[47] = mData[61]; mData[61] = aHold;
+    aHold = mData[55]; mData[55] = mData[62]; mData[62] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalQuarterA(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[ 8]; mDataBase[ 8] = aHold;
-    aHold = mDataBase[ 2]; mDataBase[ 2] = mDataBase[16]; mDataBase[16] = aHold;
-    aHold = mDataBase[ 3]; mDataBase[ 3] = mDataBase[24]; mDataBase[24] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[ 8]; mData[ 8] = aHold;
+    aHold = mData[ 2]; mData[ 2] = mData[16]; mData[16] = aHold;
+    aHold = mData[ 3]; mData[ 3] = mData[24]; mData[24] = aHold;
 
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[17]; mDataBase[17] = aHold;
-    aHold = mDataBase[11]; mDataBase[11] = mDataBase[25]; mDataBase[25] = aHold;
+    aHold = mData[10]; mData[10] = mData[17]; mData[17] = aHold;
+    aHold = mData[11]; mData[11] = mData[25]; mData[25] = aHold;
 
-    aHold = mDataBase[19]; mDataBase[19] = mDataBase[26]; mDataBase[26] = aHold;
+    aHold = mData[19]; mData[19] = mData[26]; mData[26] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 5]; mDataBase[ 5] = mDataBase[12]; mDataBase[12] = aHold;
-    aHold = mDataBase[ 6]; mDataBase[ 6] = mDataBase[20]; mDataBase[20] = aHold;
-    aHold = mDataBase[ 7]; mDataBase[ 7] = mDataBase[28]; mDataBase[28] = aHold;
+    aHold = mData[ 5]; mData[ 5] = mData[12]; mData[12] = aHold;
+    aHold = mData[ 6]; mData[ 6] = mData[20]; mData[20] = aHold;
+    aHold = mData[ 7]; mData[ 7] = mData[28]; mData[28] = aHold;
 
-    aHold = mDataBase[14]; mDataBase[14] = mDataBase[21]; mDataBase[21] = aHold;
-    aHold = mDataBase[15]; mDataBase[15] = mDataBase[29]; mDataBase[29] = aHold;
+    aHold = mData[14]; mData[14] = mData[21]; mData[21] = aHold;
+    aHold = mData[15]; mData[15] = mData[29]; mData[29] = aHold;
 
-    aHold = mDataBase[23]; mDataBase[23] = mDataBase[30]; mDataBase[30] = aHold;
+    aHold = mData[23]; mData[23] = mData[30]; mData[30] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[40]; mDataBase[40] = aHold;
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[48]; mDataBase[48] = aHold;
-    aHold = mDataBase[35]; mDataBase[35] = mDataBase[56]; mDataBase[56] = aHold;
+    aHold = mData[33]; mData[33] = mData[40]; mData[40] = aHold;
+    aHold = mData[34]; mData[34] = mData[48]; mData[48] = aHold;
+    aHold = mData[35]; mData[35] = mData[56]; mData[56] = aHold;
 
-    aHold = mDataBase[42]; mDataBase[42] = mDataBase[49]; mDataBase[49] = aHold;
-    aHold = mDataBase[43]; mDataBase[43] = mDataBase[57]; mDataBase[57] = aHold;
+    aHold = mData[42]; mData[42] = mData[49]; mData[49] = aHold;
+    aHold = mData[43]; mData[43] = mData[57]; mData[57] = aHold;
 
-    aHold = mDataBase[51]; mDataBase[51] = mDataBase[58]; mDataBase[58] = aHold;
+    aHold = mData[51]; mData[51] = mData[58]; mData[58] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[44]; mDataBase[44] = aHold;
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[52]; mDataBase[52] = aHold;
-    aHold = mDataBase[39]; mDataBase[39] = mDataBase[60]; mDataBase[60] = aHold;
+    aHold = mData[37]; mData[37] = mData[44]; mData[44] = aHold;
+    aHold = mData[38]; mData[38] = mData[52]; mData[52] = aHold;
+    aHold = mData[39]; mData[39] = mData[60]; mData[60] = aHold;
 
-    aHold = mDataBase[46]; mDataBase[46] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[47]; mDataBase[47] = mDataBase[61]; mDataBase[61] = aHold;
+    aHold = mData[46]; mData[46] = mData[53]; mData[53] = aHold;
+    aHold = mData[47]; mData[47] = mData[61]; mData[61] = aHold;
 
-    aHold = mDataBase[55]; mDataBase[55] = mDataBase[62]; mDataBase[62] = aHold;
+    aHold = mData[55]; mData[55] = mData[62]; mData[62] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2146,90 +2146,90 @@ void TwistFastMatrix::TransposeMainDiagonalEachQuarter(std::uint8_t /*pArg1*/, s
 void TwistFastMatrix::TransposeAntiDiagonal(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
-    aHold = mDataBase[ 0]; mDataBase[ 0] = mDataBase[63]; mDataBase[63] = aHold;
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[55]; mDataBase[55] = aHold;
-    aHold = mDataBase[ 2]; mDataBase[ 2] = mDataBase[47]; mDataBase[47] = aHold;
-    aHold = mDataBase[ 3]; mDataBase[ 3] = mDataBase[39]; mDataBase[39] = aHold;
-    aHold = mDataBase[ 4]; mDataBase[ 4] = mDataBase[31]; mDataBase[31] = aHold;
-    aHold = mDataBase[ 5]; mDataBase[ 5] = mDataBase[23]; mDataBase[23] = aHold;
-    aHold = mDataBase[ 6]; mDataBase[ 6] = mDataBase[15]; mDataBase[15] = aHold;
-    aHold = mDataBase[ 8]; mDataBase[ 8] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[ 9]; mDataBase[ 9] = mDataBase[54]; mDataBase[54] = aHold;
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[46]; mDataBase[46] = aHold;
-    aHold = mDataBase[11]; mDataBase[11] = mDataBase[38]; mDataBase[38] = aHold;
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[30]; mDataBase[30] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[22]; mDataBase[22] = aHold;
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[61]; mDataBase[61] = aHold;
-    aHold = mDataBase[17]; mDataBase[17] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[18]; mDataBase[18] = mDataBase[45]; mDataBase[45] = aHold;
-    aHold = mDataBase[19]; mDataBase[19] = mDataBase[37]; mDataBase[37] = aHold;
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[29]; mDataBase[29] = aHold;
-    aHold = mDataBase[24]; mDataBase[24] = mDataBase[60]; mDataBase[60] = aHold;
-    aHold = mDataBase[25]; mDataBase[25] = mDataBase[52]; mDataBase[52] = aHold;
-    aHold = mDataBase[26]; mDataBase[26] = mDataBase[44]; mDataBase[44] = aHold;
-    aHold = mDataBase[27]; mDataBase[27] = mDataBase[36]; mDataBase[36] = aHold;
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[59]; mDataBase[59] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[43]; mDataBase[43] = aHold;
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[41]; mDataBase[41] = mDataBase[50]; mDataBase[50] = aHold;
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[57]; mDataBase[57] = aHold;
+    aHold = mData[ 0]; mData[ 0] = mData[63]; mData[63] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[55]; mData[55] = aHold;
+    aHold = mData[ 2]; mData[ 2] = mData[47]; mData[47] = aHold;
+    aHold = mData[ 3]; mData[ 3] = mData[39]; mData[39] = aHold;
+    aHold = mData[ 4]; mData[ 4] = mData[31]; mData[31] = aHold;
+    aHold = mData[ 5]; mData[ 5] = mData[23]; mData[23] = aHold;
+    aHold = mData[ 6]; mData[ 6] = mData[15]; mData[15] = aHold;
+    aHold = mData[ 8]; mData[ 8] = mData[62]; mData[62] = aHold;
+    aHold = mData[ 9]; mData[ 9] = mData[54]; mData[54] = aHold;
+    aHold = mData[10]; mData[10] = mData[46]; mData[46] = aHold;
+    aHold = mData[11]; mData[11] = mData[38]; mData[38] = aHold;
+    aHold = mData[12]; mData[12] = mData[30]; mData[30] = aHold;
+    aHold = mData[13]; mData[13] = mData[22]; mData[22] = aHold;
+    aHold = mData[16]; mData[16] = mData[61]; mData[61] = aHold;
+    aHold = mData[17]; mData[17] = mData[53]; mData[53] = aHold;
+    aHold = mData[18]; mData[18] = mData[45]; mData[45] = aHold;
+    aHold = mData[19]; mData[19] = mData[37]; mData[37] = aHold;
+    aHold = mData[20]; mData[20] = mData[29]; mData[29] = aHold;
+    aHold = mData[24]; mData[24] = mData[60]; mData[60] = aHold;
+    aHold = mData[25]; mData[25] = mData[52]; mData[52] = aHold;
+    aHold = mData[26]; mData[26] = mData[44]; mData[44] = aHold;
+    aHold = mData[27]; mData[27] = mData[36]; mData[36] = aHold;
+    aHold = mData[32]; mData[32] = mData[59]; mData[59] = aHold;
+    aHold = mData[33]; mData[33] = mData[51]; mData[51] = aHold;
+    aHold = mData[34]; mData[34] = mData[43]; mData[43] = aHold;
+    aHold = mData[40]; mData[40] = mData[58]; mData[58] = aHold;
+    aHold = mData[41]; mData[41] = mData[50]; mData[50] = aHold;
+    aHold = mData[48]; mData[48] = mData[57]; mData[57] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalQuarterA(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 0]; mDataBase[ 0] = mDataBase[27]; mDataBase[27] = aHold;
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[19]; mDataBase[19] = aHold;
-    aHold = mDataBase[ 2]; mDataBase[ 2] = mDataBase[11]; mDataBase[11] = aHold;
+    aHold = mData[ 0]; mData[ 0] = mData[27]; mData[27] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[19]; mData[19] = aHold;
+    aHold = mData[ 2]; mData[ 2] = mData[11]; mData[11] = aHold;
 
-    aHold = mDataBase[ 8]; mDataBase[ 8] = mDataBase[26]; mDataBase[26] = aHold;
-    aHold = mDataBase[ 9]; mDataBase[ 9] = mDataBase[18]; mDataBase[18] = aHold;
+    aHold = mData[ 8]; mData[ 8] = mData[26]; mData[26] = aHold;
+    aHold = mData[ 9]; mData[ 9] = mData[18]; mData[18] = aHold;
 
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[25]; mDataBase[25] = aHold;
+    aHold = mData[16]; mData[16] = mData[25]; mData[25] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 4]; mDataBase[ 4] = mDataBase[31]; mDataBase[31] = aHold;
-    aHold = mDataBase[ 5]; mDataBase[ 5] = mDataBase[23]; mDataBase[23] = aHold;
-    aHold = mDataBase[ 6]; mDataBase[ 6] = mDataBase[15]; mDataBase[15] = aHold;
+    aHold = mData[ 4]; mData[ 4] = mData[31]; mData[31] = aHold;
+    aHold = mData[ 5]; mData[ 5] = mData[23]; mData[23] = aHold;
+    aHold = mData[ 6]; mData[ 6] = mData[15]; mData[15] = aHold;
 
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[30]; mDataBase[30] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[22]; mDataBase[22] = aHold;
+    aHold = mData[12]; mData[12] = mData[30]; mData[30] = aHold;
+    aHold = mData[13]; mData[13] = mData[22]; mData[22] = aHold;
 
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[29]; mDataBase[29] = aHold;
+    aHold = mData[20]; mData[20] = mData[29]; mData[29] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[59]; mDataBase[59] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[43]; mDataBase[43] = aHold;
+    aHold = mData[32]; mData[32] = mData[59]; mData[59] = aHold;
+    aHold = mData[33]; mData[33] = mData[51]; mData[51] = aHold;
+    aHold = mData[34]; mData[34] = mData[43]; mData[43] = aHold;
 
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[41]; mDataBase[41] = mDataBase[50]; mDataBase[50] = aHold;
+    aHold = mData[40]; mData[40] = mData[58]; mData[58] = aHold;
+    aHold = mData[41]; mData[41] = mData[50]; mData[50] = aHold;
 
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[57]; mDataBase[57] = aHold;
+    aHold = mData[48]; mData[48] = mData[57]; mData[57] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[63]; mDataBase[63] = aHold;
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[55]; mDataBase[55] = aHold;
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[47]; mDataBase[47] = aHold;
+    aHold = mData[36]; mData[36] = mData[63]; mData[63] = aHold;
+    aHold = mData[37]; mData[37] = mData[55]; mData[55] = aHold;
+    aHold = mData[38]; mData[38] = mData[47]; mData[47] = aHold;
 
-    aHold = mDataBase[44]; mDataBase[44] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[45]; mDataBase[45] = mDataBase[54]; mDataBase[54] = aHold;
+    aHold = mData[44]; mData[44] = mData[62]; mData[62] = aHold;
+    aHold = mData[45]; mData[45] = mData[54]; mData[54] = aHold;
 
-    aHold = mDataBase[52]; mDataBase[52] = mDataBase[61]; mDataBase[61] = aHold;
+    aHold = mData[52]; mData[52] = mData[61]; mData[61] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2244,52 +2244,52 @@ void TwistFastMatrix::FlipHorizontal(std::uint8_t /*pArg1*/, std::uint8_t /*pArg
     std::uint8_t aHold;
 
     // row 0
-    aHold = mDataBase[ 0]; mDataBase[ 0] = mDataBase[ 7]; mDataBase[ 7] = aHold;
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[ 6]; mDataBase[ 6] = aHold;
-    aHold = mDataBase[ 2]; mDataBase[ 2] = mDataBase[ 5]; mDataBase[ 5] = aHold;
-    aHold = mDataBase[ 3]; mDataBase[ 3] = mDataBase[ 4]; mDataBase[ 4] = aHold;
+    aHold = mData[ 0]; mData[ 0] = mData[ 7]; mData[ 7] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[ 6]; mData[ 6] = aHold;
+    aHold = mData[ 2]; mData[ 2] = mData[ 5]; mData[ 5] = aHold;
+    aHold = mData[ 3]; mData[ 3] = mData[ 4]; mData[ 4] = aHold;
 
     // row 1
-    aHold = mDataBase[ 8]; mDataBase[ 8] = mDataBase[15]; mDataBase[15] = aHold;
-    aHold = mDataBase[ 9]; mDataBase[ 9] = mDataBase[14]; mDataBase[14] = aHold;
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[13]; mDataBase[13] = aHold;
-    aHold = mDataBase[11]; mDataBase[11] = mDataBase[12]; mDataBase[12] = aHold;
+    aHold = mData[ 8]; mData[ 8] = mData[15]; mData[15] = aHold;
+    aHold = mData[ 9]; mData[ 9] = mData[14]; mData[14] = aHold;
+    aHold = mData[10]; mData[10] = mData[13]; mData[13] = aHold;
+    aHold = mData[11]; mData[11] = mData[12]; mData[12] = aHold;
 
     // row 2
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[23]; mDataBase[23] = aHold;
-    aHold = mDataBase[17]; mDataBase[17] = mDataBase[22]; mDataBase[22] = aHold;
-    aHold = mDataBase[18]; mDataBase[18] = mDataBase[21]; mDataBase[21] = aHold;
-    aHold = mDataBase[19]; mDataBase[19] = mDataBase[20]; mDataBase[20] = aHold;
+    aHold = mData[16]; mData[16] = mData[23]; mData[23] = aHold;
+    aHold = mData[17]; mData[17] = mData[22]; mData[22] = aHold;
+    aHold = mData[18]; mData[18] = mData[21]; mData[21] = aHold;
+    aHold = mData[19]; mData[19] = mData[20]; mData[20] = aHold;
 
     // row 3
-    aHold = mDataBase[24]; mDataBase[24] = mDataBase[31]; mDataBase[31] = aHold;
-    aHold = mDataBase[25]; mDataBase[25] = mDataBase[30]; mDataBase[30] = aHold;
-    aHold = mDataBase[26]; mDataBase[26] = mDataBase[29]; mDataBase[29] = aHold;
-    aHold = mDataBase[27]; mDataBase[27] = mDataBase[28]; mDataBase[28] = aHold;
+    aHold = mData[24]; mData[24] = mData[31]; mData[31] = aHold;
+    aHold = mData[25]; mData[25] = mData[30]; mData[30] = aHold;
+    aHold = mData[26]; mData[26] = mData[29]; mData[29] = aHold;
+    aHold = mData[27]; mData[27] = mData[28]; mData[28] = aHold;
 
     // row 4
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[39]; mDataBase[39] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[38]; mDataBase[38] = aHold;
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[37]; mDataBase[37] = aHold;
-    aHold = mDataBase[35]; mDataBase[35] = mDataBase[36]; mDataBase[36] = aHold;
+    aHold = mData[32]; mData[32] = mData[39]; mData[39] = aHold;
+    aHold = mData[33]; mData[33] = mData[38]; mData[38] = aHold;
+    aHold = mData[34]; mData[34] = mData[37]; mData[37] = aHold;
+    aHold = mData[35]; mData[35] = mData[36]; mData[36] = aHold;
 
     // row 5
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[47]; mDataBase[47] = aHold;
-    aHold = mDataBase[41]; mDataBase[41] = mDataBase[46]; mDataBase[46] = aHold;
-    aHold = mDataBase[42]; mDataBase[42] = mDataBase[45]; mDataBase[45] = aHold;
-    aHold = mDataBase[43]; mDataBase[43] = mDataBase[44]; mDataBase[44] = aHold;
+    aHold = mData[40]; mData[40] = mData[47]; mData[47] = aHold;
+    aHold = mData[41]; mData[41] = mData[46]; mData[46] = aHold;
+    aHold = mData[42]; mData[42] = mData[45]; mData[45] = aHold;
+    aHold = mData[43]; mData[43] = mData[44]; mData[44] = aHold;
 
     // row 6
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[55]; mDataBase[55] = aHold;
-    aHold = mDataBase[49]; mDataBase[49] = mDataBase[54]; mDataBase[54] = aHold;
-    aHold = mDataBase[50]; mDataBase[50] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[51]; mDataBase[51] = mDataBase[52]; mDataBase[52] = aHold;
+    aHold = mData[48]; mData[48] = mData[55]; mData[55] = aHold;
+    aHold = mData[49]; mData[49] = mData[54]; mData[54] = aHold;
+    aHold = mData[50]; mData[50] = mData[53]; mData[53] = aHold;
+    aHold = mData[51]; mData[51] = mData[52]; mData[52] = aHold;
 
     // row 7
-    aHold = mDataBase[56]; mDataBase[56] = mDataBase[63]; mDataBase[63] = aHold;
-    aHold = mDataBase[57]; mDataBase[57] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[58]; mDataBase[58] = mDataBase[61]; mDataBase[61] = aHold;
-    aHold = mDataBase[59]; mDataBase[59] = mDataBase[60]; mDataBase[60] = aHold;
+    aHold = mData[56]; mData[56] = mData[63]; mData[63] = aHold;
+    aHold = mData[57]; mData[57] = mData[62]; mData[62] = aHold;
+    aHold = mData[58]; mData[58] = mData[61]; mData[61] = aHold;
+    aHold = mData[59]; mData[59] = mData[60]; mData[60] = aHold;
 }
 
 void TwistFastMatrix::FlipVertical(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2297,112 +2297,112 @@ void TwistFastMatrix::FlipVertical(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*
     std::uint8_t aHold;
 
     // row 0 ↔ row 7
-    aHold = mDataBase[ 0]; mDataBase[ 0] = mDataBase[56]; mDataBase[56] = aHold;
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[57]; mDataBase[57] = aHold;
-    aHold = mDataBase[ 2]; mDataBase[ 2] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[ 3]; mDataBase[ 3] = mDataBase[59]; mDataBase[59] = aHold;
-    aHold = mDataBase[ 4]; mDataBase[ 4] = mDataBase[60]; mDataBase[60] = aHold;
-    aHold = mDataBase[ 5]; mDataBase[ 5] = mDataBase[61]; mDataBase[61] = aHold;
-    aHold = mDataBase[ 6]; mDataBase[ 6] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[ 7]; mDataBase[ 7] = mDataBase[63]; mDataBase[63] = aHold;
+    aHold = mData[ 0]; mData[ 0] = mData[56]; mData[56] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[57]; mData[57] = aHold;
+    aHold = mData[ 2]; mData[ 2] = mData[58]; mData[58] = aHold;
+    aHold = mData[ 3]; mData[ 3] = mData[59]; mData[59] = aHold;
+    aHold = mData[ 4]; mData[ 4] = mData[60]; mData[60] = aHold;
+    aHold = mData[ 5]; mData[ 5] = mData[61]; mData[61] = aHold;
+    aHold = mData[ 6]; mData[ 6] = mData[62]; mData[62] = aHold;
+    aHold = mData[ 7]; mData[ 7] = mData[63]; mData[63] = aHold;
 
     // row 1 ↔ row 6
-    aHold = mDataBase[ 8]; mDataBase[ 8] = mDataBase[48]; mDataBase[48] = aHold;
-    aHold = mDataBase[ 9]; mDataBase[ 9] = mDataBase[49]; mDataBase[49] = aHold;
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[50]; mDataBase[50] = aHold;
-    aHold = mDataBase[11]; mDataBase[11] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[52]; mDataBase[52] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[14]; mDataBase[14] = mDataBase[54]; mDataBase[54] = aHold;
-    aHold = mDataBase[15]; mDataBase[15] = mDataBase[55]; mDataBase[55] = aHold;
+    aHold = mData[ 8]; mData[ 8] = mData[48]; mData[48] = aHold;
+    aHold = mData[ 9]; mData[ 9] = mData[49]; mData[49] = aHold;
+    aHold = mData[10]; mData[10] = mData[50]; mData[50] = aHold;
+    aHold = mData[11]; mData[11] = mData[51]; mData[51] = aHold;
+    aHold = mData[12]; mData[12] = mData[52]; mData[52] = aHold;
+    aHold = mData[13]; mData[13] = mData[53]; mData[53] = aHold;
+    aHold = mData[14]; mData[14] = mData[54]; mData[54] = aHold;
+    aHold = mData[15]; mData[15] = mData[55]; mData[55] = aHold;
 
     // row 2 ↔ row 5
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[40]; mDataBase[40] = aHold;
-    aHold = mDataBase[17]; mDataBase[17] = mDataBase[41]; mDataBase[41] = aHold;
-    aHold = mDataBase[18]; mDataBase[18] = mDataBase[42]; mDataBase[42] = aHold;
-    aHold = mDataBase[19]; mDataBase[19] = mDataBase[43]; mDataBase[43] = aHold;
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[44]; mDataBase[44] = aHold;
-    aHold = mDataBase[21]; mDataBase[21] = mDataBase[45]; mDataBase[45] = aHold;
-    aHold = mDataBase[22]; mDataBase[22] = mDataBase[46]; mDataBase[46] = aHold;
-    aHold = mDataBase[23]; mDataBase[23] = mDataBase[47]; mDataBase[47] = aHold;
+    aHold = mData[16]; mData[16] = mData[40]; mData[40] = aHold;
+    aHold = mData[17]; mData[17] = mData[41]; mData[41] = aHold;
+    aHold = mData[18]; mData[18] = mData[42]; mData[42] = aHold;
+    aHold = mData[19]; mData[19] = mData[43]; mData[43] = aHold;
+    aHold = mData[20]; mData[20] = mData[44]; mData[44] = aHold;
+    aHold = mData[21]; mData[21] = mData[45]; mData[45] = aHold;
+    aHold = mData[22]; mData[22] = mData[46]; mData[46] = aHold;
+    aHold = mData[23]; mData[23] = mData[47]; mData[47] = aHold;
 
     // row 3 ↔ row 4
-    aHold = mDataBase[24]; mDataBase[24] = mDataBase[32]; mDataBase[32] = aHold;
-    aHold = mDataBase[25]; mDataBase[25] = mDataBase[33]; mDataBase[33] = aHold;
-    aHold = mDataBase[26]; mDataBase[26] = mDataBase[34]; mDataBase[34] = aHold;
-    aHold = mDataBase[27]; mDataBase[27] = mDataBase[35]; mDataBase[35] = aHold;
-    aHold = mDataBase[28]; mDataBase[28] = mDataBase[36]; mDataBase[36] = aHold;
-    aHold = mDataBase[29]; mDataBase[29] = mDataBase[37]; mDataBase[37] = aHold;
-    aHold = mDataBase[30]; mDataBase[30] = mDataBase[38]; mDataBase[38] = aHold;
-    aHold = mDataBase[31]; mDataBase[31] = mDataBase[39]; mDataBase[39] = aHold;
+    aHold = mData[24]; mData[24] = mData[32]; mData[32] = aHold;
+    aHold = mData[25]; mData[25] = mData[33]; mData[33] = aHold;
+    aHold = mData[26]; mData[26] = mData[34]; mData[34] = aHold;
+    aHold = mData[27]; mData[27] = mData[35]; mData[35] = aHold;
+    aHold = mData[28]; mData[28] = mData[36]; mData[36] = aHold;
+    aHold = mData[29]; mData[29] = mData[37]; mData[37] = aHold;
+    aHold = mData[30]; mData[30] = mData[38]; mData[38] = aHold;
+    aHold = mData[31]; mData[31] = mData[39]; mData[39] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalQuarterA(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 0]; mDataBase[ 0] = mDataBase[ 3]; mDataBase[ 3] = aHold;
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[ 2]; mDataBase[ 2] = aHold;
+    aHold = mData[ 0]; mData[ 0] = mData[ 3]; mData[ 3] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[ 2]; mData[ 2] = aHold;
 
-    aHold = mDataBase[ 8]; mDataBase[ 8] = mDataBase[11]; mDataBase[11] = aHold;
-    aHold = mDataBase[ 9]; mDataBase[ 9] = mDataBase[10]; mDataBase[10] = aHold;
+    aHold = mData[ 8]; mData[ 8] = mData[11]; mData[11] = aHold;
+    aHold = mData[ 9]; mData[ 9] = mData[10]; mData[10] = aHold;
 
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[19]; mDataBase[19] = aHold;
-    aHold = mDataBase[17]; mDataBase[17] = mDataBase[18]; mDataBase[18] = aHold;
+    aHold = mData[16]; mData[16] = mData[19]; mData[19] = aHold;
+    aHold = mData[17]; mData[17] = mData[18]; mData[18] = aHold;
 
-    aHold = mDataBase[24]; mDataBase[24] = mDataBase[27]; mDataBase[27] = aHold;
-    aHold = mDataBase[25]; mDataBase[25] = mDataBase[26]; mDataBase[26] = aHold;
+    aHold = mData[24]; mData[24] = mData[27]; mData[27] = aHold;
+    aHold = mData[25]; mData[25] = mData[26]; mData[26] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 4]; mDataBase[ 4] = mDataBase[ 7]; mDataBase[ 7] = aHold;
-    aHold = mDataBase[ 5]; mDataBase[ 5] = mDataBase[ 6]; mDataBase[ 6] = aHold;
+    aHold = mData[ 4]; mData[ 4] = mData[ 7]; mData[ 7] = aHold;
+    aHold = mData[ 5]; mData[ 5] = mData[ 6]; mData[ 6] = aHold;
 
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[15]; mDataBase[15] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[14]; mDataBase[14] = aHold;
+    aHold = mData[12]; mData[12] = mData[15]; mData[15] = aHold;
+    aHold = mData[13]; mData[13] = mData[14]; mData[14] = aHold;
 
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[23]; mDataBase[23] = aHold;
-    aHold = mDataBase[21]; mDataBase[21] = mDataBase[22]; mDataBase[22] = aHold;
+    aHold = mData[20]; mData[20] = mData[23]; mData[23] = aHold;
+    aHold = mData[21]; mData[21] = mData[22]; mData[22] = aHold;
 
-    aHold = mDataBase[28]; mDataBase[28] = mDataBase[31]; mDataBase[31] = aHold;
-    aHold = mDataBase[29]; mDataBase[29] = mDataBase[30]; mDataBase[30] = aHold;
+    aHold = mData[28]; mData[28] = mData[31]; mData[31] = aHold;
+    aHold = mData[29]; mData[29] = mData[30]; mData[30] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[35]; mDataBase[35] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[34]; mDataBase[34] = aHold;
+    aHold = mData[32]; mData[32] = mData[35]; mData[35] = aHold;
+    aHold = mData[33]; mData[33] = mData[34]; mData[34] = aHold;
 
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[43]; mDataBase[43] = aHold;
-    aHold = mDataBase[41]; mDataBase[41] = mDataBase[42]; mDataBase[42] = aHold;
+    aHold = mData[40]; mData[40] = mData[43]; mData[43] = aHold;
+    aHold = mData[41]; mData[41] = mData[42]; mData[42] = aHold;
 
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[49]; mDataBase[49] = mDataBase[50]; mDataBase[50] = aHold;
+    aHold = mData[48]; mData[48] = mData[51]; mData[51] = aHold;
+    aHold = mData[49]; mData[49] = mData[50]; mData[50] = aHold;
 
-    aHold = mDataBase[56]; mDataBase[56] = mDataBase[59]; mDataBase[59] = aHold;
-    aHold = mDataBase[57]; mDataBase[57] = mDataBase[58]; mDataBase[58] = aHold;
+    aHold = mData[56]; mData[56] = mData[59]; mData[59] = aHold;
+    aHold = mData[57]; mData[57] = mData[58]; mData[58] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[39]; mDataBase[39] = aHold;
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[38]; mDataBase[38] = aHold;
+    aHold = mData[36]; mData[36] = mData[39]; mData[39] = aHold;
+    aHold = mData[37]; mData[37] = mData[38]; mData[38] = aHold;
 
-    aHold = mDataBase[44]; mDataBase[44] = mDataBase[47]; mDataBase[47] = aHold;
-    aHold = mDataBase[45]; mDataBase[45] = mDataBase[46]; mDataBase[46] = aHold;
+    aHold = mData[44]; mData[44] = mData[47]; mData[47] = aHold;
+    aHold = mData[45]; mData[45] = mData[46]; mData[46] = aHold;
 
-    aHold = mDataBase[52]; mDataBase[52] = mDataBase[55]; mDataBase[55] = aHold;
-    aHold = mDataBase[53]; mDataBase[53] = mDataBase[54]; mDataBase[54] = aHold;
+    aHold = mData[52]; mData[52] = mData[55]; mData[55] = aHold;
+    aHold = mData[53]; mData[53] = mData[54]; mData[54] = aHold;
 
-    aHold = mDataBase[60]; mDataBase[60] = mDataBase[63]; mDataBase[63] = aHold;
-    aHold = mDataBase[61]; mDataBase[61] = mDataBase[62]; mDataBase[62] = aHold;
+    aHold = mData[60]; mData[60] = mData[63]; mData[63] = aHold;
+    aHold = mData[61]; mData[61] = mData[62]; mData[62] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2416,60 +2416,60 @@ void TwistFastMatrix::FlipVerticalQuarterA(std::uint8_t /*pArg1*/, std::uint8_t 
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 0]; mDataBase[ 0] = mDataBase[24]; mDataBase[24] = aHold;
-    aHold = mDataBase[ 1]; mDataBase[ 1] = mDataBase[25]; mDataBase[25] = aHold;
-    aHold = mDataBase[ 2]; mDataBase[ 2] = mDataBase[26]; mDataBase[26] = aHold;
-    aHold = mDataBase[ 3]; mDataBase[ 3] = mDataBase[27]; mDataBase[27] = aHold;
+    aHold = mData[ 0]; mData[ 0] = mData[24]; mData[24] = aHold;
+    aHold = mData[ 1]; mData[ 1] = mData[25]; mData[25] = aHold;
+    aHold = mData[ 2]; mData[ 2] = mData[26]; mData[26] = aHold;
+    aHold = mData[ 3]; mData[ 3] = mData[27]; mData[27] = aHold;
 
-    aHold = mDataBase[ 8]; mDataBase[ 8] = mDataBase[16]; mDataBase[16] = aHold;
-    aHold = mDataBase[ 9]; mDataBase[ 9] = mDataBase[17]; mDataBase[17] = aHold;
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[18]; mDataBase[18] = aHold;
-    aHold = mDataBase[11]; mDataBase[11] = mDataBase[19]; mDataBase[19] = aHold;
+    aHold = mData[ 8]; mData[ 8] = mData[16]; mData[16] = aHold;
+    aHold = mData[ 9]; mData[ 9] = mData[17]; mData[17] = aHold;
+    aHold = mData[10]; mData[10] = mData[18]; mData[18] = aHold;
+    aHold = mData[11]; mData[11] = mData[19]; mData[19] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[ 4]; mDataBase[ 4] = mDataBase[28]; mDataBase[28] = aHold;
-    aHold = mDataBase[ 5]; mDataBase[ 5] = mDataBase[29]; mDataBase[29] = aHold;
-    aHold = mDataBase[ 6]; mDataBase[ 6] = mDataBase[30]; mDataBase[30] = aHold;
-    aHold = mDataBase[ 7]; mDataBase[ 7] = mDataBase[31]; mDataBase[31] = aHold;
+    aHold = mData[ 4]; mData[ 4] = mData[28]; mData[28] = aHold;
+    aHold = mData[ 5]; mData[ 5] = mData[29]; mData[29] = aHold;
+    aHold = mData[ 6]; mData[ 6] = mData[30]; mData[30] = aHold;
+    aHold = mData[ 7]; mData[ 7] = mData[31]; mData[31] = aHold;
 
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[20]; mDataBase[20] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[21]; mDataBase[21] = aHold;
-    aHold = mDataBase[14]; mDataBase[14] = mDataBase[22]; mDataBase[22] = aHold;
-    aHold = mDataBase[15]; mDataBase[15] = mDataBase[23]; mDataBase[23] = aHold;
+    aHold = mData[12]; mData[12] = mData[20]; mData[20] = aHold;
+    aHold = mData[13]; mData[13] = mData[21]; mData[21] = aHold;
+    aHold = mData[14]; mData[14] = mData[22]; mData[22] = aHold;
+    aHold = mData[15]; mData[15] = mData[23]; mData[23] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[56]; mDataBase[56] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[57]; mDataBase[57] = aHold;
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[35]; mDataBase[35] = mDataBase[59]; mDataBase[59] = aHold;
+    aHold = mData[32]; mData[32] = mData[56]; mData[56] = aHold;
+    aHold = mData[33]; mData[33] = mData[57]; mData[57] = aHold;
+    aHold = mData[34]; mData[34] = mData[58]; mData[58] = aHold;
+    aHold = mData[35]; mData[35] = mData[59]; mData[59] = aHold;
 
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[48]; mDataBase[48] = aHold;
-    aHold = mDataBase[41]; mDataBase[41] = mDataBase[49]; mDataBase[49] = aHold;
-    aHold = mDataBase[42]; mDataBase[42] = mDataBase[50]; mDataBase[50] = aHold;
-    aHold = mDataBase[43]; mDataBase[43] = mDataBase[51]; mDataBase[51] = aHold;
+    aHold = mData[40]; mData[40] = mData[48]; mData[48] = aHold;
+    aHold = mData[41]; mData[41] = mData[49]; mData[49] = aHold;
+    aHold = mData[42]; mData[42] = mData[50]; mData[50] = aHold;
+    aHold = mData[43]; mData[43] = mData[51]; mData[51] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[60]; mDataBase[60] = aHold;
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[61]; mDataBase[61] = aHold;
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[39]; mDataBase[39] = mDataBase[63]; mDataBase[63] = aHold;
+    aHold = mData[36]; mData[36] = mData[60]; mData[60] = aHold;
+    aHold = mData[37]; mData[37] = mData[61]; mData[61] = aHold;
+    aHold = mData[38]; mData[38] = mData[62]; mData[62] = aHold;
+    aHold = mData[39]; mData[39] = mData[63]; mData[63] = aHold;
 
-    aHold = mDataBase[44]; mDataBase[44] = mDataBase[52]; mDataBase[52] = aHold;
-    aHold = mDataBase[45]; mDataBase[45] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[46]; mDataBase[46] = mDataBase[54]; mDataBase[54] = aHold;
-    aHold = mDataBase[47]; mDataBase[47] = mDataBase[55]; mDataBase[55] = aHold;
+    aHold = mData[44]; mData[44] = mData[52]; mData[52] = aHold;
+    aHold = mData[45]; mData[45] = mData[53]; mData[53] = aHold;
+    aHold = mData[46]; mData[46] = mData[54]; mData[54] = aHold;
+    aHold = mData[47]; mData[47] = mData[55]; mData[55] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2483,108 +2483,108 @@ void TwistFastMatrix::FlipVerticalEachQuarter(std::uint8_t /*pArg1*/, std::uint8
 
 void TwistFastMatrix::FlipHorizontalBlocks(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    memcpy(aTmp, aSrc, 64);
+    memcpy(aTmp, aSource, 64);
 
     // A <- B
-    aSrc[ 0] = aTmp[ 4]; aSrc[ 1] = aTmp[ 5]; aSrc[ 2] = aTmp[ 6]; aSrc[ 3] = aTmp[ 7];
-    aSrc[ 8] = aTmp[12]; aSrc[ 9] = aTmp[13]; aSrc[10] = aTmp[14]; aSrc[11] = aTmp[15];
-    aSrc[16] = aTmp[20]; aSrc[17] = aTmp[21]; aSrc[18] = aTmp[22]; aSrc[19] = aTmp[23];
-    aSrc[24] = aTmp[28]; aSrc[25] = aTmp[29]; aSrc[26] = aTmp[30]; aSrc[27] = aTmp[31];
+    aSource[ 0] = aTmp[ 4]; aSource[ 1] = aTmp[ 5]; aSource[ 2] = aTmp[ 6]; aSource[ 3] = aTmp[ 7];
+    aSource[ 8] = aTmp[12]; aSource[ 9] = aTmp[13]; aSource[10] = aTmp[14]; aSource[11] = aTmp[15];
+    aSource[16] = aTmp[20]; aSource[17] = aTmp[21]; aSource[18] = aTmp[22]; aSource[19] = aTmp[23];
+    aSource[24] = aTmp[28]; aSource[25] = aTmp[29]; aSource[26] = aTmp[30]; aSource[27] = aTmp[31];
 
     // B <- A
-    aSrc[ 4] = aTmp[ 0]; aSrc[ 5] = aTmp[ 1]; aSrc[ 6] = aTmp[ 2]; aSrc[ 7] = aTmp[ 3];
-    aSrc[12] = aTmp[ 8]; aSrc[13] = aTmp[ 9]; aSrc[14] = aTmp[10]; aSrc[15] = aTmp[11];
-    aSrc[20] = aTmp[16]; aSrc[21] = aTmp[17]; aSrc[22] = aTmp[18]; aSrc[23] = aTmp[19];
-    aSrc[28] = aTmp[24]; aSrc[29] = aTmp[25]; aSrc[30] = aTmp[26]; aSrc[31] = aTmp[27];
+    aSource[ 4] = aTmp[ 0]; aSource[ 5] = aTmp[ 1]; aSource[ 6] = aTmp[ 2]; aSource[ 7] = aTmp[ 3];
+    aSource[12] = aTmp[ 8]; aSource[13] = aTmp[ 9]; aSource[14] = aTmp[10]; aSource[15] = aTmp[11];
+    aSource[20] = aTmp[16]; aSource[21] = aTmp[17]; aSource[22] = aTmp[18]; aSource[23] = aTmp[19];
+    aSource[28] = aTmp[24]; aSource[29] = aTmp[25]; aSource[30] = aTmp[26]; aSource[31] = aTmp[27];
 
     // C <- D
-    aSrc[32] = aTmp[36]; aSrc[33] = aTmp[37]; aSrc[34] = aTmp[38]; aSrc[35] = aTmp[39];
-    aSrc[40] = aTmp[44]; aSrc[41] = aTmp[45]; aSrc[42] = aTmp[46]; aSrc[43] = aTmp[47];
-    aSrc[48] = aTmp[52]; aSrc[49] = aTmp[53]; aSrc[50] = aTmp[54]; aSrc[51] = aTmp[55];
-    aSrc[56] = aTmp[60]; aSrc[57] = aTmp[61]; aSrc[58] = aTmp[62]; aSrc[59] = aTmp[63];
+    aSource[32] = aTmp[36]; aSource[33] = aTmp[37]; aSource[34] = aTmp[38]; aSource[35] = aTmp[39];
+    aSource[40] = aTmp[44]; aSource[41] = aTmp[45]; aSource[42] = aTmp[46]; aSource[43] = aTmp[47];
+    aSource[48] = aTmp[52]; aSource[49] = aTmp[53]; aSource[50] = aTmp[54]; aSource[51] = aTmp[55];
+    aSource[56] = aTmp[60]; aSource[57] = aTmp[61]; aSource[58] = aTmp[62]; aSource[59] = aTmp[63];
 
     // D <- C
-    aSrc[36] = aTmp[32]; aSrc[37] = aTmp[33]; aSrc[38] = aTmp[34]; aSrc[39] = aTmp[35];
-    aSrc[44] = aTmp[40]; aSrc[45] = aTmp[41]; aSrc[46] = aTmp[42]; aSrc[47] = aTmp[43];
-    aSrc[52] = aTmp[48]; aSrc[53] = aTmp[49]; aSrc[54] = aTmp[50]; aSrc[55] = aTmp[51];
-    aSrc[60] = aTmp[56]; aSrc[61] = aTmp[57]; aSrc[62] = aTmp[58]; aSrc[63] = aTmp[59];
+    aSource[36] = aTmp[32]; aSource[37] = aTmp[33]; aSource[38] = aTmp[34]; aSource[39] = aTmp[35];
+    aSource[44] = aTmp[40]; aSource[45] = aTmp[41]; aSource[46] = aTmp[42]; aSource[47] = aTmp[43];
+    aSource[52] = aTmp[48]; aSource[53] = aTmp[49]; aSource[54] = aTmp[50]; aSource[55] = aTmp[51];
+    aSource[60] = aTmp[56]; aSource[61] = aTmp[57]; aSource[62] = aTmp[58]; aSource[63] = aTmp[59];
 }
 
 void TwistFastMatrix::FlipVerticalBlocks(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    memcpy(aTmp, aSrc, 64);
+    memcpy(aTmp, aSource, 64);
 
     // A <- C
-    aSrc[ 0] = aTmp[32]; aSrc[ 1] = aTmp[33]; aSrc[ 2] = aTmp[34]; aSrc[ 3] = aTmp[35];
-    aSrc[ 8] = aTmp[40]; aSrc[ 9] = aTmp[41]; aSrc[10] = aTmp[42]; aSrc[11] = aTmp[43];
-    aSrc[16] = aTmp[48]; aSrc[17] = aTmp[49]; aSrc[18] = aTmp[50]; aSrc[19] = aTmp[51];
-    aSrc[24] = aTmp[56]; aSrc[25] = aTmp[57]; aSrc[26] = aTmp[58]; aSrc[27] = aTmp[59];
+    aSource[ 0] = aTmp[32]; aSource[ 1] = aTmp[33]; aSource[ 2] = aTmp[34]; aSource[ 3] = aTmp[35];
+    aSource[ 8] = aTmp[40]; aSource[ 9] = aTmp[41]; aSource[10] = aTmp[42]; aSource[11] = aTmp[43];
+    aSource[16] = aTmp[48]; aSource[17] = aTmp[49]; aSource[18] = aTmp[50]; aSource[19] = aTmp[51];
+    aSource[24] = aTmp[56]; aSource[25] = aTmp[57]; aSource[26] = aTmp[58]; aSource[27] = aTmp[59];
 
     // B <- D
-    aSrc[ 4] = aTmp[36]; aSrc[ 5] = aTmp[37]; aSrc[ 6] = aTmp[38]; aSrc[ 7] = aTmp[39];
-    aSrc[12] = aTmp[44]; aSrc[13] = aTmp[45]; aSrc[14] = aTmp[46]; aSrc[15] = aTmp[47];
-    aSrc[20] = aTmp[52]; aSrc[21] = aTmp[53]; aSrc[22] = aTmp[54]; aSrc[23] = aTmp[55];
-    aSrc[28] = aTmp[60]; aSrc[29] = aTmp[61]; aSrc[30] = aTmp[62]; aSrc[31] = aTmp[63];
+    aSource[ 4] = aTmp[36]; aSource[ 5] = aTmp[37]; aSource[ 6] = aTmp[38]; aSource[ 7] = aTmp[39];
+    aSource[12] = aTmp[44]; aSource[13] = aTmp[45]; aSource[14] = aTmp[46]; aSource[15] = aTmp[47];
+    aSource[20] = aTmp[52]; aSource[21] = aTmp[53]; aSource[22] = aTmp[54]; aSource[23] = aTmp[55];
+    aSource[28] = aTmp[60]; aSource[29] = aTmp[61]; aSource[30] = aTmp[62]; aSource[31] = aTmp[63];
 
     // C <- A
-    aSrc[32] = aTmp[ 0]; aSrc[33] = aTmp[ 1]; aSrc[34] = aTmp[ 2]; aSrc[35] = aTmp[ 3];
-    aSrc[40] = aTmp[ 8]; aSrc[41] = aTmp[ 9]; aSrc[42] = aTmp[10]; aSrc[43] = aTmp[11];
-    aSrc[48] = aTmp[16]; aSrc[49] = aTmp[17]; aSrc[50] = aTmp[18]; aSrc[51] = aTmp[19];
-    aSrc[56] = aTmp[24]; aSrc[57] = aTmp[25]; aSrc[58] = aTmp[26]; aSrc[59] = aTmp[27];
+    aSource[32] = aTmp[ 0]; aSource[33] = aTmp[ 1]; aSource[34] = aTmp[ 2]; aSource[35] = aTmp[ 3];
+    aSource[40] = aTmp[ 8]; aSource[41] = aTmp[ 9]; aSource[42] = aTmp[10]; aSource[43] = aTmp[11];
+    aSource[48] = aTmp[16]; aSource[49] = aTmp[17]; aSource[50] = aTmp[18]; aSource[51] = aTmp[19];
+    aSource[56] = aTmp[24]; aSource[57] = aTmp[25]; aSource[58] = aTmp[26]; aSource[59] = aTmp[27];
 
     // D <- B
-    aSrc[36] = aTmp[ 4]; aSrc[37] = aTmp[ 5]; aSrc[38] = aTmp[ 6]; aSrc[39] = aTmp[ 7];
-    aSrc[44] = aTmp[12]; aSrc[45] = aTmp[13]; aSrc[46] = aTmp[14]; aSrc[47] = aTmp[15];
-    aSrc[52] = aTmp[20]; aSrc[53] = aTmp[21]; aSrc[54] = aTmp[22]; aSrc[55] = aTmp[23];
-    aSrc[60] = aTmp[28]; aSrc[61] = aTmp[29]; aSrc[62] = aTmp[30]; aSrc[63] = aTmp[31];
+    aSource[36] = aTmp[ 4]; aSource[37] = aTmp[ 5]; aSource[38] = aTmp[ 6]; aSource[39] = aTmp[ 7];
+    aSource[44] = aTmp[12]; aSource[45] = aTmp[13]; aSource[46] = aTmp[14]; aSource[47] = aTmp[15];
+    aSource[52] = aTmp[20]; aSource[53] = aTmp[21]; aSource[54] = aTmp[22]; aSource[55] = aTmp[23];
+    aSource[60] = aTmp[28]; aSource[61] = aTmp[29]; aSource[62] = aTmp[30]; aSource[63] = aTmp[31];
 }
 
 void TwistFastMatrix::TransposeMainDiagonalBlocks(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    memcpy(aTmp, aSrc, 64);
+    memcpy(aTmp, aSource, 64);
 
     // B <- C
-    aSrc[ 4] = aTmp[32]; aSrc[ 5] = aTmp[33]; aSrc[ 6] = aTmp[34]; aSrc[ 7] = aTmp[35];
-    aSrc[12] = aTmp[40]; aSrc[13] = aTmp[41]; aSrc[14] = aTmp[42]; aSrc[15] = aTmp[43];
-    aSrc[20] = aTmp[48]; aSrc[21] = aTmp[49]; aSrc[22] = aTmp[50]; aSrc[23] = aTmp[51];
-    aSrc[28] = aTmp[56]; aSrc[29] = aTmp[57]; aSrc[30] = aTmp[58]; aSrc[31] = aTmp[59];
+    aSource[ 4] = aTmp[32]; aSource[ 5] = aTmp[33]; aSource[ 6] = aTmp[34]; aSource[ 7] = aTmp[35];
+    aSource[12] = aTmp[40]; aSource[13] = aTmp[41]; aSource[14] = aTmp[42]; aSource[15] = aTmp[43];
+    aSource[20] = aTmp[48]; aSource[21] = aTmp[49]; aSource[22] = aTmp[50]; aSource[23] = aTmp[51];
+    aSource[28] = aTmp[56]; aSource[29] = aTmp[57]; aSource[30] = aTmp[58]; aSource[31] = aTmp[59];
 
     // C <- B
-    aSrc[32] = aTmp[ 4]; aSrc[33] = aTmp[ 5]; aSrc[34] = aTmp[ 6]; aSrc[35] = aTmp[ 7];
-    aSrc[40] = aTmp[12]; aSrc[41] = aTmp[13]; aSrc[42] = aTmp[14]; aSrc[43] = aTmp[15];
-    aSrc[48] = aTmp[20]; aSrc[49] = aTmp[21]; aSrc[50] = aTmp[22]; aSrc[51] = aTmp[23];
-    aSrc[56] = aTmp[28]; aSrc[57] = aTmp[29]; aSrc[58] = aTmp[30]; aSrc[59] = aTmp[31];
+    aSource[32] = aTmp[ 4]; aSource[33] = aTmp[ 5]; aSource[34] = aTmp[ 6]; aSource[35] = aTmp[ 7];
+    aSource[40] = aTmp[12]; aSource[41] = aTmp[13]; aSource[42] = aTmp[14]; aSource[43] = aTmp[15];
+    aSource[48] = aTmp[20]; aSource[49] = aTmp[21]; aSource[50] = aTmp[22]; aSource[51] = aTmp[23];
+    aSource[56] = aTmp[28]; aSource[57] = aTmp[29]; aSource[58] = aTmp[30]; aSource[59] = aTmp[31];
 
     // A and D unchanged
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalBlocks(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    memcpy(aTmp, aSrc, 64);
+    memcpy(aTmp, aSource, 64);
 
     // A <- D
-    aSrc[ 0] = aTmp[36]; aSrc[ 1] = aTmp[37]; aSrc[ 2] = aTmp[38]; aSrc[ 3] = aTmp[39];
-    aSrc[ 8] = aTmp[44]; aSrc[ 9] = aTmp[45]; aSrc[10] = aTmp[46]; aSrc[11] = aTmp[47];
-    aSrc[16] = aTmp[52]; aSrc[17] = aTmp[53]; aSrc[18] = aTmp[54]; aSrc[19] = aTmp[55];
-    aSrc[24] = aTmp[60]; aSrc[25] = aTmp[61]; aSrc[26] = aTmp[62]; aSrc[27] = aTmp[63];
+    aSource[ 0] = aTmp[36]; aSource[ 1] = aTmp[37]; aSource[ 2] = aTmp[38]; aSource[ 3] = aTmp[39];
+    aSource[ 8] = aTmp[44]; aSource[ 9] = aTmp[45]; aSource[10] = aTmp[46]; aSource[11] = aTmp[47];
+    aSource[16] = aTmp[52]; aSource[17] = aTmp[53]; aSource[18] = aTmp[54]; aSource[19] = aTmp[55];
+    aSource[24] = aTmp[60]; aSource[25] = aTmp[61]; aSource[26] = aTmp[62]; aSource[27] = aTmp[63];
 
     // D <- A
-    aSrc[36] = aTmp[ 0]; aSrc[37] = aTmp[ 1]; aSrc[38] = aTmp[ 2]; aSrc[39] = aTmp[ 3];
-    aSrc[44] = aTmp[ 8]; aSrc[45] = aTmp[ 9]; aSrc[46] = aTmp[10]; aSrc[47] = aTmp[11];
-    aSrc[52] = aTmp[16]; aSrc[53] = aTmp[17]; aSrc[54] = aTmp[18]; aSrc[55] = aTmp[19];
-    aSrc[60] = aTmp[24]; aSrc[61] = aTmp[25]; aSrc[62] = aTmp[26]; aSrc[63] = aTmp[27];
+    aSource[36] = aTmp[ 0]; aSource[37] = aTmp[ 1]; aSource[38] = aTmp[ 2]; aSource[39] = aTmp[ 3];
+    aSource[44] = aTmp[ 8]; aSource[45] = aTmp[ 9]; aSource[46] = aTmp[10]; aSource[47] = aTmp[11];
+    aSource[52] = aTmp[16]; aSource[53] = aTmp[17]; aSource[54] = aTmp[18]; aSource[55] = aTmp[19];
+    aSource[60] = aTmp[24]; aSource[61] = aTmp[25]; aSource[62] = aTmp[26]; aSource[63] = aTmp[27];
 
     // B and C unchanged
 }
@@ -2594,32 +2594,32 @@ void TwistFastMatrix::RotateRightEachSixteenthQuarterA(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // --- block (0,0) ---
-    aHold = mDataBase[ 0];
-    mDataBase[ 0] = mDataBase[ 8];
-    mDataBase[ 8] = mDataBase[ 9];
-    mDataBase[ 9] = mDataBase[ 1];
-    mDataBase[ 1] = aHold;
+    aHold = mData[ 0];
+    mData[ 0] = mData[ 8];
+    mData[ 8] = mData[ 9];
+    mData[ 9] = mData[ 1];
+    mData[ 1] = aHold;
 
     // --- block (0,2) ---
-    aHold = mDataBase[ 2];
-    mDataBase[ 2] = mDataBase[10];
-    mDataBase[10] = mDataBase[11];
-    mDataBase[11] = mDataBase[ 3];
-    mDataBase[ 3] = aHold;
+    aHold = mData[ 2];
+    mData[ 2] = mData[10];
+    mData[10] = mData[11];
+    mData[11] = mData[ 3];
+    mData[ 3] = aHold;
 
     // --- block (2,0) ---
-    aHold = mDataBase[16];
-    mDataBase[16] = mDataBase[24];
-    mDataBase[24] = mDataBase[25];
-    mDataBase[25] = mDataBase[17];
-    mDataBase[17] = aHold;
+    aHold = mData[16];
+    mData[16] = mData[24];
+    mData[24] = mData[25];
+    mData[25] = mData[17];
+    mData[17] = aHold;
 
     // --- block (2,2) ---
-    aHold = mDataBase[18];
-    mDataBase[18] = mDataBase[26];
-    mDataBase[26] = mDataBase[27];
-    mDataBase[27] = mDataBase[19];
-    mDataBase[19] = aHold;
+    aHold = mData[18];
+    mData[18] = mData[26];
+    mData[26] = mData[27];
+    mData[27] = mData[19];
+    mData[19] = aHold;
 }
 
 void TwistFastMatrix::RotateRightEachSixteenthQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2627,32 +2627,32 @@ void TwistFastMatrix::RotateRightEachSixteenthQuarterB(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[ 4];
-    mDataBase[ 4] = mDataBase[12];
-    mDataBase[12] = mDataBase[13];
-    mDataBase[13] = mDataBase[ 5];
-    mDataBase[ 5] = aHold;
+    aHold = mData[ 4];
+    mData[ 4] = mData[12];
+    mData[12] = mData[13];
+    mData[13] = mData[ 5];
+    mData[ 5] = aHold;
 
     // (0,2)
-    aHold = mDataBase[ 6];
-    mDataBase[ 6] = mDataBase[14];
-    mDataBase[14] = mDataBase[15];
-    mDataBase[15] = mDataBase[ 7];
-    mDataBase[ 7] = aHold;
+    aHold = mData[ 6];
+    mData[ 6] = mData[14];
+    mData[14] = mData[15];
+    mData[15] = mData[ 7];
+    mData[ 7] = aHold;
 
     // (2,0)
-    aHold = mDataBase[20];
-    mDataBase[20] = mDataBase[28];
-    mDataBase[28] = mDataBase[29];
-    mDataBase[29] = mDataBase[21];
-    mDataBase[21] = aHold;
+    aHold = mData[20];
+    mData[20] = mData[28];
+    mData[28] = mData[29];
+    mData[29] = mData[21];
+    mData[21] = aHold;
 
     // (2,2)
-    aHold = mDataBase[22];
-    mDataBase[22] = mDataBase[30];
-    mDataBase[30] = mDataBase[31];
-    mDataBase[31] = mDataBase[23];
-    mDataBase[23] = aHold;
+    aHold = mData[22];
+    mData[22] = mData[30];
+    mData[30] = mData[31];
+    mData[31] = mData[23];
+    mData[23] = aHold;
 }
 
 void TwistFastMatrix::RotateRightEachSixteenthQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2660,32 +2660,32 @@ void TwistFastMatrix::RotateRightEachSixteenthQuarterC(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[32];
-    mDataBase[32] = mDataBase[40];
-    mDataBase[40] = mDataBase[41];
-    mDataBase[41] = mDataBase[33];
-    mDataBase[33] = aHold;
+    aHold = mData[32];
+    mData[32] = mData[40];
+    mData[40] = mData[41];
+    mData[41] = mData[33];
+    mData[33] = aHold;
 
     // (0,2)
-    aHold = mDataBase[34];
-    mDataBase[34] = mDataBase[42];
-    mDataBase[42] = mDataBase[43];
-    mDataBase[43] = mDataBase[35];
-    mDataBase[35] = aHold;
+    aHold = mData[34];
+    mData[34] = mData[42];
+    mData[42] = mData[43];
+    mData[43] = mData[35];
+    mData[35] = aHold;
 
     // (2,0)
-    aHold = mDataBase[48];
-    mDataBase[48] = mDataBase[56];
-    mDataBase[56] = mDataBase[57];
-    mDataBase[57] = mDataBase[49];
-    mDataBase[49] = aHold;
+    aHold = mData[48];
+    mData[48] = mData[56];
+    mData[56] = mData[57];
+    mData[57] = mData[49];
+    mData[49] = aHold;
 
     // (2,2)
-    aHold = mDataBase[50];
-    mDataBase[50] = mDataBase[58];
-    mDataBase[58] = mDataBase[59];
-    mDataBase[59] = mDataBase[51];
-    mDataBase[51] = aHold;
+    aHold = mData[50];
+    mData[50] = mData[58];
+    mData[58] = mData[59];
+    mData[59] = mData[51];
+    mData[51] = aHold;
 }
 
 void TwistFastMatrix::RotateRightEachSixteenthQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2693,32 +2693,32 @@ void TwistFastMatrix::RotateRightEachSixteenthQuarterD(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[36];
-    mDataBase[36] = mDataBase[44];
-    mDataBase[44] = mDataBase[45];
-    mDataBase[45] = mDataBase[37];
-    mDataBase[37] = aHold;
+    aHold = mData[36];
+    mData[36] = mData[44];
+    mData[44] = mData[45];
+    mData[45] = mData[37];
+    mData[37] = aHold;
 
     // (0,2)
-    aHold = mDataBase[38];
-    mDataBase[38] = mDataBase[46];
-    mDataBase[46] = mDataBase[47];
-    mDataBase[47] = mDataBase[39];
-    mDataBase[39] = aHold;
+    aHold = mData[38];
+    mData[38] = mData[46];
+    mData[46] = mData[47];
+    mData[47] = mData[39];
+    mData[39] = aHold;
 
     // (2,0)
-    aHold = mDataBase[52];
-    mDataBase[52] = mDataBase[60];
-    mDataBase[60] = mDataBase[61];
-    mDataBase[61] = mDataBase[53];
-    mDataBase[53] = aHold;
+    aHold = mData[52];
+    mData[52] = mData[60];
+    mData[60] = mData[61];
+    mData[61] = mData[53];
+    mData[53] = aHold;
 
     // (2,2)
-    aHold = mDataBase[54];
-    mDataBase[54] = mDataBase[62];
-    mDataBase[62] = mDataBase[63];
-    mDataBase[63] = mDataBase[55];
-    mDataBase[55] = aHold;
+    aHold = mData[54];
+    mData[54] = mData[62];
+    mData[62] = mData[63];
+    mData[63] = mData[55];
+    mData[55] = aHold;
 }
 
 void TwistFastMatrix::RotateRightEachSixteenthEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2732,116 +2732,116 @@ void TwistFastMatrix::RotateLeftEachSixteenthQuarterA(std::uint8_t /*pArg1*/, st
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[0];
-    mDataBase[0] = mDataBase[1];
-    mDataBase[1] = mDataBase[9];
-    mDataBase[9] = mDataBase[8];
-    mDataBase[8] = aHold;
+    aHold = mData[0];
+    mData[0] = mData[1];
+    mData[1] = mData[9];
+    mData[9] = mData[8];
+    mData[8] = aHold;
 
-    aHold = mDataBase[2];
-    mDataBase[2] = mDataBase[3];
-    mDataBase[3] = mDataBase[11];
-    mDataBase[11] = mDataBase[10];
-    mDataBase[10] = aHold;
+    aHold = mData[2];
+    mData[2] = mData[3];
+    mData[3] = mData[11];
+    mData[11] = mData[10];
+    mData[10] = aHold;
 
-    aHold = mDataBase[16];
-    mDataBase[16] = mDataBase[17];
-    mDataBase[17] = mDataBase[25];
-    mDataBase[25] = mDataBase[24];
-    mDataBase[24] = aHold;
+    aHold = mData[16];
+    mData[16] = mData[17];
+    mData[17] = mData[25];
+    mData[25] = mData[24];
+    mData[24] = aHold;
 
-    aHold = mDataBase[18];
-    mDataBase[18] = mDataBase[19];
-    mDataBase[19] = mDataBase[27];
-    mDataBase[27] = mDataBase[26];
-    mDataBase[26] = aHold;
+    aHold = mData[18];
+    mData[18] = mData[19];
+    mData[19] = mData[27];
+    mData[27] = mData[26];
+    mData[26] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftEachSixteenthQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[4];
-    mDataBase[4] = mDataBase[5];
-    mDataBase[5] = mDataBase[13];
-    mDataBase[13] = mDataBase[12];
-    mDataBase[12] = aHold;
+    aHold = mData[4];
+    mData[4] = mData[5];
+    mData[5] = mData[13];
+    mData[13] = mData[12];
+    mData[12] = aHold;
 
-    aHold = mDataBase[6];
-    mDataBase[6] = mDataBase[7];
-    mDataBase[7] = mDataBase[15];
-    mDataBase[15] = mDataBase[14];
-    mDataBase[14] = aHold;
+    aHold = mData[6];
+    mData[6] = mData[7];
+    mData[7] = mData[15];
+    mData[15] = mData[14];
+    mData[14] = aHold;
 
-    aHold = mDataBase[20];
-    mDataBase[20] = mDataBase[21];
-    mDataBase[21] = mDataBase[29];
-    mDataBase[29] = mDataBase[28];
-    mDataBase[28] = aHold;
+    aHold = mData[20];
+    mData[20] = mData[21];
+    mData[21] = mData[29];
+    mData[29] = mData[28];
+    mData[28] = aHold;
 
-    aHold = mDataBase[22];
-    mDataBase[22] = mDataBase[23];
-    mDataBase[23] = mDataBase[31];
-    mDataBase[31] = mDataBase[30];
-    mDataBase[30] = aHold;
+    aHold = mData[22];
+    mData[22] = mData[23];
+    mData[23] = mData[31];
+    mData[31] = mData[30];
+    mData[30] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftEachSixteenthQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[32];
-    mDataBase[32] = mDataBase[33];
-    mDataBase[33] = mDataBase[41];
-    mDataBase[41] = mDataBase[40];
-    mDataBase[40] = aHold;
+    aHold = mData[32];
+    mData[32] = mData[33];
+    mData[33] = mData[41];
+    mData[41] = mData[40];
+    mData[40] = aHold;
 
-    aHold = mDataBase[34];
-    mDataBase[34] = mDataBase[35];
-    mDataBase[35] = mDataBase[43];
-    mDataBase[43] = mDataBase[42];
-    mDataBase[42] = aHold;
+    aHold = mData[34];
+    mData[34] = mData[35];
+    mData[35] = mData[43];
+    mData[43] = mData[42];
+    mData[42] = aHold;
 
-    aHold = mDataBase[48];
-    mDataBase[48] = mDataBase[49];
-    mDataBase[49] = mDataBase[57];
-    mDataBase[57] = mDataBase[56];
-    mDataBase[56] = aHold;
+    aHold = mData[48];
+    mData[48] = mData[49];
+    mData[49] = mData[57];
+    mData[57] = mData[56];
+    mData[56] = aHold;
 
-    aHold = mDataBase[50];
-    mDataBase[50] = mDataBase[51];
-    mDataBase[51] = mDataBase[59];
-    mDataBase[59] = mDataBase[58];
-    mDataBase[58] = aHold;
+    aHold = mData[50];
+    mData[50] = mData[51];
+    mData[51] = mData[59];
+    mData[59] = mData[58];
+    mData[58] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftEachSixteenthQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[36];
-    mDataBase[36] = mDataBase[37];
-    mDataBase[37] = mDataBase[45];
-    mDataBase[45] = mDataBase[44];
-    mDataBase[44] = aHold;
+    aHold = mData[36];
+    mData[36] = mData[37];
+    mData[37] = mData[45];
+    mData[45] = mData[44];
+    mData[44] = aHold;
 
-    aHold = mDataBase[38];
-    mDataBase[38] = mDataBase[39];
-    mDataBase[39] = mDataBase[47];
-    mDataBase[47] = mDataBase[46];
-    mDataBase[46] = aHold;
+    aHold = mData[38];
+    mData[38] = mData[39];
+    mData[39] = mData[47];
+    mData[47] = mData[46];
+    mData[46] = aHold;
 
-    aHold = mDataBase[52];
-    mDataBase[52] = mDataBase[53];
-    mDataBase[53] = mDataBase[61];
-    mDataBase[61] = mDataBase[60];
-    mDataBase[60] = aHold;
+    aHold = mData[52];
+    mData[52] = mData[53];
+    mData[53] = mData[61];
+    mData[61] = mData[60];
+    mData[60] = aHold;
 
-    aHold = mDataBase[54];
-    mDataBase[54] = mDataBase[55];
-    mDataBase[55] = mDataBase[63];
-    mDataBase[63] = mDataBase[62];
-    mDataBase[62] = aHold;
+    aHold = mData[54];
+    mData[54] = mData[55];
+    mData[55] = mData[63];
+    mData[63] = mData[62];
+    mData[62] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftEachSixteenthEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2857,20 +2857,20 @@ void TwistFastMatrix::FlipHorizontalEachSixteenthQuarterA(std::uint8_t /*pArg1*/
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[0];  mDataBase[0] = mDataBase[1];  mDataBase[1] = aHold;
-    aHold = mDataBase[8];  mDataBase[8] = mDataBase[9];  mDataBase[9] = aHold;
+    aHold = mData[0];  mData[0] = mData[1];  mData[1] = aHold;
+    aHold = mData[8];  mData[8] = mData[9];  mData[9] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[2];  mDataBase[2] = mDataBase[3];  mDataBase[3] = aHold;
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[11]; mDataBase[11] = aHold;
+    aHold = mData[2];  mData[2] = mData[3];  mData[3] = aHold;
+    aHold = mData[10]; mData[10] = mData[11]; mData[11] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[17]; mDataBase[17] = aHold;
-    aHold = mDataBase[24]; mDataBase[24] = mDataBase[25]; mDataBase[25] = aHold;
+    aHold = mData[16]; mData[16] = mData[17]; mData[17] = aHold;
+    aHold = mData[24]; mData[24] = mData[25]; mData[25] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[18]; mDataBase[18] = mDataBase[19]; mDataBase[19] = aHold;
-    aHold = mDataBase[26]; mDataBase[26] = mDataBase[27]; mDataBase[27] = aHold;
+    aHold = mData[18]; mData[18] = mData[19]; mData[19] = aHold;
+    aHold = mData[26]; mData[26] = mData[27]; mData[27] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalEachSixteenthQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2878,20 +2878,20 @@ void TwistFastMatrix::FlipHorizontalEachSixteenthQuarterB(std::uint8_t /*pArg1*/
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[4];  mDataBase[4] = mDataBase[5];  mDataBase[5] = aHold;
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[13]; mDataBase[13] = aHold;
+    aHold = mData[4];  mData[4] = mData[5];  mData[5] = aHold;
+    aHold = mData[12]; mData[12] = mData[13]; mData[13] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[6];  mDataBase[6] = mDataBase[7];  mDataBase[7] = aHold;
-    aHold = mDataBase[14]; mDataBase[14] = mDataBase[15]; mDataBase[15] = aHold;
+    aHold = mData[6];  mData[6] = mData[7];  mData[7] = aHold;
+    aHold = mData[14]; mData[14] = mData[15]; mData[15] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[21]; mDataBase[21] = aHold;
-    aHold = mDataBase[28]; mDataBase[28] = mDataBase[29]; mDataBase[29] = aHold;
+    aHold = mData[20]; mData[20] = mData[21]; mData[21] = aHold;
+    aHold = mData[28]; mData[28] = mData[29]; mData[29] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[22]; mDataBase[22] = mDataBase[23]; mDataBase[23] = aHold;
-    aHold = mDataBase[30]; mDataBase[30] = mDataBase[31]; mDataBase[31] = aHold;
+    aHold = mData[22]; mData[22] = mData[23]; mData[23] = aHold;
+    aHold = mData[30]; mData[30] = mData[31]; mData[31] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalEachSixteenthQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2899,20 +2899,20 @@ void TwistFastMatrix::FlipHorizontalEachSixteenthQuarterC(std::uint8_t /*pArg1*/
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[33]; mDataBase[33] = aHold;
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[41]; mDataBase[41] = aHold;
+    aHold = mData[32]; mData[32] = mData[33]; mData[33] = aHold;
+    aHold = mData[40]; mData[40] = mData[41]; mData[41] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[35]; mDataBase[35] = aHold;
-    aHold = mDataBase[42]; mDataBase[42] = mDataBase[43]; mDataBase[43] = aHold;
+    aHold = mData[34]; mData[34] = mData[35]; mData[35] = aHold;
+    aHold = mData[42]; mData[42] = mData[43]; mData[43] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[49]; mDataBase[49] = aHold;
-    aHold = mDataBase[56]; mDataBase[56] = mDataBase[57]; mDataBase[57] = aHold;
+    aHold = mData[48]; mData[48] = mData[49]; mData[49] = aHold;
+    aHold = mData[56]; mData[56] = mData[57]; mData[57] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[50]; mDataBase[50] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[58]; mDataBase[58] = mDataBase[59]; mDataBase[59] = aHold;
+    aHold = mData[50]; mData[50] = mData[51]; mData[51] = aHold;
+    aHold = mData[58]; mData[58] = mData[59]; mData[59] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalEachSixteenthQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2920,20 +2920,20 @@ void TwistFastMatrix::FlipHorizontalEachSixteenthQuarterD(std::uint8_t /*pArg1*/
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[37]; mDataBase[37] = aHold;
-    aHold = mDataBase[44]; mDataBase[44] = mDataBase[45]; mDataBase[45] = aHold;
+    aHold = mData[36]; mData[36] = mData[37]; mData[37] = aHold;
+    aHold = mData[44]; mData[44] = mData[45]; mData[45] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[39]; mDataBase[39] = aHold;
-    aHold = mDataBase[46]; mDataBase[46] = mDataBase[47]; mDataBase[47] = aHold;
+    aHold = mData[38]; mData[38] = mData[39]; mData[39] = aHold;
+    aHold = mData[46]; mData[46] = mData[47]; mData[47] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[52]; mDataBase[52] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[60]; mDataBase[60] = mDataBase[61]; mDataBase[61] = aHold;
+    aHold = mData[52]; mData[52] = mData[53]; mData[53] = aHold;
+    aHold = mData[60]; mData[60] = mData[61]; mData[61] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[54]; mDataBase[54] = mDataBase[55]; mDataBase[55] = aHold;
-    aHold = mDataBase[62]; mDataBase[62] = mDataBase[63]; mDataBase[63] = aHold;
+    aHold = mData[54]; mData[54] = mData[55]; mData[55] = aHold;
+    aHold = mData[62]; mData[62] = mData[63]; mData[63] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalEachSixteenthEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2949,20 +2949,20 @@ void TwistFastMatrix::FlipVerticalEachSixteenthQuarterA(std::uint8_t /*pArg1*/, 
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[0];  mDataBase[0] = mDataBase[8];  mDataBase[8] = aHold;
-    aHold = mDataBase[1];  mDataBase[1] = mDataBase[9];  mDataBase[9] = aHold;
+    aHold = mData[0];  mData[0] = mData[8];  mData[8] = aHold;
+    aHold = mData[1];  mData[1] = mData[9];  mData[9] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[2];  mDataBase[2] = mDataBase[10]; mDataBase[10] = aHold;
-    aHold = mDataBase[3];  mDataBase[3] = mDataBase[11]; mDataBase[11] = aHold;
+    aHold = mData[2];  mData[2] = mData[10]; mData[10] = aHold;
+    aHold = mData[3];  mData[3] = mData[11]; mData[11] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[24]; mDataBase[24] = aHold;
-    aHold = mDataBase[17]; mDataBase[17] = mDataBase[25]; mDataBase[25] = aHold;
+    aHold = mData[16]; mData[16] = mData[24]; mData[24] = aHold;
+    aHold = mData[17]; mData[17] = mData[25]; mData[25] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[18]; mDataBase[18] = mDataBase[26]; mDataBase[26] = aHold;
-    aHold = mDataBase[19]; mDataBase[19] = mDataBase[27]; mDataBase[27] = aHold;
+    aHold = mData[18]; mData[18] = mData[26]; mData[26] = aHold;
+    aHold = mData[19]; mData[19] = mData[27]; mData[27] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalEachSixteenthQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2970,20 +2970,20 @@ void TwistFastMatrix::FlipVerticalEachSixteenthQuarterB(std::uint8_t /*pArg1*/, 
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[4];  mDataBase[4] = mDataBase[12]; mDataBase[12] = aHold;
-    aHold = mDataBase[5];  mDataBase[5] = mDataBase[13]; mDataBase[13] = aHold;
+    aHold = mData[4];  mData[4] = mData[12]; mData[12] = aHold;
+    aHold = mData[5];  mData[5] = mData[13]; mData[13] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[6];  mDataBase[6] = mDataBase[14]; mDataBase[14] = aHold;
-    aHold = mDataBase[7];  mDataBase[7] = mDataBase[15]; mDataBase[15] = aHold;
+    aHold = mData[6];  mData[6] = mData[14]; mData[14] = aHold;
+    aHold = mData[7];  mData[7] = mData[15]; mData[15] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[28]; mDataBase[28] = aHold;
-    aHold = mDataBase[21]; mDataBase[21] = mDataBase[29]; mDataBase[29] = aHold;
+    aHold = mData[20]; mData[20] = mData[28]; mData[28] = aHold;
+    aHold = mData[21]; mData[21] = mData[29]; mData[29] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[22]; mDataBase[22] = mDataBase[30]; mDataBase[30] = aHold;
-    aHold = mDataBase[23]; mDataBase[23] = mDataBase[31]; mDataBase[31] = aHold;
+    aHold = mData[22]; mData[22] = mData[30]; mData[30] = aHold;
+    aHold = mData[23]; mData[23] = mData[31]; mData[31] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalEachSixteenthQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -2991,20 +2991,20 @@ void TwistFastMatrix::FlipVerticalEachSixteenthQuarterC(std::uint8_t /*pArg1*/, 
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[40]; mDataBase[40] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[41]; mDataBase[41] = aHold;
+    aHold = mData[32]; mData[32] = mData[40]; mData[40] = aHold;
+    aHold = mData[33]; mData[33] = mData[41]; mData[41] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[42]; mDataBase[42] = aHold;
-    aHold = mDataBase[35]; mDataBase[35] = mDataBase[43]; mDataBase[43] = aHold;
+    aHold = mData[34]; mData[34] = mData[42]; mData[42] = aHold;
+    aHold = mData[35]; mData[35] = mData[43]; mData[43] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[56]; mDataBase[56] = aHold;
-    aHold = mDataBase[49]; mDataBase[49] = mDataBase[57]; mDataBase[57] = aHold;
+    aHold = mData[48]; mData[48] = mData[56]; mData[56] = aHold;
+    aHold = mData[49]; mData[49] = mData[57]; mData[57] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[50]; mDataBase[50] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[51]; mDataBase[51] = mDataBase[59]; mDataBase[59] = aHold;
+    aHold = mData[50]; mData[50] = mData[58]; mData[58] = aHold;
+    aHold = mData[51]; mData[51] = mData[59]; mData[59] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalEachSixteenthQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3012,20 +3012,20 @@ void TwistFastMatrix::FlipVerticalEachSixteenthQuarterD(std::uint8_t /*pArg1*/, 
     std::uint8_t aHold;
 
     // block (0,0)
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[44]; mDataBase[44] = aHold;
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[45]; mDataBase[45] = aHold;
+    aHold = mData[36]; mData[36] = mData[44]; mData[44] = aHold;
+    aHold = mData[37]; mData[37] = mData[45]; mData[45] = aHold;
 
     // block (0,2)
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[46]; mDataBase[46] = aHold;
-    aHold = mDataBase[39]; mDataBase[39] = mDataBase[47]; mDataBase[47] = aHold;
+    aHold = mData[38]; mData[38] = mData[46]; mData[46] = aHold;
+    aHold = mData[39]; mData[39] = mData[47]; mData[47] = aHold;
 
     // block (2,0)
-    aHold = mDataBase[52]; mDataBase[52] = mDataBase[60]; mDataBase[60] = aHold;
-    aHold = mDataBase[53]; mDataBase[53] = mDataBase[61]; mDataBase[61] = aHold;
+    aHold = mData[52]; mData[52] = mData[60]; mData[60] = aHold;
+    aHold = mData[53]; mData[53] = mData[61]; mData[61] = aHold;
 
     // block (2,2)
-    aHold = mDataBase[54]; mDataBase[54] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[55]; mDataBase[55] = mDataBase[63]; mDataBase[63] = aHold;
+    aHold = mData[54]; mData[54] = mData[62]; mData[62] = aHold;
+    aHold = mData[55]; mData[55] = mData[63]; mData[63] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalEachSixteenthEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3040,30 +3040,30 @@ void TwistFastMatrix::TransposeMainDiagonalEachSixteenthQuarterA(std::uint8_t /*
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[1];  mDataBase[1] = mDataBase[8];  mDataBase[8] = aHold;
-    aHold = mDataBase[3];  mDataBase[3] = mDataBase[10]; mDataBase[10] = aHold;
-    aHold = mDataBase[17]; mDataBase[17] = mDataBase[24]; mDataBase[24] = aHold;
-    aHold = mDataBase[19]; mDataBase[19] = mDataBase[26]; mDataBase[26] = aHold;
+    aHold = mData[1];  mData[1] = mData[8];  mData[8] = aHold;
+    aHold = mData[3];  mData[3] = mData[10]; mData[10] = aHold;
+    aHold = mData[17]; mData[17] = mData[24]; mData[24] = aHold;
+    aHold = mData[19]; mData[19] = mData[26]; mData[26] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalEachSixteenthQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[5];  mDataBase[5] = mDataBase[12]; mDataBase[12] = aHold;
-    aHold = mDataBase[7];  mDataBase[7] = mDataBase[14]; mDataBase[14] = aHold;
-    aHold = mDataBase[21]; mDataBase[21] = mDataBase[28]; mDataBase[28] = aHold;
-    aHold = mDataBase[23]; mDataBase[23] = mDataBase[30]; mDataBase[30] = aHold;
+    aHold = mData[5];  mData[5] = mData[12]; mData[12] = aHold;
+    aHold = mData[7];  mData[7] = mData[14]; mData[14] = aHold;
+    aHold = mData[21]; mData[21] = mData[28]; mData[28] = aHold;
+    aHold = mData[23]; mData[23] = mData[30]; mData[30] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalEachSixteenthQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[40]; mDataBase[40] = aHold;
-    aHold = mDataBase[35]; mDataBase[35] = mDataBase[42]; mDataBase[42] = aHold;
-    aHold = mDataBase[49]; mDataBase[49] = mDataBase[56]; mDataBase[56] = aHold;
-    aHold = mDataBase[51]; mDataBase[51] = mDataBase[58]; mDataBase[58] = aHold;
+    aHold = mData[33]; mData[33] = mData[40]; mData[40] = aHold;
+    aHold = mData[35]; mData[35] = mData[42]; mData[42] = aHold;
+    aHold = mData[49]; mData[49] = mData[56]; mData[56] = aHold;
+    aHold = mData[51]; mData[51] = mData[58]; mData[58] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalEachSixteenthEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3078,10 +3078,10 @@ void TwistFastMatrix::TransposeMainDiagonalEachSixteenthQuarterD(std::uint8_t /*
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[44]; mDataBase[44] = aHold;
-    aHold = mDataBase[39]; mDataBase[39] = mDataBase[46]; mDataBase[46] = aHold;
-    aHold = mDataBase[53]; mDataBase[53] = mDataBase[60]; mDataBase[60] = aHold;
-    aHold = mDataBase[55]; mDataBase[55] = mDataBase[62]; mDataBase[62] = aHold;
+    aHold = mData[37]; mData[37] = mData[44]; mData[44] = aHold;
+    aHold = mData[39]; mData[39] = mData[46]; mData[46] = aHold;
+    aHold = mData[53]; mData[53] = mData[60]; mData[60] = aHold;
+    aHold = mData[55]; mData[55] = mData[62]; mData[62] = aHold;
 }
 
 
@@ -3089,40 +3089,40 @@ void TwistFastMatrix::TransposeAntiDiagonalEachSixteenthQuarterA(std::uint8_t /*
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[0];  mDataBase[0] = mDataBase[9];  mDataBase[9] = aHold;
-    aHold = mDataBase[2];  mDataBase[2] = mDataBase[11]; mDataBase[11] = aHold;
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[25]; mDataBase[25] = aHold;
-    aHold = mDataBase[18]; mDataBase[18] = mDataBase[27]; mDataBase[27] = aHold;
+    aHold = mData[0];  mData[0] = mData[9];  mData[9] = aHold;
+    aHold = mData[2];  mData[2] = mData[11]; mData[11] = aHold;
+    aHold = mData[16]; mData[16] = mData[25]; mData[25] = aHold;
+    aHold = mData[18]; mData[18] = mData[27]; mData[27] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalEachSixteenthQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[4];  mDataBase[4] = mDataBase[13]; mDataBase[13] = aHold;
-    aHold = mDataBase[6];  mDataBase[6] = mDataBase[15]; mDataBase[15] = aHold;
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[29]; mDataBase[29] = aHold;
-    aHold = mDataBase[22]; mDataBase[22] = mDataBase[31]; mDataBase[31] = aHold;
+    aHold = mData[4];  mData[4] = mData[13]; mData[13] = aHold;
+    aHold = mData[6];  mData[6] = mData[15]; mData[15] = aHold;
+    aHold = mData[20]; mData[20] = mData[29]; mData[29] = aHold;
+    aHold = mData[22]; mData[22] = mData[31]; mData[31] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalEachSixteenthQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[41]; mDataBase[41] = aHold;
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[43]; mDataBase[43] = aHold;
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[57]; mDataBase[57] = aHold;
-    aHold = mDataBase[50]; mDataBase[50] = mDataBase[59]; mDataBase[59] = aHold;
+    aHold = mData[32]; mData[32] = mData[41]; mData[41] = aHold;
+    aHold = mData[34]; mData[34] = mData[43]; mData[43] = aHold;
+    aHold = mData[48]; mData[48] = mData[57]; mData[57] = aHold;
+    aHold = mData[50]; mData[50] = mData[59]; mData[59] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalEachSixteenthQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
 
     std::uint8_t aHold;
 
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[45]; mDataBase[45] = aHold;
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[47]; mDataBase[47] = aHold;
-    aHold = mDataBase[52]; mDataBase[52] = mDataBase[61]; mDataBase[61] = aHold;
-    aHold = mDataBase[54]; mDataBase[54] = mDataBase[63]; mDataBase[63] = aHold;
+    aHold = mData[36]; mData[36] = mData[45]; mData[45] = aHold;
+    aHold = mData[38]; mData[38] = mData[47]; mData[47] = aHold;
+    aHold = mData[52]; mData[52] = mData[61]; mData[61] = aHold;
+    aHold = mData[54]; mData[54] = mData[63]; mData[63] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalEachSixteenthEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3138,32 +3138,32 @@ void TwistFastMatrix::RotateRightSixteenthsQuarterA(std::uint8_t /*pArg1*/, std:
     std::uint8_t aHold;
 
     // --- position (0,0) within each 2x2 ---
-    aHold = mDataBase[0];
-    mDataBase[0]  = mDataBase[16];
-    mDataBase[16] = mDataBase[18];
-    mDataBase[18] = mDataBase[2];
-    mDataBase[2]  = aHold;
+    aHold = mData[0];
+    mData[0]  = mData[16];
+    mData[16] = mData[18];
+    mData[18] = mData[2];
+    mData[2]  = aHold;
 
     // --- position (0,1) ---
-    aHold = mDataBase[1];
-    mDataBase[1]  = mDataBase[17];
-    mDataBase[17] = mDataBase[19];
-    mDataBase[19] = mDataBase[3];
-    mDataBase[3]  = aHold;
+    aHold = mData[1];
+    mData[1]  = mData[17];
+    mData[17] = mData[19];
+    mData[19] = mData[3];
+    mData[3]  = aHold;
 
     // --- position (1,0) ---
-    aHold = mDataBase[8];
-    mDataBase[8]  = mDataBase[24];
-    mDataBase[24] = mDataBase[26];
-    mDataBase[26] = mDataBase[10];
-    mDataBase[10] = aHold;
+    aHold = mData[8];
+    mData[8]  = mData[24];
+    mData[24] = mData[26];
+    mData[26] = mData[10];
+    mData[10] = aHold;
 
     // --- position (1,1) ---
-    aHold = mDataBase[9];
-    mDataBase[9]  = mDataBase[25];
-    mDataBase[25] = mDataBase[27];
-    mDataBase[27] = mDataBase[11];
-    mDataBase[11] = aHold;
+    aHold = mData[9];
+    mData[9]  = mData[25];
+    mData[25] = mData[27];
+    mData[27] = mData[11];
+    mData[11] = aHold;
 }
 
 void TwistFastMatrix::RotateRightSixteenthsQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3171,32 +3171,32 @@ void TwistFastMatrix::RotateRightSixteenthsQuarterB(std::uint8_t /*pArg1*/, std:
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[4];
-    mDataBase[4]  = mDataBase[20];
-    mDataBase[20] = mDataBase[22];
-    mDataBase[22] = mDataBase[6];
-    mDataBase[6]  = aHold;
+    aHold = mData[4];
+    mData[4]  = mData[20];
+    mData[20] = mData[22];
+    mData[22] = mData[6];
+    mData[6]  = aHold;
 
     // (0,1)
-    aHold = mDataBase[5];
-    mDataBase[5]  = mDataBase[21];
-    mDataBase[21] = mDataBase[23];
-    mDataBase[23] = mDataBase[7];
-    mDataBase[7]  = aHold;
+    aHold = mData[5];
+    mData[5]  = mData[21];
+    mData[21] = mData[23];
+    mData[23] = mData[7];
+    mData[7]  = aHold;
 
     // (1,0)
-    aHold = mDataBase[12];
-    mDataBase[12] = mDataBase[28];
-    mDataBase[28] = mDataBase[30];
-    mDataBase[30] = mDataBase[14];
-    mDataBase[14] = aHold;
+    aHold = mData[12];
+    mData[12] = mData[28];
+    mData[28] = mData[30];
+    mData[30] = mData[14];
+    mData[14] = aHold;
 
     // (1,1)
-    aHold = mDataBase[13];
-    mDataBase[13] = mDataBase[29];
-    mDataBase[29] = mDataBase[31];
-    mDataBase[31] = mDataBase[15];
-    mDataBase[15] = aHold;
+    aHold = mData[13];
+    mData[13] = mData[29];
+    mData[29] = mData[31];
+    mData[31] = mData[15];
+    mData[15] = aHold;
 }
 
 void TwistFastMatrix::RotateRightSixteenthsQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3204,32 +3204,32 @@ void TwistFastMatrix::RotateRightSixteenthsQuarterC(std::uint8_t /*pArg1*/, std:
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[32];
-    mDataBase[32] = mDataBase[48];
-    mDataBase[48] = mDataBase[50];
-    mDataBase[50] = mDataBase[34];
-    mDataBase[34] = aHold;
+    aHold = mData[32];
+    mData[32] = mData[48];
+    mData[48] = mData[50];
+    mData[50] = mData[34];
+    mData[34] = aHold;
 
     // (0,1)
-    aHold = mDataBase[33];
-    mDataBase[33] = mDataBase[49];
-    mDataBase[49] = mDataBase[51];
-    mDataBase[51] = mDataBase[35];
-    mDataBase[35] = aHold;
+    aHold = mData[33];
+    mData[33] = mData[49];
+    mData[49] = mData[51];
+    mData[51] = mData[35];
+    mData[35] = aHold;
 
     // (1,0)
-    aHold = mDataBase[40];
-    mDataBase[40] = mDataBase[56];
-    mDataBase[56] = mDataBase[58];
-    mDataBase[58] = mDataBase[42];
-    mDataBase[42] = aHold;
+    aHold = mData[40];
+    mData[40] = mData[56];
+    mData[56] = mData[58];
+    mData[58] = mData[42];
+    mData[42] = aHold;
 
     // (1,1)
-    aHold = mDataBase[41];
-    mDataBase[41] = mDataBase[57];
-    mDataBase[57] = mDataBase[59];
-    mDataBase[59] = mDataBase[43];
-    mDataBase[43] = aHold;
+    aHold = mData[41];
+    mData[41] = mData[57];
+    mData[57] = mData[59];
+    mData[59] = mData[43];
+    mData[43] = aHold;
 }
 
 void TwistFastMatrix::RotateRightSixteenthsQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3237,32 +3237,32 @@ void TwistFastMatrix::RotateRightSixteenthsQuarterD(std::uint8_t /*pArg1*/, std:
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[36];
-    mDataBase[36] = mDataBase[52];
-    mDataBase[52] = mDataBase[54];
-    mDataBase[54] = mDataBase[38];
-    mDataBase[38] = aHold;
+    aHold = mData[36];
+    mData[36] = mData[52];
+    mData[52] = mData[54];
+    mData[54] = mData[38];
+    mData[38] = aHold;
 
     // (0,1)
-    aHold = mDataBase[37];
-    mDataBase[37] = mDataBase[53];
-    mDataBase[53] = mDataBase[55];
-    mDataBase[55] = mDataBase[39];
-    mDataBase[39] = aHold;
+    aHold = mData[37];
+    mData[37] = mData[53];
+    mData[53] = mData[55];
+    mData[55] = mData[39];
+    mData[39] = aHold;
 
     // (1,0)
-    aHold = mDataBase[44];
-    mDataBase[44] = mDataBase[60];
-    mDataBase[60] = mDataBase[62];
-    mDataBase[62] = mDataBase[46];
-    mDataBase[46] = aHold;
+    aHold = mData[44];
+    mData[44] = mData[60];
+    mData[60] = mData[62];
+    mData[62] = mData[46];
+    mData[46] = aHold;
 
     // (1,1)
-    aHold = mDataBase[45];
-    mDataBase[45] = mDataBase[61];
-    mDataBase[61] = mDataBase[63];
-    mDataBase[63] = mDataBase[47];
-    mDataBase[47] = aHold;
+    aHold = mData[45];
+    mData[45] = mData[61];
+    mData[61] = mData[63];
+    mData[63] = mData[47];
+    mData[47] = aHold;
 }
 
 void TwistFastMatrix::RotateRightSixteenthsEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3277,32 +3277,32 @@ void TwistFastMatrix::RotateLeftSixteenthsQuarterA(std::uint8_t /*pArg1*/, std::
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[0];
-    mDataBase[0]  = mDataBase[2];
-    mDataBase[2]  = mDataBase[18];
-    mDataBase[18] = mDataBase[16];
-    mDataBase[16] = aHold;
+    aHold = mData[0];
+    mData[0]  = mData[2];
+    mData[2]  = mData[18];
+    mData[18] = mData[16];
+    mData[16] = aHold;
 
     // (0,1)
-    aHold = mDataBase[1];
-    mDataBase[1]  = mDataBase[3];
-    mDataBase[3]  = mDataBase[19];
-    mDataBase[19] = mDataBase[17];
-    mDataBase[17] = aHold;
+    aHold = mData[1];
+    mData[1]  = mData[3];
+    mData[3]  = mData[19];
+    mData[19] = mData[17];
+    mData[17] = aHold;
 
     // (1,0)
-    aHold = mDataBase[8];
-    mDataBase[8]  = mDataBase[10];
-    mDataBase[10] = mDataBase[26];
-    mDataBase[26] = mDataBase[24];
-    mDataBase[24] = aHold;
+    aHold = mData[8];
+    mData[8]  = mData[10];
+    mData[10] = mData[26];
+    mData[26] = mData[24];
+    mData[24] = aHold;
 
     // (1,1)
-    aHold = mDataBase[9];
-    mDataBase[9]  = mDataBase[11];
-    mDataBase[11] = mDataBase[27];
-    mDataBase[27] = mDataBase[25];
-    mDataBase[25] = aHold;
+    aHold = mData[9];
+    mData[9]  = mData[11];
+    mData[11] = mData[27];
+    mData[27] = mData[25];
+    mData[25] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftSixteenthsQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3310,32 +3310,32 @@ void TwistFastMatrix::RotateLeftSixteenthsQuarterB(std::uint8_t /*pArg1*/, std::
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[4];
-    mDataBase[4]  = mDataBase[6];
-    mDataBase[6]  = mDataBase[22];
-    mDataBase[22] = mDataBase[20];
-    mDataBase[20] = aHold;
+    aHold = mData[4];
+    mData[4]  = mData[6];
+    mData[6]  = mData[22];
+    mData[22] = mData[20];
+    mData[20] = aHold;
 
     // (0,1)
-    aHold = mDataBase[5];
-    mDataBase[5]  = mDataBase[7];
-    mDataBase[7]  = mDataBase[23];
-    mDataBase[23] = mDataBase[21];
-    mDataBase[21] = aHold;
+    aHold = mData[5];
+    mData[5]  = mData[7];
+    mData[7]  = mData[23];
+    mData[23] = mData[21];
+    mData[21] = aHold;
 
     // (1,0)
-    aHold = mDataBase[12];
-    mDataBase[12] = mDataBase[14];
-    mDataBase[14] = mDataBase[30];
-    mDataBase[30] = mDataBase[28];
-    mDataBase[28] = aHold;
+    aHold = mData[12];
+    mData[12] = mData[14];
+    mData[14] = mData[30];
+    mData[30] = mData[28];
+    mData[28] = aHold;
 
     // (1,1)
-    aHold = mDataBase[13];
-    mDataBase[13] = mDataBase[15];
-    mDataBase[15] = mDataBase[31];
-    mDataBase[31] = mDataBase[29];
-    mDataBase[29] = aHold;
+    aHold = mData[13];
+    mData[13] = mData[15];
+    mData[15] = mData[31];
+    mData[31] = mData[29];
+    mData[29] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftSixteenthsQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3343,32 +3343,32 @@ void TwistFastMatrix::RotateLeftSixteenthsQuarterC(std::uint8_t /*pArg1*/, std::
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[32];
-    mDataBase[32] = mDataBase[34];
-    mDataBase[34] = mDataBase[50];
-    mDataBase[50] = mDataBase[48];
-    mDataBase[48] = aHold;
+    aHold = mData[32];
+    mData[32] = mData[34];
+    mData[34] = mData[50];
+    mData[50] = mData[48];
+    mData[48] = aHold;
 
     // (0,1)
-    aHold = mDataBase[33];
-    mDataBase[33] = mDataBase[35];
-    mDataBase[35] = mDataBase[51];
-    mDataBase[51] = mDataBase[49];
-    mDataBase[49] = aHold;
+    aHold = mData[33];
+    mData[33] = mData[35];
+    mData[35] = mData[51];
+    mData[51] = mData[49];
+    mData[49] = aHold;
 
     // (1,0)
-    aHold = mDataBase[40];
-    mDataBase[40] = mDataBase[42];
-    mDataBase[42] = mDataBase[58];
-    mDataBase[58] = mDataBase[56];
-    mDataBase[56] = aHold;
+    aHold = mData[40];
+    mData[40] = mData[42];
+    mData[42] = mData[58];
+    mData[58] = mData[56];
+    mData[56] = aHold;
 
     // (1,1)
-    aHold = mDataBase[41];
-    mDataBase[41] = mDataBase[43];
-    mDataBase[43] = mDataBase[59];
-    mDataBase[59] = mDataBase[57];
-    mDataBase[57] = aHold;
+    aHold = mData[41];
+    mData[41] = mData[43];
+    mData[43] = mData[59];
+    mData[59] = mData[57];
+    mData[57] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftSixteenthsQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3376,32 +3376,32 @@ void TwistFastMatrix::RotateLeftSixteenthsQuarterD(std::uint8_t /*pArg1*/, std::
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[36];
-    mDataBase[36] = mDataBase[38];
-    mDataBase[38] = mDataBase[54];
-    mDataBase[54] = mDataBase[52];
-    mDataBase[52] = aHold;
+    aHold = mData[36];
+    mData[36] = mData[38];
+    mData[38] = mData[54];
+    mData[54] = mData[52];
+    mData[52] = aHold;
 
     // (0,1)
-    aHold = mDataBase[37];
-    mDataBase[37] = mDataBase[39];
-    mDataBase[39] = mDataBase[55];
-    mDataBase[55] = mDataBase[53];
-    mDataBase[53] = aHold;
+    aHold = mData[37];
+    mData[37] = mData[39];
+    mData[39] = mData[55];
+    mData[55] = mData[53];
+    mData[53] = aHold;
 
     // (1,0)
-    aHold = mDataBase[44];
-    mDataBase[44] = mDataBase[46];
-    mDataBase[46] = mDataBase[62];
-    mDataBase[62] = mDataBase[60];
-    mDataBase[60] = aHold;
+    aHold = mData[44];
+    mData[44] = mData[46];
+    mData[46] = mData[62];
+    mData[62] = mData[60];
+    mData[60] = aHold;
 
     // (1,1)
-    aHold = mDataBase[45];
-    mDataBase[45] = mDataBase[47];
-    mDataBase[47] = mDataBase[63];
-    mDataBase[63] = mDataBase[61];
-    mDataBase[61] = aHold;
+    aHold = mData[45];
+    mData[45] = mData[47];
+    mData[47] = mData[63];
+    mData[63] = mData[61];
+    mData[61] = aHold;
 }
 
 void TwistFastMatrix::RotateLeftSixteenthsEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3417,24 +3417,24 @@ void TwistFastMatrix::TransposeMainDiagonalSixteenthsQuarterA(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[2];
-    mDataBase[2]  = mDataBase[16];
-    mDataBase[16] = aHold;
+    aHold = mData[2];
+    mData[2]  = mData[16];
+    mData[16] = aHold;
 
     // (0,1)
-    aHold = mDataBase[3];
-    mDataBase[3]  = mDataBase[17];
-    mDataBase[17] = aHold;
+    aHold = mData[3];
+    mData[3]  = mData[17];
+    mData[17] = aHold;
 
     // (1,0)
-    aHold = mDataBase[10];
-    mDataBase[10] = mDataBase[24];
-    mDataBase[24] = aHold;
+    aHold = mData[10];
+    mData[10] = mData[24];
+    mData[24] = aHold;
 
     // (1,1)
-    aHold = mDataBase[11];
-    mDataBase[11] = mDataBase[25];
-    mDataBase[25] = aHold;
+    aHold = mData[11];
+    mData[11] = mData[25];
+    mData[25] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalSixteenthsQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3442,24 +3442,24 @@ void TwistFastMatrix::TransposeMainDiagonalSixteenthsQuarterB(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[6];
-    mDataBase[6]  = mDataBase[20];
-    mDataBase[20] = aHold;
+    aHold = mData[6];
+    mData[6]  = mData[20];
+    mData[20] = aHold;
 
     // (0,1)
-    aHold = mDataBase[7];
-    mDataBase[7]  = mDataBase[21];
-    mDataBase[21] = aHold;
+    aHold = mData[7];
+    mData[7]  = mData[21];
+    mData[21] = aHold;
 
     // (1,0)
-    aHold = mDataBase[14];
-    mDataBase[14] = mDataBase[28];
-    mDataBase[28] = aHold;
+    aHold = mData[14];
+    mData[14] = mData[28];
+    mData[28] = aHold;
 
     // (1,1)
-    aHold = mDataBase[15];
-    mDataBase[15] = mDataBase[29];
-    mDataBase[29] = aHold;
+    aHold = mData[15];
+    mData[15] = mData[29];
+    mData[29] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalSixteenthsQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3467,24 +3467,24 @@ void TwistFastMatrix::TransposeMainDiagonalSixteenthsQuarterC(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[34];
-    mDataBase[34] = mDataBase[48];
-    mDataBase[48] = aHold;
+    aHold = mData[34];
+    mData[34] = mData[48];
+    mData[48] = aHold;
 
     // (0,1)
-    aHold = mDataBase[35];
-    mDataBase[35] = mDataBase[49];
-    mDataBase[49] = aHold;
+    aHold = mData[35];
+    mData[35] = mData[49];
+    mData[49] = aHold;
 
     // (1,0)
-    aHold = mDataBase[42];
-    mDataBase[42] = mDataBase[56];
-    mDataBase[56] = aHold;
+    aHold = mData[42];
+    mData[42] = mData[56];
+    mData[56] = aHold;
 
     // (1,1)
-    aHold = mDataBase[43];
-    mDataBase[43] = mDataBase[57];
-    mDataBase[57] = aHold;
+    aHold = mData[43];
+    mData[43] = mData[57];
+    mData[57] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalSixteenthsQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3492,24 +3492,24 @@ void TwistFastMatrix::TransposeMainDiagonalSixteenthsQuarterD(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[38];
-    mDataBase[38] = mDataBase[52];
-    mDataBase[52] = aHold;
+    aHold = mData[38];
+    mData[38] = mData[52];
+    mData[52] = aHold;
 
     // (0,1)
-    aHold = mDataBase[39];
-    mDataBase[39] = mDataBase[53];
-    mDataBase[53] = aHold;
+    aHold = mData[39];
+    mData[39] = mData[53];
+    mData[53] = aHold;
 
     // (1,0)
-    aHold = mDataBase[46];
-    mDataBase[46] = mDataBase[60];
-    mDataBase[60] = aHold;
+    aHold = mData[46];
+    mData[46] = mData[60];
+    mData[60] = aHold;
 
     // (1,1)
-    aHold = mDataBase[47];
-    mDataBase[47] = mDataBase[61];
-    mDataBase[61] = aHold;
+    aHold = mData[47];
+    mData[47] = mData[61];
+    mData[61] = aHold;
 }
 
 void TwistFastMatrix::TransposeMainDiagonalSixteenthsEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3525,24 +3525,24 @@ void TwistFastMatrix::TransposeAntiDiagonalSixteenthsQuarterA(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[0];
-    mDataBase[0]  = mDataBase[18];
-    mDataBase[18] = aHold;
+    aHold = mData[0];
+    mData[0]  = mData[18];
+    mData[18] = aHold;
 
     // (0,1)
-    aHold = mDataBase[1];
-    mDataBase[1]  = mDataBase[19];
-    mDataBase[19] = aHold;
+    aHold = mData[1];
+    mData[1]  = mData[19];
+    mData[19] = aHold;
 
     // (1,0)
-    aHold = mDataBase[8];
-    mDataBase[8]  = mDataBase[26];
-    mDataBase[26] = aHold;
+    aHold = mData[8];
+    mData[8]  = mData[26];
+    mData[26] = aHold;
 
     // (1,1)
-    aHold = mDataBase[9];
-    mDataBase[9]  = mDataBase[27];
-    mDataBase[27] = aHold;
+    aHold = mData[9];
+    mData[9]  = mData[27];
+    mData[27] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalSixteenthsQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3550,24 +3550,24 @@ void TwistFastMatrix::TransposeAntiDiagonalSixteenthsQuarterB(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[4];
-    mDataBase[4]  = mDataBase[22];
-    mDataBase[22] = aHold;
+    aHold = mData[4];
+    mData[4]  = mData[22];
+    mData[22] = aHold;
 
     // (0,1)
-    aHold = mDataBase[5];
-    mDataBase[5]  = mDataBase[23];
-    mDataBase[23] = aHold;
+    aHold = mData[5];
+    mData[5]  = mData[23];
+    mData[23] = aHold;
 
     // (1,0)
-    aHold = mDataBase[12];
-    mDataBase[12] = mDataBase[30];
-    mDataBase[30] = aHold;
+    aHold = mData[12];
+    mData[12] = mData[30];
+    mData[30] = aHold;
 
     // (1,1)
-    aHold = mDataBase[13];
-    mDataBase[13] = mDataBase[31];
-    mDataBase[31] = aHold;
+    aHold = mData[13];
+    mData[13] = mData[31];
+    mData[31] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalSixteenthsQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3575,24 +3575,24 @@ void TwistFastMatrix::TransposeAntiDiagonalSixteenthsQuarterC(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[32];
-    mDataBase[32] = mDataBase[50];
-    mDataBase[50] = aHold;
+    aHold = mData[32];
+    mData[32] = mData[50];
+    mData[50] = aHold;
 
     // (0,1)
-    aHold = mDataBase[33];
-    mDataBase[33] = mDataBase[51];
-    mDataBase[51] = aHold;
+    aHold = mData[33];
+    mData[33] = mData[51];
+    mData[51] = aHold;
 
     // (1,0)
-    aHold = mDataBase[40];
-    mDataBase[40] = mDataBase[58];
-    mDataBase[58] = aHold;
+    aHold = mData[40];
+    mData[40] = mData[58];
+    mData[58] = aHold;
 
     // (1,1)
-    aHold = mDataBase[41];
-    mDataBase[41] = mDataBase[59];
-    mDataBase[59] = aHold;
+    aHold = mData[41];
+    mData[41] = mData[59];
+    mData[59] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalSixteenthsQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3600,24 +3600,24 @@ void TwistFastMatrix::TransposeAntiDiagonalSixteenthsQuarterD(std::uint8_t /*pAr
     std::uint8_t aHold;
 
     // (0,0)
-    aHold = mDataBase[36];
-    mDataBase[36] = mDataBase[54];
-    mDataBase[54] = aHold;
+    aHold = mData[36];
+    mData[36] = mData[54];
+    mData[54] = aHold;
 
     // (0,1)
-    aHold = mDataBase[37];
-    mDataBase[37] = mDataBase[55];
-    mDataBase[55] = aHold;
+    aHold = mData[37];
+    mData[37] = mData[55];
+    mData[55] = aHold;
 
     // (1,0)
-    aHold = mDataBase[44];
-    mDataBase[44] = mDataBase[62];
-    mDataBase[62] = aHold;
+    aHold = mData[44];
+    mData[44] = mData[62];
+    mData[62] = aHold;
 
     // (1,1)
-    aHold = mDataBase[45];
-    mDataBase[45] = mDataBase[63];
-    mDataBase[63] = aHold;
+    aHold = mData[45];
+    mData[45] = mData[63];
+    mData[63] = aHold;
 }
 
 void TwistFastMatrix::TransposeAntiDiagonalSixteenthsEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3633,16 +3633,16 @@ void TwistFastMatrix::FlipHorizontalSixteenthsQuarterA(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // a ↔ b
-    aHold = mDataBase[0];  mDataBase[0] = mDataBase[2];  mDataBase[2] = aHold;
-    aHold = mDataBase[1];  mDataBase[1] = mDataBase[3];  mDataBase[3] = aHold;
-    aHold = mDataBase[8];  mDataBase[8] = mDataBase[10]; mDataBase[10] = aHold;
-    aHold = mDataBase[9];  mDataBase[9] = mDataBase[11]; mDataBase[11] = aHold;
+    aHold = mData[0];  mData[0] = mData[2];  mData[2] = aHold;
+    aHold = mData[1];  mData[1] = mData[3];  mData[3] = aHold;
+    aHold = mData[8];  mData[8] = mData[10]; mData[10] = aHold;
+    aHold = mData[9];  mData[9] = mData[11]; mData[11] = aHold;
 
     // c ↔ d
-    aHold = mDataBase[16]; mDataBase[16] = mDataBase[18]; mDataBase[18] = aHold;
-    aHold = mDataBase[17]; mDataBase[17] = mDataBase[19]; mDataBase[19] = aHold;
-    aHold = mDataBase[24]; mDataBase[24] = mDataBase[26]; mDataBase[26] = aHold;
-    aHold = mDataBase[25]; mDataBase[25] = mDataBase[27]; mDataBase[27] = aHold;
+    aHold = mData[16]; mData[16] = mData[18]; mData[18] = aHold;
+    aHold = mData[17]; mData[17] = mData[19]; mData[19] = aHold;
+    aHold = mData[24]; mData[24] = mData[26]; mData[26] = aHold;
+    aHold = mData[25]; mData[25] = mData[27]; mData[27] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalSixteenthsQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3650,16 +3650,16 @@ void TwistFastMatrix::FlipHorizontalSixteenthsQuarterB(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // a ↔ b
-    aHold = mDataBase[4];  mDataBase[4] = mDataBase[6];  mDataBase[6] = aHold;
-    aHold = mDataBase[5];  mDataBase[5] = mDataBase[7];  mDataBase[7] = aHold;
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[14]; mDataBase[14] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[15]; mDataBase[15] = aHold;
+    aHold = mData[4];  mData[4] = mData[6];  mData[6] = aHold;
+    aHold = mData[5];  mData[5] = mData[7];  mData[7] = aHold;
+    aHold = mData[12]; mData[12] = mData[14]; mData[14] = aHold;
+    aHold = mData[13]; mData[13] = mData[15]; mData[15] = aHold;
 
     // c ↔ d
-    aHold = mDataBase[20]; mDataBase[20] = mDataBase[22]; mDataBase[22] = aHold;
-    aHold = mDataBase[21]; mDataBase[21] = mDataBase[23]; mDataBase[23] = aHold;
-    aHold = mDataBase[28]; mDataBase[28] = mDataBase[30]; mDataBase[30] = aHold;
-    aHold = mDataBase[29]; mDataBase[29] = mDataBase[31]; mDataBase[31] = aHold;
+    aHold = mData[20]; mData[20] = mData[22]; mData[22] = aHold;
+    aHold = mData[21]; mData[21] = mData[23]; mData[23] = aHold;
+    aHold = mData[28]; mData[28] = mData[30]; mData[30] = aHold;
+    aHold = mData[29]; mData[29] = mData[31]; mData[31] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalSixteenthsQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3667,16 +3667,16 @@ void TwistFastMatrix::FlipHorizontalSixteenthsQuarterC(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // a ↔ b
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[34]; mDataBase[34] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[35]; mDataBase[35] = aHold;
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[42]; mDataBase[42] = aHold;
-    aHold = mDataBase[41]; mDataBase[41] = mDataBase[43]; mDataBase[43] = aHold;
+    aHold = mData[32]; mData[32] = mData[34]; mData[34] = aHold;
+    aHold = mData[33]; mData[33] = mData[35]; mData[35] = aHold;
+    aHold = mData[40]; mData[40] = mData[42]; mData[42] = aHold;
+    aHold = mData[41]; mData[41] = mData[43]; mData[43] = aHold;
 
     // c ↔ d
-    aHold = mDataBase[48]; mDataBase[48] = mDataBase[50]; mDataBase[50] = aHold;
-    aHold = mDataBase[49]; mDataBase[49] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[56]; mDataBase[56] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[57]; mDataBase[57] = mDataBase[59]; mDataBase[59] = aHold;
+    aHold = mData[48]; mData[48] = mData[50]; mData[50] = aHold;
+    aHold = mData[49]; mData[49] = mData[51]; mData[51] = aHold;
+    aHold = mData[56]; mData[56] = mData[58]; mData[58] = aHold;
+    aHold = mData[57]; mData[57] = mData[59]; mData[59] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalSixteenthsQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3684,16 +3684,16 @@ void TwistFastMatrix::FlipHorizontalSixteenthsQuarterD(std::uint8_t /*pArg1*/, s
     std::uint8_t aHold;
 
     // a ↔ b
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[38]; mDataBase[38] = aHold;
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[39]; mDataBase[39] = aHold;
-    aHold = mDataBase[44]; mDataBase[44] = mDataBase[46]; mDataBase[46] = aHold;
-    aHold = mDataBase[45]; mDataBase[45] = mDataBase[47]; mDataBase[47] = aHold;
+    aHold = mData[36]; mData[36] = mData[38]; mData[38] = aHold;
+    aHold = mData[37]; mData[37] = mData[39]; mData[39] = aHold;
+    aHold = mData[44]; mData[44] = mData[46]; mData[46] = aHold;
+    aHold = mData[45]; mData[45] = mData[47]; mData[47] = aHold;
 
     // c ↔ d
-    aHold = mDataBase[52]; mDataBase[52] = mDataBase[54]; mDataBase[54] = aHold;
-    aHold = mDataBase[53]; mDataBase[53] = mDataBase[55]; mDataBase[55] = aHold;
-    aHold = mDataBase[60]; mDataBase[60] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[61]; mDataBase[61] = mDataBase[63]; mDataBase[63] = aHold;
+    aHold = mData[52]; mData[52] = mData[54]; mData[54] = aHold;
+    aHold = mData[53]; mData[53] = mData[55]; mData[55] = aHold;
+    aHold = mData[60]; mData[60] = mData[62]; mData[62] = aHold;
+    aHold = mData[61]; mData[61] = mData[63]; mData[63] = aHold;
 }
 
 void TwistFastMatrix::FlipHorizontalSixteenthsEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3709,16 +3709,16 @@ void TwistFastMatrix::FlipVerticalSixteenthsQuarterA(std::uint8_t /*pArg1*/, std
     std::uint8_t aHold;
 
     // a ↔ c
-    aHold = mDataBase[0];  mDataBase[0] = mDataBase[16]; mDataBase[16] = aHold;
-    aHold = mDataBase[1];  mDataBase[1] = mDataBase[17]; mDataBase[17] = aHold;
-    aHold = mDataBase[8];  mDataBase[8] = mDataBase[24]; mDataBase[24] = aHold;
-    aHold = mDataBase[9];  mDataBase[9] = mDataBase[25]; mDataBase[25] = aHold;
+    aHold = mData[0];  mData[0] = mData[16]; mData[16] = aHold;
+    aHold = mData[1];  mData[1] = mData[17]; mData[17] = aHold;
+    aHold = mData[8];  mData[8] = mData[24]; mData[24] = aHold;
+    aHold = mData[9];  mData[9] = mData[25]; mData[25] = aHold;
 
     // b ↔ d
-    aHold = mDataBase[2];  mDataBase[2] = mDataBase[18]; mDataBase[18] = aHold;
-    aHold = mDataBase[3];  mDataBase[3] = mDataBase[19]; mDataBase[19] = aHold;
-    aHold = mDataBase[10]; mDataBase[10] = mDataBase[26]; mDataBase[26] = aHold;
-    aHold = mDataBase[11]; mDataBase[11] = mDataBase[27]; mDataBase[27] = aHold;
+    aHold = mData[2];  mData[2] = mData[18]; mData[18] = aHold;
+    aHold = mData[3];  mData[3] = mData[19]; mData[19] = aHold;
+    aHold = mData[10]; mData[10] = mData[26]; mData[26] = aHold;
+    aHold = mData[11]; mData[11] = mData[27]; mData[27] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalSixteenthsQuarterB(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3726,16 +3726,16 @@ void TwistFastMatrix::FlipVerticalSixteenthsQuarterB(std::uint8_t /*pArg1*/, std
     std::uint8_t aHold;
 
     // a ↔ c
-    aHold = mDataBase[4];  mDataBase[4] = mDataBase[20]; mDataBase[20] = aHold;
-    aHold = mDataBase[5];  mDataBase[5] = mDataBase[21]; mDataBase[21] = aHold;
-    aHold = mDataBase[12]; mDataBase[12] = mDataBase[28]; mDataBase[28] = aHold;
-    aHold = mDataBase[13]; mDataBase[13] = mDataBase[29]; mDataBase[29] = aHold;
+    aHold = mData[4];  mData[4] = mData[20]; mData[20] = aHold;
+    aHold = mData[5];  mData[5] = mData[21]; mData[21] = aHold;
+    aHold = mData[12]; mData[12] = mData[28]; mData[28] = aHold;
+    aHold = mData[13]; mData[13] = mData[29]; mData[29] = aHold;
 
     // b ↔ d
-    aHold = mDataBase[6];  mDataBase[6] = mDataBase[22]; mDataBase[22] = aHold;
-    aHold = mDataBase[7];  mDataBase[7] = mDataBase[23]; mDataBase[23] = aHold;
-    aHold = mDataBase[14]; mDataBase[14] = mDataBase[30]; mDataBase[30] = aHold;
-    aHold = mDataBase[15]; mDataBase[15] = mDataBase[31]; mDataBase[31] = aHold;
+    aHold = mData[6];  mData[6] = mData[22]; mData[22] = aHold;
+    aHold = mData[7];  mData[7] = mData[23]; mData[23] = aHold;
+    aHold = mData[14]; mData[14] = mData[30]; mData[30] = aHold;
+    aHold = mData[15]; mData[15] = mData[31]; mData[31] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalSixteenthsQuarterC(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3743,16 +3743,16 @@ void TwistFastMatrix::FlipVerticalSixteenthsQuarterC(std::uint8_t /*pArg1*/, std
     std::uint8_t aHold;
 
     // a ↔ c
-    aHold = mDataBase[32]; mDataBase[32] = mDataBase[48]; mDataBase[48] = aHold;
-    aHold = mDataBase[33]; mDataBase[33] = mDataBase[49]; mDataBase[49] = aHold;
-    aHold = mDataBase[40]; mDataBase[40] = mDataBase[56]; mDataBase[56] = aHold;
-    aHold = mDataBase[41]; mDataBase[41] = mDataBase[57]; mDataBase[57] = aHold;
+    aHold = mData[32]; mData[32] = mData[48]; mData[48] = aHold;
+    aHold = mData[33]; mData[33] = mData[49]; mData[49] = aHold;
+    aHold = mData[40]; mData[40] = mData[56]; mData[56] = aHold;
+    aHold = mData[41]; mData[41] = mData[57]; mData[57] = aHold;
 
     // b ↔ d
-    aHold = mDataBase[34]; mDataBase[34] = mDataBase[50]; mDataBase[50] = aHold;
-    aHold = mDataBase[35]; mDataBase[35] = mDataBase[51]; mDataBase[51] = aHold;
-    aHold = mDataBase[42]; mDataBase[42] = mDataBase[58]; mDataBase[58] = aHold;
-    aHold = mDataBase[43]; mDataBase[43] = mDataBase[59]; mDataBase[59] = aHold;
+    aHold = mData[34]; mData[34] = mData[50]; mData[50] = aHold;
+    aHold = mData[35]; mData[35] = mData[51]; mData[51] = aHold;
+    aHold = mData[42]; mData[42] = mData[58]; mData[58] = aHold;
+    aHold = mData[43]; mData[43] = mData[59]; mData[59] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalSixteenthsQuarterD(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3760,16 +3760,16 @@ void TwistFastMatrix::FlipVerticalSixteenthsQuarterD(std::uint8_t /*pArg1*/, std
     std::uint8_t aHold;
 
     // a ↔ c
-    aHold = mDataBase[36]; mDataBase[36] = mDataBase[52]; mDataBase[52] = aHold;
-    aHold = mDataBase[37]; mDataBase[37] = mDataBase[53]; mDataBase[53] = aHold;
-    aHold = mDataBase[44]; mDataBase[44] = mDataBase[60]; mDataBase[60] = aHold;
-    aHold = mDataBase[45]; mDataBase[45] = mDataBase[61]; mDataBase[61] = aHold;
+    aHold = mData[36]; mData[36] = mData[52]; mData[52] = aHold;
+    aHold = mData[37]; mData[37] = mData[53]; mData[53] = aHold;
+    aHold = mData[44]; mData[44] = mData[60]; mData[60] = aHold;
+    aHold = mData[45]; mData[45] = mData[61]; mData[61] = aHold;
 
     // b ↔ d
-    aHold = mDataBase[38]; mDataBase[38] = mDataBase[54]; mDataBase[54] = aHold;
-    aHold = mDataBase[39]; mDataBase[39] = mDataBase[55]; mDataBase[55] = aHold;
-    aHold = mDataBase[46]; mDataBase[46] = mDataBase[62]; mDataBase[62] = aHold;
-    aHold = mDataBase[47]; mDataBase[47] = mDataBase[63]; mDataBase[63] = aHold;
+    aHold = mData[38]; mData[38] = mData[54]; mData[54] = aHold;
+    aHold = mData[39]; mData[39] = mData[55]; mData[55] = aHold;
+    aHold = mData[46]; mData[46] = mData[62]; mData[62] = aHold;
+    aHold = mData[47]; mData[47] = mData[63]; mData[63] = aHold;
 }
 
 void TwistFastMatrix::FlipVerticalSixteenthsEachQuarter(std::uint8_t /*pArg1*/, std::uint8_t /*pArg2*/) {
@@ -3780,111 +3780,111 @@ void TwistFastMatrix::FlipVerticalSixteenthsEachQuarter(std::uint8_t /*pArg1*/, 
 }
 
 void TwistFastMatrix::PinwheelRight(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
-    std::uint8_t *aSrc = mDataBase;
-    std::uint8_t *aDst = mTemp;
-    aDst[ 0] = aSrc[32]; aDst[ 1] = aSrc[24]; aDst[ 2] = aSrc[16]; aDst[ 3] = aSrc[ 8];
-    aDst[ 4] = aSrc[ 0]; aDst[ 5] = aSrc[ 1]; aDst[ 6] = aSrc[ 2]; aDst[ 7] = aSrc[ 3];
-    aDst[ 8] = aSrc[40]; aDst[ 9] = aSrc[12]; aDst[10] = aSrc[13]; aDst[11] = aSrc[14];
-    aDst[12] = aSrc[22]; aDst[13] = aSrc[30]; aDst[14] = aSrc[38]; aDst[15] = aSrc[ 4];
-    aDst[16] = aSrc[48]; aDst[17] = aSrc[11]; aDst[18] = aSrc[34]; aDst[19] = aSrc[26];
-    aDst[20] = aSrc[18]; aDst[21] = aSrc[19]; aDst[22] = aSrc[46]; aDst[23] = aSrc[ 5];
-    aDst[24] = aSrc[56]; aDst[25] = aSrc[10]; aDst[26] = aSrc[42]; aDst[27] = aSrc[28];
-    aDst[28] = aSrc[36]; aDst[29] = aSrc[20]; aDst[30] = aSrc[54]; aDst[31] = aSrc[ 6];
-    aDst[32] = aSrc[57]; aDst[33] = aSrc[ 9]; aDst[34] = aSrc[43]; aDst[35] = aSrc[27];
-    aDst[36] = aSrc[35]; aDst[37] = aSrc[21]; aDst[38] = aSrc[53]; aDst[39] = aSrc[ 7];
-    aDst[40] = aSrc[58]; aDst[41] = aSrc[17]; aDst[42] = aSrc[44]; aDst[43] = aSrc[45];
-    aDst[44] = aSrc[37]; aDst[45] = aSrc[29]; aDst[46] = aSrc[52]; aDst[47] = aSrc[15];
-    aDst[48] = aSrc[59]; aDst[49] = aSrc[25]; aDst[50] = aSrc[33]; aDst[51] = aSrc[41];
-    aDst[52] = aSrc[49]; aDst[53] = aSrc[50]; aDst[54] = aSrc[51]; aDst[55] = aSrc[23];
-    aDst[56] = aSrc[60]; aDst[57] = aSrc[61]; aDst[58] = aSrc[62]; aDst[59] = aSrc[63];
-    aDst[60] = aSrc[55]; aDst[61] = aSrc[47]; aDst[62] = aSrc[39]; aDst[63] = aSrc[31];
-    memcpy(mDataBase, mTemp, 64);
+    std::uint8_t *aSource = mData;
+    std::uint8_t *aDest = mTemp;
+    aDest[ 0] = aSource[32]; aDest[ 1] = aSource[24]; aDest[ 2] = aSource[16]; aDest[ 3] = aSource[ 8];
+    aDest[ 4] = aSource[ 0]; aDest[ 5] = aSource[ 1]; aDest[ 6] = aSource[ 2]; aDest[ 7] = aSource[ 3];
+    aDest[ 8] = aSource[40]; aDest[ 9] = aSource[12]; aDest[10] = aSource[13]; aDest[11] = aSource[14];
+    aDest[12] = aSource[22]; aDest[13] = aSource[30]; aDest[14] = aSource[38]; aDest[15] = aSource[ 4];
+    aDest[16] = aSource[48]; aDest[17] = aSource[11]; aDest[18] = aSource[34]; aDest[19] = aSource[26];
+    aDest[20] = aSource[18]; aDest[21] = aSource[19]; aDest[22] = aSource[46]; aDest[23] = aSource[ 5];
+    aDest[24] = aSource[56]; aDest[25] = aSource[10]; aDest[26] = aSource[42]; aDest[27] = aSource[28];
+    aDest[28] = aSource[36]; aDest[29] = aSource[20]; aDest[30] = aSource[54]; aDest[31] = aSource[ 6];
+    aDest[32] = aSource[57]; aDest[33] = aSource[ 9]; aDest[34] = aSource[43]; aDest[35] = aSource[27];
+    aDest[36] = aSource[35]; aDest[37] = aSource[21]; aDest[38] = aSource[53]; aDest[39] = aSource[ 7];
+    aDest[40] = aSource[58]; aDest[41] = aSource[17]; aDest[42] = aSource[44]; aDest[43] = aSource[45];
+    aDest[44] = aSource[37]; aDest[45] = aSource[29]; aDest[46] = aSource[52]; aDest[47] = aSource[15];
+    aDest[48] = aSource[59]; aDest[49] = aSource[25]; aDest[50] = aSource[33]; aDest[51] = aSource[41];
+    aDest[52] = aSource[49]; aDest[53] = aSource[50]; aDest[54] = aSource[51]; aDest[55] = aSource[23];
+    aDest[56] = aSource[60]; aDest[57] = aSource[61]; aDest[58] = aSource[62]; aDest[59] = aSource[63];
+    aDest[60] = aSource[55]; aDest[61] = aSource[47]; aDest[62] = aSource[39]; aDest[63] = aSource[31];
+    memcpy(mData, mTemp, 64);
 }
 
 void TwistFastMatrix::PinwheelLeft(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
-    std::uint8_t *aSrc = mDataBase;
-    std::uint8_t *aDst = mTemp;
-    aDst[32] = aSrc[ 0]; aDst[24] = aSrc[ 1]; aDst[16] = aSrc[ 2]; aDst[ 8] = aSrc[ 3];
-    aDst[ 0] = aSrc[ 4]; aDst[ 1] = aSrc[ 5]; aDst[ 2] = aSrc[ 6]; aDst[ 3] = aSrc[ 7];
-    aDst[40] = aSrc[ 8]; aDst[12] = aSrc[ 9]; aDst[13] = aSrc[10]; aDst[14] = aSrc[11];
-    aDst[22] = aSrc[12]; aDst[30] = aSrc[13]; aDst[38] = aSrc[14]; aDst[ 4] = aSrc[15];
-    aDst[48] = aSrc[16]; aDst[11] = aSrc[17]; aDst[34] = aSrc[18]; aDst[26] = aSrc[19];
-    aDst[18] = aSrc[20]; aDst[19] = aSrc[21]; aDst[46] = aSrc[22]; aDst[ 5] = aSrc[23];
-    aDst[56] = aSrc[24]; aDst[10] = aSrc[25]; aDst[42] = aSrc[26]; aDst[28] = aSrc[27];
-    aDst[36] = aSrc[28]; aDst[20] = aSrc[29]; aDst[54] = aSrc[30]; aDst[ 6] = aSrc[31];
-    aDst[57] = aSrc[32]; aDst[ 9] = aSrc[33]; aDst[43] = aSrc[34]; aDst[27] = aSrc[35];
-    aDst[35] = aSrc[36]; aDst[21] = aSrc[37]; aDst[53] = aSrc[38]; aDst[ 7] = aSrc[39];
-    aDst[58] = aSrc[40]; aDst[17] = aSrc[41]; aDst[44] = aSrc[42]; aDst[45] = aSrc[43];
-    aDst[37] = aSrc[44]; aDst[29] = aSrc[45]; aDst[52] = aSrc[46]; aDst[15] = aSrc[47];
-    aDst[59] = aSrc[48]; aDst[25] = aSrc[49]; aDst[33] = aSrc[50]; aDst[41] = aSrc[51];
-    aDst[49] = aSrc[52]; aDst[50] = aSrc[53]; aDst[51] = aSrc[54]; aDst[23] = aSrc[55];
-    aDst[60] = aSrc[56]; aDst[61] = aSrc[57]; aDst[62] = aSrc[58]; aDst[63] = aSrc[59];
-    aDst[55] = aSrc[60]; aDst[47] = aSrc[61]; aDst[39] = aSrc[62]; aDst[31] = aSrc[63];
-    memcpy(mDataBase, mTemp, 64);
+    std::uint8_t *aSource = mData;
+    std::uint8_t *aDest = mTemp;
+    aDest[32] = aSource[ 0]; aDest[24] = aSource[ 1]; aDest[16] = aSource[ 2]; aDest[ 8] = aSource[ 3];
+    aDest[ 0] = aSource[ 4]; aDest[ 1] = aSource[ 5]; aDest[ 2] = aSource[ 6]; aDest[ 3] = aSource[ 7];
+    aDest[40] = aSource[ 8]; aDest[12] = aSource[ 9]; aDest[13] = aSource[10]; aDest[14] = aSource[11];
+    aDest[22] = aSource[12]; aDest[30] = aSource[13]; aDest[38] = aSource[14]; aDest[ 4] = aSource[15];
+    aDest[48] = aSource[16]; aDest[11] = aSource[17]; aDest[34] = aSource[18]; aDest[26] = aSource[19];
+    aDest[18] = aSource[20]; aDest[19] = aSource[21]; aDest[46] = aSource[22]; aDest[ 5] = aSource[23];
+    aDest[56] = aSource[24]; aDest[10] = aSource[25]; aDest[42] = aSource[26]; aDest[28] = aSource[27];
+    aDest[36] = aSource[28]; aDest[20] = aSource[29]; aDest[54] = aSource[30]; aDest[ 6] = aSource[31];
+    aDest[57] = aSource[32]; aDest[ 9] = aSource[33]; aDest[43] = aSource[34]; aDest[27] = aSource[35];
+    aDest[35] = aSource[36]; aDest[21] = aSource[37]; aDest[53] = aSource[38]; aDest[ 7] = aSource[39];
+    aDest[58] = aSource[40]; aDest[17] = aSource[41]; aDest[44] = aSource[42]; aDest[45] = aSource[43];
+    aDest[37] = aSource[44]; aDest[29] = aSource[45]; aDest[52] = aSource[46]; aDest[15] = aSource[47];
+    aDest[59] = aSource[48]; aDest[25] = aSource[49]; aDest[33] = aSource[50]; aDest[41] = aSource[51];
+    aDest[49] = aSource[52]; aDest[50] = aSource[53]; aDest[51] = aSource[54]; aDest[23] = aSource[55];
+    aDest[60] = aSource[56]; aDest[61] = aSource[57]; aDest[62] = aSource[58]; aDest[63] = aSource[59];
+    aDest[55] = aSource[60]; aDest[47] = aSource[61]; aDest[39] = aSource[62]; aDest[31] = aSource[63];
+    memcpy(mData, mTemp, 64);
 }
 
 void TwistFastMatrix::PinwheelRightQuarterA(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[ 0] = aSrc[16]; aTmp[ 1] = aSrc[ 8]; aTmp[ 2] = aSrc[ 0]; aTmp[ 3] = aSrc[ 1];
-    aTmp[ 8] = aSrc[24]; aTmp[ 9] = aSrc[10]; aTmp[10] = aSrc[18]; aTmp[11] = aSrc[ 2];
-    aTmp[16] = aSrc[25]; aTmp[17] = aSrc[ 9]; aTmp[18] = aSrc[17]; aTmp[19] = aSrc[ 3];
-    aTmp[24] = aSrc[26]; aTmp[25] = aSrc[27]; aTmp[26] = aSrc[19]; aTmp[27] = aSrc[11];
+    aTmp[ 0] = aSource[16]; aTmp[ 1] = aSource[ 8]; aTmp[ 2] = aSource[ 0]; aTmp[ 3] = aSource[ 1];
+    aTmp[ 8] = aSource[24]; aTmp[ 9] = aSource[10]; aTmp[10] = aSource[18]; aTmp[11] = aSource[ 2];
+    aTmp[16] = aSource[25]; aTmp[17] = aSource[ 9]; aTmp[18] = aSource[17]; aTmp[19] = aSource[ 3];
+    aTmp[24] = aSource[26]; aTmp[25] = aSource[27]; aTmp[26] = aSource[19]; aTmp[27] = aSource[11];
 
-    aSrc[ 0] = aTmp[ 0]; aSrc[ 1] = aTmp[ 1]; aSrc[ 2] = aTmp[ 2]; aSrc[ 3] = aTmp[ 3];
-    aSrc[ 8] = aTmp[ 8]; aSrc[ 9] = aTmp[ 9]; aSrc[10] = aTmp[10]; aSrc[11] = aTmp[11];
-    aSrc[16] = aTmp[16]; aSrc[17] = aTmp[17]; aSrc[18] = aTmp[18]; aSrc[19] = aTmp[19];
-    aSrc[24] = aTmp[24]; aSrc[25] = aTmp[25]; aSrc[26] = aTmp[26]; aSrc[27] = aTmp[27];
+    aSource[ 0] = aTmp[ 0]; aSource[ 1] = aTmp[ 1]; aSource[ 2] = aTmp[ 2]; aSource[ 3] = aTmp[ 3];
+    aSource[ 8] = aTmp[ 8]; aSource[ 9] = aTmp[ 9]; aSource[10] = aTmp[10]; aSource[11] = aTmp[11];
+    aSource[16] = aTmp[16]; aSource[17] = aTmp[17]; aSource[18] = aTmp[18]; aSource[19] = aTmp[19];
+    aSource[24] = aTmp[24]; aSource[25] = aTmp[25]; aSource[26] = aTmp[26]; aSource[27] = aTmp[27];
 }
 
 void TwistFastMatrix::PinwheelRightQuarterB(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[ 4] = aSrc[20]; aTmp[ 5] = aSrc[12]; aTmp[ 6] = aSrc[ 4]; aTmp[ 7] = aSrc[ 5];
-    aTmp[12] = aSrc[28]; aTmp[13] = aSrc[14]; aTmp[14] = aSrc[22]; aTmp[15] = aSrc[ 6];
-    aTmp[20] = aSrc[29]; aTmp[21] = aSrc[13]; aTmp[22] = aSrc[21]; aTmp[23] = aSrc[ 7];
-    aTmp[28] = aSrc[30]; aTmp[29] = aSrc[31]; aTmp[30] = aSrc[23]; aTmp[31] = aSrc[15];
+    aTmp[ 4] = aSource[20]; aTmp[ 5] = aSource[12]; aTmp[ 6] = aSource[ 4]; aTmp[ 7] = aSource[ 5];
+    aTmp[12] = aSource[28]; aTmp[13] = aSource[14]; aTmp[14] = aSource[22]; aTmp[15] = aSource[ 6];
+    aTmp[20] = aSource[29]; aTmp[21] = aSource[13]; aTmp[22] = aSource[21]; aTmp[23] = aSource[ 7];
+    aTmp[28] = aSource[30]; aTmp[29] = aSource[31]; aTmp[30] = aSource[23]; aTmp[31] = aSource[15];
 
-    aSrc[ 4] = aTmp[ 4]; aSrc[ 5] = aTmp[ 5]; aSrc[ 6] = aTmp[ 6]; aSrc[ 7] = aTmp[ 7];
-    aSrc[12] = aTmp[12]; aSrc[13] = aTmp[13]; aSrc[14] = aTmp[14]; aSrc[15] = aTmp[15];
-    aSrc[20] = aTmp[20]; aSrc[21] = aTmp[21]; aSrc[22] = aTmp[22]; aSrc[23] = aTmp[23];
-    aSrc[28] = aTmp[28]; aSrc[29] = aTmp[29]; aSrc[30] = aTmp[30]; aSrc[31] = aTmp[31];
+    aSource[ 4] = aTmp[ 4]; aSource[ 5] = aTmp[ 5]; aSource[ 6] = aTmp[ 6]; aSource[ 7] = aTmp[ 7];
+    aSource[12] = aTmp[12]; aSource[13] = aTmp[13]; aSource[14] = aTmp[14]; aSource[15] = aTmp[15];
+    aSource[20] = aTmp[20]; aSource[21] = aTmp[21]; aSource[22] = aTmp[22]; aSource[23] = aTmp[23];
+    aSource[28] = aTmp[28]; aSource[29] = aTmp[29]; aSource[30] = aTmp[30]; aSource[31] = aTmp[31];
 }
 
 void TwistFastMatrix::PinwheelRightQuarterC(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[32] = aSrc[48]; aTmp[33] = aSrc[40]; aTmp[34] = aSrc[32]; aTmp[35] = aSrc[33];
-    aTmp[40] = aSrc[56]; aTmp[41] = aSrc[42]; aTmp[42] = aSrc[50]; aTmp[43] = aSrc[34];
-    aTmp[48] = aSrc[57]; aTmp[49] = aSrc[41]; aTmp[50] = aSrc[49]; aTmp[51] = aSrc[35];
-    aTmp[56] = aSrc[58]; aTmp[57] = aSrc[59]; aTmp[58] = aSrc[51]; aTmp[59] = aSrc[43];
+    aTmp[32] = aSource[48]; aTmp[33] = aSource[40]; aTmp[34] = aSource[32]; aTmp[35] = aSource[33];
+    aTmp[40] = aSource[56]; aTmp[41] = aSource[42]; aTmp[42] = aSource[50]; aTmp[43] = aSource[34];
+    aTmp[48] = aSource[57]; aTmp[49] = aSource[41]; aTmp[50] = aSource[49]; aTmp[51] = aSource[35];
+    aTmp[56] = aSource[58]; aTmp[57] = aSource[59]; aTmp[58] = aSource[51]; aTmp[59] = aSource[43];
 
-    aSrc[32]=aTmp[32]; aSrc[33]=aTmp[33]; aSrc[34]=aTmp[34]; aSrc[35]=aTmp[35];
-    aSrc[40]=aTmp[40]; aSrc[41]=aTmp[41]; aSrc[42]=aTmp[42]; aSrc[43]=aTmp[43];
-    aSrc[48]=aTmp[48]; aSrc[49]=aTmp[49]; aSrc[50]=aTmp[50]; aSrc[51]=aTmp[51];
-    aSrc[56]=aTmp[56]; aSrc[57]=aTmp[57]; aSrc[58]=aTmp[58]; aSrc[59]=aTmp[59];
+    aSource[32]=aTmp[32]; aSource[33]=aTmp[33]; aSource[34]=aTmp[34]; aSource[35]=aTmp[35];
+    aSource[40]=aTmp[40]; aSource[41]=aTmp[41]; aSource[42]=aTmp[42]; aSource[43]=aTmp[43];
+    aSource[48]=aTmp[48]; aSource[49]=aTmp[49]; aSource[50]=aTmp[50]; aSource[51]=aTmp[51];
+    aSource[56]=aTmp[56]; aSource[57]=aTmp[57]; aSource[58]=aTmp[58]; aSource[59]=aTmp[59];
 }
 
 void TwistFastMatrix::PinwheelRightQuarterD(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[36] = aSrc[52]; aTmp[37] = aSrc[44]; aTmp[38] = aSrc[36]; aTmp[39] = aSrc[37];
-    aTmp[44] = aSrc[60]; aTmp[45] = aSrc[46]; aTmp[46] = aSrc[54]; aTmp[47] = aSrc[38];
-    aTmp[52] = aSrc[61]; aTmp[53] = aSrc[45]; aTmp[54] = aSrc[53]; aTmp[55] = aSrc[39];
-    aTmp[60] = aSrc[62]; aTmp[61] = aSrc[63]; aTmp[62] = aSrc[55]; aTmp[63] = aSrc[47];
+    aTmp[36] = aSource[52]; aTmp[37] = aSource[44]; aTmp[38] = aSource[36]; aTmp[39] = aSource[37];
+    aTmp[44] = aSource[60]; aTmp[45] = aSource[46]; aTmp[46] = aSource[54]; aTmp[47] = aSource[38];
+    aTmp[52] = aSource[61]; aTmp[53] = aSource[45]; aTmp[54] = aSource[53]; aTmp[55] = aSource[39];
+    aTmp[60] = aSource[62]; aTmp[61] = aSource[63]; aTmp[62] = aSource[55]; aTmp[63] = aSource[47];
 
-    aSrc[36]=aTmp[36]; aSrc[37]=aTmp[37]; aSrc[38]=aTmp[38]; aSrc[39]=aTmp[39];
-    aSrc[44]=aTmp[44]; aSrc[45]=aTmp[45]; aSrc[46]=aTmp[46]; aSrc[47]=aTmp[47];
-    aSrc[52]=aTmp[52]; aSrc[53]=aTmp[53]; aSrc[54]=aTmp[54]; aSrc[55]=aTmp[55];
-    aSrc[60]=aTmp[60]; aSrc[61]=aTmp[61]; aSrc[62]=aTmp[62]; aSrc[63]=aTmp[63];
+    aSource[36]=aTmp[36]; aSource[37]=aTmp[37]; aSource[38]=aTmp[38]; aSource[39]=aTmp[39];
+    aSource[44]=aTmp[44]; aSource[45]=aTmp[45]; aSource[46]=aTmp[46]; aSource[47]=aTmp[47];
+    aSource[52]=aTmp[52]; aSource[53]=aTmp[53]; aSource[54]=aTmp[54]; aSource[55]=aTmp[55];
+    aSource[60]=aTmp[60]; aSource[61]=aTmp[61]; aSource[62]=aTmp[62]; aSource[63]=aTmp[63];
 }
 
 void TwistFastMatrix::PinwheelRightEachQuarter(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
@@ -3896,66 +3896,66 @@ void TwistFastMatrix::PinwheelRightEachQuarter(std::uint8_t pEmptyA, std::uint8_
 
 void TwistFastMatrix::PinwheelLeftQuarterA(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[16] = aSrc[ 0]; aTmp[ 8] = aSrc[ 1]; aTmp[ 0] = aSrc[ 2]; aTmp[ 1] = aSrc[ 3];
-    aTmp[24] = aSrc[ 8]; aTmp[10] = aSrc[ 9]; aTmp[18] = aSrc[10]; aTmp[ 2] = aSrc[11];
-    aTmp[25] = aSrc[16]; aTmp[ 9] = aSrc[17]; aTmp[17] = aSrc[18]; aTmp[ 3] = aSrc[19];
-    aTmp[26] = aSrc[24]; aTmp[27] = aSrc[25]; aTmp[19] = aSrc[26]; aTmp[11] = aSrc[27];
+    aTmp[16] = aSource[ 0]; aTmp[ 8] = aSource[ 1]; aTmp[ 0] = aSource[ 2]; aTmp[ 1] = aSource[ 3];
+    aTmp[24] = aSource[ 8]; aTmp[10] = aSource[ 9]; aTmp[18] = aSource[10]; aTmp[ 2] = aSource[11];
+    aTmp[25] = aSource[16]; aTmp[ 9] = aSource[17]; aTmp[17] = aSource[18]; aTmp[ 3] = aSource[19];
+    aTmp[26] = aSource[24]; aTmp[27] = aSource[25]; aTmp[19] = aSource[26]; aTmp[11] = aSource[27];
 
-    aSrc[ 0] = aTmp[ 0]; aSrc[ 1] = aTmp[ 1]; aSrc[ 2] = aTmp[ 2]; aSrc[ 3] = aTmp[ 3];
-    aSrc[ 8] = aTmp[ 8]; aSrc[ 9] = aTmp[ 9]; aSrc[10] = aTmp[10]; aSrc[11] = aTmp[11];
-    aSrc[16] = aTmp[16]; aSrc[17] = aTmp[17]; aSrc[18] = aTmp[18]; aSrc[19] = aTmp[19];
-    aSrc[24] = aTmp[24]; aSrc[25] = aTmp[25]; aSrc[26] = aTmp[26]; aSrc[27] = aTmp[27];
+    aSource[ 0] = aTmp[ 0]; aSource[ 1] = aTmp[ 1]; aSource[ 2] = aTmp[ 2]; aSource[ 3] = aTmp[ 3];
+    aSource[ 8] = aTmp[ 8]; aSource[ 9] = aTmp[ 9]; aSource[10] = aTmp[10]; aSource[11] = aTmp[11];
+    aSource[16] = aTmp[16]; aSource[17] = aTmp[17]; aSource[18] = aTmp[18]; aSource[19] = aTmp[19];
+    aSource[24] = aTmp[24]; aSource[25] = aTmp[25]; aSource[26] = aTmp[26]; aSource[27] = aTmp[27];
 }
 
 void TwistFastMatrix::PinwheelLeftQuarterB(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[20] = aSrc[ 4]; aTmp[12] = aSrc[ 5]; aTmp[ 4] = aSrc[ 6]; aTmp[ 5] = aSrc[ 7];
-    aTmp[28] = aSrc[12]; aTmp[14] = aSrc[13]; aTmp[22] = aSrc[14]; aTmp[ 6] = aSrc[15];
-    aTmp[29] = aSrc[20]; aTmp[13] = aSrc[21]; aTmp[21] = aSrc[22]; aTmp[ 7] = aSrc[23];
-    aTmp[30] = aSrc[28]; aTmp[31] = aSrc[29]; aTmp[23] = aSrc[30]; aTmp[15] = aSrc[31];
+    aTmp[20] = aSource[ 4]; aTmp[12] = aSource[ 5]; aTmp[ 4] = aSource[ 6]; aTmp[ 5] = aSource[ 7];
+    aTmp[28] = aSource[12]; aTmp[14] = aSource[13]; aTmp[22] = aSource[14]; aTmp[ 6] = aSource[15];
+    aTmp[29] = aSource[20]; aTmp[13] = aSource[21]; aTmp[21] = aSource[22]; aTmp[ 7] = aSource[23];
+    aTmp[30] = aSource[28]; aTmp[31] = aSource[29]; aTmp[23] = aSource[30]; aTmp[15] = aSource[31];
 
-    aSrc[ 4] = aTmp[ 4]; aSrc[ 5] = aTmp[ 5]; aSrc[ 6] = aTmp[ 6]; aSrc[ 7] = aTmp[ 7];
-    aSrc[12] = aTmp[12]; aSrc[13] = aTmp[13]; aSrc[14] = aTmp[14]; aSrc[15] = aTmp[15];
-    aSrc[20] = aTmp[20]; aSrc[21] = aTmp[21]; aSrc[22] = aTmp[22]; aSrc[23] = aTmp[23];
-    aSrc[28] = aTmp[28]; aSrc[29] = aTmp[29]; aSrc[30] = aTmp[30]; aSrc[31] = aTmp[31];
+    aSource[ 4] = aTmp[ 4]; aSource[ 5] = aTmp[ 5]; aSource[ 6] = aTmp[ 6]; aSource[ 7] = aTmp[ 7];
+    aSource[12] = aTmp[12]; aSource[13] = aTmp[13]; aSource[14] = aTmp[14]; aSource[15] = aTmp[15];
+    aSource[20] = aTmp[20]; aSource[21] = aTmp[21]; aSource[22] = aTmp[22]; aSource[23] = aTmp[23];
+    aSource[28] = aTmp[28]; aSource[29] = aTmp[29]; aSource[30] = aTmp[30]; aSource[31] = aTmp[31];
 }
 
 void TwistFastMatrix::PinwheelLeftQuarterC(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[48] = aSrc[32]; aTmp[40] = aSrc[33]; aTmp[32] = aSrc[34]; aTmp[33] = aSrc[35];
-    aTmp[56] = aSrc[40]; aTmp[42] = aSrc[41]; aTmp[50] = aSrc[42]; aTmp[34] = aSrc[43];
-    aTmp[57] = aSrc[48]; aTmp[41] = aSrc[49]; aTmp[49] = aSrc[50]; aTmp[35] = aSrc[51];
-    aTmp[58] = aSrc[56]; aTmp[59] = aSrc[57]; aTmp[51] = aSrc[58]; aTmp[43] = aSrc[59];
+    aTmp[48] = aSource[32]; aTmp[40] = aSource[33]; aTmp[32] = aSource[34]; aTmp[33] = aSource[35];
+    aTmp[56] = aSource[40]; aTmp[42] = aSource[41]; aTmp[50] = aSource[42]; aTmp[34] = aSource[43];
+    aTmp[57] = aSource[48]; aTmp[41] = aSource[49]; aTmp[49] = aSource[50]; aTmp[35] = aSource[51];
+    aTmp[58] = aSource[56]; aTmp[59] = aSource[57]; aTmp[51] = aSource[58]; aTmp[43] = aSource[59];
 
-    aSrc[32]=aTmp[32]; aSrc[33]=aTmp[33]; aSrc[34]=aTmp[34]; aSrc[35]=aTmp[35];
-    aSrc[40]=aTmp[40]; aSrc[41]=aTmp[41]; aSrc[42]=aTmp[42]; aSrc[43]=aTmp[43];
-    aSrc[48]=aTmp[48]; aSrc[49]=aTmp[49]; aSrc[50]=aTmp[50]; aSrc[51]=aTmp[51];
-    aSrc[56]=aTmp[56]; aSrc[57]=aTmp[57]; aSrc[58]=aTmp[58]; aSrc[59]=aTmp[59];
+    aSource[32]=aTmp[32]; aSource[33]=aTmp[33]; aSource[34]=aTmp[34]; aSource[35]=aTmp[35];
+    aSource[40]=aTmp[40]; aSource[41]=aTmp[41]; aSource[42]=aTmp[42]; aSource[43]=aTmp[43];
+    aSource[48]=aTmp[48]; aSource[49]=aTmp[49]; aSource[50]=aTmp[50]; aSource[51]=aTmp[51];
+    aSource[56]=aTmp[56]; aSource[57]=aTmp[57]; aSource[58]=aTmp[58]; aSource[59]=aTmp[59];
 }
 
 void TwistFastMatrix::PinwheelLeftQuarterD(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
 
-    std::uint8_t *aSrc = mDataBase;
+    std::uint8_t *aSource = mData;
     std::uint8_t *aTmp = mTemp;
 
-    aTmp[52] = aSrc[36]; aTmp[44] = aSrc[37]; aTmp[36] = aSrc[38]; aTmp[37] = aSrc[39];
-    aTmp[60] = aSrc[44]; aTmp[46] = aSrc[45]; aTmp[54] = aSrc[46]; aTmp[38] = aSrc[47];
-    aTmp[61] = aSrc[52]; aTmp[45] = aSrc[53]; aTmp[53] = aSrc[54]; aTmp[39] = aSrc[55];
-    aTmp[62] = aSrc[60]; aTmp[63] = aSrc[61]; aTmp[55] = aSrc[62]; aTmp[47] = aSrc[63];
+    aTmp[52] = aSource[36]; aTmp[44] = aSource[37]; aTmp[36] = aSource[38]; aTmp[37] = aSource[39];
+    aTmp[60] = aSource[44]; aTmp[46] = aSource[45]; aTmp[54] = aSource[46]; aTmp[38] = aSource[47];
+    aTmp[61] = aSource[52]; aTmp[45] = aSource[53]; aTmp[53] = aSource[54]; aTmp[39] = aSource[55];
+    aTmp[62] = aSource[60]; aTmp[63] = aSource[61]; aTmp[55] = aSource[62]; aTmp[47] = aSource[63];
 
-    aSrc[36]=aTmp[36]; aSrc[37]=aTmp[37]; aSrc[38]=aTmp[38]; aSrc[39]=aTmp[39];
-    aSrc[44]=aTmp[44]; aSrc[45]=aTmp[45]; aSrc[46]=aTmp[46]; aSrc[47]=aTmp[47];
-    aSrc[52]=aTmp[52]; aSrc[53]=aTmp[53]; aSrc[54]=aTmp[54]; aSrc[55]=aTmp[55];
-    aSrc[60]=aTmp[60]; aSrc[61]=aTmp[61]; aSrc[62]=aTmp[62]; aSrc[63]=aTmp[63];
+    aSource[36]=aTmp[36]; aSource[37]=aTmp[37]; aSource[38]=aTmp[38]; aSource[39]=aTmp[39];
+    aSource[44]=aTmp[44]; aSource[45]=aTmp[45]; aSource[46]=aTmp[46]; aSource[47]=aTmp[47];
+    aSource[52]=aTmp[52]; aSource[53]=aTmp[53]; aSource[54]=aTmp[54]; aSource[55]=aTmp[55];
+    aSource[60]=aTmp[60]; aSource[61]=aTmp[61]; aSource[62]=aTmp[62]; aSource[63]=aTmp[63];
 }
 
 void TwistFastMatrix::PinwheelLeftEachQuarter(std::uint8_t pEmptyA, std::uint8_t pEmptyB) {
@@ -4019,21 +4019,21 @@ void TwistFastMatrix::PermuteRingBytes(std::uint8_t  pRingIndex, std::uint8_t pA
     std::uint8_t aAmount = pAmount % aSize;
     const std::uint8_t* aIndices = &TwistFastMatrixRingTable::kRingTable[aOffset];
     for (std::uint8_t aIndex = 0; aIndex < aSize; ++aIndex) {
-        std::uint8_t aSrcIndex = aIndex + aSize - aAmount;
-        if (aSrcIndex >= aSize) { aSrcIndex -= aSize; }
+        std::uint8_t aSourceIndex = aIndex + aSize - aAmount;
+        if (aSourceIndex >= aSize) { aSourceIndex -= aSize; }
         
-        mTemp[aIndex] = mDataBase[aIndices[aSrcIndex]];
+        mTemp[aIndex] = mData[aIndices[aSourceIndex]];
     }
     for (std::uint8_t aIndex = 0; aIndex < aSize; ++aIndex) {
-        mDataBase[aIndices[aIndex]] = mTemp[aIndex];
+        mData[aIndices[aIndex]] = mTemp[aIndex];
     }
 }
 
 
 bool TwistFastMatrix::operator==(const TwistFastMatrix& other) const {
-    return std::memcmp(mDataBase, other.mDataBase, 64) == 0;
+    return std::memcmp(mData, other.mData, 64) == 0;
 }
 
 bool TwistFastMatrix::operator!=(const TwistFastMatrix& other) const {
-    return std::memcmp(mDataBase, other.mDataBase, 64) != 0;
+    return std::memcmp(mData, other.mData, 64) != 0;
 }

@@ -8,8 +8,360 @@
 #include "CSPKDF.hpp"
 #include "TwistArray.hpp"
 #include "GQuickARX.hpp"
-#include <unordered_map>
+#include <array>
+#include <utility>
 
+namespace {
+
+GARXType GARXOrbiterByIndex(const std::uint8_t pIndex) {
+    switch (pIndex) {
+        case 0: return GARXType::kOrbiterA;
+        case 1: return GARXType::kOrbiterB;
+        case 2: return GARXType::kOrbiterC;
+        case 3: return GARXType::kOrbiterD;
+        case 4: return GARXType::kOrbiterE;
+        case 5: return GARXType::kOrbiterF;
+        default: return GARXType::kInv;
+    }
+}
+
+GARXType GARXWandererByIndex(const std::uint8_t pIndex) {
+    switch (pIndex) {
+        case 0: return GARXType::kUnwindA;
+        case 1: return GARXType::kUnwindB;
+        case 2: return GARXType::kUnwindC;
+        case 3: return GARXType::kUnwindD;
+        case 4: return GARXType::kUnwindE;
+        case 5: return GARXType::kUnwindF;
+        default: return GARXType::kInv;
+    }
+}
+
+bool ConvertGMoxTypeToGARXType(const GMoxType &pType,
+                               GARXType *pTypeOut,
+                               std::string *pErrorMessage) {
+    if (pTypeOut == nullptr) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "CSPKDF2: null output while mapping type";
+        }
+        return false;
+    }
+
+    switch (pType.role) {
+        case GMoxRole::kStream:
+            switch (static_cast<GMoxStreamKind>(pType.subkind)) {
+                case GMoxStreamKind::kCurrent: *pTypeOut = GARXType::kStreamCurrent; return true;
+                case GMoxStreamKind::kPrevious: *pTypeOut = GARXType::kStreamPrevious; return true;
+                case GMoxStreamKind::kScatter: *pTypeOut = GARXType::kStreamScatter; return true;
+                case GMoxStreamKind::kCross: *pTypeOut = GARXType::kStreamCross; return true;
+                default:
+                    if (pErrorMessage != nullptr) {
+                        *pErrorMessage = "CSPKDF2: invalid GMox stream subkind";
+                    }
+                    return false;
+            }
+
+        case GMoxRole::kSecret:
+            switch (static_cast<GMoxSecretKind>(pType.subkind)) {
+                case GMoxSecretKind::kCurrent: *pTypeOut = GARXType::kSecretCurrent; return true;
+                case GMoxSecretKind::kPrevious: *pTypeOut = GARXType::kSecretPrevious; return true;
+                case GMoxSecretKind::kScatter: *pTypeOut = GARXType::kSecretScatter; return true;
+                default:
+                    if (pErrorMessage != nullptr) {
+                        *pErrorMessage = "CSPKDF2: invalid GMox secret subkind";
+                    }
+                    return false;
+            }
+
+        case GMoxRole::kCarry:
+            *pTypeOut = GARXType::kCarry;
+            return true;
+
+        case GMoxRole::kOrbiter:
+            *pTypeOut = GARXOrbiterByIndex(pType.index);
+            if (*pTypeOut == GARXType::kInv) {
+                if (pErrorMessage != nullptr) {
+                    *pErrorMessage = "CSPKDF2: orbiter index exceeds six-lane KDF surface";
+                }
+                return false;
+            }
+            return true;
+
+        case GMoxRole::kWanderer:
+            *pTypeOut = GARXWandererByIndex(pType.index);
+            if (*pTypeOut == GARXType::kInv) {
+                if (pErrorMessage != nullptr) {
+                    *pErrorMessage = "CSPKDF2: wanderer index exceeds six-lane KDF surface";
+                }
+                return false;
+            }
+            return true;
+
+        default:
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "CSPKDF2: unsupported GMox type role";
+            }
+            return false;
+    }
+}
+
+GARXStatementType ConvertStatementKind(const GMoxStatementKind pKind) {
+    switch (pKind) {
+        case GMoxStatementKind::kSeed: return GARXStatementType::kRoundSeed;
+        case GMoxStatementKind::kForwardLead: return GARXStatementType::kForwardLead;
+        case GMoxStatementKind::kForwardFeedback: return GARXStatementType::kForwardFeedback;
+        case GMoxStatementKind::kForwardRotate: return GARXStatementType::kForwardRotate;
+        case GMoxStatementKind::kCrush: return GARXStatementType::kCrush;
+        case GMoxStatementKind::kUnwind: return GARXStatementType::kUnwind;
+        case GMoxStatementKind::kCarry: return GARXStatementType::kCarry;
+        default: return GARXStatementType::kInv;
+    }
+}
+
+GARXGroupType ConvertGroupKind(const GMoxGroupKind pKind) {
+    switch (pKind) {
+        case GMoxGroupKind::kSeed: return GARXGroupType::kSeed;
+        case GMoxGroupKind::kForwardTriplet: return GARXGroupType::kForwardTriplet;
+        case GMoxGroupKind::kCrush: return GARXGroupType::kCrush;
+        case GMoxGroupKind::kUnwind: return GARXGroupType::kUnwind;
+        case GMoxGroupKind::kCarry: return GARXGroupType::kCarry;
+        default: return GARXGroupType::kInv;
+    }
+}
+
+bool ConvertDatum(const GMoxDatum &pSource,
+                  GARXDatum *pDest,
+                  std::string *pErrorMessage) {
+    if (pDest == nullptr) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "CSPKDF2: null destination while converting datum";
+        }
+        return false;
+    }
+
+    GARXDatum aDatum;
+    switch (pSource.mKind) {
+        case GMoxDatumKind::kType:
+            aDatum.mKind = GARXDatumKind::kType;
+            if (!ConvertGMoxTypeToGARXType(pSource.mType, &aDatum.mType, pErrorMessage)) {
+                return false;
+            }
+            aDatum.mRotationAmount = pSource.mRotationAmount;
+            break;
+
+        case GMoxDatumKind::kLoopKey:
+            aDatum.mKind = GARXDatumKind::kLoopKey;
+            aDatum.mOffsetAmount = pSource.mOffsetAmount;
+            aDatum.mIsLoopIndexInverted = pSource.mIsLoopIndexInverted;
+            aDatum.mSaltLaneIndex = pSource.mSaltLaneIndex;
+            break;
+
+        case GMoxDatumKind::kPlugKey:
+            aDatum.mKind = GARXDatumKind::kPlugKey;
+            if (!ConvertGMoxTypeToGARXType(pSource.mPlugTypeA, &aDatum.mPlugTypeA, pErrorMessage)) {
+                return false;
+            }
+            if (!ConvertGMoxTypeToGARXType(pSource.mPlugTypeB, &aDatum.mPlugTypeB, pErrorMessage)) {
+                return false;
+            }
+            aDatum.mRotationAmount = pSource.mRotationAmount;
+            aDatum.mOffsetAmount = pSource.mOffsetAmount;
+            aDatum.mSaltLaneIndex = pSource.mSaltLaneIndex;
+            break;
+
+        case GMoxDatumKind::kHotAdd:
+            aDatum.mKind = GARXDatumKind::kHotAdd;
+            break;
+
+        case GMoxDatumKind::kHotMul:
+            aDatum.mKind = GARXDatumKind::kHotMul;
+            break;
+
+        default:
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "CSPKDF2: unsupported datum kind";
+            }
+            return false;
+    }
+
+    *pDest = aDatum;
+    return true;
+}
+
+void ConfigureFallbackCrushCarry(GARXPassPlan *pPassPlan) {
+    if (pPassPlan == nullptr) {
+        return;
+    }
+
+    pPassPlan->mCrushPlan.mPairA.mTypeA = GARXType::kOrbiterA;
+    pPassPlan->mCrushPlan.mPairA.mTypeB = GARXType::kOrbiterB;
+    pPassPlan->mCrushPlan.mPairA.mRotateA = true;
+    pPassPlan->mCrushPlan.mPairA.mRotationAmount = 17;
+
+    pPassPlan->mCrushPlan.mPairB.mTypeA = GARXType::kOrbiterC;
+    pPassPlan->mCrushPlan.mPairB.mTypeB = GARXType::kOrbiterD;
+    pPassPlan->mCrushPlan.mPairB.mRotateA = false;
+    pPassPlan->mCrushPlan.mPairB.mRotationAmount = 29;
+
+    pPassPlan->mCrushPlan.mPairC.mTypeA = GARXType::kOrbiterE;
+    pPassPlan->mCrushPlan.mPairC.mTypeB = GARXType::kOrbiterF;
+    pPassPlan->mCrushPlan.mPairC.mRotateA = true;
+    pPassPlan->mCrushPlan.mPairC.mRotationAmount = 43;
+
+    pPassPlan->mCarryPlan.mPairA.mTypeA = GARXType::kUnwindA;
+    pPassPlan->mCarryPlan.mPairA.mTypeB = GARXType::kUnwindD;
+    pPassPlan->mCarryPlan.mPairA.mRotateA = true;
+    pPassPlan->mCarryPlan.mPairA.mRotationAmount = 19;
+
+    pPassPlan->mCarryPlan.mPairB.mTypeA = GARXType::kUnwindB;
+    pPassPlan->mCarryPlan.mPairB.mTypeB = GARXType::kUnwindE;
+    pPassPlan->mCarryPlan.mPairB.mRotateA = false;
+    pPassPlan->mCarryPlan.mPairB.mRotationAmount = 37;
+
+    pPassPlan->mCarryPlan.mPairC.mTypeA = GARXType::kUnwindC;
+    pPassPlan->mCarryPlan.mPairC.mTypeB = GARXType::kUnwindF;
+    pPassPlan->mCarryPlan.mPairC.mRotateA = true;
+    pPassPlan->mCarryPlan.mPairC.mRotationAmount = 53;
+
+    pPassPlan->mCarryPlan.mSecretCurrentRotation = 23;
+    pPassPlan->mCarryPlan.mMulRotation = 31;
+    pPassPlan->mCarryPlan.mShiftAmount = 29;
+}
+
+bool BuildGARXPassPlanFromGMox(const GMoxPassPlan *pGMoxPassPlan,
+                               GARXPassPlan *pGARXPassPlan,
+                               std::string *pErrorMessage) {
+    if ((pGMoxPassPlan == nullptr) || (pGARXPassPlan == nullptr)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "CSPKDF2: null pass while converting GMox->GARX";
+        }
+        return false;
+    }
+
+    pGARXPassPlan->mStreamInputBlend.mRotationA = pGMoxPassPlan->mStreamInputBlend.mRotationA;
+    pGARXPassPlan->mStreamInputBlend.mRotationB = pGMoxPassPlan->mStreamInputBlend.mRotationB;
+    pGARXPassPlan->mStreamInputBlend.mRotationC = pGMoxPassPlan->mStreamInputBlend.mRotationC;
+    pGARXPassPlan->mStreamInputBlend.mRotationD = pGMoxPassPlan->mStreamInputBlend.mRotationD;
+
+    pGARXPassPlan->mSecretInputBlend.mRotationA = pGMoxPassPlan->mSecretInputBlend.mRotationA;
+    pGARXPassPlan->mSecretInputBlend.mRotationB = pGMoxPassPlan->mSecretInputBlend.mRotationB;
+    pGARXPassPlan->mSecretInputBlend.mRotationC = pGMoxPassPlan->mSecretInputBlend.mRotationC;
+    pGARXPassPlan->mSecretInputBlend.mRotationD = pGMoxPassPlan->mSecretInputBlend.mRotationD;
+
+    pGARXPassPlan->mCrossInputBlend.mRotationA = pGMoxPassPlan->mCrossInputBlend.mRotationA;
+    pGARXPassPlan->mCrossInputBlend.mRotationB = pGMoxPassPlan->mCrossInputBlend.mRotationB;
+    pGARXPassPlan->mCrossInputBlend.mRotationC = pGMoxPassPlan->mCrossInputBlend.mRotationC;
+    pGARXPassPlan->mCrossInputBlend.mRotationD = pGMoxPassPlan->mCrossInputBlend.mRotationD;
+
+    pGARXPassPlan->mStreamScatterBlend.mRotationA = pGMoxPassPlan->mStreamScatterBlend.mRotationA;
+    pGARXPassPlan->mStreamScatterBlend.mRotationB = pGMoxPassPlan->mStreamScatterBlend.mRotationB;
+    pGARXPassPlan->mStreamScatterBlend.mRotationC = pGMoxPassPlan->mStreamScatterBlend.mRotationC;
+    pGARXPassPlan->mStreamScatterBlend.mRotationD = pGMoxPassPlan->mStreamScatterBlend.mRotationD;
+
+    pGARXPassPlan->mSecretScatterBlend.mRotationA = pGMoxPassPlan->mSecretScatterBlend.mRotationA;
+    pGARXPassPlan->mSecretScatterBlend.mRotationB = pGMoxPassPlan->mSecretScatterBlend.mRotationB;
+    pGARXPassPlan->mSecretScatterBlend.mRotationC = pGMoxPassPlan->mSecretScatterBlend.mRotationC;
+    pGARXPassPlan->mSecretScatterBlend.mRotationD = pGMoxPassPlan->mSecretScatterBlend.mRotationD;
+
+    std::vector<std::pair<const GMoxStatement *, GARXStatementPlan *>> aStatementMap;
+
+    for (GMoxStatement *aStatement : pGMoxPassPlan->mStatements) {
+        if (aStatement == nullptr) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "CSPKDF2: null GMox statement";
+            }
+            return false;
+        }
+
+        const GARXStatementType aStatementType = ConvertStatementKind(aStatement->mKind);
+        if (aStatementType == GARXStatementType::kInv) {
+            if (aStatement->mKind == GMoxStatementKind::kHiddenPlugPrep) {
+                continue;
+            }
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "CSPKDF2: unsupported GMox statement kind";
+            }
+            return false;
+        }
+
+        GARXType aTargetType = GARXType::kInv;
+        if (aStatementType != GARXStatementType::kCrush &&
+            aStatementType != GARXStatementType::kCarry) {
+            if (!ConvertGMoxTypeToGARXType(aStatement->mTarget, &aTargetType, pErrorMessage)) {
+                return false;
+            }
+        }
+
+        GARXStatementPlan *aGARXStatement = new GARXStatementPlan(aStatementType, aTargetType);
+        aGARXStatement->mRotationAmount = aStatement->mRotationAmount;
+
+        for (const GMoxDatum &aDatum : aStatement->mDatums) {
+            GARXDatum aGARXDatum;
+            if (!ConvertDatum(aDatum, &aGARXDatum, pErrorMessage)) {
+                delete aGARXStatement;
+                return false;
+            }
+            aGARXStatement->mDatums.push_back(aGARXDatum);
+        }
+
+        pGARXPassPlan->mStatements.push_back(aGARXStatement);
+        aStatementMap.push_back(std::make_pair(aStatement, aGARXStatement));
+    }
+
+    for (GMoxStatementGroup *aGroup : pGMoxPassPlan->mGroups) {
+        if (aGroup == nullptr) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "CSPKDF2: null GMox statement group";
+            }
+            return false;
+        }
+
+        const GARXGroupType aGroupType = ConvertGroupKind(aGroup->mKind);
+        if (aGroupType == GARXGroupType::kInv) {
+            continue;
+        }
+
+        GARXStatementGroup *aGARXGroup = new GARXStatementGroup(aGroupType);
+        aGARXGroup->mZoneIndex = aGroup->mZoneIndex;
+
+        for (GMoxStatement *aStatement : aGroup->mStatements) {
+            if (aStatement == nullptr) {
+                if (pErrorMessage != nullptr) {
+                    *pErrorMessage = "CSPKDF2: null GMox statement in group";
+                }
+                delete aGARXGroup;
+                return false;
+            }
+
+            GARXStatementPlan *aMappedStatement = nullptr;
+            for (const auto &aEntry : aStatementMap) {
+                if (aEntry.first != aStatement) {
+                    continue;
+                }
+                aMappedStatement = aEntry.second;
+                break;
+            }
+
+            if (aMappedStatement == nullptr) {
+                if (pErrorMessage != nullptr) {
+                    *pErrorMessage = "CSPKDF2: failed to map grouped statement";
+                }
+                delete aGARXGroup;
+                return false;
+            }
+
+            aMappedStatement->mGroupType = aGroupType;
+            aGARXGroup->mStatements.push_back(aMappedStatement);
+        }
+
+        pGARXPassPlan->mGroups.push_back(aGARXGroup);
+    }
+
+    ConfigureFallbackCrushCarry(pGARXPassPlan);
+    return true;
+}
+
+} // namespace
 
 bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                               
@@ -58,38 +410,30 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                               
                               GSymbol pCarry,
                               
-                              GSymbol pStateA,
-                              GSymbol pStateB,
-                              GSymbol pStateC,
-                              GSymbol pStateD,
-                              GSymbol pStateE,
-                              GSymbol pStateF,
+                              GSymbol pUnwindA,
+                              GSymbol pUnwindB,
+                              GSymbol pUnwindC,
+                              GSymbol pUnwindD,
+                              GSymbol pUnwindE,
+                              GSymbol pUnwindF,
                               
-                              GSymbol pRoundA,
-                              GSymbol pRoundB,
-                              GSymbol pRoundC,
-                              GSymbol pRoundD,
-                              GSymbol pRoundE,
-                              GSymbol pRoundF,
-                              
-                              GSymbol pDomainSaltA,
-                              GSymbol pDomainSaltB,
-                              GSymbol pDomainSaltC,
-                              GSymbol pDomainSaltD,
-                              GSymbol pDomainSaltE,
-                              GSymbol pDomainSaltF,
-                              
-                              GSymbol pWorldSaltA,
-                              GSymbol pWorldSaltB,
-                              GSymbol pWorldSaltC,
-                              GSymbol pWorldSaltD,
-                              GSymbol pWorldSaltE,
-                              GSymbol pWorldSaltF,
-                              GSymbol pWorldSaltG,
-                              GSymbol pWorldSaltH,
+                              GSymbol pOrbiterA,
+                              GSymbol pOrbiterB,
+                              GSymbol pOrbiterC,
+                              GSymbol pOrbiterD,
+                              GSymbol pOrbiterE,
+                              GSymbol pOrbiterF,
+
+                              TwistDomainSeedRoundMaterial *pMatsUnwind,
+                              TwistDomainSeedRoundMaterial *pMatsOrbiter,
+                              TwistDomainSeedRoundMaterial *pMatsOrbiterInit,
                               
                               GSymbol pPlugKeyA,
                               GSymbol pPlugKeyB,
+                              GSymbol pPlugKeyC,
+                              GSymbol pPlugKeyD,
+                              GSymbol pPlugKeyE,
+                              GSymbol pPlugKeyF,
                               
                               std::vector<GSymbol> pSBoxes,
                               
@@ -116,44 +460,18 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         printf("fatal: CSPKDF::Bake requires at least 8 sboxes for crush mix64_8\n");
         exit(0);
     }
+
+    (void)pMatsUnwind;
+    (void)pMatsOrbiter;
+    (void)pMatsOrbiterInit;
+
+    const GSymbol aDomainSaltA = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiterInit, TwistSaltLane::kA);
+    const GSymbol aDomainSaltB = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiterInit, TwistSaltLane::kB);
+    const GSymbol aDomainSaltC = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiter, TwistSaltLane::kC);
+    const GSymbol aDomainSaltD = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiter, TwistSaltLane::kD);
+    const GSymbol aDomainSaltE = BufParamSymbolDomainSalt(TwistSaltPhase::kUnwind, TwistSaltLane::kE);
+    const GSymbol aDomainSaltF = BufParamSymbolDomainSalt(TwistSaltPhase::kUnwind, TwistSaltLane::kF);
     
-    GARXSymbolPack aSymbols;
-
-    aSymbols.mStreamCurrent = pStreamCurrent;
-    aSymbols.mStreamPrevious = pStreamPrevious;
-    aSymbols.mStreamScatter = pStreamScatter;
-    
-    aSymbols.mSecretCurrent = pSecretCurrent;
-    aSymbols.mSecretPrevious = pSecretPrevious;
-    aSymbols.mSecretScatter = pSecretScatter;
-    
-    aSymbols.mStreamCross = pStreamCross;
-    aSymbols.mCarry = pCarry;
-
-    aSymbols.mWandererA = pStateA;
-    aSymbols.mWandererB = pStateB;
-    aSymbols.mWandererC = pStateC;
-    aSymbols.mWandererD = pStateD;
-    aSymbols.mWandererE = pStateE;
-    aSymbols.mWandererF = pStateF;
-
-    aSymbols.mOrbiterA = pRoundA;
-    aSymbols.mOrbiterB = pRoundB;
-    aSymbols.mOrbiterC = pRoundC;
-    aSymbols.mOrbiterD = pRoundD;
-    aSymbols.mOrbiterE = pRoundE;
-    aSymbols.mOrbiterF = pRoundF;
-
-    aSymbols.mDomainSaltA = pDomainSaltA;
-    aSymbols.mDomainSaltB = pDomainSaltB;
-    aSymbols.mDomainSaltC = pDomainSaltC;
-    aSymbols.mDomainSaltD = pDomainSaltD;
-    aSymbols.mDomainSaltE = pDomainSaltE;
-    aSymbols.mDomainSaltF = pDomainSaltF;
-
-    aSymbols.mPlugKeyA = pPlugKeyA;
-    aSymbols.mPlugKeyB = pPlugKeyB;
-
     auto RandomDiffuseKind = [&]() -> GDiffuseKind {
         int aRand = Random::Get(3);
         if (aRand == 0) { return GDiffuseKind::kA; }
@@ -174,19 +492,19 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
 
             case GARXType::kCarry: return pCarry;
 
-            case GARXType::kStateA: return pStateA;
-            case GARXType::kStateB: return pStateB;
-            case GARXType::kStateC: return pStateC;
-            case GARXType::kStateD: return pStateD;
-            case GARXType::kStateE: return pStateE;
-            case GARXType::kStateF: return pStateF;
+            case GARXType::kUnwindA: return pUnwindA;
+            case GARXType::kUnwindB: return pUnwindB;
+            case GARXType::kUnwindC: return pUnwindC;
+            case GARXType::kUnwindD: return pUnwindD;
+            case GARXType::kUnwindE: return pUnwindE;
+            case GARXType::kUnwindF: return pUnwindF;
 
-            case GARXType::kRoundA: return pRoundA;
-            case GARXType::kRoundB: return pRoundB;
-            case GARXType::kRoundC: return pRoundC;
-            case GARXType::kRoundD: return pRoundD;
-            case GARXType::kRoundE: return pRoundE;
-            case GARXType::kRoundF: return pRoundF;
+            case GARXType::kOrbiterA: return pOrbiterA;
+            case GARXType::kOrbiterB: return pOrbiterB;
+            case GARXType::kOrbiterC: return pOrbiterC;
+            case GARXType::kOrbiterD: return pOrbiterD;
+            case GARXType::kOrbiterE: return pOrbiterE;
+            case GARXType::kOrbiterF: return pOrbiterF;
 
             default:
                 printf("fatal: CSPKDF::Bake invalid GARXType=%s\n",
@@ -209,39 +527,41 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
 
         return GQuick::RotL64(TypeExpr(pType), pRotation);
     };
-    
-    auto DomainSaltSymbol = [&](GARXSaltDomain pDomain) -> GSymbol {
-        switch (pDomain) {
-            case GARXSaltDomain::kInitA: return pDomainSaltA;
-            case GARXSaltDomain::kInitB: return pDomainSaltB;
-            case GARXSaltDomain::kPlugA: return pDomainSaltC;
-            case GARXSaltDomain::kPlugB: return pDomainSaltD;
-            case GARXSaltDomain::kUnwindA: return pDomainSaltE;
-            case GARXSaltDomain::kUnwindB: return pDomainSaltF;
 
-            default:
-                printf("fatal: CSPKDF::Bake invalid salt domain=%s\n",
-                       GARXSkeleton::GetSaltDomainName(pDomain));
-                exit(0);
-        }
+    const GSymbol aSaltLanes[6] = {
+        aDomainSaltA,
+        aDomainSaltB,
+        aDomainSaltC,
+        aDomainSaltD,
+        aDomainSaltE,
+        aDomainSaltF
     };
 
-    auto PlugKeySymbolForDomain = [&](GARXSaltDomain pDomain) -> GSymbol {
-        switch (pDomain) {
-            case GARXSaltDomain::kPlugA: return pPlugKeyA;
-            case GARXSaltDomain::kPlugB: return pPlugKeyB;
-
-            default:
-                printf("fatal: CSPKDF::Bake invalid plug-key domain=%s\n",
-                       GARXSkeleton::GetSaltDomainName(pDomain));
-                exit(0);
-        }
+    const GSymbol aPlugKeyLanes[6] = {
+        pPlugKeyA,
+        pPlugKeyB,
+        pPlugKeyC,
+        pPlugKeyD,
+        pPlugKeyE,
+        pPlugKeyF
     };
-    
-    std::unordered_map<const GARXDatum *, GSymbol> aPlugSaltByDatum;
-    std::uint32_t aPlugSaltCounter = 0U;
-    auto MakePlugSaltSymbol = [&]() -> GSymbol {
-        return VarSymbol("aPlugSalt" + std::to_string(aPlugSaltCounter++));
+
+    auto SaltLaneSymbol = [&](int pSaltLaneIndex) -> GSymbol {
+        if (pSaltLaneIndex < 0 || pSaltLaneIndex >= 6) {
+            printf("fatal: CSPKDF::Bake invalid salt lane=%d\n",
+                   pSaltLaneIndex);
+            exit(0);
+        }
+        return aSaltLanes[pSaltLaneIndex];
+    };
+
+    auto PlugKeySymbolForLane = [&](int pSaltLaneIndex) -> GSymbol {
+        if (pSaltLaneIndex < 0 || pSaltLaneIndex >= 6) {
+            printf("fatal: CSPKDF::Bake invalid plug-key lane=%d\n",
+                   pSaltLaneIndex);
+            exit(0);
+        }
+        return aPlugKeyLanes[pSaltLaneIndex];
     };
     
     auto MakeLoopKeyExpr = [&](const GARXDatum &pDatum) -> GExpr {
@@ -251,7 +571,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
             exit(0);
         }
 
-        GSymbol aSalt = DomainSaltSymbol(pDatum.mSaltDomain);
+        GSymbol aSalt = SaltLaneSymbol(pDatum.mSaltLaneIndex);
 
         return GQuick::MakeReadBufferOffsetExpressionDirected(
             aSalt,
@@ -267,8 +587,8 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
             pDatum.mPlugTypeB == GARXType::kInv ||
             pDatum.mRotationAmount < 0 ||
             pDatum.mOffsetAmount < 0) {
-            printf("fatal: CSPKDF::Bake invalid plug datum domain=%s typeA=%s typeB=%s rot=%d off=%d\n",
-                   GARXSkeleton::GetSaltDomainName(pDatum.mSaltDomain),
+            printf("fatal: CSPKDF::Bake invalid plug datum lane=%d typeA=%s typeB=%s rot=%d off=%d\n",
+                   pDatum.mSaltLaneIndex,
                    GARXSkeleton::GetTypeName(pDatum.mPlugTypeA),
                    GARXSkeleton::GetTypeName(pDatum.mPlugTypeB),
                    pDatum.mRotationAmount,
@@ -276,8 +596,8 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
             exit(0);
         }
         
-        GSymbol aSalt = DomainSaltSymbol(pDatum.mSaltDomain);
-        GSymbol aPlugKey = PlugKeySymbolForDomain(pDatum.mSaltDomain);
+        GSymbol aSalt = SaltLaneSymbol(pDatum.mSaltLaneIndex);
+        GSymbol aPlugKey = PlugKeySymbolForLane(pDatum.mSaltLaneIndex);
         
         return GQuickARX::PlugSaltRead(aSalt, aPlugKey, pDatum.mOffsetAmount);
     };
@@ -289,13 +609,8 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                 return GQuickARX::MaybeRotL64(TypeExpr(pDatum.mType), pDatum.mRotationAmount);
             case GARXDatumKind::kLoopKey:
                 return MakeLoopKeyExpr(pDatum);
-            case GARXDatumKind::kPlugKey: {
-                auto aFound = aPlugSaltByDatum.find(&pDatum);
-                if (aFound != aPlugSaltByDatum.end()) {
-                    return GExpr::Symbol(aFound->second);
-                }
+            case GARXDatumKind::kPlugKey:
                 return MakePlugKeyExpr(pDatum);
-            }
             case GARXDatumKind::kHotAdd:
                 return GQuickARX::HotAdd(pHotPack, pHotIndex);
             case GARXDatumKind::kHotMul:
@@ -319,8 +634,8 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                 aDatum.mPlugTypeB == GARXType::kInv ||
                 aDatum.mRotationAmount < 0 ||
                 aDatum.mOffsetAmount < 0) {
-                printf("fatal: CSPKDF::Bake invalid plug datum domain=%s typeA=%s typeB=%s rot=%d off=%d\n",
-                       GARXSkeleton::GetSaltDomainName(aDatum.mSaltDomain),
+                printf("fatal: CSPKDF::Bake invalid plug datum lane=%d typeA=%s typeB=%s rot=%d off=%d\n",
+                       aDatum.mSaltLaneIndex,
                        GARXSkeleton::GetTypeName(aDatum.mPlugTypeA),
                        GARXSkeleton::GetTypeName(aDatum.mPlugTypeB),
                        aDatum.mRotationAmount,
@@ -328,8 +643,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                 exit(0);
             }
             
-            GSymbol aSalt = DomainSaltSymbol(aDatum.mSaltDomain);
-            GSymbol aPlugKey = PlugKeySymbolForDomain(aDatum.mSaltDomain);
+            GSymbol aPlugKey = PlugKeySymbolForLane(aDatum.mSaltLaneIndex);
             
             GExpr aTermA = RotTypeExpr(aDatum.mPlugTypeA,
                                        aDatum.mRotationAmount);
@@ -340,17 +654,6 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                     aPlugKey,
                     GQuickARX::Diffuse(GExpr::Xor(aTermA, aTermB),
                                        RandomDiffuseKind())
-                )
-            );
-            
-            const GSymbol aPlugSalt = MakePlugSaltSymbol();
-            aPlugSaltByDatum[&aDatum] = aPlugSalt;
-            pStatements->push_back(
-                GQuick::MakeAssignVariableStatement(
-                    aPlugSalt,
-                    GQuickARX::PlugSaltRead(aSalt,
-                                            aPlugKey,
-                                            aDatum.mOffsetAmount)
                 )
             );
         }
@@ -371,29 +674,13 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         if (pTerms.empty()) {
             return false;
         }
-        
-        std::size_t aStartIndex = 0U;
-        if ((pTerms[0].mType == GExprType::kSymbol) &&
-            (pTerms[0].mSymbol == pTarget)) {
-            aStartIndex = 1U;
-        } else {
-            pStatements->push_back(
-                GQuick::MakeAssignVariableStatement(
-                    pTarget,
-                    pTerms[0]
-                )
-            );
-            aStartIndex = 1U;
-        }
-        
-        for (std::size_t i = aStartIndex; i < pTerms.size(); ++i) {
-            pStatements->push_back(
-                GQuick::MakeAssignVariableStatement(
-                    pTarget,
-                    GExpr::Add(GExpr::Symbol(pTarget), pTerms[i])
-                )
-            );
-        }
+
+        pStatements->push_back(
+            GQuick::MakeAssignVariableStatement(
+                pTarget,
+                GQuick::AddChain(pTerms)
+            )
+        );
         
         return true;
     };
@@ -419,7 +706,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         return !pSymbol.IsInvalid();
     };
 
-    auto MakeScatterExpr = [&](const GARXBlendPlan &pScatterPlan,
+    auto MakeScatterExpr = [&](const GARXBlendInputPlan &pScatterPlan,
                                GSymbol pComponentA,
                                GSymbol pComponentB,
                                GSymbol pComponentC,
@@ -501,7 +788,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
 
     auto EmitIngressStatements = [&]() {
         auto EmitIngressLane = [&](const GSymbol pTarget,
-                                   const GARXBlendPlan &pBlendPlan,
+                                   const GARXBlendInputPlan &pBlendPlan,
                                    const GExpr &pSourceA,
                                    const GExpr &pSourceB,
                                    const GExpr &pSourceC,
@@ -572,6 +859,32 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
     auto EmitSeeds = [&]() -> bool {
         
         std::size_t aSeedHotIndex = 0;
+
+        for (GARXStatementGroup *aGroup: pPassPlan->mGroups) {
+            if (aGroup == nullptr) {
+                printf("fatal: CSPKDF::Bake null group in seed walk\n");
+                exit(0);
+            }
+
+            if (aGroup->mGroupType != GARXGroupType::kSeed) {
+                continue;
+            }
+
+            for (GARXStatementPlan *aStatement: aGroup->mStatements) {
+                if (aStatement == nullptr) {
+                    printf("fatal: CSPKDF::Bake null statement in seed group\n");
+                    exit(0);
+                }
+
+                if (aStatement->mStatementType != GARXStatementType::kRoundSeed) {
+                    printf("fatal: CSPKDF::Bake unexpected statement in seed group: %s\n",
+                           GARXSkeleton::GetStatementKindName(aStatement->mStatementType));
+                    exit(0);
+                }
+
+                EmitPlugPrepForStatement(*aStatement);
+            }
+        }
         
         for (GARXStatementGroup *aGroup: pPassPlan->mGroups) {
             if (aGroup == nullptr) {
@@ -594,7 +907,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                            GARXSkeleton::GetStatementKindName(aStatement->mStatementType));
                     exit(0);
                 }
-                
+
                 EmitAssignStatement(*aStatement, aSeedHotIndex);
                 aSeedHotIndex++;
             }
@@ -718,6 +1031,32 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
     auto EmitUnwind = [&]() -> bool {
         
         std::size_t aUnwindHotIndex = 18;
+
+        for (GARXStatementGroup *aGroup: pPassPlan->mGroups) {
+            if (aGroup == nullptr) {
+                printf("fatal: CSPKDF::Bake null group in unwind walk\n");
+                exit(0);
+            }
+
+            if (aGroup->mGroupType != GARXGroupType::kUnwind) {
+                continue;
+            }
+
+            for (GARXStatementPlan *aStatement: aGroup->mStatements) {
+                if (aStatement == nullptr) {
+                    printf("fatal: CSPKDF::Bake null statement in unwind group\n");
+                    exit(0);
+                }
+
+                if (aStatement->mStatementType != GARXStatementType::kUnwind) {
+                    printf("fatal: CSPKDF::Bake unexpected statement in unwind group: %s\n",
+                           GARXSkeleton::GetStatementKindName(aStatement->mStatementType));
+                    exit(0);
+                }
+
+                EmitPlugPrepForStatement(*aStatement);
+            }
+        }
         
         for (GARXStatementGroup *aGroup: pPassPlan->mGroups) {
             if (aGroup == nullptr) {
@@ -740,7 +1079,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                            GARXSkeleton::GetStatementKindName(aStatement->mStatementType));
                     exit(0);
                 }
-                
+
                 EmitAssignStatement(*aStatement, aUnwindHotIndex);
                 aUnwindHotIndex++;
             }
@@ -906,4 +1245,162 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
     EmitCarryStatement();
 
     return true;
+}
+
+bool CSPKDF2::Bake(GMoxPassPlan *pPassPlan,
+                   
+                   GSymbol pDest,
+                   bool pDestWriteInverted,
+                   
+                   GSymbol pLoopIndex,
+                   
+                   GExpr pPublicIngressSourceA,
+                   GExpr pPublicIngressSourceB,
+                   GExpr pPublicIngressSourceC,
+                   GExpr pPublicIngressSourceD,
+                   GExpr pPrivateIngressSourceA,
+                   GExpr pPrivateIngressSourceB,
+                   GExpr pPrivateIngressSourceC,
+                   GExpr pPrivateIngressSourceD,
+                   GExpr pCrossIngressSourceA,
+                   GExpr pCrossIngressSourceB,
+                   GExpr pCrossIngressSourceC,
+                   GExpr pCrossIngressSourceD,
+                   
+                   GExpr pPublicIngressDomainWord,
+                   GExpr pPrivateIngressDomainWord,
+                   GExpr pCrossIngressDomainWord,
+                   
+                   GSymbol pStreamCurrent,
+                   GSymbol pStreamPrevious,
+                   GSymbol pStreamScatter,
+                   GSymbol pStreamCross,
+                   
+                   GSymbol pStreamScatterComponentA,
+                   GSymbol pStreamScatterComponentB,
+                   GSymbol pStreamScatterComponentC,
+                   GSymbol pStreamScatterComponentD,
+                   
+                   GSymbol pSecretCurrent,
+                   GSymbol pSecretPrevious,
+                   GSymbol pSecretScatter,
+                   GSymbol pSecretWrite,
+                   
+                   GSymbol pSecretScatterComponentA,
+                   GSymbol pSecretScatterComponentB,
+                   GSymbol pSecretScatterComponentC,
+                   GSymbol pSecretScatterComponentD,
+                   
+                   GSymbol pCarry,
+                   
+                   GSymbol pUnwindA,
+                   GSymbol pUnwindB,
+                   GSymbol pUnwindC,
+                   GSymbol pUnwindD,
+                   GSymbol pUnwindE,
+                   GSymbol pUnwindF,
+                   
+                   GSymbol pOrbiterA,
+                   GSymbol pOrbiterB,
+                   GSymbol pOrbiterC,
+                   GSymbol pOrbiterD,
+                   GSymbol pOrbiterE,
+                   GSymbol pOrbiterF,
+
+                   TwistDomainSeedRoundMaterial *pMatsUnwind,
+                   TwistDomainSeedRoundMaterial *pMatsOrbiter,
+                   TwistDomainSeedRoundMaterial *pMatsOrbiterInit,
+                   
+                   GSymbol pPlugKeyA,
+                   GSymbol pPlugKeyB,
+                   GSymbol pPlugKeyC,
+                   GSymbol pPlugKeyD,
+                   GSymbol pPlugKeyE,
+                   GSymbol pPlugKeyF,
+                   
+                   std::vector<GSymbol> pSBoxes,
+                   
+                   GHotPack pHotPack,
+                   
+                   std::vector<GStatement> *pStatements,
+                   std::string *pErrorMessage) {
+    if (pErrorMessage != nullptr) {
+        pErrorMessage->clear();
+    }
+    if (pPassPlan == nullptr) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "CSPKDF2::Bake received null GMoxPassPlan";
+        }
+        return false;
+    }
+
+    GARXPassPlan aGARXPassPlan;
+    if (!BuildGARXPassPlanFromGMox(pPassPlan, &aGARXPassPlan, pErrorMessage)) {
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "CSPKDF2::Bake failed to build GARX compatibility pass";
+        }
+        return false;
+    }
+
+    return CSPKDF::Bake(&aGARXPassPlan,
+                        pDest,
+                        pDestWriteInverted,
+                        pLoopIndex,
+                        pPublicIngressSourceA,
+                        pPublicIngressSourceB,
+                        pPublicIngressSourceC,
+                        pPublicIngressSourceD,
+                        pPrivateIngressSourceA,
+                        pPrivateIngressSourceB,
+                        pPrivateIngressSourceC,
+                        pPrivateIngressSourceD,
+                        pCrossIngressSourceA,
+                        pCrossIngressSourceB,
+                        pCrossIngressSourceC,
+                        pCrossIngressSourceD,
+                        pPublicIngressDomainWord,
+                        pPrivateIngressDomainWord,
+                        pCrossIngressDomainWord,
+                        pStreamCurrent,
+                        pStreamPrevious,
+                        pStreamScatter,
+                        pStreamCross,
+                        pStreamScatterComponentA,
+                        pStreamScatterComponentB,
+                        pStreamScatterComponentC,
+                        pStreamScatterComponentD,
+                        pSecretCurrent,
+                        pSecretPrevious,
+                        pSecretScatter,
+                        pSecretWrite,
+                        pSecretScatterComponentA,
+                        pSecretScatterComponentB,
+                        pSecretScatterComponentC,
+                        pSecretScatterComponentD,
+                        pCarry,
+                        pUnwindA,
+                        pUnwindB,
+                        pUnwindC,
+                        pUnwindD,
+                        pUnwindE,
+                        pUnwindF,
+                        pOrbiterA,
+                        pOrbiterB,
+                        pOrbiterC,
+                        pOrbiterD,
+                        pOrbiterE,
+                        pOrbiterF,
+                        pMatsUnwind,
+                        pMatsOrbiter,
+                        pMatsOrbiterInit,
+                        pPlugKeyA,
+                        pPlugKeyB,
+                        pPlugKeyC,
+                        pPlugKeyD,
+                        pPlugKeyE,
+                        pPlugKeyF,
+                        pSBoxes,
+                        pHotPack,
+                        pStatements,
+                        pErrorMessage);
 }

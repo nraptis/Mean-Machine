@@ -25,48 +25,48 @@ static void AppendBackwardRoundSix(GARXSkeletonPass *pRound) {
     const GARXSkeletonForwardRound &aForward5 = pRound->mForward[5];
     
     GARXSkeletonBackwardRound aBackward0(
-        GARXUnwindShape::kCurrentPreviousRound,
-        GARXType::kStateA,
+        GARXUnwindShape::kCurrentPreviousOrbiter,
+        GARXType::kUnwindA,
                                          GARXType::kSecretCurrent,
                                          GARXType::kSecretPrevious,
         aForward0.mFeedback
     );
     
     GARXSkeletonBackwardRound aBackward1(
-        GARXUnwindShape::kCurrentCrossRound,
-        GARXType::kStateB,
+        GARXUnwindShape::kCurrentCrossOrbiter,
+        GARXType::kUnwindB,
         GARXType::kSecretCurrent,
         GARXType::kSecretScatter,
         aForward1.mLead
     );
     
     GARXSkeletonBackwardRound aBackward2(
-        GARXUnwindShape::kRoundPair,
-        GARXType::kStateC,
+        GARXUnwindShape::kOrbiterPair,
+        GARXType::kUnwindC,
         aForward2.mSource,
         aForward2.mFeedback,
         GARXType::kInv
     );
     
     GARXSkeletonBackwardRound aBackward3(
-        GARXUnwindShape::kCurrentPreviousRound,
-        GARXType::kStateD,
+        GARXUnwindShape::kCurrentPreviousOrbiter,
+        GARXType::kUnwindD,
         GARXType::kSecretCurrent,
         GARXType::kSecretPrevious,
         aForward3.mFeedback
     );
     
     GARXSkeletonBackwardRound aBackward4(
-        GARXUnwindShape::kCurrentCrossRound,
-        GARXType::kStateE,
+        GARXUnwindShape::kCurrentCrossOrbiter,
+        GARXType::kUnwindE,
         GARXType::kSecretCurrent,
         GARXType::kSecretScatter,
         aForward4.mLead
     );
     
     GARXSkeletonBackwardRound aBackward5(
-        GARXUnwindShape::kRoundPair,
-        GARXType::kStateF,
+        GARXUnwindShape::kOrbiterPair,
+        GARXType::kUnwindF,
         aForward5.mLead,
         aForward5.mSource,
         GARXType::kInv
@@ -103,14 +103,12 @@ GARXSkeletonBackwardRound::GARXSkeletonBackwardRound() {
     mInputC = GARXType::kInv;
 }
 
-
 GARXSkeletonBackwardRound::GARXSkeletonBackwardRound(GARXUnwindShape pShape,
                                                      GARXType pTarget,
                                                      GARXType pInputA,
                                                      GARXType pInputB,
                                                      GARXType pInputC) {
     mShape = pShape;
-    
     mTarget = pTarget;
     mInputA = pInputA;
     mInputB = pInputB;
@@ -131,12 +129,12 @@ GARXSkeleton::GARXSkeleton() {
         GARXSkeletonPass aRound;
         aRound.mPattern = GARXSkeletonPattern::kRingForward;
         
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundA, GARXType::kRoundB, GARXType::kRoundD));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundB, GARXType::kRoundC, GARXType::kRoundE));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundC, GARXType::kRoundD, GARXType::kRoundF));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundD, GARXType::kRoundE, GARXType::kRoundA));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundE, GARXType::kRoundF, GARXType::kRoundB));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundF, GARXType::kRoundA, GARXType::kRoundC));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterA, GARXType::kOrbiterB, GARXType::kOrbiterD));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterB, GARXType::kOrbiterC, GARXType::kOrbiterE));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterC, GARXType::kOrbiterD, GARXType::kOrbiterF));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterD, GARXType::kOrbiterE, GARXType::kOrbiterA));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterE, GARXType::kOrbiterF, GARXType::kOrbiterB));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterF, GARXType::kOrbiterA, GARXType::kOrbiterC));
         
         AppendBackwardRoundSix(&aRound);
         
@@ -150,12 +148,12 @@ GARXSkeleton::GARXSkeleton() {
         GARXSkeletonPass aRound;
         aRound.mPattern = GARXSkeletonPattern::kStride2Lead;
         
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundA, GARXType::kRoundB, GARXType::kRoundD));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundC, GARXType::kRoundD, GARXType::kRoundF));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundE, GARXType::kRoundF, GARXType::kRoundB));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundB, GARXType::kRoundC, GARXType::kRoundE));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundD, GARXType::kRoundE, GARXType::kRoundA));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundF, GARXType::kRoundA, GARXType::kRoundC));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterA, GARXType::kOrbiterB, GARXType::kOrbiterD));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterC, GARXType::kOrbiterD, GARXType::kOrbiterF));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterE, GARXType::kOrbiterF, GARXType::kOrbiterB));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterB, GARXType::kOrbiterC, GARXType::kOrbiterE));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterD, GARXType::kOrbiterE, GARXType::kOrbiterA));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterF, GARXType::kOrbiterA, GARXType::kOrbiterC));
         
         AppendBackwardRoundSix(&aRound);
         
@@ -169,12 +167,12 @@ GARXSkeleton::GARXSkeleton() {
         GARXSkeletonPass aRound;
         aRound.mPattern = GARXSkeletonPattern::kReverseRing;
         
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundA, GARXType::kRoundF, GARXType::kRoundD));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundF, GARXType::kRoundE, GARXType::kRoundC));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundE, GARXType::kRoundD, GARXType::kRoundB));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundD, GARXType::kRoundC, GARXType::kRoundA));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundC, GARXType::kRoundB, GARXType::kRoundF));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundB, GARXType::kRoundA, GARXType::kRoundE));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterA, GARXType::kOrbiterF, GARXType::kOrbiterD));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterF, GARXType::kOrbiterE, GARXType::kOrbiterC));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterE, GARXType::kOrbiterD, GARXType::kOrbiterB));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterD, GARXType::kOrbiterC, GARXType::kOrbiterA));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterC, GARXType::kOrbiterB, GARXType::kOrbiterF));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterB, GARXType::kOrbiterA, GARXType::kOrbiterE));
         
         AppendBackwardRoundSix(&aRound);
         
@@ -188,12 +186,12 @@ GARXSkeleton::GARXSkeleton() {
         GARXSkeletonPass aRound;
         aRound.mPattern = GARXSkeletonPattern::kLongCross;
         
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundA, GARXType::kRoundD, GARXType::kRoundF));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundB, GARXType::kRoundE, GARXType::kRoundA));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundC, GARXType::kRoundF, GARXType::kRoundB));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundD, GARXType::kRoundA, GARXType::kRoundC));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundE, GARXType::kRoundB, GARXType::kRoundD));
-        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kRoundF, GARXType::kRoundC, GARXType::kRoundE));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterA, GARXType::kOrbiterD, GARXType::kOrbiterF));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterB, GARXType::kOrbiterE, GARXType::kOrbiterA));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterC, GARXType::kOrbiterF, GARXType::kOrbiterB));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterD, GARXType::kOrbiterA, GARXType::kOrbiterC));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterE, GARXType::kOrbiterB, GARXType::kOrbiterD));
+        aRound.mForward.push_back(GARXSkeletonForwardRound(GARXType::kOrbiterF, GARXType::kOrbiterC, GARXType::kOrbiterE));
         
         AppendBackwardRoundSix(&aRound);
         
@@ -202,11 +200,11 @@ GARXSkeleton::GARXSkeleton() {
 }
 
 bool GARXSkeleton::IsRoundType(GARXType pType) {
-    return (pType >= GARXType::kRoundA) && (pType <= GARXType::kRoundH);
+    return (pType >= GARXType::kOrbiterA) && (pType <= GARXType::kOrbiterK);
 }
 
 bool GARXSkeleton::IsStateType(GARXType pType) {
-    return (pType >= GARXType::kStateA) && (pType <= GARXType::kStateH);
+    return (pType >= GARXType::kUnwindA) && (pType <= GARXType::kUnwindK);
 }
 
 bool GARXSkeleton::IsPlugVisibleType(GARXType pType) {
@@ -256,23 +254,29 @@ const char *GARXSkeleton::GetTypeName(GARXType pType) {
         case GARXType::kSecretScatter: return "secret_scatter";
         case GARXType::kCarry: return "carry";
             
-        case GARXType::kStateA: return "wanderer_a";
-        case GARXType::kStateB: return "wanderer_b";
-        case GARXType::kStateC: return "wanderer_c";
-        case GARXType::kStateD: return "wanderer_d";
-        case GARXType::kStateE: return "wanderer_e";
-        case GARXType::kStateF: return "wanderer_f";
-        case GARXType::kStateG: return "wanderer_g";
-        case GARXType::kStateH: return "wanderer_h";
+        case GARXType::kUnwindA: return "wanderer_a";
+        case GARXType::kUnwindB: return "wanderer_b";
+        case GARXType::kUnwindC: return "wanderer_c";
+        case GARXType::kUnwindD: return "wanderer_d";
+        case GARXType::kUnwindE: return "wanderer_e";
+        case GARXType::kUnwindF: return "wanderer_f";
+        case GARXType::kUnwindG: return "wanderer_g";
+        case GARXType::kUnwindH: return "wanderer_h";
+        case GARXType::kUnwindI: return "wanderer_i";
+        case GARXType::kUnwindJ: return "wanderer_j";
+        case GARXType::kUnwindK: return "wanderer_k";
 
-        case GARXType::kRoundA: return "orbiter_a";
-        case GARXType::kRoundB: return "orbiter_b";
-        case GARXType::kRoundC: return "orbiter_c";
-        case GARXType::kRoundD: return "orbiter_d";
-        case GARXType::kRoundE: return "orbiter_e";
-        case GARXType::kRoundF: return "orbiter_f";
-        case GARXType::kRoundG: return "orbiter_g";
-        case GARXType::kRoundH: return "orbiter_h";
+        case GARXType::kOrbiterA: return "orbiter_a";
+        case GARXType::kOrbiterB: return "orbiter_b";
+        case GARXType::kOrbiterC: return "orbiter_c";
+        case GARXType::kOrbiterD: return "orbiter_d";
+        case GARXType::kOrbiterE: return "orbiter_e";
+        case GARXType::kOrbiterF: return "orbiter_f";
+        case GARXType::kOrbiterG: return "orbiter_g";
+        case GARXType::kOrbiterH: return "orbiter_h";
+        case GARXType::kOrbiterI: return "orbiter_i";
+        case GARXType::kOrbiterJ: return "orbiter_j";
+        case GARXType::kOrbiterK: return "orbiter_k";
             
         default:
             return "invalid";
@@ -301,17 +305,5 @@ const char *GARXSkeleton::GetDatumKindName(GARXDatumKind pKind) {
         case GARXDatumKind::kHotMul: return "hot_mul";
         default:
             return "invalid";
-    }
-}
-
-const char *GARXSkeleton::GetSaltDomainName(GARXSaltDomain pDomain) {
-    switch (pDomain) {
-        case GARXSaltDomain::kInitA: return "init_a";
-        case GARXSaltDomain::kInitB: return "init_b";
-        case GARXSaltDomain::kPlugA: return "plug_a";
-        case GARXSaltDomain::kPlugB: return "plug_b";
-        case GARXSaltDomain::kUnwindA: return "unwind_a";
-        case GARXSaltDomain::kUnwindB: return "unwind_b";
-        default: return "invalid";
     }
 }

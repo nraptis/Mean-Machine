@@ -10,15 +10,21 @@
 
 
 static std::vector<int> cPlugRotations = {
-    7, 11, 13, 17,
-    19, 23, 29, 31,
-    37, 41, 43, 53
+    5, 7, 11, 13,
+    17, 19, 23, 29,
+    31, 37, 41, 43,
+    47, 53, 59, 61,
+    3, 9, 15, 21,
+    27, 33, 39, 45
 };
 
 static std::vector<int> cPlugOffsets = {
-    1, 3, 5, 7,
-    9, 11, 13, 15,
-    17, 19, 23, 29
+    1, 2, 3, 4,
+    5, 6, 7, 8,
+    9, 10, 11, 12,
+    13, 14, 15, 16,
+    17, 18, 19, 20,
+    21, 23, 25, 29
 };
 
 //
@@ -103,22 +109,21 @@ static bool AssignPlugPairs(std::vector<GARXStatementGroup *> &pGroups,
                             std::vector<int> &pOffsets) {
     
     int aPlugSlotCount = CountPlugSlots(pGroups);
+    const std::size_t aPlugSlotCountU = static_cast<std::size_t>(aPlugSlotCount);
     
-    if (aPlugSlotCount != pPairs.size()) {
-        printf("Plug assignment failed: slots=%d pairs=%zu\n",
-               aPlugSlotCount,
-               pPairs.size());
+    if (pPairs.empty()) {
+        printf("Plug assignment failed: empty pair pool\n");
         return false;
     }
     
-    if (aPlugSlotCount != pRotations.size()) {
+    if (aPlugSlotCountU > pRotations.size()) {
         printf("Plug rotation assignment failed: slots=%d rotations=%zu\n",
                aPlugSlotCount,
                pRotations.size());
         return false;
     }
 
-    if (aPlugSlotCount != pOffsets.size()) {
+    if (aPlugSlotCountU > pOffsets.size()) {
         printf("Plug offset assignment failed: slots=%d offsets=%zu\n",
                aPlugSlotCount,
                pOffsets.size());
@@ -131,12 +136,14 @@ static bool AssignPlugPairs(std::vector<GARXStatementGroup *> &pGroups,
         for (GARXStatementPlan *aStatement: aGroup->mStatements) {
             for (GARXDatum &aDatum: aStatement->mDatums) {
                 if (aDatum.mKind == GARXDatumKind::kPlugKey) {
-                    if (aPlugIndex >= pPairs.size()) {
+                    if (aPlugIndex >= pRotations.size() ||
+                        aPlugIndex >= pOffsets.size()) {
                         return false;
                     }
-                    
-                    aDatum.mPlugTypeA = pPairs[aPlugIndex].mTypeA;
-                    aDatum.mPlugTypeB = pPairs[aPlugIndex].mTypeB;
+
+                    const GARXTypePair &aPair = pPairs[aPlugIndex % pPairs.size()];
+                    aDatum.mPlugTypeA = aPair.mTypeA;
+                    aDatum.mPlugTypeB = aPair.mTypeB;
                     aDatum.mRotationAmount = pRotations[aPlugIndex];
                     aDatum.mOffsetAmount = pOffsets[aPlugIndex];
                     
@@ -146,16 +153,10 @@ static bool AssignPlugPairs(std::vector<GARXStatementGroup *> &pGroups,
         }
     }
     
-    return (aPlugIndex == pPairs.size());
+    return (aPlugIndex == aPlugSlotCountU);
 }
 
-GARXPlugMapper::GARXPlugMapper(std::vector<GARXStatementGroup *> pStatementGroups) {
-    for (GARXStatementGroup *aGroup: pStatementGroups) {
-        mStatementGroups.push_back(aGroup);
-    }
-}
-
-bool GARXPlugMapper::AttemptAssignment() {
+bool GARXAssignPlugs(std::vector<GARXStatementGroup *> &pStatementGroups) {
     
     std::vector<GARXTypePair> aPlugPairs = MakePlugPairPool();
     std::vector<int> aPlugRotations = cPlugRotations;
@@ -165,7 +166,7 @@ bool GARXPlugMapper::AttemptAssignment() {
     Random::Shuffle(&aPlugRotations);
     Random::Shuffle(&aPlugOffsets);
     
-    if (AssignPlugPairs(mStatementGroups, aPlugPairs, aPlugRotations, aPlugOffsets) == false) {
+    if (AssignPlugPairs(pStatementGroups, aPlugPairs, aPlugRotations, aPlugOffsets) == false) {
         return false;
     }
     

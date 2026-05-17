@@ -17,6 +17,8 @@ public:
     
     static void                         Execute256(std::size_t *pIndexList256,
                                                    const std::uint8_t *pBlockSizedEntropySource);
+    static void                         Execute256(std::size_t *pIndexList256,
+                                                   const std::size_t *pIndexEntropySource);
     
 };
 

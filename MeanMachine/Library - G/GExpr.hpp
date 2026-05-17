@@ -98,6 +98,7 @@ public:
     GExpr();
     
     static GExpr                        Symbol(const GSymbol &pSymbol);
+    static GExpr                        Const(std::uint64_t pVal);
     static GExpr                        Const8(int pVal);
     static GExpr                        Const32(int pVal);
     static GExpr                        Const64(std::uint64_t pVal);

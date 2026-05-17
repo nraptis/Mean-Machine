@@ -14,7 +14,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <string>
 #include <vector>
 
 enum class TwistFastMatrixUnrollScheme : std::uint8_t {
@@ -213,7 +212,7 @@ public:
     TwistFastMatrix(const TwistFastMatrix &pMatrix);
     TwistFastMatrix();
     
-    std::uint8_t                                mDataBase[64];
+    std::uint8_t                                mData[64];
     
     void                                        LoadAndReset(const std::uint8_t *pSource);
     void                                        Store(std::uint8_t *pDest,
@@ -247,7 +246,6 @@ public:
     static std::string                          UnrollSchemeToken(TwistFastMatrixUnrollScheme pScheme);
     static bool                                 UnrollSchemeFromToken(const std::string &pToken,
                                                                       TwistFastMatrixUnrollScheme *pScheme);
-    
     
     void                                        ReverseRow(std::uint8_t pRow, std::uint8_t pArg2 = 0U);
     void                                        ReverseRowEven(std::uint8_t pRow, std::uint8_t pArg2 = 0U);

@@ -12,90 +12,7 @@
 #include <vector>
 #include <unordered_set>
 #include "GARXSkeleton.hpp"
-
-class GARXCrushPairPlan {
-public:
-    GARXCrushPairPlan();
-
-    GARXType mTypeA;
-    GARXType mTypeB;
-
-    bool mRotateA;
-    int mRotationAmount;
-
-};
-
-class GARXCrushPlan {
-public:
-    GARXCrushPlan();
-
-    GARXCrushPairPlan mPairA;
-    GARXCrushPairPlan mPairB;
-    GARXCrushPairPlan mPairC;
-};
-
-class GARXCarryPairPlan {
-public:
-    GARXCarryPairPlan();
-
-    GARXType mTypeA;
-    GARXType mTypeB;
-
-    bool mRotateA;
-    int mRotationAmount;
-};
-
-class GARXCarryPlan {
-public:
-    GARXCarryPlan();
-
-    GARXCarryPairPlan mPairA;
-    GARXCarryPairPlan mPairB;
-    GARXCarryPairPlan mPairC;
-
-    int mSecretCurrentRotation;
-    int mMulRotation;
-    int mShiftAmount;
-};
-
-class GARXBlendPlan {
-public:
-    GARXBlendPlan();
-
-    //GARXType mTypeA;
-    //GARXType mTypeB;
-    //GARXType mTypeC;
-    //GARXType mTypeD;
-
-    int mRotationA;
-    int mRotationB;
-    int mRotationC;
-    int mRotationD;
-};
-
-struct GARXDatum {
-public:
-    GARXDatum();
-    
-    GARXDatumKind                           mKind;
-    GARXType                                mType;
-    int                                     mOffsetAmount;
-    int                                     mRotationAmount;
-    GARXType                                mPlugTypeA;
-    GARXType                                mPlugTypeB;
-    bool                                    mIsLoopIndexInverted;
-    GARXSaltDomain                          mSaltDomain;
-    
-};
-
-enum class GARXGroupType : std::uint8_t {
-    kInv = 0,
-    kSeed = 1,
-    kForwardTriplet = 2,
-    kCrush = 3,
-    kUnwind = 4,
-    kCarry = 5
-};
+#include "GARXFormat.hpp"
 
 class GARXStatementPlan {
 public:
@@ -141,12 +58,12 @@ public:
     std::vector<GARXStatementPlan *>                mStatements;
     std::vector<GARXStatementGroup *>               mGroups;
     
-    GARXBlendPlan                                   mStreamInputBlend;
-    GARXBlendPlan                                   mSecretInputBlend;
-    GARXBlendPlan                                   mCrossInputBlend;
+    GARXBlendInputPlan                              mStreamInputBlend;
+    GARXBlendInputPlan                              mSecretInputBlend;
+    GARXBlendInputPlan                              mCrossInputBlend;
 
-    GARXBlendPlan                                   mStreamScatterBlend;
-    GARXBlendPlan                                   mSecretScatterBlend;
+    GARXBlendInputPlan                              mStreamScatterBlend;
+    GARXBlendInputPlan                              mSecretScatterBlend;
     
     GARXCrushPlan                                   mCrushPlan;
     GARXCarryPlan                                   mCarryPlan;
@@ -172,8 +89,9 @@ public:
     GARXPlan();
     ~GARXPlan();
     
+    const GARXFormat                              *mFormat;
     GARXSkeleton                                    mSkeleton;
-    std::vector<GARXPassPlan *>                         mPassPlans;
+    std::vector<GARXPassPlan *>                     mPassPlans;
     
     static bool                                     IsValid(GARXPlan *pPlan);
     static bool                                     Bake(GARXPlan *pPlan);

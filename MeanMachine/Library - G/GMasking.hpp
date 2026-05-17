@@ -140,12 +140,20 @@ private:
             case TwistWorkSpaceSlot::kSeedExpansionLaneB:
             case TwistWorkSpaceSlot::kSeedExpansionLaneC:
             case TwistWorkSpaceSlot::kSeedExpansionLaneD:
+            case TwistWorkSpaceSlot::kSeedExpansionLaneE:
+            case TwistWorkSpaceSlot::kSeedExpansionLaneF:
             case TwistWorkSpaceSlot::kWorkLaneA:
             case TwistWorkSpaceSlot::kWorkLaneB:
             case TwistWorkSpaceSlot::kWorkLaneC:
             case TwistWorkSpaceSlot::kWorkLaneD:
+            case TwistWorkSpaceSlot::kWorkLaneE:
+            case TwistWorkSpaceSlot::kWorkLaneF:
             case TwistWorkSpaceSlot::kOperationLaneA:
             case TwistWorkSpaceSlot::kOperationLaneB:
+            case TwistWorkSpaceSlot::kOperationLaneC:
+            case TwistWorkSpaceSlot::kOperationLaneD:
+            case TwistWorkSpaceSlot::kOperationLaneE:
+            case TwistWorkSpaceSlot::kOperationLaneF:
             case TwistWorkSpaceSlot::kMaskLaneA:
             case TwistWorkSpaceSlot::kMaskLaneB:
                 return true;
@@ -165,11 +173,12 @@ private:
             SetError(pErrorMessage, "GMasking mask symbol must be a buffer symbol.");
             return false;
         }
-        if (IsBlockSizedSlot(pMask.mSlot)) {
+        const TwistWorkSpaceSlot aMaskSlot = ResolveBufferSlot(pMask);
+        if (IsBlockSizedSlot(aMaskSlot)) {
             *pLengthToken = "S_BLOCK";
             return true;
         }
-        switch (pMask.mSlot) {
+        switch (aMaskSlot) {
             case TwistWorkSpaceSlot::kKeyRowReadA:
                 *pLengthToken = "W_KEY_A";
                 return true;
@@ -208,10 +217,10 @@ private:
         }
 
         const std::string aLine = "TwistMasking::MaskBraid(" + BraidToken(pType) + ", " +
-            BufAliasName(pSourceA.mSlot) + ", " +
-            BufAliasName(pSourceB.mSlot) + ", " +
+            BufAliasName(pSourceA) + ", " +
+            BufAliasName(pSourceB) + ", " +
             "S_BLOCK, " +
-            BufAliasName(pMask.mSlot) + ", " +
+            BufAliasName(pMask) + ", " +
             aMaskLengthToken + ");";
         pStatements->push_back(GStatement::RawLine(aLine));
         return true;
@@ -238,11 +247,11 @@ private:
         }
 
         const std::string aLine = "TwistMasking::MaskWeave(" + WeaveToken(pType) + ", " +
-            BufAliasName(pSourceA.mSlot) + ", " +
-            BufAliasName(pSourceB.mSlot) + ", " +
-            BufAliasName(pDest.mSlot) + ", " +
+            BufAliasName(pSourceA) + ", " +
+            BufAliasName(pSourceB) + ", " +
+            BufAliasName(pDest) + ", " +
             "S_BLOCK, " +
-            BufAliasName(pMask.mSlot) + ", " +
+            BufAliasName(pMask) + ", " +
             aMaskLengthToken + ");";
         pStatements->push_back(GStatement::RawLine(aLine));
         return true;

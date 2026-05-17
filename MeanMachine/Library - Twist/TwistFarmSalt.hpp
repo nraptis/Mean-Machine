@@ -43,15 +43,6 @@ class TwistFarmSalt {
 public:
     TwistFarmSalt();
     
-    void Reset();
-    
-    // We try to get to pTargetCount passing salt grading.
-    // if we failed, we return false.
-    bool TillBytes(const std::uint8_t *pSource,
-                   const std::uint8_t *pSnow,
-                   std::uint64_t pTargetCount);
-    
-    
     void                    Derive(const std::uint8_t *pSource,
                                    std::uint64_t *pSaltA,
                                    std::uint64_t *pSaltB,
@@ -59,6 +50,10 @@ public:
                                    std::uint64_t *pSaltD,
                                    std::uint64_t *pSaltE,
                                    std::uint64_t *pSaltF);
+    void                    Derive(const std::uint8_t *pSource,
+                                   TwistDomainSeedRoundMaterial *pRoundMaterial);
+    void                    Derive(const std::uint8_t *pSource,
+                                   TwistDomainRoundMaterial *pRoundMaterial);
 
     std::uint64_t           *mCandidateSalt[SALT_CANDIDATE_COUNT];
     std::uint64_t           mCandidateSaltFlat[SALT_CANDIDATE_COUNT * S_SALT];
@@ -68,26 +63,9 @@ public:
     std::uint64_t           *mFillSalt[SALT_CANDIDATE_COUNT];
     
     
-    
-    std::uint64_t mSalt[1024][S_SALT];
-    std::uint64_t mScore[1024];
-    std::uint64_t mCount;
-    
 private:
     
     TwistCryptoScoring                  mAnalyzer;
-    
-    static constexpr std::uint64_t kCapacity = 1024ULL;
-    
-    
-    void BuildCandidate(const std::uint8_t *pSource,
-                        const std::uint8_t *pSnow,
-                        std::uint32_t pCandidateIndex);
-    
-    int ComputeNearestDistance(const std::uint64_t *pCandidate);
-    
-    bool AppendAccepted(const std::uint64_t *pCandidate,
-                        std::uint64_t pScore);
     
 };
 

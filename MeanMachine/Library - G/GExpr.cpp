@@ -214,6 +214,10 @@ std::string ExprKeyInner(const GExpr &pExpr) {
                 return "sym:var:" + pExpr.mSymbol.mName;
             }
             if (pExpr.mSymbol.IsBuf()) {
+                const TwistBufferKey aKey = ResolveBufferKey(pExpr.mSymbol);
+                if (aKey.IsValid()) {
+                    return "sym:buf:key:" + BufName(aKey);
+                }
                 return "sym:buf:" + std::to_string(static_cast<int>(pExpr.mSymbol.mSlot));
             }
             return "sym:invalid";
@@ -279,6 +283,10 @@ GExpr GExpr::Symbol(const GSymbol &pSymbol) {
     aExpr.mType = GExprType::kSymbol;
     aExpr.mSymbol = pSymbol;
     return aExpr;
+}
+
+GExpr GExpr::Const(std::uint64_t pVal) {
+    return Const64(pVal);
 }
 
 GExpr GExpr::Const8(int pVal) {

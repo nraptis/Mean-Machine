@@ -16,6 +16,7 @@
 #include "GMagicNumbers.hpp"
 #include "GFamily.hpp"
 #include "CSPKDF.hpp"
+#include <string>
 
 class GSeedRunKDF {
 public:
@@ -41,12 +42,12 @@ public:
     GSymbol                                 mStreamCross;
     GSymbol                                 mCarry;
 
-    GSymbol                                 mWandererA;
-    GSymbol                                 mWandererB;
-    GSymbol                                 mWandererC;
-    GSymbol                                 mWandererD;
-    GSymbol                                 mWandererE;
-    GSymbol                                 mWandererF;
+    GSymbol                                 mUnwindA;
+    GSymbol                                 mUnwindB;
+    GSymbol                                 mUnwindC;
+    GSymbol                                 mUnwindD;
+    GSymbol                                 mUnwindE;
+    GSymbol                                 mUnwindF;
 
     GSymbol                                 mOrbiterA;
     GSymbol                                 mOrbiterB;
@@ -57,15 +58,11 @@ public:
 
     GSymbol                                 mPlugKeyA;
     GSymbol                                 mPlugKeyB;
+    GSymbol                                 mPlugKeyC;
+    GSymbol                                 mPlugKeyD;
+    GSymbol                                 mPlugKeyE;
+    GSymbol                                 mPlugKeyF;
 
-    // Defaults to Source-domain salts, but callers can override before Build().
-    GSymbol                                 mDomainSaltA;
-    GSymbol                                 mDomainSaltB;
-    GSymbol                                 mDomainSaltC;
-    GSymbol                                 mDomainSaltD;
-    GSymbol                                 mDomainSaltE;
-    GSymbol                                 mDomainSaltF;
-    
     GSymbol                                 mPublicIngressDomainWord;
     GSymbol                                 mPrivateIngressDomainWord;
     GSymbol                                 mCrossIngressDomainWord;
@@ -74,9 +71,9 @@ private:
     void                                    Reset();
 
     std::vector<GSymbol>                    mListSBoxes;
-    std::vector<GSymbol>                    mListWorldSalts;
     std::vector<GSymbol>                    mListWorkers;
     std::vector<GSymbol>                    mListOpLanes;
+    std::vector<GSymbol>                    mListExpanders;
     
     GHotPack                                mHotPack;
     

@@ -12,69 +12,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
-
-enum class GARXType : std::uint8_t {
-    kInv = 0,
-
-    kStreamCurrent = 1,
-    kStreamPrevious = 2,
-    kStreamScatter = 3,
-    kStreamCross = 4,
-
-    kSecretCurrent = 5,
-    kSecretPrevious = 6,
-    kSecretScatter = 7,
-    kCarry = 8,
-
-    kStateA = 10,
-    kStateB = 11,
-    kStateC = 12,
-    kStateD = 13,
-    kStateE = 14,
-    kStateF = 15,
-    kStateG = 16,
-    kStateH = 17,
-
-    kRoundA = 20,
-    kRoundB = 21,
-    kRoundC = 22,
-    kRoundD = 23,
-    kRoundE = 24,
-    kRoundF = 25,
-    kRoundG = 26,
-    kRoundH = 27
-};
-
-enum class GARXSaltDomain : std::uint8_t {
-    kInv = 0,
-
-    kInitA = 1,
-    kInitB = 2,
-
-    kPlugA = 3,
-    kPlugB = 4,
-
-    kUnwindA = 5,
-    kUnwindB = 6
-};
-
-struct GARXTypePair {
-    GARXType mTypeA;
-    GARXType mTypeB;
-};
-
-struct GARXTypeHash {
-    std::size_t operator()(GARXType pType) const { return static_cast<std::size_t>(pType); }
-};
-
-enum class GARXDatumKind : std::uint8_t {
-    kInv = 0,
-    kType = 1,
-    kLoopKey = 2,
-    kPlugKey = 3,
-    kHotAdd = 4,
-    kHotMul = 5
-};
+#include "GARXTypes.hpp"
 
 enum class GARXStatementType : std::uint8_t {
     kInv = 0,
@@ -108,9 +46,9 @@ public:
 
 enum class GARXUnwindShape : std::uint8_t {
     kInv = 0,
-    kCurrentPreviousRound = 1,
-    kCurrentCrossRound = 2,
-    kRoundPair = 3
+    kCurrentPreviousOrbiter = 1,
+    kCurrentCrossOrbiter = 2,
+    kOrbiterPair = 3
 };
 
 class GARXSkeletonBackwardRound {
@@ -156,8 +94,6 @@ public:
     static const char *GetTypeName(GARXType pType);
     static const char *GetStatementKindName(GARXStatementType pKind);
     static const char *GetDatumKindName(GARXDatumKind pKind);
-
-    static const char *GetSaltDomainName(GARXSaltDomain pDomain);
     
 };
 

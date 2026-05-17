@@ -8,17 +8,23 @@
 #include "TwistIndexShuffle.hpp"
 #include "TwistWorkSpace.hpp"
 
-void TwistIndexShuffle::Execute256(std::size_t *pIndexList256,
-                                   const std::uint8_t *pBlockSizedEntropySource) {
-    
+namespace {
+
+void Execute256WithEntropyBytes(std::size_t *pIndexList256,
+                                const std::uint8_t *pEntropySource,
+                                std::size_t pEntropyBytes) {
+    if ((pIndexList256 == nullptr) || (pEntropySource == nullptr) || (pEntropyBytes == 0U)) {
+        return;
+    }
+
     std::size_t *aWrite = pIndexList256;
     for (std::size_t aValue = 0; aValue < 256; ++aValue) {
         *aWrite = aValue;
         ++aWrite;
     }
     
-    const std::uint8_t *aEntropy = pBlockSizedEntropySource;
-    const std::uint8_t * const aEntropyEnd = pBlockSizedEntropySource + S_BLOCK;
+    const std::uint8_t *aEntropy = pEntropySource;
+    const std::uint8_t * const aEntropyEnd = pEntropySource + pEntropyBytes;
 
     std::size_t *aBase = pIndexList256;
 
@@ -46,5 +52,21 @@ void TwistIndexShuffle::Execute256(std::size_t *pIndexList256,
 
         ++aBase;
     }
-    
+
+}
+
+} // namespace
+
+void TwistIndexShuffle::Execute256(std::size_t *pIndexList256,
+                                   const std::uint8_t *pBlockSizedEntropySource) {
+    Execute256WithEntropyBytes(pIndexList256,
+                               pBlockSizedEntropySource,
+                               static_cast<std::size_t>(S_BLOCK));
+}
+
+void TwistIndexShuffle::Execute256(std::size_t *pIndexList256,
+                                   const std::size_t *pIndexEntropySource) {
+    Execute256WithEntropyBytes(pIndexList256,
+                               reinterpret_cast<const std::uint8_t *>(pIndexEntropySource),
+                               static_cast<std::size_t>(256U * sizeof(std::size_t)));
 }

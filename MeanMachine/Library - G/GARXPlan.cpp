@@ -72,47 +72,47 @@ GARXCarryPlan::GARXCarryPlan() {
 
 static std::vector<std::vector<GARXTypePair>> cCarryPairPatterns = {
     {
-        { GARXType::kStateA, GARXType::kStateD },
-        { GARXType::kStateB, GARXType::kStateE },
-        { GARXType::kStateC, GARXType::kStateF }
+        { GARXType::kUnwindA, GARXType::kUnwindD },
+        { GARXType::kUnwindB, GARXType::kUnwindE },
+        { GARXType::kUnwindC, GARXType::kUnwindF }
     },
     {
-        { GARXType::kStateA, GARXType::kStateE },
-        { GARXType::kStateB, GARXType::kStateF },
-        { GARXType::kStateC, GARXType::kStateD }
+        { GARXType::kUnwindA, GARXType::kUnwindE },
+        { GARXType::kUnwindB, GARXType::kUnwindF },
+        { GARXType::kUnwindC, GARXType::kUnwindD }
     },
     {
-        { GARXType::kStateA, GARXType::kStateF },
-        { GARXType::kStateB, GARXType::kStateD },
-        { GARXType::kStateC, GARXType::kStateE }
+        { GARXType::kUnwindA, GARXType::kUnwindF },
+        { GARXType::kUnwindB, GARXType::kUnwindD },
+        { GARXType::kUnwindC, GARXType::kUnwindE }
     },
     {
-        { GARXType::kStateA, GARXType::kStateB },
-        { GARXType::kStateC, GARXType::kStateD },
-        { GARXType::kStateE, GARXType::kStateF }
+        { GARXType::kUnwindA, GARXType::kUnwindB },
+        { GARXType::kUnwindC, GARXType::kUnwindD },
+        { GARXType::kUnwindE, GARXType::kUnwindF }
     }
 };
 
 static std::vector<std::vector<GARXTypePair>> cCrushPairPatterns = {
     {
-        { GARXType::kRoundA, GARXType::kRoundB },
-        { GARXType::kRoundC, GARXType::kRoundD },
-        { GARXType::kRoundE, GARXType::kRoundF }
+        { GARXType::kOrbiterA, GARXType::kOrbiterB },
+        { GARXType::kOrbiterC, GARXType::kOrbiterD },
+        { GARXType::kOrbiterE, GARXType::kOrbiterF }
     },
     {
-        { GARXType::kRoundA, GARXType::kRoundD },
-        { GARXType::kRoundB, GARXType::kRoundE },
-        { GARXType::kRoundC, GARXType::kRoundF }
+        { GARXType::kOrbiterA, GARXType::kOrbiterD },
+        { GARXType::kOrbiterB, GARXType::kOrbiterE },
+        { GARXType::kOrbiterC, GARXType::kOrbiterF }
     },
     {
-        { GARXType::kRoundA, GARXType::kRoundE },
-        { GARXType::kRoundB, GARXType::kRoundF },
-        { GARXType::kRoundC, GARXType::kRoundD }
+        { GARXType::kOrbiterA, GARXType::kOrbiterE },
+        { GARXType::kOrbiterB, GARXType::kOrbiterF },
+        { GARXType::kOrbiterC, GARXType::kOrbiterD }
     },
     {
-        { GARXType::kRoundA, GARXType::kRoundF },
-        { GARXType::kRoundB, GARXType::kRoundD },
-        { GARXType::kRoundC, GARXType::kRoundE }
+        { GARXType::kOrbiterA, GARXType::kOrbiterF },
+        { GARXType::kOrbiterB, GARXType::kOrbiterD },
+        { GARXType::kOrbiterC, GARXType::kOrbiterE }
     }
 };
 
@@ -215,7 +215,7 @@ static bool BackwardRoundsHaveGoodRoundPairSpread(const std::vector<GARXSkeleton
     
     for (const GARXSkeletonBackwardRound &aBackward: pBackward) {
         
-        if (aBackward.mShape != GARXUnwindShape::kRoundPair) {
+        if (aBackward.mShape != GARXUnwindShape::kOrbiterPair) {
             continue;
         }
         
@@ -284,7 +284,7 @@ static GARXDatum MakePlugKeyDatum(GARXType pTypeA, GARXType pTypeB) {
     return aDatum;
 }
 
-static bool UnwindRowGetsLoopKey(std::size_t pBackwardIndex) {
+static bool UnwindRowGetsPlugKey(std::size_t pBackwardIndex) {
     switch (pBackwardIndex) {
         case 0:
         case 3:
@@ -296,14 +296,13 @@ static bool UnwindRowGetsLoopKey(std::size_t pBackwardIndex) {
 }
 
 static GARXStatementPlan *MakeUnwindStatement(const GARXSkeletonBackwardRound &pBackward,
-                                              std::size_t pBackwardIndex,
-                                              bool pInversionModality) {
+                                              std::size_t pBackwardIndex) {
     
     GARXStatementPlan *aStatement = new GARXStatementPlan(GARXStatementType::kUnwind,
                                                           pBackward.mTarget);
     
     //
-    // target = target OP inputA OP inputB OP inputC OP loop_key
+    // target = target OP inputA OP inputB OP inputC OP plug_key
     //
     aStatement->mDatums.push_back(MakeTypeDatum(pBackward.mTarget));
     
@@ -319,12 +318,8 @@ static GARXStatementPlan *MakeUnwindStatement(const GARXSkeletonBackwardRound &p
         aStatement->mDatums.push_back(MakeTypeDatum(pBackward.mInputC));
     }
     
-    if (UnwindRowGetsLoopKey(pBackwardIndex)) {
-        bool aIsInverted = ((pBackwardIndex & 1U) != 0U);
-        if (pInversionModality == true) {
-            aIsInverted = !aIsInverted;
-        }
-        aStatement->mDatums.push_back(MakeLoopKeyDatum(aIsInverted));
+    if (UnwindRowGetsPlugKey(pBackwardIndex)) {
+        aStatement->mDatums.push_back(MakePlugKeyDatum(GARXType::kInv, GARXType::kInv));
     }
     
     aStatement->mDatums.push_back(MakeHotMulDatum());
@@ -384,16 +379,16 @@ static void RandomizeContextualBackwardRounds(std::vector<GARXSkeletonBackwardRo
         return;
     }
     
-    std::vector<GARXType> aRounds = {
-        GARXType::kRoundA,
-        GARXType::kRoundB,
-        GARXType::kRoundC,
-        GARXType::kRoundD,
-        GARXType::kRoundE,
-        GARXType::kRoundF
+    std::vector<GARXType> aOrbiters = {
+        GARXType::kOrbiterA,
+        GARXType::kOrbiterB,
+        GARXType::kOrbiterC,
+        GARXType::kOrbiterD,
+        GARXType::kOrbiterE,
+        GARXType::kOrbiterF
     };
     
-    Random::Shuffle(&aRounds);
+    Random::Shuffle(&aOrbiters);
     
     //
     // Assign 4 unique rounds to the 4 contextual unwind rows.
@@ -402,7 +397,7 @@ static void RandomizeContextualBackwardRounds(std::vector<GARXSkeletonBackwardRo
     //
     for (std::size_t i = 0; i < aContextualIndexes.size(); i++) {
         int aBackwardIndex = aContextualIndexes[i];
-        (*pBackward)[aBackwardIndex].mInputC = aRounds[i];
+        (*pBackward)[aBackwardIndex].mInputC = aOrbiters[i];
     }
 }
 
@@ -471,12 +466,9 @@ static bool BuildUnwindStatementsForPass(GARXPassPlan *pPassPlan,
         return false;
     }
     
-    bool aStateInversionModality = Random::Bool();
-    
     for (std::size_t n = 0; n < aBackward.size(); n++) {
         GARXStatementPlan *aUnwindStatement = MakeUnwindStatement(aBackward[n],
-                                                                  n,
-                                                                  aStateInversionModality);
+                                                                  n);
         if (aUnwindStatement == nullptr) {
             RemoveUnwindStatementsAndGroups(pPassPlan);
             return false;
@@ -615,8 +607,8 @@ static std::vector<std::vector<int>> cScatterRotationPools = {
     { 47, 49, 51, 53, 57 }
 };
 
-static GARXBlendPlan MakeBlendPlan() {
-    GARXBlendPlan aPlan;
+static GARXBlendInputPlan MakeBlendPlan() {
+    GARXBlendInputPlan aPlan;
     std::vector<std::vector<int>> aPools = cScatterRotationPools;
     Random::Shuffle(&aPools);
     aPlan.mRotationA = Random::Choice(aPools[0]);
@@ -624,180 +616,6 @@ static GARXBlendPlan MakeBlendPlan() {
     aPlan.mRotationC = Random::Choice(aPools[2]);
     aPlan.mRotationD = Random::Choice(aPools[3]);
     return aPlan;
-}
-
-static void PrintBlendPlan(const GARXBlendPlan &pBlendPlan,
-                           const char *pSectionName,
-                           const char *pBlendName,
-                           bool pIncludeRotations) {
-    printf("[%s]\n", pSectionName);
-    if (pIncludeRotations) {
-        printf("%s = diffuse((rot(thing_a,%d) ^ rot(thing_b,%d)) + (rot(thing_c,%d) ^ rot(thing_d,%d)))\n\n",
-               pBlendName,
-               pBlendPlan.mRotationA,
-               pBlendPlan.mRotationB,
-               pBlendPlan.mRotationC,
-               pBlendPlan.mRotationD);
-    } else {
-        printf("%s = diffuse((rot(thing_a,A) ^ rot(thing_b,B)) + (rot(thing_c,C) ^ rot(thing_d,D)))\n\n",
-               pBlendName);
-    }
-}
-static void PrintStatementCompact(const GARXStatementPlan &pStatement,
-                                  bool pIncludePlugs,
-                                  bool pIncludeRotations) {
-    
-    if (pStatement.mStatementType == GARXStatementType::kCrush) {
-        printf("*crush %s*\n", GARXSkeleton::GetTypeName(pStatement.mTarget));
-        return;
-    }
-    
-    if (pStatement.mStatementType == GARXStatementType::kForwardRotate) {
-        
-        if (pStatement.mRotationAmount >= 0) {
-            printf("%s <- rot(%s * <hot_mul>, %d)\n",
-                   GARXSkeleton::GetTypeName(pStatement.mTarget),
-                   GARXSkeleton::GetTypeName(pStatement.mTarget),
-                   pStatement.mRotationAmount);
-        } else {
-            printf("%s <- rot(%s * <hot_mul>)\n",
-                   GARXSkeleton::GetTypeName(pStatement.mTarget),
-                   GARXSkeleton::GetTypeName(pStatement.mTarget));
-        }
-        
-        return;
-    }
-    
-    printf("%s =", GARXSkeleton::GetTypeName(pStatement.mTarget));
-    
-    for (std::size_t k = 0; k < pStatement.mDatums.size(); k++) {
-        const GARXDatum &aDatum = pStatement.mDatums[k];
-        
-        if (k > 0) {
-            printf(" +");
-        }
-        
-        if (aDatum.mKind == GARXDatumKind::kType) {
-            //printf(" %s", GARXSkeleton::GetTypeName(aDatum.mType));
-            if (pIncludeRotations && aDatum.mRotationAmount >= 0) {
-                printf(" rot(%s,%d)",
-                       GARXSkeleton::GetTypeName(aDatum.mType),
-                       aDatum.mRotationAmount);
-            } else {
-                printf(" %s", GARXSkeleton::GetTypeName(aDatum.mType));
-            }
-            
-        } else if (aDatum.mKind == GARXDatumKind::kLoopKey) {
-            
-            const char *aDirection = aDatum.mIsLoopIndexInverted ? "reverse" : "forward";
-            
-            if ((aDatum.mSaltDomain != GARXSaltDomain::kInv) &&
-                (aDatum.mOffsetAmount >= 0)) {
-                
-                printf(" <loop_key:%s,%s,%d>",
-                       GARXSkeleton::GetSaltDomainName(aDatum.mSaltDomain),
-                       aDirection,
-                       aDatum.mOffsetAmount);
-                
-            } else if (aDatum.mSaltDomain != GARXSaltDomain::kInv) {
-                
-                printf(" <loop_key:%s,%s>",
-                       GARXSkeleton::GetSaltDomainName(aDatum.mSaltDomain),
-                       aDirection);
-                
-            } else if (aDatum.mOffsetAmount >= 0) {
-                
-                printf(" <loop_key:%s,%d>",
-                       aDirection,
-                       aDatum.mOffsetAmount);
-                
-            } else {
-                
-                printf(" <loop_key:%s>", aDirection);
-            }
-        } else if (aDatum.mKind == GARXDatumKind::kPlugKey) {
-            
-            if (pIncludePlugs) {
-                
-                const char *aDomainName = GARXSkeleton::GetSaltDomainName(aDatum.mSaltDomain);
-                const char *aTypeAName = GARXSkeleton::GetTypeName(aDatum.mPlugTypeA);
-                const char *aTypeBName = GARXSkeleton::GetTypeName(aDatum.mPlugTypeB);
-                
-                if (aDatum.mSaltDomain != GARXSaltDomain::kInv) {
-                    
-                    if (aDatum.mRotationAmount >= 0) {
-                        if (aDatum.mOffsetAmount >= 0) {
-                            printf(" <plug_key:%s,rot(%s,%d),%s,+%d>",
-                                   aDomainName,
-                                   aTypeAName,
-                                   aDatum.mRotationAmount,
-                                   aTypeBName,
-                                   aDatum.mOffsetAmount);
-                        } else {
-                            printf(" <plug_key:%s,rot(%s,%d),%s>",
-                                   aDomainName,
-                                   aTypeAName,
-                                   aDatum.mRotationAmount,
-                                   aTypeBName);
-                        }
-                    } else {
-                        if (aDatum.mOffsetAmount >= 0) {
-                            printf(" <plug_key:%s,%s,%s,+%d>",
-                                   aDomainName,
-                                   aTypeAName,
-                                   aTypeBName,
-                                   aDatum.mOffsetAmount);
-                        } else {
-                            printf(" <plug_key:%s,%s,%s>",
-                                   aDomainName,
-                                   aTypeAName,
-                                   aTypeBName);
-                        }
-                    }
-                    
-                } else {
-                    
-                    if (aDatum.mRotationAmount >= 0) {
-                        if (aDatum.mOffsetAmount >= 0) {
-                            printf(" <plug_key:rot(%s,%d),%s,+%d>",
-                                   aTypeAName,
-                                   aDatum.mRotationAmount,
-                                   aTypeBName,
-                                   aDatum.mOffsetAmount);
-                        } else {
-                            printf(" <plug_key:rot(%s,%d),%s>",
-                                   aTypeAName,
-                                   aDatum.mRotationAmount,
-                                   aTypeBName);
-                        }
-                    } else {
-                        if (aDatum.mOffsetAmount >= 0) {
-                            printf(" <plug_key:%s,%s,+%d>",
-                                   aTypeAName,
-                                   aTypeBName,
-                                   aDatum.mOffsetAmount);
-                        } else {
-                            printf(" <plug_key:%s,%s>",
-                                   aTypeAName,
-                                   aTypeBName);
-                        }
-                    }
-                }
-                
-            } else {
-                
-                printf(" <plug_key>");
-            }
-        } else if (aDatum.mKind == GARXDatumKind::kHotAdd) {
-            printf(" <hot_add>");
-        } else if (aDatum.mKind == GARXDatumKind::kHotMul) {
-            printf(" <hot_mul>");
-        } else {
-            printf(" <%s>", GARXSkeleton::GetDatumKindName(aDatum.mKind));
-        }
-    }
-
-    printf("\n");
 }
 
 static std::vector<std::vector<GARXType>> cAllowedSeedTaps = {
@@ -821,42 +639,8 @@ static std::unordered_map<GARXType, int, GARXTypeHash> cMaximumSeedTaps = {
     { GARXType::kSecretScatter, 2 }
 };
 
-static GARXSaltDomain PickLoopSaltDomainForStatement(GARXGroupType pGroupType,
-                                                     std::size_t pLoopKeyIndexInPhase,
-                                                     std::size_t pLoopKeyIndexInStatement) {
-    
-    if (pGroupType == GARXGroupType::kSeed) {
-        return ((pLoopKeyIndexInStatement & 1U) == 0U)
-            ? GARXSaltDomain::kInitA
-            : GARXSaltDomain::kInitB;
-    }
-    
-    if (pGroupType == GARXGroupType::kUnwind) {
-        if ((pLoopKeyIndexInPhase & 1U) == 0U) {
-            return GARXSaltDomain::kUnwindA;
-        } else {
-            return GARXSaltDomain::kUnwindB;
-        }
-    }
-    
-    return GARXSaltDomain::kInv;
-}
-
-GARXBlendPlan::GARXBlendPlan() {
+GARXBlendInputPlan::GARXBlendInputPlan() {
     mRotationA = -1; mRotationB = -1; mRotationC = -1; mRotationD = -1;
-}
-
-static GARXSaltDomain PickPlugSaltDomainForSlot(std::size_t pPlugIndexInGroup,
-                                                std::size_t pForwardGroupIndex,
-                                                std::size_t pPassIndex) {
-    
-    bool aFlip = (((pForwardGroupIndex + pPassIndex) & 1U) != 0U);
-    
-    if (pPlugIndexInGroup == 0) {
-        return aFlip ? GARXSaltDomain::kPlugB : GARXSaltDomain::kPlugA;
-    }
-    
-    return aFlip ? GARXSaltDomain::kPlugA : GARXSaltDomain::kPlugB;
 }
 
 static bool IsValidSeedTapConfiguration(std::vector<GARXType> &pTypes) {
@@ -913,29 +697,9 @@ static GARXStatementPlan *MakeSeedStatement(GARXRoundSeedPlan *pSeed,
     aStatement->mDatums.push_back(MakeTypeDatum(pSeed->mState));
     aStatement->mDatums.push_back(MakeTypeDatum(pSeed->mTap));
     aStatement->mDatums.push_back(MakeHotAddDatum());
-    
-    if (Random::Bool()) {
-        if (pSeedIndex == 2) {
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(true));
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(false));
-        }
-    } else {
-        if (pSeedIndex == 2) {
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(false));
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(true));
-        }
-    }
-    
-    if (Random::Bool()) {
-        if (pSeedIndex == 3) {
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(true));
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(false));
-        }
-    } else {
-        if (pSeedIndex == 3) {
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(false));
-            aStatement->mDatums.push_back(MakeLoopKeyDatum(true));
-        }
+
+    if (pSeedIndex == 2 || pSeedIndex == 3) {
+        aStatement->mDatums.push_back(MakePlugKeyDatum(GARXType::kInv, GARXType::kInv));
     }
 
     return aStatement;
@@ -970,7 +734,17 @@ static GARXStatementPlan *MakeForwardRotateStatement(const GARXSkeletonForwardRo
     return aStatement;
 }
 
-static std::vector<int> MakeForwardRotationSchedule() {
+static int CountForwardTripletGroups(const std::vector<GARXStatementGroup *> &pGroups) {
+    int aResult = 0;
+    for (GARXStatementGroup *aGroup: pGroups) {
+        if (aGroup != nullptr && aGroup->mGroupType == GARXGroupType::kForwardTriplet) {
+            aResult++;
+        }
+    }
+    return aResult;
+}
+
+static std::vector<int> MakeForwardRotationSchedule(std::size_t pCount) {
     
     std::vector<int> aByteAligned = cByteAlignedRotations;
     std::vector<int> aOdd = cOddRotations;
@@ -978,53 +752,72 @@ static std::vector<int> MakeForwardRotationSchedule() {
     Random::Shuffle(&aByteAligned);
     Random::Shuffle(&aOdd);
     
-    int aByteAlignedCount = 2;
+    std::size_t aByteAlignedCount = 2;
     if (Random::Bool()) {
         aByteAlignedCount++;
     }
     if (Random::Bool()) {
         aByteAlignedCount++;
     }
-    
-    int aOddCount = 6 - aByteAlignedCount;
+
+    if (aByteAlignedCount > pCount) {
+        aByteAlignedCount = pCount;
+    }
+
+    std::size_t aOddCount = pCount - aByteAlignedCount;
+    if (aOddCount > aOdd.size()) {
+        aOddCount = aOdd.size();
+        aByteAlignedCount = pCount - aOddCount;
+    }
+    if (aByteAlignedCount > aByteAligned.size()) {
+        return {};
+    }
     
     std::vector<int> aResult;
     
-    for (int i = 0; i < aByteAlignedCount; i++) {
+    for (std::size_t i = 0; i < aByteAlignedCount; i++) {
         aResult.push_back(aByteAligned[i]);
     }
     
-    for (int i = 0; i < aOddCount; i++) {
+    for (std::size_t i = 0; i < aOddCount; i++) {
         aResult.push_back(aOdd[i]);
     }
     
     Random::Shuffle(&aResult);
     
+    if (aResult.size() != pCount) {
+        return {};
+    }
+    
     return aResult;
 }
 
-static std::vector<int> MakeSeedRotationSchedule() {
+static std::vector<int> MakeSeedRotationSchedule(std::size_t pCount) {
     
     std::vector<int> aPool = cSeedRotations;
     Random::Shuffle(&aPool);
+
+    if (pCount > aPool.size()) {
+        return {};
+    }
     
     std::vector<int> aResult;
     
-    for (int i = 0; i < 6; i++) {
+    for (std::size_t i = 0; i < pCount; i++) {
         aResult.push_back(aPool[i]);
     }
     
     return aResult;
 }
 
-static std::vector<int> cPassSaltBiases = {
-    0, 6, 10, 14
-};
-
 static std::vector<int> MakeLoopSaltOffsetSchedule(int pCount,
-                                                   std::size_t pPassIndex) {
-    
-    int aPassBias = cPassSaltBiases[pPassIndex & 3U];
+                                                   std::size_t pPassIndex,
+                                                   const GARXFormat &pFormat) {
+    const std::vector<int> &aPassSaltBiases = pFormat.PassSaltBiases();
+    int aPassBias = 0;
+    if (aPassSaltBiases.empty() == false) {
+        aPassBias = aPassSaltBiases[pPassIndex % aPassSaltBiases.size()];
+    }
     
     std::vector<int> aPool;
     
@@ -1055,7 +848,12 @@ static std::vector<int> MakeLoopSaltOffsetSchedule(int pCount,
 
 static bool AssignForwardRotations(std::vector<GARXStatementGroup *> &pGroups) {
     
-    std::vector<int> aRotations = MakeForwardRotationSchedule();
+    const int aForwardTripletCount = CountForwardTripletGroups(pGroups);
+    if (aForwardTripletCount < 0) {
+        return false;
+    }
+    
+    std::vector<int> aRotations = MakeForwardRotationSchedule(static_cast<std::size_t>(aForwardTripletCount));
     std::size_t aRotationIndex = 0;
     
     for (GARXStatementGroup *aGroup: pGroups) {
@@ -1138,7 +936,14 @@ static bool AssignUnwindRotations(std::vector<GARXStatementGroup *> &pGroups) {
 
 static bool AssignSeedRotations(std::vector<GARXStatementGroup *> &pGroups) {
     
-    std::vector<int> aRotations = MakeSeedRotationSchedule();
+    std::size_t aSeedCount = 0;
+    for (GARXStatementGroup *aGroup: pGroups) {
+        if (aGroup != nullptr && aGroup->mGroupType == GARXGroupType::kSeed) {
+            aSeedCount++;
+        }
+    }
+    
+    std::vector<int> aRotations = MakeSeedRotationSchedule(aSeedCount);
     std::size_t aRotationIndex = 0;
     
     for (GARXStatementGroup *aGroup: pGroups) {
@@ -1178,7 +983,8 @@ static bool AssignSeedRotations(std::vector<GARXStatementGroup *> &pGroups) {
 }
 
 static bool AssignLoopSaltOffsets(std::vector<GARXStatementGroup *> &pGroups,
-                                  std::size_t pPassIndex) {
+                                  std::size_t pPassIndex,
+                                  const GARXFormat &pFormat) {
     
     int aLoopKeySlotCount = CountLoopKeySlots(pGroups);
     
@@ -1186,7 +992,9 @@ static bool AssignLoopSaltOffsets(std::vector<GARXStatementGroup *> &pGroups,
         return true;
     }
     
-    std::vector<int> aOffsets = MakeLoopSaltOffsetSchedule(aLoopKeySlotCount, pPassIndex);
+    std::vector<int> aOffsets = MakeLoopSaltOffsetSchedule(aLoopKeySlotCount,
+                                                           pPassIndex,
+                                                           pFormat);
     
     if (static_cast<int>(aOffsets.size()) != aLoopKeySlotCount) {
         return false;
@@ -1263,12 +1071,15 @@ static bool AssignLoopSaltOffsets(std::vector<GARXStatementGroup *> &pGroups,
     return (aOffsetIndex == aOffsets.size());
 }
 
-static bool AssignSaltDomains(std::vector<GARXStatementGroup *> &pGroups,
-                              std::size_t pPassIndex) {
+static bool AssignSaltLanes(std::vector<GARXStatementGroup *> &pGroups,
+                            std::size_t pPassIndex,
+                            const GARXFormat &pFormat) {
     
     std::size_t aSeedLoopKeyIndex = 0;
+    std::size_t aSeedPlugKeyIndex = 0;
     std::size_t aUnwindLoopKeyIndex = 0;
     std::size_t aForwardPlugGroupIndex = 0;
+    std::size_t aUnwindPlugKeyIndex = 0;
     
     for (GARXStatementGroup *aGroup: pGroups) {
         
@@ -1285,9 +1096,9 @@ static bool AssignSaltDomains(std::vector<GARXStatementGroup *> &pGroups,
                 for (GARXDatum &aDatum: aStatement->mDatums) {
                     
                     if (aDatum.mKind == GARXDatumKind::kPlugKey) {
-                        aDatum.mSaltDomain = PickPlugSaltDomainForSlot(aPlugIndexInGroup,
-                                                                       aForwardPlugGroupIndex,
-                                                                       pPassIndex);
+                        aDatum.mSaltLaneIndex = pFormat.PickForwardPlugSaltLane(aPlugIndexInGroup,
+                                                                                aForwardPlugGroupIndex,
+                                                                                pPassIndex);
                         aPlugIndexInGroup++;
                     }
                 }
@@ -1305,6 +1116,23 @@ static bool AssignSaltDomains(std::vector<GARXStatementGroup *> &pGroups,
             std::size_t aLoopKeyIndexInStatement = 0;
             
             for (GARXDatum &aDatum: aStatement->mDatums) {
+
+                if (aDatum.mKind == GARXDatumKind::kPlugKey) {
+                    if (aGroup->mGroupType == GARXGroupType::kSeed) {
+                        aDatum.mSaltLaneIndex = pFormat.PickSeedPlugSaltLane(aSeedPlugKeyIndex);
+                        aSeedPlugKeyIndex++;
+                    } else if (aGroup->mGroupType == GARXGroupType::kUnwind) {
+                        aDatum.mSaltLaneIndex = pFormat.PickUnwindPlugSaltLane(aUnwindPlugKeyIndex);
+                        aUnwindPlugKeyIndex++;
+                    } else {
+                        return false;
+                    }
+
+                    if (aDatum.mSaltLaneIndex < 0) {
+                        return false;
+                    }
+                    continue;
+                }
                 
                 if (aDatum.mKind != GARXDatumKind::kLoopKey) {
                     continue;
@@ -1312,25 +1140,23 @@ static bool AssignSaltDomains(std::vector<GARXStatementGroup *> &pGroups,
                 
                 if (aGroup->mGroupType == GARXGroupType::kSeed) {
                     
-                    aDatum.mSaltDomain = PickLoopSaltDomainForStatement(aGroup->mGroupType,
-                                                                        aSeedLoopKeyIndex,
-                                                                        aLoopKeyIndexInStatement);
+                    aDatum.mSaltLaneIndex = pFormat.PickLoopSaltLane(aGroup->mGroupType,
+                                                                     aSeedLoopKeyIndex,
+                                                                     aLoopKeyIndexInStatement);
                     aSeedLoopKeyIndex++;
                     
                 } else if (aGroup->mGroupType == GARXGroupType::kUnwind) {
                     
-                    aDatum.mSaltDomain = PickLoopSaltDomainForStatement(aGroup->mGroupType,
-                                                                        aUnwindLoopKeyIndex,
-                                                                        aLoopKeyIndexInStatement);
+                    aDatum.mSaltLaneIndex = pFormat.PickLoopSaltLane(aGroup->mGroupType,
+                                                                     aUnwindLoopKeyIndex,
+                                                                     aLoopKeyIndexInStatement);
                     aUnwindLoopKeyIndex++;
                     
                 } else {
                     return false;
                 }
                 
-                if (aDatum.mSaltDomain == GARXSaltDomain::kInv) {
-                    return false;
-                }
+                if (aDatum.mSaltLaneIndex < 0) { return false; }
                 
                 aLoopKeyIndexInStatement++;
             }
@@ -1351,7 +1177,7 @@ GARXDatum::GARXDatum() {
     mPlugTypeB = GARXType::kInv;
     mIsLoopIndexInverted = false;
     //mSaltBankIndex = -1;
-    mSaltDomain = GARXSaltDomain::kInv;
+    mSaltLaneIndex = -1;
     
 }
 
@@ -1416,7 +1242,7 @@ GARXStatementGroup::GARXStatementGroup(GARXGroupType pKind) {
 }
 
 GARXPlan::GARXPlan() {
-    
+    mFormat = &GARXFormatSixSixFour::Shared();
 }
 
 GARXPlan::~GARXPlan() {
@@ -1453,33 +1279,27 @@ bool GARXPlan::Bake(GARXPlan *pPlan) {
     return false;
 }
 
-static int ScatterRotationPoolIndex(int pRotation) {
-    for (std::size_t p = 0; p < cScatterRotationPools.size(); p++) {
-        for (int aRotation: cScatterRotationPools[p]) {
-            if (aRotation == pRotation) {
-                return static_cast<int>(p);
-            }
-        }
-    }
-    return -1;
-}
-
 bool GARXPlan::Configure(GARXPlan *pPlan) {
+    if (pPlan == nullptr) {
+        return false;
+    }
+
+    if (pPlan->mFormat == nullptr) {
+        pPlan->mFormat = &GARXFormatSixSixFour::Shared();
+    }
     
     for (GARXPassPlan *aPassPlan: pPlan->mPassPlans) {
             delete aPassPlan;
     }
     pPlan->mPassPlans.clear();
     
-    
-    std::vector<GARXType> aRounds = {
-        GARXType::kRoundA,
-        GARXType::kRoundB,
-        GARXType::kRoundC,
-        GARXType::kRoundD,
-        GARXType::kRoundE,
-        GARXType::kRoundF
-    };
+    const std::vector<GARXType> aOrbiters = pPlan->mFormat->OrbiterTypes();
+    if (aOrbiters.empty()) {
+        return false;
+    }
+    if (pPlan->mSkeleton.mPasses.size() != pPlan->mFormat->PassCount()) {
+        return false;
+    }
     
     for (std::size_t i = 0; i < pPlan->mSkeleton.mPasses.size(); i++) {
         
@@ -1494,14 +1314,11 @@ bool GARXPlan::Configure(GARXPlan *pPlan) {
         aPassPlan->mCrushPlan = MakeCrushPlan(i);
         aPassPlan->mCarryPlan = MakeCarryPlan(i);
         
-        std::vector<GARXType> aInitializationStates = {
-            GARXType::kStateA,
-            GARXType::kStateB,
-            GARXType::kStateC,
-            GARXType::kStateD,
-            GARXType::kStateE,
-            GARXType::kStateF
-        };
+        std::vector<GARXType> aInitializationStates = pPlan->mFormat->UnwindTypes();
+        if (aInitializationStates.size() != aOrbiters.size()) {
+            delete aPassPlan;
+            return false;
+        }
         
         Random::Shuffle(&aInitializationStates);
         
@@ -1509,15 +1326,16 @@ bool GARXPlan::Configure(GARXPlan *pPlan) {
         
         do {
             aSeedTaps.clear();
-            for (std::size_t n = 0; n < cAllowedSeedTaps.size(); n++) {
-                aSeedTaps.push_back(Random::Choice(cAllowedSeedTaps[n]));
+            for (std::size_t n = 0; n < aOrbiters.size(); n++) {
+                const std::vector<GARXType> &aTapPool = cAllowedSeedTaps[n % cAllowedSeedTaps.size()];
+                aSeedTaps.push_back(Random::Choice(aTapPool));
             }
             
         } while (IsValidSeedTapConfiguration(aSeedTaps) == false);
         
-        for (std::size_t n = 0; n < aRounds.size(); n++) {
+        for (std::size_t n = 0; n < aOrbiters.size(); n++) {
             GARXRoundSeedPlan *aSeed = new GARXRoundSeedPlan(
-                                      aRounds[n],
+                                      aOrbiters[n],
                                       aInitializationStates[n],
                                       aSeedTaps[n]
                                       );
@@ -1597,21 +1415,29 @@ bool GARXPlan::Configure(GARXPlan *pPlan) {
 }
 
 bool GARXPlan::Configure_ProceedWithGroups(GARXPlan *pPlan) {
+    if (pPlan == nullptr) {
+        return false;
+    }
+    if (pPlan->mFormat == nullptr) {
+        pPlan->mFormat = &GARXFormatSixSixFour::Shared();
+    }
     
     int aPassIndex = 0;
     for (GARXPassPlan *aPassPlan: pPlan->mPassPlans) {
-        
-        GARXPlugMapper *aMapper = new GARXPlugMapper(aPassPlan->mGroups);
-        
-        bool aReloop = true;
-        while (aReloop == true) {
-            aReloop = false;
-            if (!aMapper->AttemptAssignment()) {
-                aReloop = true;
-            }
+        if (aPassPlan == nullptr) {
+            return false;
         }
 
-        delete aMapper;
+        bool aPlugAssigned = false;
+        for (int aAttempt = 0; aAttempt < 64; aAttempt++) {
+            if (GARXAssignPlugs(aPassPlan->mGroups)) {
+                aPlugAssigned = true;
+                break;
+            }
+        }
+        if (aPlugAssigned == false) {
+            return false;
+        }
         
         if (AssignSeedRotations(aPassPlan->mGroups) == false) {
             return false;
@@ -1625,11 +1451,15 @@ bool GARXPlan::Configure_ProceedWithGroups(GARXPlan *pPlan) {
             return false;
         }
         
-        if (AssignLoopSaltOffsets(aPassPlan->mGroups, aPassIndex) == false) {
+        if (AssignLoopSaltOffsets(aPassPlan->mGroups,
+                                  static_cast<std::size_t>(aPassIndex),
+                                  *pPlan->mFormat) == false) {
             return false;
         }
         
-        if (AssignSaltDomains(aPassPlan->mGroups, aPassIndex) == false) {
+        if (AssignSaltLanes(aPassPlan->mGroups,
+                            static_cast<std::size_t>(aPassIndex),
+                            *pPlan->mFormat) == false) {
             return false;
         }
         
@@ -1639,54 +1469,10 @@ bool GARXPlan::Configure_ProceedWithGroups(GARXPlan *pPlan) {
     return true;
 }
 
-static bool IsPlugSaltDomain(GARXSaltDomain pDomain) {
-    return (pDomain == GARXSaltDomain::kPlugA) ||
-           (pDomain == GARXSaltDomain::kPlugB);
-}
-
-static bool IsValidCrushPlan(const GARXCrushPlan &pCrushPlan,
-                             std::size_t pPassIndex) {
-    
-    const GARXCrushPairPlan aPairs[3] = {
-        pCrushPlan.mPairA,
-        pCrushPlan.mPairB,
-        pCrushPlan.mPairC
-    };
-    
-    std::unordered_set<GARXType, GARXTypeHash> aTypes;
-    
-    for (int i = 0; i < 3; i++) {
-        if (GARXSkeleton::IsRoundType(aPairs[i].mTypeA) == false ||
-            GARXSkeleton::IsRoundType(aPairs[i].mTypeB) == false) {
-            printf("re-roll: pass %zu crush has invalid round type\n", pPassIndex);
-            return false;
-        }
-        
-        if (aPairs[i].mTypeA == aPairs[i].mTypeB) {
-            printf("re-roll: pass %zu crush repeats round inside pair\n", pPassIndex);
-            return false;
-        }
-        
-        if (aPairs[i].mRotationAmount < 0) {
-            printf("re-roll: pass %zu crush has invalid rotation\n", pPassIndex);
-            return false;
-        }
-        
-        aTypes.insert(aPairs[i].mTypeA);
-        aTypes.insert(aPairs[i].mTypeB);
-    }
-    
-    if (aTypes.size() != 6) {
-        printf("re-roll: pass %zu crush does not cover six unique rounds\n", pPassIndex);
-        return false;
-    }
-    
-    return true;
-}
-
 static bool StatementHasValidPlugDatums(const GARXStatementPlan &pStatement,
                                         std::size_t pPassIndex,
-                                        std::size_t pStatementIndex) {
+                                        std::size_t pStatementIndex,
+                                        const GARXFormat &) {
     
     for (const GARXDatum &aDatum: pStatement.mDatums) {
         
@@ -1730,11 +1516,11 @@ static bool StatementHasValidPlugDatums(const GARXStatementPlan &pStatement,
             return false;
         }
         
-        if (IsPlugSaltDomain(aDatum.mSaltDomain) == false) {
-            printf("re-roll: pass %zu statement %zu has invalid plug salt domain, domain=%s\n",
+        if (aDatum.mSaltLaneIndex < 0 || aDatum.mSaltLaneIndex >= 6) {
+            printf("re-roll: pass %zu statement %zu has invalid plug salt lane, lane=%d\n",
                    pPassIndex,
                    pStatementIndex,
-                   GARXSkeleton::GetSaltDomainName(aDatum.mSaltDomain));
+                   aDatum.mSaltLaneIndex);
             return false;
         }
     }
@@ -1824,16 +1610,10 @@ static bool PassHasUniqueTypeRotationsByGroup(GARXPassPlan *pPassPlan) {
     return true;
 }
 
-static bool IsLoopSaltDomain(GARXSaltDomain pDomain) {
-    return (pDomain == GARXSaltDomain::kInitA) ||
-           (pDomain == GARXSaltDomain::kInitB) ||
-           (pDomain == GARXSaltDomain::kUnwindA) ||
-           (pDomain == GARXSaltDomain::kUnwindB);
-}
-
 static bool StatementHasValidLoopKeyDatums(const GARXStatementPlan &pStatement,
                                            std::size_t pPassIndex,
-                                           std::size_t pStatementIndex) {
+                                           std::size_t pStatementIndex,
+                                           const GARXFormat &) {
     
     for (const GARXDatum &aDatum: pStatement.mDatums) {
         
@@ -1848,11 +1628,11 @@ static bool StatementHasValidLoopKeyDatums(const GARXStatementPlan &pStatement,
             return false;
         }
         
-        if (IsLoopSaltDomain(aDatum.mSaltDomain) == false) {
-            printf("re-roll: pass %zu statement %zu has invalid loop-key salt domain, domain=%s\n",
+        if (aDatum.mSaltLaneIndex < 0 || aDatum.mSaltLaneIndex >= 6) {
+            printf("re-roll: pass %zu statement %zu has invalid loop-key salt lane, lane=%d\n",
                    pPassIndex,
                    pStatementIndex,
-                   GARXSkeleton::GetSaltDomainName(aDatum.mSaltDomain));
+                   aDatum.mSaltLaneIndex);
             return false;
         }
     }
@@ -1865,6 +1645,9 @@ bool GARXPlan::IsValid(GARXPlan *pPlan) {
     if (pPlan == nullptr) {
         printf("re-roll: plan is null\n");
         return false;
+    }
+    if (pPlan->mFormat == nullptr) {
+        pPlan->mFormat = &GARXFormatSixSixFour::Shared();
     }
     
     if (pPlan->mPassPlans.size() != pPlan->mSkeleton.mPasses.size()) {
@@ -1883,7 +1666,7 @@ bool GARXPlan::IsValid(GARXPlan *pPlan) {
             return false;
         }
         
-        if (aPassPlan->mRoundSeeds.size() != 6) {
+        if (aPassPlan->mRoundSeeds.size() != pPlan->mFormat->PlanWidth()) {
             printf("re-roll: pass %zu has wrong seed count, count=%zu\n",
                    aPassIndex,
                    aPassPlan->mRoundSeeds.size());
@@ -1920,10 +1703,10 @@ bool GARXPlan::IsValid(GARXPlan *pPlan) {
                 return false;
             }
             
-            
             if (StatementHasValidPlugDatums(*aStatement,
                                             aPassIndex,
-                                            aStatementIndex) == false) {
+                                            aStatementIndex,
+                                            *pPlan->mFormat) == false) {
                 printf("re-roll: pass %zu statement %zu is invalid plug datums.\n",
                        aPassIndex,
                        aStatementIndex);
@@ -1932,7 +1715,8 @@ bool GARXPlan::IsValid(GARXPlan *pPlan) {
             
             if (StatementHasValidLoopKeyDatums(*aStatement,
                                                aPassIndex,
-                                               aStatementIndex) == false) {
+                                               aStatementIndex,
+                                               *pPlan->mFormat) == false) {
                 printf("re-roll: pass %zu statement %zu is invalid loopsalt datums.\n",
                        aPassIndex,
                        aStatementIndex);
@@ -2001,139 +1785,4 @@ bool GARXPlan::IsValid(GARXPlan *pPlan) {
     }
     
     return true;
-}
-
-void GARXPlan::Print(GARXPlan *pPlan) {
-    GARXPlanPrinter::Print(pPlan);
-}
-
-static void PrintCrushPair(const GARXCrushPairPlan &pPair) {
-    if (pPair.mRotateA) {
-        printf("(rot(%s,%d) ^ %s)",
-               GARXSkeleton::GetTypeName(pPair.mTypeA),
-               pPair.mRotationAmount,
-               GARXSkeleton::GetTypeName(pPair.mTypeB));
-    } else {
-        printf("(%s ^ rot(%s,%d))",
-               GARXSkeleton::GetTypeName(pPair.mTypeA),
-               GARXSkeleton::GetTypeName(pPair.mTypeB),
-               pPair.mRotationAmount);
-    }
-}
-
-static void PrintCrushPlan(const GARXCrushPlan &pCrushPlan) {
-    printf("input = diffuse(");
-    PrintCrushPair(pCrushPlan.mPairA);
-    printf(" + ");
-    PrintCrushPair(pCrushPlan.mPairB);
-    printf(" + ");
-    PrintCrushPair(pCrushPlan.mPairC);
-    printf(" + scatter + carry)\n");
-    printf("input = mix64_8(input, gate_prism_8_8)\n");
-}
-
-void GARXPlan::Print(GARXPlan *pPlan,
-                     bool pIncludePlugs,
-                     bool pIncludeRotations) {
-    GARXPlanPrinter::Print(pPlan, pIncludePlugs, pIncludeRotations);
-}
-
-void GARXPlanPrinter::Print(GARXPlan *pPlan) {
-    Print(pPlan, true, true);
-}
-
-void GARXPlanPrinter::Print(GARXPlan *pPlan,
-                            bool pIncludePlugs,
-                            bool pIncludeRotations) {
-    
-    if (pPlan == nullptr) {
-        printf("GARXPlan: null\n");
-        return;
-    }
-    
-    printf("\nGARX PLAN\n");
-    printf("=========\n");
-    
-    for (std::size_t i = 0; i < pPlan->mPassPlans.size(); i++) {
-        
-        GARXPassPlan *aPassPlan = pPlan->mPassPlans[i];
-        if (aPassPlan == nullptr) {
-            continue;
-        }
-        
-        printf("\nPASS %zu\n", i);
-        printf("------\n\n");
-        
-        PrintBlendPlan(aPassPlan->mStreamInputBlend,
-                       "stream_input",
-                       "stream_input",
-                       pIncludeRotations);
-        PrintBlendPlan(aPassPlan->mSecretInputBlend,
-                       "secret_input",
-                       "secret_input",
-                       pIncludeRotations);
-        PrintBlendPlan(aPassPlan->mCrossInputBlend,
-                       "cross_input",
-                       "cross_input",
-                       pIncludeRotations);
-        PrintBlendPlan(aPassPlan->mStreamScatterBlend,
-                       "stream_scatter",
-                       "stream_scatter",
-                       pIncludeRotations);
-        PrintBlendPlan(aPassPlan->mSecretScatterBlend,
-                       "secret_scatter",
-                       "secret_scatter",
-                       pIncludeRotations);
-        
-        GARXGroupType aPreviousKind = GARXGroupType::kInv;
-        
-        for (std::size_t g = 0; g < aPassPlan->mGroups.size(); g++) {
-            
-            GARXStatementGroup *aGroup = aPassPlan->mGroups[g];
-            if (aGroup == nullptr) {
-                continue;
-            }
-            
-            
-            
-            bool aNeedsBlankLine = false;
-            
-            if (g > 0) {
-                if (aGroup->mGroupType == GARXGroupType::kForwardTriplet) {
-                    aNeedsBlankLine = true;
-                } else if (aGroup->mGroupType == GARXGroupType::kCrush) {
-                    aNeedsBlankLine = true;
-                } else if (aGroup->mGroupType == GARXGroupType::kUnwind &&
-                           aPreviousKind != GARXGroupType::kUnwind) {
-                    aNeedsBlankLine = true;
-                }
-            }
-            
-            if (aNeedsBlankLine) {
-                printf("\n");
-            }
-            
-            printf("[zone %d: %s]\n",
-                   aGroup->mZoneIndex,
-                   GARXStatementGroup::GetTypeName(aGroup->mGroupType));
-            
-            for (GARXStatementPlan *aStatement: aGroup->mStatements) {
-                
-                if (aStatement->mStatementType == GARXStatementType::kCrush) {
-                    PrintCrushPlan(aPassPlan->mCrushPlan);
-                } else {
-                    PrintStatementCompact(*aStatement,
-                                          pIncludePlugs,
-                                          pIncludeRotations);
-                }
-                
-            }
-            
-            aPreviousKind = aGroup->mGroupType;
-        }
-        
-        printf("\n");
-    }
-    
-    printf("\n");
 }
