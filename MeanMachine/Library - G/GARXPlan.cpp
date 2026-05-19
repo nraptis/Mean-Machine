@@ -25,7 +25,7 @@ static std::vector<int> cSeedRotations = {
 };
 
 
-static std::vector<int> cUnwindRotations = {
+static std::vector<int> cWandererRotations = {
     7, 11, 13, 17, 19, 23, 29, 31,
     37, 41, 43, 45, 51, 53, 57
 };
@@ -72,24 +72,24 @@ GARXCarryPlan::GARXCarryPlan() {
 
 static std::vector<std::vector<GARXTypePair>> cCarryPairPatterns = {
     {
-        { GARXType::kUnwindA, GARXType::kUnwindD },
-        { GARXType::kUnwindB, GARXType::kUnwindE },
-        { GARXType::kUnwindC, GARXType::kUnwindF }
+        { GARXType::kWandererA, GARXType::kWandererD },
+        { GARXType::kWandererB, GARXType::kWandererE },
+        { GARXType::kWandererC, GARXType::kWandererF }
     },
     {
-        { GARXType::kUnwindA, GARXType::kUnwindE },
-        { GARXType::kUnwindB, GARXType::kUnwindF },
-        { GARXType::kUnwindC, GARXType::kUnwindD }
+        { GARXType::kWandererA, GARXType::kWandererE },
+        { GARXType::kWandererB, GARXType::kWandererF },
+        { GARXType::kWandererC, GARXType::kWandererD }
     },
     {
-        { GARXType::kUnwindA, GARXType::kUnwindF },
-        { GARXType::kUnwindB, GARXType::kUnwindD },
-        { GARXType::kUnwindC, GARXType::kUnwindE }
+        { GARXType::kWandererA, GARXType::kWandererF },
+        { GARXType::kWandererB, GARXType::kWandererD },
+        { GARXType::kWandererC, GARXType::kWandererE }
     },
     {
-        { GARXType::kUnwindA, GARXType::kUnwindB },
-        { GARXType::kUnwindC, GARXType::kUnwindD },
-        { GARXType::kUnwindE, GARXType::kUnwindF }
+        { GARXType::kWandererA, GARXType::kWandererB },
+        { GARXType::kWandererC, GARXType::kWandererD },
+        { GARXType::kWandererE, GARXType::kWandererF }
     }
 };
 
@@ -215,7 +215,7 @@ static bool BackwardRoundsHaveGoodRoundPairSpread(const std::vector<GARXSkeleton
     
     for (const GARXSkeletonBackwardRound &aBackward: pBackward) {
         
-        if (aBackward.mShape != GARXUnwindShape::kOrbiterPair) {
+        if (aBackward.mShape != GARXWandererShape::kOrbiterPair) {
             continue;
         }
         
@@ -235,13 +235,13 @@ static bool BackwardRoundsHaveGoodRoundPairSpread(const std::vector<GARXSkeleton
     }
     
     if (aPairRowCount != 2) {
-        printf("bad round-pair unwind shape: expected 2 pair rows, got %d\n",
+        printf("bad round-pair Wanderer shape: expected 2 pair rows, got %d\n",
                aPairRowCount);
         return false;
     }
     
     if (aUniqueRounds.size() < 3) {
-        printf("bad round-pair unwind spread: unique rounds=%zu\n",
+        printf("bad round-pair Wanderer spread: unique rounds=%zu\n",
                aUniqueRounds.size());
         return false;
     }
@@ -284,7 +284,7 @@ static GARXDatum MakePlugKeyDatum(GARXType pTypeA, GARXType pTypeB) {
     return aDatum;
 }
 
-static bool UnwindRowGetsPlugKey(std::size_t pBackwardIndex) {
+static bool WandererRowGetsPlugKey(std::size_t pBackwardIndex) {
     switch (pBackwardIndex) {
         case 0:
         case 3:
@@ -295,10 +295,10 @@ static bool UnwindRowGetsPlugKey(std::size_t pBackwardIndex) {
     }
 }
 
-static GARXStatementPlan *MakeUnwindStatement(const GARXSkeletonBackwardRound &pBackward,
+static GARXStatementPlan *MakeWandererStatement(const GARXSkeletonBackwardRound &pBackward,
                                               std::size_t pBackwardIndex) {
     
-    GARXStatementPlan *aStatement = new GARXStatementPlan(GARXStatementType::kUnwind,
+    GARXStatementPlan *aStatement = new GARXStatementPlan(GARXStatementType::kWanderer,
                                                           pBackward.mTarget);
     
     //
@@ -318,7 +318,7 @@ static GARXStatementPlan *MakeUnwindStatement(const GARXSkeletonBackwardRound &p
         aStatement->mDatums.push_back(MakeTypeDatum(pBackward.mInputC));
     }
     
-    if (UnwindRowGetsPlugKey(pBackwardIndex)) {
+    if (WandererRowGetsPlugKey(pBackwardIndex)) {
         aStatement->mDatums.push_back(MakePlugKeyDatum(GARXType::kInv, GARXType::kInv));
     }
     
@@ -391,8 +391,8 @@ static void RandomizeContextualBackwardRounds(std::vector<GARXSkeletonBackwardRo
     Random::Shuffle(&aOrbiters);
     
     //
-    // Assign 4 unique rounds to the 4 contextual unwind rows.
-    // This keeps the contextual unwind pressure spread out before statements
+    // Assign 4 unique rounds to the 4 contextual Wanderer rows.
+    // This keeps the contextual Wanderer pressure spread out before statements
     // are ever built.
     //
     for (std::size_t i = 0; i < aContextualIndexes.size(); i++) {
@@ -401,14 +401,14 @@ static void RandomizeContextualBackwardRounds(std::vector<GARXSkeletonBackwardRo
     }
 }
 
-static void RemoveUnwindStatementsAndGroups(GARXPassPlan *pPassPlan) {
+static void RemoveWandererStatementsAndGroups(GARXPassPlan *pPassPlan) {
     
     if (pPassPlan == nullptr) {
         return;
     }
     
     //
-    // Delete unwind groups only. Groups do not own statements.
+    // Delete Wanderer groups only. Groups do not own statements.
     //
     for (int i = static_cast<int>(pPassPlan->mGroups.size()) - 1; i >= 0; i--) {
         
@@ -419,14 +419,14 @@ static void RemoveUnwindStatementsAndGroups(GARXPassPlan *pPassPlan) {
             continue;
         }
         
-        if (aGroup->mGroupType == GARXGroupType::kUnwind) {
+        if (aGroup->mGroupType == GARXGroupType::kWanderer) {
             delete aGroup;
             pPassPlan->mGroups.erase(pPassPlan->mGroups.begin() + i);
         }
     }
     
     //
-    // Delete unwind statements.
+    // Delete Wanderer statements.
     //
     for (int i = static_cast<int>(pPassPlan->mStatements.size()) - 1; i >= 0; i--) {
         
@@ -437,21 +437,21 @@ static void RemoveUnwindStatementsAndGroups(GARXPassPlan *pPassPlan) {
             continue;
         }
         
-        if (aStatement->mStatementType == GARXStatementType::kUnwind) {
+        if (aStatement->mStatementType == GARXStatementType::kWanderer) {
             delete aStatement;
             pPassPlan->mStatements.erase(pPassPlan->mStatements.begin() + i);
         }
     }
 }
 
-static bool BuildUnwindStatementsForPass(GARXPassPlan *pPassPlan,
+static bool BuildWandererStatementsForPass(GARXPassPlan *pPassPlan,
                                          const GARXSkeletonPass &pSkeletonPass) {
     
     if (pPassPlan == nullptr) {
         return false;
     }
     
-    RemoveUnwindStatementsAndGroups(pPassPlan);
+    RemoveWandererStatementsAndGroups(pPassPlan);
     
     std::vector<GARXSkeletonBackwardRound> aBackward = pSkeletonPass.mBackward;
     RandomizeContextualBackwardRounds(&aBackward);
@@ -467,17 +467,17 @@ static bool BuildUnwindStatementsForPass(GARXPassPlan *pPassPlan,
     }
     
     for (std::size_t n = 0; n < aBackward.size(); n++) {
-        GARXStatementPlan *aUnwindStatement = MakeUnwindStatement(aBackward[n],
+        GARXStatementPlan *aWandererStatement = MakeWandererStatement(aBackward[n],
                                                                   n);
-        if (aUnwindStatement == nullptr) {
-            RemoveUnwindStatementsAndGroups(pPassPlan);
+        if (aWandererStatement == nullptr) {
+            RemoveWandererStatementsAndGroups(pPassPlan);
             return false;
         }
         
-        pPassPlan->mStatements.push_back(aUnwindStatement);
+        pPassPlan->mStatements.push_back(aWandererStatement);
         
-        GARXStatementGroup *aGroup = new GARXStatementGroup(GARXGroupType::kUnwind);
-        aGroup->mStatements.push_back(aUnwindStatement);
+        GARXStatementGroup *aGroup = new GARXStatementGroup(GARXGroupType::kWanderer);
+        aGroup->mStatements.push_back(aWandererStatement);
         pPassPlan->mGroups.push_back(aGroup);
     }
     
@@ -683,7 +683,7 @@ const char *GARXStatementGroup::GetTypeName(GARXGroupType pType) {
         case GARXGroupType::kSeed: return "seed";
         case GARXGroupType::kForwardTriplet: return "forward_triplet";
         case GARXGroupType::kCrush: return "crush";
-        case GARXGroupType::kUnwind: return "unwind";
+        case GARXGroupType::kWanderer: return "Wanderer";
         case GARXGroupType::kCarry: return "carry";
         default: return "invalid";
     }
@@ -879,16 +879,16 @@ static bool AssignForwardRotations(std::vector<GARXStatementGroup *> &pGroups) {
     return (aRotationIndex == aRotations.size());
 }
 
-static bool AssignUnwindRotations(std::vector<GARXStatementGroup *> &pGroups) {
+static bool AssignWandererRotations(std::vector<GARXStatementGroup *> &pGroups) {
     
-    std::vector<int> aRotations = cUnwindRotations;
+    std::vector<int> aRotations = cWandererRotations;
     Random::Shuffle(&aRotations);
     
     std::size_t aRotationIndex = 0;
     
     for (GARXStatementGroup *aGroup: pGroups) {
         
-        if (aGroup->mGroupType != GARXGroupType::kUnwind) {
+        if (aGroup->mGroupType != GARXGroupType::kWanderer) {
             continue;
         }
         
@@ -903,7 +903,7 @@ static bool AssignUnwindRotations(std::vector<GARXStatementGroup *> &pGroups) {
                 //
                 // Do not rotate the target/self state.
                 // Do not rotate rounds yet.
-                // Rotate only hidden context inputs entering unwind.
+                // Rotate only hidden context inputs entering Wanderer.
                 //
                 if (aDatum.mType == aStatement->mTarget) {
                     continue;
@@ -1077,9 +1077,9 @@ static bool AssignSaltLanes(std::vector<GARXStatementGroup *> &pGroups,
     
     std::size_t aSeedLoopKeyIndex = 0;
     std::size_t aSeedPlugKeyIndex = 0;
-    std::size_t aUnwindLoopKeyIndex = 0;
+    std::size_t aWandererLoopKeyIndex = 0;
     std::size_t aForwardPlugGroupIndex = 0;
-    std::size_t aUnwindPlugKeyIndex = 0;
+    std::size_t aWandererPlugKeyIndex = 0;
     
     for (GARXStatementGroup *aGroup: pGroups) {
         
@@ -1121,9 +1121,9 @@ static bool AssignSaltLanes(std::vector<GARXStatementGroup *> &pGroups,
                     if (aGroup->mGroupType == GARXGroupType::kSeed) {
                         aDatum.mSaltLaneIndex = pFormat.PickSeedPlugSaltLane(aSeedPlugKeyIndex);
                         aSeedPlugKeyIndex++;
-                    } else if (aGroup->mGroupType == GARXGroupType::kUnwind) {
-                        aDatum.mSaltLaneIndex = pFormat.PickUnwindPlugSaltLane(aUnwindPlugKeyIndex);
-                        aUnwindPlugKeyIndex++;
+                    } else if (aGroup->mGroupType == GARXGroupType::kWanderer) {
+                        aDatum.mSaltLaneIndex = pFormat.PickWandererPlugSaltLane(aWandererPlugKeyIndex);
+                        aWandererPlugKeyIndex++;
                     } else {
                         return false;
                     }
@@ -1145,12 +1145,12 @@ static bool AssignSaltLanes(std::vector<GARXStatementGroup *> &pGroups,
                                                                      aLoopKeyIndexInStatement);
                     aSeedLoopKeyIndex++;
                     
-                } else if (aGroup->mGroupType == GARXGroupType::kUnwind) {
+                } else if (aGroup->mGroupType == GARXGroupType::kWanderer) {
                     
                     aDatum.mSaltLaneIndex = pFormat.PickLoopSaltLane(aGroup->mGroupType,
-                                                                     aUnwindLoopKeyIndex,
+                                                                     aWandererLoopKeyIndex,
                                                                      aLoopKeyIndexInStatement);
-                    aUnwindLoopKeyIndex++;
+                    aWandererLoopKeyIndex++;
                     
                 } else {
                     return false;
@@ -1314,7 +1314,7 @@ bool GARXPlan::Configure(GARXPlan *pPlan) {
         aPassPlan->mCrushPlan = MakeCrushPlan(i);
         aPassPlan->mCarryPlan = MakeCarryPlan(i);
         
-        std::vector<GARXType> aInitializationStates = pPlan->mFormat->UnwindTypes();
+        std::vector<GARXType> aInitializationStates = pPlan->mFormat->WandererTypes();
         if (aInitializationStates.size() != aOrbiters.size()) {
             delete aPassPlan;
             return false;
@@ -1378,7 +1378,7 @@ bool GARXPlan::Configure(GARXPlan *pPlan) {
         aPassPlan->mGroups.push_back(aGroup);
         
         
-        if (BuildUnwindStatementsForPass(aPassPlan, aSkeletonRound) == false) {
+        if (BuildWandererStatementsForPass(aPassPlan, aSkeletonRound) == false) {
             delete aPassPlan;
             continue;
         }
@@ -1443,7 +1443,7 @@ bool GARXPlan::Configure_ProceedWithGroups(GARXPlan *pPlan) {
             return false;
         }
         
-        if (AssignUnwindRotations(aPassPlan->mGroups) == false) {
+        if (AssignWandererRotations(aPassPlan->mGroups) == false) {
             return false;
         }
         
@@ -1565,7 +1565,7 @@ static bool PassHasUniqueTypeRotationsByGroup(GARXPassPlan *pPassPlan) {
     
     std::unordered_set<GARXTypeRotationKey, GARXTypeRotationKeyHash> aSeedUsed;
     std::unordered_set<GARXTypeRotationKey, GARXTypeRotationKeyHash> aPlugUsed;
-    std::unordered_set<GARXTypeRotationKey, GARXTypeRotationKeyHash> aUnwindUsed;
+    std::unordered_set<GARXTypeRotationKey, GARXTypeRotationKeyHash> aWandererUsed;
     
     for (GARXStatementPlan *aStatement: pPassPlan->mStatements) {
         
@@ -1582,13 +1582,13 @@ static bool PassHasUniqueTypeRotationsByGroup(GARXPassPlan *pPassPlan) {
                     }
                 }
                 
-            } else if (aStatement->mStatementType == GARXStatementType::kUnwind) {
+            } else if (aStatement->mStatementType == GARXStatementType::kWanderer) {
                 
                 if (aDatum.mKind == GARXDatumKind::kType) {
-                    if (InsertTypeRotationKey(&aUnwindUsed,
+                    if (InsertTypeRotationKey(&aWandererUsed,
                                               aDatum.mType,
                                               aDatum.mRotationAmount) == false) {
-                        printf("duplicate unwind rotation\n");
+                        printf("duplicate Wanderer rotation\n");
                         return false;
                     }
                 }

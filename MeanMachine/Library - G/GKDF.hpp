@@ -9,7 +9,6 @@
 #define GKDF_hpp
 
 #include "GSeedProgram.hpp"
-#include "TwistDomains.hpp"
 
 #include <string>
 #include <vector>

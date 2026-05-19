@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -31,16 +32,18 @@ std::string ScopeSymbolKey(const GSymbol &pSymbol) {
     return "invalid";
 }
 
-std::string ScopeExprKey(const GExpr &pExpr) {
-    return "expr:" + GExprKey(pExpr);
-}
-
 void SetError(std::string *pError,
               const std::string &pMessage) {
     if (pError != NULL) {
         *pError = pMessage;
     }
 }
+
+bool ParseInt32(const JsonValue &pValue,
+                int *pResult);
+
+bool StartsWithText(const std::string &pText,
+                    const std::string &pPrefix);
 
 template <typename T>
 void AppendUnique(std::vector<T> *pValues,
@@ -56,16 +59,52 @@ void AppendUnique(std::vector<T> *pValues,
     pValues->push_back(pValue);
 }
 
+bool IsDeclarableScalarName(const std::string &pName) {
+    if (pName.empty()) {
+        return false;
+    }
+    const unsigned char aFirst = static_cast<unsigned char>(pName[0]);
+    if ((std::isalpha(aFirst) == 0) && (pName[0] != '_')) {
+        return false;
+    }
+    for (const char aChar : pName) {
+        const unsigned char aByte = static_cast<unsigned char>(aChar);
+        if ((std::isalnum(aByte) == 0) && (aChar != '_')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void AppendUniqueVariableName(std::vector<std::string> *pNames,
+                              const std::string &pName) {
+    if (IsDeclarableScalarName(pName)) {
+        AppendUnique(pNames, pName);
+    }
+}
+
 std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource: return "source";
         case TwistWorkSpaceSlot::kDest: return "dest";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA: return "param_domain_salt_orbiter_init_a";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB: return "param_domain_salt_orbiter_init_b";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterC: return "param_domain_salt_orbiter_c";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterD: return "param_domain_salt_orbiter_d";
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindE: return "param_domain_salt_unwind_e";
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindF: return "param_domain_salt_unwind_f";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA: return "param_domain_salt_orbiter_init_a";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB: return "param_domain_salt_orbiter_init_b";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignC: return "param_domain_salt_orbiter_init_c";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD: return "param_domain_salt_orbiter_init_d";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE: return "param_domain_salt_orbiter_init_e";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF: return "param_domain_salt_orbiter_init_f";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA: return "param_domain_salt_orbiter_a";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB: return "param_domain_salt_orbiter_b";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC: return "param_domain_salt_orbiter_c";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD: return "param_domain_salt_orbiter_d";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE: return "param_domain_salt_orbiter_e";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF: return "param_domain_salt_orbiter_f";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA: return "param_domain_salt_Wanderer_a";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB: return "param_domain_salt_Wanderer_b";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC: return "param_domain_salt_Wanderer_c";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD: return "param_domain_salt_Wanderer_d";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE: return "param_domain_salt_Wanderer_e";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF: return "param_domain_salt_Wanderer_f";
         case TwistWorkSpaceSlot::kParamDomainSBoxA: return "sbox_a";
         case TwistWorkSpaceSlot::kParamDomainSBoxB: return "sbox_b";
         case TwistWorkSpaceSlot::kParamDomainSBoxC: return "sbox_c";
@@ -74,18 +113,34 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSBoxF: return "sbox_f";
         case TwistWorkSpaceSlot::kParamDomainSBoxG: return "sbox_g";
         case TwistWorkSpaceSlot::kParamDomainSBoxH: return "sbox_h";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneA: return "seed_lane_a";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneB: return "seed_lane_b";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneC: return "seed_lane_c";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneD: return "seed_lane_d";
+        case TwistWorkSpaceSlot::kExpansionLaneA: return "seed_lane_a";
+        case TwistWorkSpaceSlot::kExpansionLaneB: return "seed_lane_b";
+        case TwistWorkSpaceSlot::kExpansionLaneC: return "seed_lane_c";
+        case TwistWorkSpaceSlot::kExpansionLaneD: return "seed_lane_d";
+        case TwistWorkSpaceSlot::kExpansionLaneE: return "seed_lane_e";
+        case TwistWorkSpaceSlot::kExpansionLaneF: return "seed_lane_f";
         case TwistWorkSpaceSlot::kWorkLaneA: return "work_lane_a";
         case TwistWorkSpaceSlot::kWorkLaneB: return "work_lane_b";
         case TwistWorkSpaceSlot::kWorkLaneC: return "work_lane_c";
         case TwistWorkSpaceSlot::kWorkLaneD: return "work_lane_d";
+        case TwistWorkSpaceSlot::kWorkLaneE: return "work_lane_e";
+        case TwistWorkSpaceSlot::kWorkLaneF: return "work_lane_f";
         case TwistWorkSpaceSlot::kOperationLaneA: return "operation_lane_a";
         case TwistWorkSpaceSlot::kOperationLaneB: return "operation_lane_b";
+        case TwistWorkSpaceSlot::kOperationLaneC: return "operation_lane_c";
+        case TwistWorkSpaceSlot::kOperationLaneD: return "operation_lane_d";
+        case TwistWorkSpaceSlot::kOperationLaneE: return "operation_lane_e";
+        case TwistWorkSpaceSlot::kOperationLaneF: return "operation_lane_f";
+        case TwistWorkSpaceSlot::kSnowLaneA: return "snow_lane_a";
+        case TwistWorkSpaceSlot::kSnowLaneB: return "snow_lane_b";
+        case TwistWorkSpaceSlot::kSnowLaneC: return "snow_lane_c";
+        case TwistWorkSpaceSlot::kSnowLaneD: return "snow_lane_d";
         case TwistWorkSpaceSlot::kMaskLaneA: return "mask_lane_a";
         case TwistWorkSpaceSlot::kMaskLaneB: return "mask_lane_b";
+        case TwistWorkSpaceSlot::kIndexList256A: return "index_list_256_a";
+        case TwistWorkSpaceSlot::kIndexList256B: return "index_list_256_b";
+        case TwistWorkSpaceSlot::kIndexList256C: return "index_list_256_c";
+        case TwistWorkSpaceSlot::kIndexList256D: return "index_list_256_d";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return "key_box_unrolled_a";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return "key_box_unrolled_b";
         case TwistWorkSpaceSlot::kKeyRowReadA: return "key_row_read_a";
@@ -98,53 +153,8 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kMaskRowReadB: return "mask_row_read_b";
         case TwistWorkSpaceSlot::kMaskRowWriteA: return "mask_row_write_a";
         case TwistWorkSpaceSlot::kMaskRowWriteB: return "mask_row_write_b";
-        default: return "invalid";
-    }
-}
-
-std::string SlotEnumName(const TwistWorkSpaceSlot pSlot) {
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource: return "kSource";
-        case TwistWorkSpaceSlot::kDest: return "kDest";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA: return "kParamDomainSaltOrbiterInitA";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB: return "kParamDomainSaltOrbiterInitB";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterC: return "kParamDomainSaltOrbiterC";
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterD: return "kParamDomainSaltOrbiterD";
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindE: return "kParamDomainSaltUnwindE";
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindF: return "kParamDomainSaltUnwindF";
-        case TwistWorkSpaceSlot::kParamDomainSBoxA: return "kSBoxA";
-        case TwistWorkSpaceSlot::kParamDomainSBoxB: return "kSBoxB";
-        case TwistWorkSpaceSlot::kParamDomainSBoxC: return "kSBoxC";
-        case TwistWorkSpaceSlot::kParamDomainSBoxD: return "kSBoxD";
-        case TwistWorkSpaceSlot::kParamDomainSBoxE: return "kSBoxE";
-        case TwistWorkSpaceSlot::kParamDomainSBoxF: return "kSBoxF";
-        case TwistWorkSpaceSlot::kParamDomainSBoxG: return "kSBoxG";
-        case TwistWorkSpaceSlot::kParamDomainSBoxH: return "kSBoxH";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneA: return "kSeedExpansionLaneA";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneB: return "kSeedExpansionLaneB";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneC: return "kSeedExpansionLaneC";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneD: return "kSeedExpansionLaneD";
-        case TwistWorkSpaceSlot::kWorkLaneA: return "kWorkLaneA";
-        case TwistWorkSpaceSlot::kWorkLaneB: return "kWorkLaneB";
-        case TwistWorkSpaceSlot::kWorkLaneC: return "kWorkLaneC";
-        case TwistWorkSpaceSlot::kWorkLaneD: return "kWorkLaneD";
-        case TwistWorkSpaceSlot::kOperationLaneA: return "kOperationLaneA";
-        case TwistWorkSpaceSlot::kOperationLaneB: return "kOperationLaneB";
-        case TwistWorkSpaceSlot::kMaskLaneA: return "kMaskLaneA";
-        case TwistWorkSpaceSlot::kMaskLaneB: return "kMaskLaneB";
-        case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return "kKeyBoxUnrolledA";
-        case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return "kKeyBoxUnrolledB";
-        case TwistWorkSpaceSlot::kKeyRowReadA: return "kKeyRowReadA";
-        case TwistWorkSpaceSlot::kKeyRowReadB: return "kKeyRowReadB";
-        case TwistWorkSpaceSlot::kKeyRowWriteA: return "kKeyRowWriteA";
-        case TwistWorkSpaceSlot::kKeyRowWriteB: return "kKeyRowWriteB";
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledA: return "kMaskBoxUnrolledA";
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledB: return "kMaskBoxUnrolledB";
-        case TwistWorkSpaceSlot::kMaskRowReadA: return "kMaskRowReadA";
-        case TwistWorkSpaceSlot::kMaskRowReadB: return "kMaskRowReadB";
-        case TwistWorkSpaceSlot::kMaskRowWriteA: return "kMaskRowWriteA";
-        case TwistWorkSpaceSlot::kMaskRowWriteB: return "kMaskRowWriteB";
-        default: return "kInvalid";
+        default:
+            return "slot_" + std::to_string(static_cast<int>(pSlot));
     }
 }
 
@@ -157,12 +167,24 @@ bool SlotFromToken(const std::string &pToken,
     static const std::vector<TwistWorkSpaceSlot> kSlots = {
         TwistWorkSpaceSlot::kSource,
         TwistWorkSpaceSlot::kDest,
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA,
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB,
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterC,
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterD,
-        TwistWorkSpaceSlot::kParamDomainSaltUnwindE,
-        TwistWorkSpaceSlot::kParamDomainSaltUnwindF,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignC,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
         TwistWorkSpaceSlot::kParamDomainSBoxA,
         TwistWorkSpaceSlot::kParamDomainSBoxB,
         TwistWorkSpaceSlot::kParamDomainSBoxC,
@@ -171,18 +193,34 @@ bool SlotFromToken(const std::string &pToken,
         TwistWorkSpaceSlot::kParamDomainSBoxF,
         TwistWorkSpaceSlot::kParamDomainSBoxG,
         TwistWorkSpaceSlot::kParamDomainSBoxH,
-        TwistWorkSpaceSlot::kSeedExpansionLaneA,
-        TwistWorkSpaceSlot::kSeedExpansionLaneB,
-        TwistWorkSpaceSlot::kSeedExpansionLaneC,
-        TwistWorkSpaceSlot::kSeedExpansionLaneD,
+        TwistWorkSpaceSlot::kExpansionLaneA,
+        TwistWorkSpaceSlot::kExpansionLaneB,
+        TwistWorkSpaceSlot::kExpansionLaneC,
+        TwistWorkSpaceSlot::kExpansionLaneD,
+        TwistWorkSpaceSlot::kExpansionLaneE,
+        TwistWorkSpaceSlot::kExpansionLaneF,
         TwistWorkSpaceSlot::kWorkLaneA,
         TwistWorkSpaceSlot::kWorkLaneB,
         TwistWorkSpaceSlot::kWorkLaneC,
         TwistWorkSpaceSlot::kWorkLaneD,
+        TwistWorkSpaceSlot::kWorkLaneE,
+        TwistWorkSpaceSlot::kWorkLaneF,
         TwistWorkSpaceSlot::kOperationLaneA,
         TwistWorkSpaceSlot::kOperationLaneB,
+        TwistWorkSpaceSlot::kOperationLaneC,
+        TwistWorkSpaceSlot::kOperationLaneD,
+        TwistWorkSpaceSlot::kOperationLaneE,
+        TwistWorkSpaceSlot::kOperationLaneF,
+        TwistWorkSpaceSlot::kSnowLaneA,
+        TwistWorkSpaceSlot::kSnowLaneB,
+        TwistWorkSpaceSlot::kSnowLaneC,
+        TwistWorkSpaceSlot::kSnowLaneD,
         TwistWorkSpaceSlot::kMaskLaneA,
         TwistWorkSpaceSlot::kMaskLaneB,
+        TwistWorkSpaceSlot::kIndexList256A,
+        TwistWorkSpaceSlot::kIndexList256B,
+        TwistWorkSpaceSlot::kIndexList256C,
+        TwistWorkSpaceSlot::kIndexList256D,
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
         TwistWorkSpaceSlot::kKeyRowReadA,
@@ -203,11 +241,20 @@ bool SlotFromToken(const std::string &pToken,
             return true;
         }
     }
+    if (StartsWithText(pToken, "slot_")) {
+        const std::string aNumeric = pToken.substr(5U);
+        int aSlotValue = 0;
+        if (ParseInt32(JsonValue::String(aNumeric), &aSlotValue)) {
+            *pSlot = static_cast<TwistWorkSpaceSlot>(aSlotValue);
+            return true;
+        }
+    }
     return false;
 }
 
 std::string ExprTypeToken(const GExprType pType) {
     switch (pType) {
+        case GExprType::kInv: return "inv";
         case GExprType::kSymbol: return "symbol";
         case GExprType::kConst: return "const";
         case GExprType::kRead: return "read";
@@ -216,8 +263,17 @@ std::string ExprTypeToken(const GExprType pType) {
         case GExprType::kMul: return "mul";
         case GExprType::kXor: return "xor";
         case GExprType::kAnd: return "and";
+        case GExprType::kOr: return "or";
         case GExprType::kRotL8: return "rotl8";
-        default: return "invalid";
+        case GExprType::kRotL32: return "rotl32";
+        case GExprType::kRotL64: return "rotl64";
+        case GExprType::kShiftL: return "shl";
+        case GExprType::kShiftR: return "shr";
+        case GExprType::kMix64_8: return "mix64_8";
+        case GExprType::kDiffuseA64: return "diffuse_a64";
+        case GExprType::kDiffuseB64: return "diffuse_b64";
+        case GExprType::kDiffuseC64: return "diffuse_c64";
+        default: return "inv";
     }
 }
 
@@ -225,6 +281,10 @@ bool ExprTypeFromToken(const std::string &pToken,
                        GExprType *pType) {
     if (pType == NULL) {
         return false;
+    }
+    if ((pToken == "inv") || (pToken == "kInv") || (pToken == "invalid") || (pToken == "kInvalid")) {
+        *pType = GExprType::kInv;
+        return true;
     }
     if (pToken == "symbol") { *pType = GExprType::kSymbol; return true; }
     if (pToken == "const") { *pType = GExprType::kConst; return true; }
@@ -234,15 +294,29 @@ bool ExprTypeFromToken(const std::string &pToken,
     if (pToken == "mul") { *pType = GExprType::kMul; return true; }
     if (pToken == "xor") { *pType = GExprType::kXor; return true; }
     if (pToken == "and") { *pType = GExprType::kAnd; return true; }
+    if (pToken == "or") { *pType = GExprType::kOr; return true; }
     if (pToken == "rotl8") { *pType = GExprType::kRotL8; return true; }
+    if (pToken == "rotl32") { *pType = GExprType::kRotL32; return true; }
+    if (pToken == "rotl64") { *pType = GExprType::kRotL64; return true; }
+    if (pToken == "shl") { *pType = GExprType::kShiftL; return true; }
+    if (pToken == "shr") { *pType = GExprType::kShiftR; return true; }
+    if (pToken == "mix64_8") { *pType = GExprType::kMix64_8; return true; }
+    if (pToken == "diffuse_a64") { *pType = GExprType::kDiffuseA64; return true; }
+    if (pToken == "diffuse_b64") { *pType = GExprType::kDiffuseB64; return true; }
+    if (pToken == "diffuse_c64") { *pType = GExprType::kDiffuseC64; return true; }
     return false;
 }
 
 std::string ReadWrapTypeToken(const GReadWrapType pType) {
     switch (pType) {
+        case GReadWrapType::kNone: return "none";
         case GReadWrapType::kBlock: return "block";
         case GReadWrapType::kSBox: return "sbox";
         case GReadWrapType::kSalt: return "salt";
+        case GReadWrapType::kMaskA: return "mask_a";
+        case GReadWrapType::kMaskB: return "mask_b";
+        case GReadWrapType::kKeyA: return "key_a";
+        case GReadWrapType::kKeyB: return "key_b";
         default: return "none";
     }
 }
@@ -252,10 +326,14 @@ bool ReadWrapTypeFromToken(const std::string &pToken,
     if (pType == NULL) {
         return false;
     }
-    if (pToken == "none") { *pType = GReadWrapType::kNone; return true; }
-    if (pToken == "block") { *pType = GReadWrapType::kBlock; return true; }
-    if (pToken == "sbox") { *pType = GReadWrapType::kSBox; return true; }
-    if (pToken == "salt") { *pType = GReadWrapType::kSalt; return true; }
+    if ((pToken == "none") || (pToken == "kNone")) { *pType = GReadWrapType::kNone; return true; }
+    if ((pToken == "block") || (pToken == "kBlock")) { *pType = GReadWrapType::kBlock; return true; }
+    if ((pToken == "sbox") || (pToken == "kSBox")) { *pType = GReadWrapType::kSBox; return true; }
+    if ((pToken == "salt") || (pToken == "kSalt")) { *pType = GReadWrapType::kSalt; return true; }
+    if ((pToken == "mask_a") || (pToken == "kMaskA")) { *pType = GReadWrapType::kMaskA; return true; }
+    if ((pToken == "mask_b") || (pToken == "kMaskB")) { *pType = GReadWrapType::kMaskB; return true; }
+    if ((pToken == "key_a") || (pToken == "kKeyA")) { *pType = GReadWrapType::kKeyA; return true; }
+    if ((pToken == "key_b") || (pToken == "kKeyB")) { *pType = GReadWrapType::kKeyB; return true; }
     return false;
 }
 
@@ -273,6 +351,7 @@ bool AssignTypeFromToken(const std::string &pToken,
     if (pType == NULL) {
         return false;
     }
+    if ((pToken == "invalid") || (pToken == "kInvalid")) { *pType = GAssignType::kInvalid; return true; }
     if (pToken == "set") { *pType = GAssignType::kSet; return true; }
     if (pToken == "add_assign") { *pType = GAssignType::kAddAssign; return true; }
     if (pToken == "xor_assign") { *pType = GAssignType::kXorAssign; return true; }
@@ -305,13 +384,13 @@ bool ParseInt64(const JsonValue &pValue,
 }
 
 bool ParseUInt64(const JsonValue &pValue,
-                 int *pResult) {
+                 std::uint64_t *pResult) {
     if (pResult == NULL) {
         return false;
     }
     if (pValue.is_string()) {
         try {
-            *pResult = static_cast<int>(std::stoull(pValue.as_string()));
+            *pResult = static_cast<std::uint64_t>(std::stoull(pValue.as_string()));
             return true;
         } catch (...) {
             return false;
@@ -320,10 +399,46 @@ bool ParseUInt64(const JsonValue &pValue,
     if (pValue.is_number()) {
         const double aValue = pValue.as_number();
         if ((aValue < 0.0) ||
-            (aValue > static_cast<double>(std::numeric_limits<int>::max()))) {
+            (aValue > static_cast<double>(std::numeric_limits<std::uint64_t>::max()))) {
             return false;
         }
-        *pResult = static_cast<int>(aValue);
+        *pResult = static_cast<std::uint64_t>(aValue);
+        return true;
+    }
+    return false;
+}
+
+std::string Mix64Type8Token(const Mix64Type_8 pType) {
+    switch (pType) {
+        case Mix64Type_8::kGatePrism_8_8: return "gate_prism_8_8";
+        case Mix64Type_8::kGateRoll_8_8: return "gate_roll_8_8";
+        case Mix64Type_8::kGateTurn_8_8: return "gate_turn_8_8";
+        case Mix64Type_8::kInv:
+        default:
+            return "inv";
+    }
+}
+
+bool Mix64Type8FromToken(const std::string &pToken,
+                         Mix64Type_8 *pType) {
+    if (pType == NULL) {
+        return false;
+    }
+
+    if ((pToken == "inv") || (pToken == "kInv") || (pToken == "0")) {
+        *pType = Mix64Type_8::kInv;
+        return true;
+    }
+    if ((pToken == "gate_prism_8_8") || (pToken == "kGatePrism_8_8") || (pToken == "1")) {
+        *pType = Mix64Type_8::kGatePrism_8_8;
+        return true;
+    }
+    if ((pToken == "gate_roll_8_8") || (pToken == "kGateRoll_8_8") || (pToken == "2")) {
+        *pType = Mix64Type_8::kGateRoll_8_8;
+        return true;
+    }
+    if ((pToken == "gate_turn_8_8") || (pToken == "kGateTurn_8_8") || (pToken == "3")) {
+        *pType = Mix64Type_8::kGateTurn_8_8;
         return true;
     }
     return false;
@@ -350,12 +465,12 @@ std::string Indent(const std::size_t pCount) {
 void CollectVariablesFromExpr(const GExpr &pExpr,
                               std::vector<std::string> *pNames) {
     if (pExpr.mType == GExprType::kSymbol && pExpr.mSymbol.IsVar()) {
-        AppendUnique(pNames, pExpr.mSymbol.mName);
+        AppendUniqueVariableName(pNames, pExpr.mSymbol.mName);
         return;
     }
     if (pExpr.mType == GExprType::kRead) {
         if (pExpr.mSymbol.IsVar()) {
-            AppendUnique(pNames, pExpr.mSymbol.mName);
+            AppendUniqueVariableName(pNames, pExpr.mSymbol.mName);
         }
         if (pExpr.mIndex != nullptr) {
             CollectVariablesFromExpr(*pExpr.mIndex, pNames);
@@ -413,17 +528,6 @@ int CountExprReads(const GExpr &pExpr,
     return aCount;
 }
 
-void CollectReadSymbolsFromStatement(const GStatement &pStatement,
-                                     std::vector<GSymbol> *pSymbols) {
-    if (pStatement.mTarget.mIndex != nullptr) {
-        const std::vector<GSymbol> aTargetSymbols = pStatement.mTarget.mIndex->GetSymbols();
-        pSymbols->insert(pSymbols->end(), aTargetSymbols.begin(), aTargetSymbols.end());
-    }
-
-    const std::vector<GSymbol> aExprSymbols = pStatement.mExpression.GetSymbols();
-    pSymbols->insert(pSymbols->end(), aExprSymbols.begin(), aExprSymbols.end());
-}
-
 bool ExprReadsSlot(const GExpr &pExpr,
                    const TwistWorkSpaceSlot pSlot) {
     return CountExprReads(pExpr, pSlot) > 0U;
@@ -446,6 +550,7 @@ std::string ScalarOperatorText(const GExprType pType) {
         case GExprType::kMul: return "*";
         case GExprType::kXor: return "^";
         case GExprType::kAnd: return "&";
+        case GExprType::kOr: return "|";
         default: return "";
     }
 }
@@ -457,14 +562,6 @@ std::string AssignOperatorText(const GAssignType pType) {
         case GAssignType::kXorAssign: return "^=";
         default: return "?=";
     }
-}
-
-bool EndsWithText(const std::string &pText,
-                  const std::string &pSuffix) {
-    if (pSuffix.size() > pText.size()) {
-        return false;
-    }
-    return pText.compare(pText.size() - pSuffix.size(), pSuffix.size(), pSuffix) == 0;
 }
 
 bool StartsWithText(const std::string &pText,
@@ -486,7 +583,7 @@ std::string ScalarCppTypeForName(const std::string &pName) {
     if (IsKeyScalarName(pName)) {
         return "std::size_t";
     }
-    return "std::uint8_t";
+    return "std::uint64_t";
 }
 
 int NormalizeScalarValueForName(const std::string &pName,
@@ -497,7 +594,7 @@ int NormalizeScalarValueForName(const std::string &pName,
     if (IsKeyScalarName(pName)) {
         return static_cast<int>(static_cast<std::uint32_t>(pValue));
     }
-    return static_cast<int>(static_cast<unsigned int>(pValue) & 0xFFU);
+    return pValue;
 }
 
 bool LoopUsesSizeT(const GLoop &pLoop) {
@@ -522,12 +619,24 @@ bool IsSBoxSlot(const TwistWorkSpaceSlot pSlot) {
 
 bool IsSaltSlot(const TwistWorkSpaceSlot pSlot) {
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA:
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB:
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterC:
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterD:
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindE:
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindF:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignC:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF:
             return true;
         default:
             return false;
@@ -537,18 +646,20 @@ bool IsSaltSlot(const TwistWorkSpaceSlot pSlot) {
 std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
                                 const int pIndexValue) {
     if (IsSaltSlot(pSlot)) {
-        return static_cast<std::size_t>(static_cast<unsigned int>(pIndexValue) & 0x7FU);
+        return static_cast<std::size_t>(static_cast<unsigned int>(pIndexValue) &
+                                        static_cast<unsigned int>(S_SALT1));
     }
     if (IsSBoxSlot(pSlot)) {
-        return static_cast<std::size_t>(static_cast<unsigned int>(pIndexValue) & 0xFFU);
+        return static_cast<std::size_t>(static_cast<unsigned int>(pIndexValue) &
+                                        static_cast<unsigned int>(S_SBOX1));
     }
     return static_cast<std::size_t>(pIndexValue);
 }
 
 unsigned int ReadWrapTrimMaskForType(const GReadWrapType pType) {
     switch (pType) {
-        case GReadWrapType::kSBox: return 0xFFU;
-        case GReadWrapType::kSalt: return 0x7FU;
+        case GReadWrapType::kSBox: return static_cast<unsigned int>(S_SBOX1);
+        case GReadWrapType::kSalt: return static_cast<unsigned int>(S_SALT1);
         default: return 0U;
     }
 }
@@ -675,7 +786,19 @@ JsonValue ExprToJsonValue(const GExpr &pExpr) {
         aObject["read_wrap_type"] = JsonValue::String(ReadWrapTypeToken(pExpr.mReadWrapType));
         aObject["read_wrap_index_symbol"] = SymbolToJsonValue(pExpr.mReadWrapIndexSymbol);
         aObject["read_wrap_oracle_symbol"] = SymbolToJsonValue(pExpr.mReadWrapOracleSymbol);
-        aObject["read_wrap_offset"] = JsonValue::Number(static_cast<double>(pExpr.mReadWrapOffset));
+    }
+    if (pExpr.mType == GExprType::kMix64_8) {
+        aObject["mix64_type_8"] = JsonValue::String(Mix64Type8Token(pExpr.mMix64Type8));
+        aObject["mix64_use_amount"] = JsonValue::Bool(pExpr.mMix64UseAmount);
+        aObject["mix64_amount"] = JsonValue::String(std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)));
+        aObject["mix64_sbox_a"] = SymbolToJsonValue(pExpr.mMix64SBoxA);
+        aObject["mix64_sbox_b"] = SymbolToJsonValue(pExpr.mMix64SBoxB);
+        aObject["mix64_sbox_c"] = SymbolToJsonValue(pExpr.mMix64SBoxC);
+        aObject["mix64_sbox_d"] = SymbolToJsonValue(pExpr.mMix64SBoxD);
+        aObject["mix64_sbox_e"] = SymbolToJsonValue(pExpr.mMix64SBoxE);
+        aObject["mix64_sbox_f"] = SymbolToJsonValue(pExpr.mMix64SBoxF);
+        aObject["mix64_sbox_g"] = SymbolToJsonValue(pExpr.mMix64SBoxG);
+        aObject["mix64_sbox_h"] = SymbolToJsonValue(pExpr.mMix64SBoxH);
     }
     return JsonValue::ObjectValue(std::move(aObject));
 }
@@ -700,8 +823,9 @@ bool ExprFromJsonValue(const JsonValue &pValue,
 
     GExprType aTypeValue = GExprType::kInv;
     if (!ExprTypeFromToken(aType->as_string(), &aTypeValue)) {
-        SetError(pError, "Expression type token was unknown.");
-        return false;
+        std::printf("warn: ExprFromJsonValue unknown expression type token '%s'; defaulting to invalid expression.\n",
+                    aType->as_string().c_str());
+        aTypeValue = GExprType::kInv;
     }
 
     GExpr aExpr;
@@ -721,12 +845,12 @@ bool ExprFromJsonValue(const JsonValue &pValue,
         }
         case GExprType::kConst: {
             const JsonValue *aValue = pValue.find("value");
-            int aNumber = 0;
+            std::uint64_t aNumber = 0U;
             if ((aValue == NULL) || !ParseUInt64(*aValue, &aNumber)) {
                 SetError(pError, "Constant expression value was invalid.");
                 return false;
             }
-            aExpr = GExpr::Const(aNumber);
+            aExpr = GExpr::Const64(aNumber);
             break;
         }
         case GExprType::kRead: {
@@ -755,18 +879,15 @@ bool ExprFromJsonValue(const JsonValue &pValue,
                 if (aWrapTypeValue != GReadWrapType::kNone) {
                     const JsonValue *aWrapIndexSymbol = pValue.find("read_wrap_index_symbol");
                     const JsonValue *aWrapOracleSymbol = pValue.find("read_wrap_oracle_symbol");
-                    const JsonValue *aWrapOffset = pValue.find("read_wrap_offset");
-                    if ((aWrapIndexSymbol == NULL) || (aWrapOracleSymbol == NULL) || (aWrapOffset == NULL)) {
+                    if ((aWrapIndexSymbol == NULL) || (aWrapOracleSymbol == NULL)) {
                         SetError(pError, "Read wrap metadata was incomplete.");
                         return false;
                     }
 
                     GSymbol aWrapIndexParsed;
                     GSymbol aWrapOracleParsed;
-                    int aWrapOffsetParsed = 0;
                     if (!SymbolFromJsonValue(*aWrapIndexSymbol, &aWrapIndexParsed, pError) ||
-                        !SymbolFromJsonValue(*aWrapOracleSymbol, &aWrapOracleParsed, pError) ||
-                        !ParseInt32(*aWrapOffset, &aWrapOffsetParsed)) {
+                        !SymbolFromJsonValue(*aWrapOracleSymbol, &aWrapOracleParsed, pError)) {
                         SetError(pError, "Read wrap metadata was invalid.");
                         return false;
                     }
@@ -774,7 +895,6 @@ bool ExprFromJsonValue(const JsonValue &pValue,
                     aExpr.mReadWrapType = aWrapTypeValue;
                     aExpr.mReadWrapIndexSymbol = aWrapIndexParsed;
                     aExpr.mReadWrapOracleSymbol = aWrapOracleParsed;
-                    aExpr.mReadWrapOffset = aWrapOffsetParsed;
                 }
             }
             break;
@@ -784,7 +904,12 @@ bool ExprFromJsonValue(const JsonValue &pValue,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotL8: {
+        case GExprType::kOr:
+        case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kRotL64:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR: {
             const JsonValue *aA = pValue.find("a");
             const JsonValue *aB = pValue.find("b");
             if ((aA == NULL) || (aB == NULL)) {
@@ -803,9 +928,128 @@ bool ExprFromJsonValue(const JsonValue &pValue,
                 case GExprType::kMul: aExpr = GExpr::Mul(aLeft, aRight); break;
                 case GExprType::kXor: aExpr = GExpr::Xor(aLeft, aRight); break;
                 case GExprType::kAnd: aExpr = GExpr::And(aLeft, aRight); break;
+                case GExprType::kOr: aExpr = GExpr::Or(aLeft, aRight); break;
                 case GExprType::kRotL8: aExpr = GExpr::RotL8(aLeft, aRight); break;
+                case GExprType::kRotL32: aExpr = GExpr::RotL32(aLeft, aRight); break;
+                case GExprType::kRotL64: aExpr = GExpr::RotL64(aLeft, aRight); break;
+                case GExprType::kShiftL: aExpr = GExpr::ShiftL(aLeft, aRight); break;
+                case GExprType::kShiftR: aExpr = GExpr::ShiftR(aLeft, aRight); break;
                 default: break;
             }
+            break;
+        }
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64: {
+            const JsonValue *aA = pValue.find("a");
+            if (aA == NULL) {
+                SetError(pError, "Unary expression was incomplete.");
+                return false;
+            }
+
+            GExpr aInner;
+            if (!ExprFromJsonValue(*aA, &aInner, pError)) {
+                return false;
+            }
+
+            switch (aTypeValue) {
+                case GExprType::kDiffuseA64: aExpr = GExpr::DiffuseA(aInner); break;
+                case GExprType::kDiffuseB64: aExpr = GExpr::DiffuseB(aInner); break;
+                case GExprType::kDiffuseC64: aExpr = GExpr::DiffuseC(aInner); break;
+                default: break;
+            }
+            break;
+        }
+        case GExprType::kMix64_8: {
+            const JsonValue *aA = pValue.find("a");
+            const JsonValue *aMixType = pValue.find("mix64_type_8");
+            const JsonValue *aUseAmount = pValue.find("mix64_use_amount");
+            const JsonValue *aAmount = pValue.find("mix64_amount");
+            const JsonValue *aSBoxA = pValue.find("mix64_sbox_a");
+            const JsonValue *aSBoxB = pValue.find("mix64_sbox_b");
+            const JsonValue *aSBoxC = pValue.find("mix64_sbox_c");
+            const JsonValue *aSBoxD = pValue.find("mix64_sbox_d");
+            const JsonValue *aSBoxE = pValue.find("mix64_sbox_e");
+            const JsonValue *aSBoxF = pValue.find("mix64_sbox_f");
+            const JsonValue *aSBoxG = pValue.find("mix64_sbox_g");
+            const JsonValue *aSBoxH = pValue.find("mix64_sbox_h");
+            if ((aA == NULL) || (aMixType == NULL) || !aMixType->is_string() ||
+                (aSBoxA == NULL) || (aSBoxB == NULL) || (aSBoxC == NULL) || (aSBoxD == NULL) ||
+                (aSBoxE == NULL) || (aSBoxF == NULL) || (aSBoxG == NULL) || (aSBoxH == NULL)) {
+                SetError(pError, "Mix64_8 expression was incomplete.");
+                return false;
+            }
+
+            GExpr aInner;
+            if (!ExprFromJsonValue(*aA, &aInner, pError)) {
+                return false;
+            }
+
+            Mix64Type_8 aMixTypeParsed = Mix64Type_8::kInv;
+            if (!Mix64Type8FromToken(aMixType->as_string(), &aMixTypeParsed)) {
+                SetError(pError, "Mix64_8 type token was unknown.");
+                return false;
+            }
+
+            GSymbol aParsedSBoxA;
+            GSymbol aParsedSBoxB;
+            GSymbol aParsedSBoxC;
+            GSymbol aParsedSBoxD;
+            GSymbol aParsedSBoxE;
+            GSymbol aParsedSBoxF;
+            GSymbol aParsedSBoxG;
+            GSymbol aParsedSBoxH;
+            if (!SymbolFromJsonValue(*aSBoxA, &aParsedSBoxA, pError) ||
+                !SymbolFromJsonValue(*aSBoxB, &aParsedSBoxB, pError) ||
+                !SymbolFromJsonValue(*aSBoxC, &aParsedSBoxC, pError) ||
+                !SymbolFromJsonValue(*aSBoxD, &aParsedSBoxD, pError) ||
+                !SymbolFromJsonValue(*aSBoxE, &aParsedSBoxE, pError) ||
+                !SymbolFromJsonValue(*aSBoxF, &aParsedSBoxF, pError) ||
+                !SymbolFromJsonValue(*aSBoxG, &aParsedSBoxG, pError) ||
+                !SymbolFromJsonValue(*aSBoxH, &aParsedSBoxH, pError)) {
+                return false;
+            }
+
+            bool aUseAmountValue = false;
+            if ((aUseAmount != NULL) && aUseAmount->is_bool()) {
+                aUseAmountValue = aUseAmount->as_bool();
+            } else if ((aUseAmount != NULL) && aUseAmount->is_number()) {
+                aUseAmountValue = aUseAmount->as_number() != 0.0;
+            }
+
+            if (aUseAmountValue) {
+                std::uint64_t aAmountValue = 0U;
+                if ((aAmount == NULL) || !ParseUInt64(*aAmount, &aAmountValue)) {
+                    SetError(pError, "Mix64_8 amount was invalid.");
+                    return false;
+                }
+                aExpr = GExpr::Mix64_8(aInner,
+                                       aMixTypeParsed,
+                                       aAmountValue,
+                                       aParsedSBoxA,
+                                       aParsedSBoxB,
+                                       aParsedSBoxC,
+                                       aParsedSBoxD,
+                                       aParsedSBoxE,
+                                       aParsedSBoxF,
+                                       aParsedSBoxG,
+                                       aParsedSBoxH);
+            } else {
+                aExpr = GExpr::Mix64_8(aInner,
+                                       aMixTypeParsed,
+                                       aParsedSBoxA,
+                                       aParsedSBoxB,
+                                       aParsedSBoxC,
+                                       aParsedSBoxD,
+                                       aParsedSBoxE,
+                                       aParsedSBoxF,
+                                       aParsedSBoxG,
+                                       aParsedSBoxH);
+            }
+            break;
+        }
+        case GExprType::kInv: {
+            aExpr.Invalidate();
             break;
         }
         default:
@@ -867,9 +1111,25 @@ bool TargetFromJsonValue(const JsonValue &pValue,
 
 JsonValue StatementToJsonValue(const GStatement &pStatement) {
     JsonValue::Object aObject;
+    if (pStatement.IsRawLine()) {
+        aObject["statement_type"] = JsonValue::String("raw_line");
+        aObject["line"] = JsonValue::String(pStatement.mRawLine);
+        aObject["output_prefix"] = JsonValue::String(pStatement.mOutputPrefix);
+        return JsonValue::ObjectValue(std::move(aObject));
+    }
+    if (pStatement.IsInvalid()) {
+        std::printf("warn: StatementToJsonValue encountered invalid assign statement; preserving as raw warning line.\n");
+        aObject["statement_type"] = JsonValue::String("raw_line");
+        aObject["line"] = JsonValue::String("// export warning: invalid assign statement was dropped");
+        aObject["output_prefix"] = JsonValue::String("");
+        return JsonValue::ObjectValue(std::move(aObject));
+    }
+
+    aObject["statement_type"] = JsonValue::String("assign");
     aObject["target"] = TargetToJsonValue(pStatement.mTarget);
     aObject["assign"] = JsonValue::String(AssignTypeToken(pStatement.mAssignType));
     aObject["expression"] = ExprToJsonValue(pStatement.mExpression);
+    aObject["output_prefix"] = JsonValue::String(pStatement.mOutputPrefix);
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
@@ -883,6 +1143,23 @@ bool StatementFromJsonValue(const JsonValue &pValue,
     if (!pValue.is_object()) {
         SetError(pError, "Statement JSON was not an object.");
         return false;
+    }
+
+    const JsonValue *aStatementType = pValue.find("statement_type");
+    const JsonValue *aOutputPrefix = pValue.find("output_prefix");
+    if ((aStatementType != NULL) && aStatementType->is_string() &&
+        (aStatementType->as_string() == "raw_line")) {
+        const JsonValue *aLine = pValue.find("line");
+        if ((aLine == NULL) || !aLine->is_string()) {
+            SetError(pError, "Raw-line statement JSON was incomplete.");
+            return false;
+        }
+        GStatement aRaw = GStatement::RawLine(aLine->as_string());
+        if ((aOutputPrefix != NULL) && aOutputPrefix->is_string()) {
+            aRaw.mOutputPrefix = aOutputPrefix->as_string();
+        }
+        *pStatement = aRaw;
+        return true;
     }
 
     const JsonValue *aTarget = pValue.find("target");
@@ -903,6 +1180,14 @@ bool StatementFromJsonValue(const JsonValue &pValue,
         return false;
     }
 
+    aStatement.mType = GStatementType::kAssign;
+    if ((aOutputPrefix != NULL) && aOutputPrefix->is_string()) {
+        aStatement.mOutputPrefix = aOutputPrefix->as_string();
+    }
+    if (aStatement.IsInvalid()) {
+        SetError(pError, "Statement JSON produced an invalid assign statement.");
+        return false;
+    }
     *pStatement = aStatement;
     return true;
 }
@@ -1023,6 +1308,9 @@ std::string PrettyExpr(const GExpr &pExpr) {
 }
 
 std::string PrettyStatement(const GStatement &pStatement) {
+    if (pStatement.IsRawLine()) {
+        return pStatement.mRawLine;
+    }
     return PrettyTarget(pStatement.mTarget) + " " +
            AssignOperatorText(pStatement.mAssignType) + " " +
            PrettyExpr(pStatement.mExpression) + ";";
@@ -1070,15 +1358,22 @@ std::string CppIndexForSlot(const TwistWorkSpaceSlot pSlot,
                             const GExpr *pIndexExpr,
                             const std::string &pIndexText) {
     if (IsSaltSlot(pSlot)) {
-        return pIndexText + " & 0x7FU";
+        return "(" + pIndexText + ") & S_SALT1";
     }
     if (IsSBoxSlot(pSlot)) {
         if (!ShouldMaskSBoxIndex(pIndexExpr)) {
             return pIndexText;
         }
-        return pIndexText + " & 0xFFU";
+        return "(" + pIndexText + ") & S_SBOX1";
     }
-    return pIndexText;
+
+    // For block-sized buffers, preserve the two canonical direct-index forms and
+    // wrap all other offsets with S_BLOCK1.
+    if ((pIndexText == "aIndex") || (pIndexText == "i") ||
+        (pIndexText == "S_BLOCK1 - aIndex") || (pIndexText == "S_BLOCK1 - i")) {
+        return pIndexText;
+    }
+    return "(" + pIndexText + ") & S_BLOCK1";
 }
 
 std::string CppExpr(const GExpr &pExpr) {
@@ -1089,6 +1384,9 @@ std::string CppExpr(const GExpr &pExpr) {
             }
             return pExpr.mSymbol.mName;
         case GExprType::kConst:
+            if (pExpr.mConstVal == static_cast<std::uint64_t>(S_BLOCK1)) {
+                return "S_BLOCK1";
+            }
             return std::to_string(static_cast<unsigned long long>(pExpr.mConstVal)) + "U";
         case GExprType::kRead: {
             const std::string aIndexText = (pExpr.mIndex != nullptr) ? CppExpr(*pExpr.mIndex) : std::string("0");
@@ -1100,10 +1398,80 @@ std::string CppExpr(const GExpr &pExpr) {
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
+        case GExprType::kOr:
+            if ((pExpr.mType == GExprType::kAdd) &&
+                (pExpr.mB != nullptr) &&
+                (pExpr.mB->mType == GExprType::kConst) &&
+                (pExpr.mB->mConstVal == 0ULL)) {
+                return CppExpr(*pExpr.mA);
+            }
+            if ((pExpr.mType == GExprType::kAdd) &&
+                (pExpr.mA != nullptr) &&
+                (pExpr.mA->mType == GExprType::kConst) &&
+                (pExpr.mA->mConstVal == 0ULL)) {
+                return CppExpr(*pExpr.mB);
+            }
+            if ((pExpr.mType == GExprType::kSub) &&
+                (pExpr.mB != nullptr) &&
+                (pExpr.mB->mType == GExprType::kConst) &&
+                (pExpr.mB->mConstVal == 0ULL)) {
+                return CppExpr(*pExpr.mA);
+            }
+            if ((pExpr.mType == GExprType::kSub) &&
+                (pExpr.mA != nullptr) &&
+                (pExpr.mA->mType == GExprType::kConst) &&
+                (pExpr.mA->mConstVal == static_cast<std::uint64_t>(S_BLOCK1)) &&
+                (pExpr.mB != nullptr) &&
+                (pExpr.mB->mType == GExprType::kSymbol)) {
+                return "S_BLOCK1 - " + CppExpr(*pExpr.mB);
+            }
             return "(" + CppExpr(*pExpr.mA) + " " + ScalarOperatorText(pExpr.mType) +
                    " " + CppExpr(*pExpr.mB) + ")";
         case GExprType::kRotL8:
             return "RotL8(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kRotL32:
+            return "RotL32(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kRotL64:
+            return "RotL64(" + CppExpr(*pExpr.mA) + ", " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kShiftL:
+            return "(" + CppExpr(*pExpr.mA) + " << " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kShiftR:
+            return "(" + CppExpr(*pExpr.mA) + " >> " + CppExpr(*pExpr.mB) + ")";
+        case GExprType::kDiffuseA64:
+            return "TwistMix64::DiffuseA(" + CppExpr(*pExpr.mA) + ")";
+        case GExprType::kDiffuseB64:
+            return "TwistMix64::DiffuseB(" + CppExpr(*pExpr.mA) + ")";
+        case GExprType::kDiffuseC64:
+            return "TwistMix64::DiffuseC(" + CppExpr(*pExpr.mA) + ")";
+        case GExprType::kMix64_8: {
+            const std::string aInput = CppExpr(*pExpr.mA);
+            const std::string aSBoxA = BufAliasName(pExpr.mMix64SBoxA);
+            const std::string aSBoxB = BufAliasName(pExpr.mMix64SBoxB);
+            const std::string aSBoxC = BufAliasName(pExpr.mMix64SBoxC);
+            const std::string aSBoxD = BufAliasName(pExpr.mMix64SBoxD);
+            const std::string aSBoxE = BufAliasName(pExpr.mMix64SBoxE);
+            const std::string aSBoxF = BufAliasName(pExpr.mMix64SBoxF);
+            const std::string aSBoxG = BufAliasName(pExpr.mMix64SBoxG);
+            const std::string aSBoxH = BufAliasName(pExpr.mMix64SBoxH);
+            switch (pExpr.mMix64Type8) {
+                case Mix64Type_8::kGatePrism_8_8:
+                    return "TwistMix64::GatePrism_8_8(" + aInput +
+                           ", " + aSBoxA + ", " + aSBoxB + ", " + aSBoxC + ", " + aSBoxD +
+                           ", " + aSBoxE + ", " + aSBoxF + ", " + aSBoxG + ", " + aSBoxH + ")";
+                case Mix64Type_8::kGateRoll_8_8:
+                    return "TwistMix64::GateRoll_8_8(" + aInput +
+                           ", " + std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) + "ULL" +
+                           ", " + aSBoxA + ", " + aSBoxB + ", " + aSBoxC + ", " + aSBoxD +
+                           ", " + aSBoxE + ", " + aSBoxF + ", " + aSBoxG + ", " + aSBoxH + ")";
+                case Mix64Type_8::kGateTurn_8_8:
+                    return "TwistMix64::GateTurn_8_8(" + aInput +
+                           ", " + std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) + "ULL" +
+                           ", " + aSBoxA + ", " + aSBoxB + ", " + aSBoxC + ", " + aSBoxD +
+                           ", " + aSBoxE + ", " + aSBoxF + ", " + aSBoxG + ", " + aSBoxH + ")";
+                default:
+                    return "0ULL";
+            }
+        }
         default:
             return "0";
     }
@@ -1124,15 +1492,13 @@ struct CppReadWrapMetadata {
     GReadWrapType                        mType = GReadWrapType::kNone;
     GSymbol                              mIndexSymbol;
     GSymbol                              mOracleSymbol;
-    int                                  mOffset = 0;
 };
 
 bool CppWrapMetadataEqual(const CppReadWrapMetadata &pLeft,
                           const CppReadWrapMetadata &pRight) {
     return (pLeft.mType == pRight.mType) &&
            (pLeft.mIndexSymbol == pRight.mIndexSymbol) &&
-           (pLeft.mOracleSymbol == pRight.mOracleSymbol) &&
-           (pLeft.mOffset == pRight.mOffset);
+           (pLeft.mOracleSymbol == pRight.mOracleSymbol);
 }
 
 void AppendUniqueWrapMetadata(std::vector<CppReadWrapMetadata> *pList,
@@ -1158,7 +1524,6 @@ void CollectReadWrapMetadataFromExpr(const GExpr &pExpr,
             aMetadata.mType = pExpr.mReadWrapType;
             aMetadata.mIndexSymbol = pExpr.mReadWrapIndexSymbol;
             aMetadata.mOracleSymbol = pExpr.mReadWrapOracleSymbol;
-            aMetadata.mOffset = pExpr.mReadWrapOffset;
             AppendUniqueWrapMetadata(pList, aMetadata);
         }
         if (pExpr.mIndex != nullptr) {
@@ -1193,8 +1558,8 @@ std::string CppReadWrapLimitToken(const GReadWrapType pType) {
 
 std::string CppReadWrapTrimMaskToken(const GReadWrapType pType) {
     switch (pType) {
-        case GReadWrapType::kSBox: return "0xFFU";
-        case GReadWrapType::kSalt: return "0x7FU";
+        case GReadWrapType::kSBox: return "S_SBOX1";
+        case GReadWrapType::kSalt: return "S_SALT1";
         default: return "";
     }
 }
@@ -1209,11 +1574,8 @@ std::vector<std::string> CppReadWrapPreludeLines(const GStatement &pStatement) {
         const std::string aIndexName = CppSymbolText(aWrap.mIndexSymbol);
         const std::string aLimitToken = CppReadWrapLimitToken(aWrap.mType);
         const std::string aTrimMaskToken = CppReadWrapTrimMaskToken(aWrap.mType);
-        const int aOffsetMagnitude = (aWrap.mOffset < 0) ? -aWrap.mOffset : aWrap.mOffset;
-        const std::string aOffsetOp = (aWrap.mOffset < 0) ? " - " : " + ";
 
-        aLines.push_back(aOracleName + " = " + aIndexName +
-                         aOffsetOp + std::to_string(aOffsetMagnitude) + "U;");
+        aLines.push_back(aOracleName + " = " + aIndexName + ";");
         aLines.push_back("if (" + aOracleName + " >= " + aLimitToken + ") { " +
                          aOracleName + " -= " + aLimitToken + "; }");
         if (!aTrimMaskToken.empty()) {
@@ -1253,6 +1615,10 @@ std::string StripOuterParens(const std::string &pText) {
 }
 
 std::string CppStatement(const GStatement &pStatement) {
+    if (pStatement.IsRawLine()) {
+        return pStatement.mRawLine;
+    }
+
     const std::string aTargetText = CppTarget(pStatement.mTarget);
     const std::string aExpressionText = StripOuterParens(CppExpr(pStatement.mExpression));
 
@@ -1284,8 +1650,15 @@ std::string CppStatement(const GStatement &pStatement) {
 }
 
 std::vector<std::string> CppStatementLines(const GStatement &pStatement) {
+    if (pStatement.IsRawLine()) {
+        return { pStatement.mOutputPrefix + pStatement.mRawLine };
+    }
+
     std::vector<std::string> aLines = CppReadWrapPreludeLines(pStatement);
-    aLines.push_back(CppStatement(pStatement));
+    for (std::string &aLine : aLines) {
+        aLine = pStatement.mOutputPrefix + aLine;
+    }
+    aLines.push_back(pStatement.mOutputPrefix + CppStatement(pStatement));
     return aLines;
 }
 
@@ -1323,7 +1696,7 @@ bool EvaluateExpr(const GExpr &pExpr,
             break;
 
         case GExprType::kConst:
-            *pValue = pExpr.mConstVal;
+            *pValue = static_cast<int>(pExpr.mConstVal);
             return true;
 
         case GExprType::kRead: {
@@ -1349,7 +1722,7 @@ bool EvaluateExpr(const GExpr &pExpr,
                     return false;
                 }
 
-                int aOracleValue = aBaseIndexValue + pExpr.mReadWrapOffset;
+                int aOracleValue = aBaseIndexValue;
                 const int aWrapLimit = ReadWrapLimitForType(pExpr.mReadWrapType);
                 if ((aWrapLimit > 0) && (aOracleValue >= aWrapLimit)) {
                     aOracleValue -= aWrapLimit;
@@ -1419,6 +1792,10 @@ bool ExecuteStatement(const GStatement &pStatement,
                       TwistExpander *pExpander,
                       std::unordered_map<std::string, int> *pVariables,
                       std::string *pError) {
+    if (pStatement.IsRawLine()) {
+        return true;
+    }
+
     int aExpressionValue = 0ULL;
     if (!EvaluateExpr(pStatement.mExpression, pWorkspace, pExpander, pVariables, &aExpressionValue, pError)) {
         return false;
@@ -1510,74 +1887,6 @@ int GScopeRules::GetReadPreferredMinimum(GSymbol pSymbol) const {
 int GScopeRules::GetReadPreferredMaximum(GSymbol pSymbol) const {
     const auto aIterator = mReadPreferredMaximum.find(ScopeSymbolKey(pSymbol));
     return (aIterator == mReadPreferredMaximum.end()) ? 0 : aIterator->second;
-}
-
-void GScopeState::Clear() {
-    mReadCounts.clear();
-}
-
-void GScopeState::Consume(GScopeState pScopeState) {
-    for (const auto &aPair : pScopeState.mReadCounts) {
-        mReadCounts[aPair.first] += aPair.second;
-    }
-}
-
-void GScopeState::Consume(GLoop pLoop) {
-    for (const GStatement &aStatement : pLoop.mInitializationStatements) {
-        Consume(aStatement);
-    }
-    for (const GStatement &aStatement : pLoop.mBodyStatements) {
-        Consume(aStatement);
-    }
-}
-
-void GScopeState::Consume(GStatement pStatement) {
-    std::vector<GSymbol> aSymbols;
-    CollectReadSymbolsFromStatement(pStatement, &aSymbols);
-    for (const GSymbol &aSymbol : aSymbols) {
-        RegisterRead(aSymbol);
-    }
-    RegisterRead(pStatement.mExpression);
-}
-
-void GScopeState::Consume(GSymbol pSymbol) {
-    RegisterRead(pSymbol);
-}
-
-void GScopeState::Consume(GExpr pExpr) {
-    RegisterRead(pExpr);
-    const std::vector<GSymbol> aSymbols = pExpr.GetSymbols();
-    for (const GSymbol &aSymbol : aSymbols) {
-        RegisterRead(aSymbol);
-    }
-}
-
-void GScopeState::RegisterRead(GSymbol pSymbol) {
-    if (!pSymbol.IsInvalid()) {
-        mReadCounts[ScopeSymbolKey(pSymbol)] += 1;
-    }
-}
-
-void GScopeState::RegisterRead(GExpr pExpr) {
-    if (!pExpr.IsInvalid()) {
-        mReadCounts[ScopeExprKey(pExpr)] += 1;
-    }
-}
-
-int GScopeState::GetReadCount(GSymbol pSymbol, int pCount) const {
-    if (pSymbol.IsInvalid()) {
-        return pCount;
-    }
-    const auto aIterator = mReadCounts.find(ScopeSymbolKey(pSymbol));
-    return (aIterator == mReadCounts.end()) ? pCount : aIterator->second;
-}
-
-int GScopeState::GetReadCount(GExpr pExpr, int pCount) const {
-    if (pExpr.IsInvalid()) {
-        return pCount;
-    }
-    const auto aIterator = mReadCounts.find(ScopeExprKey(pExpr));
-    return (aIterator == mReadCounts.end()) ? pCount : aIterator->second;
 }
 
 GTarget GTarget::Symbol(const GSymbol &pSymbol) {
@@ -1879,18 +2188,12 @@ GBatch::GBatch() {
 
 void GBatch::CommitLoop(const GLoop &pLoop) {
     mLoops.push_back(pLoop);
-    mScopeStateGlobal.Consume(mScopeStateLocal);
-    mScopeStateLocal.Clear();
 }
 
 void GBatch::CommitLoop(GLoop *pLoop) {
     if (pLoop != nullptr) {
         CommitLoop(*pLoop);
     }
-}
-
-void GBatch::CommitWhile(GWhile *pWhile) {
-    (void)pWhile;
 }
 
 void GBatch::CommitStatements(std::vector<GStatement> *pStatements) {
@@ -2015,10 +2318,10 @@ int GBatch::CountLoopsWriting(TwistWorkSpaceSlot pSlot) const {
 std::vector<std::string> GBatch::CollectVariableNames() const {
     std::vector<std::string> aNames;
     for (const GLoop &aLoop : mLoops) {
-        AppendUnique(&aNames, aLoop.mLoopVariableName);
+        AppendUniqueVariableName(&aNames, aLoop.mLoopVariableName);
         for (const GStatement &aStatement : aLoop.mInitializationStatements) {
             if (aStatement.mTarget.IsVar()) {
-                AppendUnique(&aNames, aStatement.mTarget.mSymbol.mName);
+                AppendUniqueVariableName(&aNames, aStatement.mTarget.mSymbol.mName);
             }
             if (aStatement.mTarget.mIndex != nullptr) {
                 CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
@@ -2027,7 +2330,7 @@ std::vector<std::string> GBatch::CollectVariableNames() const {
         }
         for (const GStatement &aStatement : aLoop.mBodyStatements) {
             if (aStatement.mTarget.IsVar()) {
-                AppendUnique(&aNames, aStatement.mTarget.mSymbol.mName);
+                AppendUniqueVariableName(&aNames, aStatement.mTarget.mSymbol.mName);
             }
             if (aStatement.mTarget.mIndex != nullptr) {
                 CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
@@ -2083,14 +2386,36 @@ std::string GBatch::ToPrettyString() const {
 }
 
 std::string GBatch::ToJson(std::string *pError) const {
-    if (IsInvalid()) {
-        SetError(pError, "Batch was invalid and could not be serialized.");
-        return "";
+    JsonValue::Array aLoops;
+    std::size_t aSkippedInvalidLoops = 0U;
+    for (const GLoop &aLoop : mLoops) {
+        // Allow statement-level sanitization in LoopToJsonValue/StatementToJsonValue.
+        // We only skip loops whose control metadata is unusable.
+        if (aLoop.mLoopVariableName.empty() ||
+            aLoop.mLoopEndText.empty() ||
+            (aLoop.mLoopStep == 0)) {
+            ++aSkippedInvalidLoops;
+            std::printf("warn: GBatch::ToJson skipped invalid loop metadata (var='%s', end='%s', step=%d)\n",
+                        aLoop.mLoopVariableName.c_str(),
+                        aLoop.mLoopEndText.c_str(),
+                        aLoop.mLoopStep);
+            continue;
+        }
+        aLoops.push_back(LoopToJsonValue(aLoop));
     }
 
-    JsonValue::Array aLoops;
-    for (const GLoop &aLoop : mLoops) {
-        aLoops.push_back(LoopToJsonValue(aLoop));
+    if (aLoops.empty()) {
+        if (mLoops.empty()) {
+            SetError(pError, "Batch could not be serialized because it had no loops.");
+        } else {
+            SetError(pError, "Batch could not be serialized because every loop had invalid metadata.");
+        }
+        return "";
+    }
+    if (aSkippedInvalidLoops > 0U) {
+        std::printf("warn: GBatch::ToJson emitted %zu loops and skipped %zu invalid loops.\n",
+                    aLoops.size(),
+                    aSkippedInvalidLoops);
     }
 
     JsonValue::Object aObject;

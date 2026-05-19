@@ -10,9 +10,9 @@
 
 #include "TwistWorkSpace.hpp"
 #include "GSymbol.hpp"
+#include "GSeedProgram.hpp"
 #include "TwistFunctional.hpp"
 #include "GTermExpander.hpp"
-#include "GLoopFragmentComposer.hpp"
 #include "Varz.hpp"
 
 class StatementChecker {

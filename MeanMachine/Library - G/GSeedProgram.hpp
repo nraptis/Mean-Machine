@@ -28,23 +28,6 @@ struct GScopeRules {
     int                                         GetReadPreferredMaximum(GSymbol pSymbol) const;
 };
 
-struct GScopeState {
-    std::unordered_map<std::string, int>      mReadCounts;
-
-    void                                        Clear();
-    void                                        Consume(GScopeState pScopeState);
-    void                                        Consume(GLoop pLoop);
-    void                                        Consume(GStatement pStatement);
-    void                                        Consume(GSymbol pSymbol);
-    void                                        Consume(GExpr pExpr);
-
-    void                                        RegisterRead(GSymbol pSymbol);
-    void                                        RegisterRead(GExpr pExpr);
-
-    int                                         GetReadCount(GSymbol pSymbol, int pCount = 0) const;
-    int                                         GetReadCount(GExpr pExpr, int pCount = 0) const;
-};
-
 struct GTarget {
     GSymbol                                     mSymbol;
     std::shared_ptr<GExpr>                      mIndex;
@@ -165,92 +148,15 @@ struct GLoop {
     
 };
 
-enum class GWhileWorkItemType : std::uint8_t {
-    kLoop = 0,
-    kStatements = 1,
-    kComment = 2,
-    kEmptyLine = 3
-};
-
-struct GWhileWorkItem {
-    GWhileWorkItemType                  mType;
-    GLoop                               mLoop;
-    std::vector<GStatement>             mStatements;
-    std::string                         mComment;
-
-    GWhileWorkItem();
-
-    static GWhileWorkItem               Loop(const GLoop &pLoop);
-    static GWhileWorkItem               Statements(std::vector<GStatement> *pStatements);
-    static GWhileWorkItem               Comment(std::string pComment);
-    static GWhileWorkItem               EmptyLine();
-
-    bool                                IsLoop() const;
-    bool                                IsStatements() const;
-    bool                                IsComment() const;
-    bool                                IsEmptyLine() const;
-    bool                                IsInvalid() const;
-};
-
-struct GWhile {
-    GSymbol                             mConditionSymbol;
-    std::string                         mConditionVariableName;
-    std::vector<GWhileWorkItem>         mWorkItems;
-
-    GWhile();
-
-    bool                                IsInvalid() const;
-    void                                SetCondition(GSymbol pSymbol);
-    void                                CommitLoop(GLoop *pLoop);
-    void                                CommitStatements(std::vector<GStatement> *pStatements);
-    void                                AddComment(std::string pComment);
-    void                                AddEmptyLine();
-};
-
-enum class GBatchWorkItemType : std::uint8_t {
-    kLoop = 0,
-    kWhile = 1,
-    kStatements = 2,
-    kComment = 3,
-    kEmptyLine = 4
-};
-
-struct GBatchWorkItem {
-    GBatchWorkItemType                  mType;
-    GLoop                               mLoop;
-    GWhile                              mWhile;
-    std::vector<GStatement>             mStatements;
-    std::string                         mComment;
-
-    GBatchWorkItem();
-
-    static GBatchWorkItem               Loop(const GLoop &pLoop);
-    static GBatchWorkItem               While(const GWhile &pWhile);
-    static GBatchWorkItem               Statements(std::vector<GStatement> *pStatements);
-    static GBatchWorkItem               Comment(std::string pComment);
-    static GBatchWorkItem               EmptyLine();
-
-    bool                                IsLoop() const;
-    bool                                IsWhile() const;
-    bool                                IsStatements() const;
-    bool                                IsComment() const;
-    bool                                IsEmptyLine() const;
-    bool                                IsInvalid() const;
-};
-
 struct GBatch {
     std::string                         mName;
     std::vector<GLoop>                  mLoops;
-    std::vector<GBatchWorkItem>         mWorkItems;
-    GScopeState                         mScopeStateLocal;
-    GScopeState                         mScopeStateGlobal;
 
     GBatch();
 
     bool                                IsInvalid() const;
     void                                CommitLoop(const GLoop &pLoop);
     void                                CommitLoop(GLoop *pLoop);
-    void                                CommitWhile(GWhile *pWhile);
     void                                CommitStatements(std::vector<GStatement> *pStatements);
     void                                AddComment(std::string pComment);
     void                                AddEmptyLine();

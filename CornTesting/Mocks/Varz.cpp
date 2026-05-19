@@ -34,15 +34,15 @@ Varz::Varz() {
     mSBoxC = BufSymbol(TwistWorkSpaceSlot::kSBoxC);
     mSBoxD = BufSymbol(TwistWorkSpaceSlot::kSBoxD);
     
-    mSaltA = BufSymbol(TwistWorkSpaceSlot::kSaltA);
-    mSaltB = BufSymbol(TwistWorkSpaceSlot::kSaltB);
-    mSaltC = BufSymbol(TwistWorkSpaceSlot::kSaltC);
-    mSaltD = BufSymbol(TwistWorkSpaceSlot::kSaltD);
+    mSaltA = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceA);
+    mSaltB = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceB);
+    mSaltC = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceC);
+    mSaltD = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceD);
     
-    mWorkerA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
-    mWorkerB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneB);
-    mWorkerC = BufSymbol(TwistWorkSpaceSlot::kWorkLaneC);
-    mWorkerD = BufSymbol(TwistWorkSpaceSlot::kWorkLaneD);
+    mWorkLaneA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
+    mWorkLaneB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneB);
+    mWorkLaneC = BufSymbol(TwistWorkSpaceSlot::kWorkLaneC);
+    mWorkLaneD = BufSymbol(TwistWorkSpaceSlot::kWorkLaneD);
     
     
     

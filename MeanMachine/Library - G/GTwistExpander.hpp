@@ -49,7 +49,8 @@ public:
     GTwistExpander();
     ~GTwistExpander() override;
 
-    void                                KDF(std::uint8_t *pSource,
+    void                                KDF(std::uint64_t pNonce,
+                                            std::uint8_t *pSource,
                                             std::uint8_t *pDest,
                                             TwistDomainConstants *pDomainConstants,
                                             TwistDomainSaltSet *pDomainSaltSet,
@@ -58,10 +59,12 @@ public:
     void                                Seed(TwistWorkSpace *pWorkspace,
                                              TwistFarmSBox *pFarmSBox,
                                              TwistFarmSalt *pFarmSalt,
+                                             std::uint64_t pNonce,
                                              std::uint8_t *pSource,
                                              std::uint8_t *pPassword,
                                              unsigned int pPasswordByteLength) override;
     void                                TwistBlock(TwistWorkSpace *pWorkspace,
+                                                   std::uint64_t pNonce,
                                                    std::uint8_t *pSource,
                                                    std::uint8_t *pDestination) override;
 

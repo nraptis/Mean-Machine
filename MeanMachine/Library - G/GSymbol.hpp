@@ -16,51 +16,89 @@ enum class GSymbolType : std::uint8_t {
     kBuf = 2
 };
 
-enum class TwistVariable : std::uint8_t {
-    kIndex = 0,
-    kCarry = 1,
+enum class TwistVariable: std::uint8_t {
+    kInvalid = 0,
 
-    kPublicIngress = 2,
-    kPublicPrevious = 3,
-    kPublicScatter = 4,
+    kIndex = 10, // aIndex
+    kNonce = 11, // aNonce
 
-    kPrivateIngress = 5,
-    kPrivatePrevious = 6,
-    kPrivateScatter = 7,
-    kPrivateWrite = 8,
+    kDomainWordIngress = 20, // aDomainWordIngress
+    kDomainWordScatter = 21, // aDomainWordScatter
+    kDomainWordCross = 22, // aDomainWordCross
 
-    kCrossIngress = 9,
+    kIngress = 40, // aIngress
+    kPrevious = 41, // aPrevious
+    kCross = 42, // aCross
+    kCarry = 43, // aCarry
+    kScatter = 44, // aScatter
 
-    kUnwindA = 10,
-    kUnwindB = 11,
-    kUnwindC = 12,
-    kUnwindD = 13,
-    kUnwindE = 14,
-    kUnwindF = 15,
+    kWandererA = 120, // aWandererA
+    kWandererB = 121,
+    kWandererC = 122,
+    kWandererD = 123,
+    kWandererE = 124,
+    kWandererF = 125,
+    kWandererG = 126,
+    kWandererH = 127,
+    kWandererI = 128,
+    kWandererJ = 129,
+    kWandererK = 130,
 
-    kOrbiterA = 16,
-    kOrbiterB = 17,
-    kOrbiterC = 18,
-    kOrbiterD = 19,
-    kOrbiterE = 20,
-    kOrbiterF = 21,
+    kOrbiterA = 140, // aOrbitA
+    kOrbiterB = 141,
+    kOrbiterC = 142,
+    kOrbiterD = 143,
+    kOrbiterE = 144,
+    kOrbiterF = 145,
+    kOrbiterG = 146,
+    kOrbiterH = 147,
+    kOrbiterI = 148,
+    kOrbiterJ = 149,
+    kOrbiterK = 150,
 
-    kPlugKeyA = 22,
-    kPlugKeyB = 23,
-    kPlugKeyC = 24,
-    kPlugKeyD = 25,
-    kPlugKeyE = 26,
-    kPlugKeyF = 27,
-
-    kPublicIngressDomainWord = 28,
-    kPrivateIngressDomainWord = 29,
-    kCrossIngressDomainWord = 30
+    kSelect = 210, // aSelect
+    kMatrixUnrollA = 211, // mMatrixUnrollA
+    kMatrixUnrollB = 212, // mMatrixUnrollB
+    kMatrixSchemeA = 213, // mMatrixSchemeA
+    kMatrixSchemeB = 214, // mMatrixSchemeB
+    kMatrixArgAA = 215, // mMatrixArgAA
+    kMatrixArgAB = 216, // mMatrixArgAB
+    kMatrixArgBA = 217, // mMatrixArgBA
+    kMatrixArgBB = 218, // mMatrixArgBB
+    kMaskMutateA = 219, // mMaskMutateA
+    kMaskMutateB = 220, // mMaskMutateB
 };
 
 enum class TwistConstants : std::uint8_t {
-    kPublicIngress = 0,
-    kPrivateIngress = 1,
-    kCrossIngress = 2
+    kInvalid = 0,
+
+    kPublicIngress = 10,
+    kPrivateIngress = 11,
+    kCrossIngress = 12,
+    kIngress = kPublicIngress,
+    kPrevious = kPrivateIngress,
+    kCross = kCrossIngress,
+
+    kDomainConstantPublicIngress = 20,
+    kDomainConstantPrivateIngress = 21,
+    kDomainConstantCrossIngress = 22,
+
+    kMatrixSelectA = 30,
+    kMatrixSelectB = 31,
+
+    kMatrixUnrollA = 40,
+    kMatrixUnrollB = 41,
+
+    kMatrixSchemeA = 50,
+    kMatrixSchemeB = 51,
+
+    kMatrixArgAA = 60,
+    kMatrixArgAB = 61,
+    kMatrixArgBA = 62,
+    kMatrixArgBB = 63,
+
+    kMaskMutateA = 70,
+    kMaskMutateB = 71,
 };
 
 struct GSymbol {
@@ -71,8 +109,10 @@ struct GSymbol {
     
     GSymbol();
     static GSymbol                      Var(const std::string &pName);
+    
     static GSymbol                      Var(TwistVariable pVariable);
     static GSymbol                      Var(TwistDomain pDomain, TwistConstants pConstant);
+    static GSymbol                      Constant(TwistConstants pConstant);
     static GSymbol                      Buf(const TwistWorkSpaceSlot pSlot);
     static GSymbol                      Buf(const TwistBufferKey pKey);
 
@@ -104,8 +144,7 @@ TwistWorkSpaceSlot                      ResolveBufferSlot(const GSymbol &symbol)
 GSymbol                                 VarSymbol(const std::string &pName);
 GSymbol                                 BufSymbol(const TwistWorkSpaceSlot pSlot);
 GSymbol                                 BufSymbol(const TwistBufferKey pKey);
-GSymbol                                 BufParamSymbolDomainSalt(TwistSaltPhase pPhase,
-                                                                 TwistSaltLane pLane);
+GSymbol                                 BufParamSymbolDomainSalt(TwistWorkSpaceSlot pSlot);
 GSymbol                                 BufParamSymbolDomainSBox(TwistSBoxLane pLane);
 
 #endif

@@ -74,7 +74,6 @@ public:
     GReadWrapType                       mReadWrapType;
     GSymbol                             mReadWrapIndexSymbol;
     GSymbol                             mReadWrapOracleSymbol;
-    int                                 mReadWrapOffset;
 
     Mix64Type_8                         mMix64Type8;
     bool                                mMix64UseAmount;
@@ -198,22 +197,14 @@ public:
                                                 const GSymbol &pSBoxG,
                                                 const GSymbol &pSBoxH);
     
-    // what this means.
-    // in c++ code
-    // before this statement
-    // we need:
-    // pIndexOracle = pIndex + pOffset;
-    // pIndexOracle &= 0x1FFFU;
-    //
-    // then, the inbuilt twist library does not do the if-statement injection, or the extra assignment.
-    //
-    static GExpr                        ReadBlockWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
-    static GExpr                        ReadSBoxWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
-    static GExpr                        ReadSaltWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
-    static GExpr                        ReadMaskAWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
-    static GExpr                        ReadMaskBWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
-    static GExpr                        ReadKeyAWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
-    static GExpr                        ReadKeyBWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle, int pOffset);
+    // before this statement, c++ code needs to populate pIndexOracle from pIndex.
+    static GExpr                        ReadBlockWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle);
+    static GExpr                        ReadSBoxWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle);
+    static GExpr                        ReadSaltWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle);
+    static GExpr                        ReadMaskAWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle);
+    static GExpr                        ReadMaskBWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle);
+    static GExpr                        ReadKeyAWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle);
+    static GExpr                        ReadKeyBWrap(const GSymbol &pSymbol, const GSymbol &pIndex, const GSymbol &pIndexOracle);
     
     void                                Set(const GExpr &pOther);
     void                                Invalidate();

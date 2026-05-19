@@ -81,8 +81,9 @@ void Rig::Run(TwistExpander *pExpander,
     pExpander->UnrollPasswordToSource(aSource, pPassword, pPasswordLength);
     
     pExpander->TwistBlock(&aWorkSpace,
-                     aSource,
-                     mData);
+                          0ULL,
+                          aSource,
+                          mData);
     
     for (int aBlockIndex=1; aBlockIndex<mBlockCount; aBlockIndex++) {
         
@@ -91,6 +92,7 @@ void Rig::Run(TwistExpander *pExpander,
         
         
         pExpander->TwistBlock(&aWorkSpace,
+                              0ULL,
                               aSource,
                               aDest);
         

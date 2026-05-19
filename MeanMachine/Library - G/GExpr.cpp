@@ -64,8 +64,7 @@ bool Mix64Type8NeedsAmount(const Mix64Type_8 pType) {
 GExpr BuildWrappedRead(const GReadWrapType pWrapType,
                        const GSymbol &pSymbol,
                        const GSymbol &pIndex,
-                       const GSymbol &pIndexOracle,
-                       const int pOffset) {
+                       const GSymbol &pIndexOracle) {
     if (pSymbol.IsInvalid() || pIndex.IsInvalid()) {
         return GExpr();
     }
@@ -78,7 +77,6 @@ GExpr BuildWrappedRead(const GReadWrapType pWrapType,
     aExpr.mReadWrapType = pWrapType;
     aExpr.mReadWrapIndexSymbol = pIndex;
     aExpr.mReadWrapOracleSymbol = pIndexOracle;
-    aExpr.mReadWrapOffset = pOffset;
     return aExpr;
 }
 
@@ -230,8 +228,7 @@ std::string ExprKeyInner(const GExpr &pExpr) {
                    ((pExpr.mIndex != nullptr) ? ExprKeyInner(*pExpr.mIndex) : "null") +
                    ",wrap=" + std::to_string(static_cast<int>(pExpr.mReadWrapType)) +
                    ",base=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapIndexSymbol)) +
-                   ",oracle=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapOracleSymbol)) +
-                   ",offset=" + std::to_string(pExpr.mReadWrapOffset) + ")";
+                   ",oracle=" + ExprKeyInner(GExpr::Symbol(pExpr.mReadWrapOracleSymbol)) + ")";
         case GExprType::kMix64_8:
             return "mix64_8(type=" + std::to_string(static_cast<int>(pExpr.mMix64Type8)) +
                    ",amount=" + std::to_string(static_cast<unsigned long long>(pExpr.mMix64Amount)) +
@@ -361,7 +358,6 @@ GExpr GExpr::Read(const GSymbol &pSymbol,
     aExpr.mReadWrapType = GReadWrapType::kNone;
     aExpr.mReadWrapIndexSymbol.Invalidate();
     aExpr.mReadWrapOracleSymbol.Invalidate();
-    aExpr.mReadWrapOffset = 0;
     return aExpr;
 }
 
@@ -675,51 +671,44 @@ GExpr GExpr::Mix64_8(const GExpr &pValue,
 
 GExpr GExpr::ReadBlockWrap(const GSymbol &pSymbol,
                            const GSymbol &pIndex,
-                           const GSymbol &pIndexOracle,
-                           int pOffset) {
-    return BuildWrappedRead(GReadWrapType::kBlock, pSymbol, pIndex, pIndexOracle, pOffset);
+                           const GSymbol &pIndexOracle) {
+    return BuildWrappedRead(GReadWrapType::kBlock, pSymbol, pIndex, pIndexOracle);
 }
 
 GExpr GExpr::ReadSBoxWrap(const GSymbol &pSymbol,
                           const GSymbol &pIndex,
-                          const GSymbol &pIndexOracle,
-                          int pOffset) {
-    return BuildWrappedRead(GReadWrapType::kSBox, pSymbol, pIndex, pIndexOracle, pOffset);
+                          const GSymbol &pIndexOracle) {
+    return BuildWrappedRead(GReadWrapType::kSBox, pSymbol, pIndex, pIndexOracle);
 }
 
 GExpr GExpr::ReadSaltWrap(const GSymbol &pSymbol,
                           const GSymbol &pIndex,
-                          const GSymbol &pIndexOracle,
-                          int pOffset) {
-    return BuildWrappedRead(GReadWrapType::kSalt, pSymbol, pIndex, pIndexOracle, pOffset);
+                          const GSymbol &pIndexOracle) {
+    return BuildWrappedRead(GReadWrapType::kSalt, pSymbol, pIndex, pIndexOracle);
 }
 
 GExpr GExpr::ReadMaskAWrap(const GSymbol &pSymbol,
                            const GSymbol &pIndex,
-                           const GSymbol &pIndexOracle,
-                           int pOffset) {
-    return BuildWrappedRead(GReadWrapType::kMaskA, pSymbol, pIndex, pIndexOracle, pOffset);
+                           const GSymbol &pIndexOracle) {
+    return BuildWrappedRead(GReadWrapType::kMaskA, pSymbol, pIndex, pIndexOracle);
 }
 
 GExpr GExpr::ReadMaskBWrap(const GSymbol &pSymbol,
                            const GSymbol &pIndex,
-                           const GSymbol &pIndexOracle,
-                           int pOffset) {
-    return BuildWrappedRead(GReadWrapType::kMaskB, pSymbol, pIndex, pIndexOracle, pOffset);
+                           const GSymbol &pIndexOracle) {
+    return BuildWrappedRead(GReadWrapType::kMaskB, pSymbol, pIndex, pIndexOracle);
 }
 
 GExpr GExpr::ReadKeyAWrap(const GSymbol &pSymbol,
                           const GSymbol &pIndex,
-                          const GSymbol &pIndexOracle,
-                          int pOffset) {
-    return BuildWrappedRead(GReadWrapType::kKeyA, pSymbol, pIndex, pIndexOracle, pOffset);
+                          const GSymbol &pIndexOracle) {
+    return BuildWrappedRead(GReadWrapType::kKeyA, pSymbol, pIndex, pIndexOracle);
 }
 
 GExpr GExpr::ReadKeyBWrap(const GSymbol &pSymbol,
                           const GSymbol &pIndex,
-                          const GSymbol &pIndexOracle,
-                          int pOffset) {
-    return BuildWrappedRead(GReadWrapType::kKeyB, pSymbol, pIndex, pIndexOracle, pOffset);
+                          const GSymbol &pIndexOracle) {
+    return BuildWrappedRead(GReadWrapType::kKeyB, pSymbol, pIndex, pIndexOracle);
 }
 
 void GExpr::Set(const GExpr &pOther) {
@@ -732,7 +721,6 @@ void GExpr::Set(const GExpr &pOther) {
     mReadWrapType = pOther.mReadWrapType;
     mReadWrapIndexSymbol = pOther.mReadWrapIndexSymbol;
     mReadWrapOracleSymbol = pOther.mReadWrapOracleSymbol;
-    mReadWrapOffset = pOther.mReadWrapOffset;
     mMix64Type8 = pOther.mMix64Type8;
     mMix64UseAmount = pOther.mMix64UseAmount;
     mMix64Amount = pOther.mMix64Amount;
@@ -756,7 +744,6 @@ void GExpr::Invalidate() {
     mReadWrapType = GReadWrapType::kNone;
     mReadWrapIndexSymbol.Invalidate();
     mReadWrapOracleSymbol.Invalidate();
-    mReadWrapOffset = 0;
     mMix64Type8 = Mix64Type_8::kInv;
     mMix64UseAmount = false;
     mMix64Amount = 0U;
@@ -863,7 +850,6 @@ bool operator == (const GExpr &pLHS, const GExpr &pRHS) {
             return (pLHS.mSymbol == pRHS.mSymbol) &&
                    ExprPtrEqual(pLHS.mIndex, pRHS.mIndex) &&
                    (pLHS.mReadWrapType == pRHS.mReadWrapType) &&
-                   (pLHS.mReadWrapOffset == pRHS.mReadWrapOffset) &&
                    (pLHS.mReadWrapIndexSymbol == pRHS.mReadWrapIndexSymbol) &&
                    (pLHS.mReadWrapOracleSymbol == pRHS.mReadWrapOracleSymbol);
 

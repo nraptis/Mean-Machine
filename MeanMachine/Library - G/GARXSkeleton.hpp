@@ -20,7 +20,7 @@ enum class GARXStatementType : std::uint8_t {
     kForwardLead = 2,
     kForwardFeedback = 3,
     kForwardRotate = 4,
-    kUnwind = 5,
+    kWanderer = 5,
     kCrush = 6,
     kCarry = 7
 };
@@ -44,7 +44,7 @@ public:
     GARXType                                mFeedback;
 };
 
-enum class GARXUnwindShape : std::uint8_t {
+enum class GARXWandererShape : std::uint8_t {
     kInv = 0,
     kCurrentPreviousOrbiter = 1,
     kCurrentCrossOrbiter = 2,
@@ -54,13 +54,13 @@ enum class GARXUnwindShape : std::uint8_t {
 class GARXSkeletonBackwardRound {
 public:
     GARXSkeletonBackwardRound();
-    GARXSkeletonBackwardRound(GARXUnwindShape pShape,
+    GARXSkeletonBackwardRound(GARXWandererShape pShape,
                               GARXType pTarget,
                               GARXType pInputA,
                               GARXType pInputB,
                               GARXType pInputC);
     
-    GARXUnwindShape mShape;
+    GARXWandererShape mShape;
     
     GARXType mTarget;
     GARXType mInputA;

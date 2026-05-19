@@ -7,7 +7,6 @@
 #define TwistExpander_hpp
 
 #include "TwistWorkSpace.hpp"
-#include "TwistDomains.hpp"
 
 #include <cstdint>
 #include <string>
@@ -32,25 +31,29 @@ public:
                                                                    const unsigned int pPasswordByteLength,
                                                                    const unsigned int pSourceByteLength);
     
-    virtual void                            KDF(std::uint8_t *pSource,
+    virtual void                            KDF(std::uint64_t pNonce,
+                                                std::uint8_t *pSource,
                                                 std::uint8_t *pDest,
                                                 TwistDomainConstants *pDomainConstants,
                                                 TwistDomainSaltSet *pDomainSaltSet,
                                                 TwistDomainSBoxSet *pDomainSBoxSet);
-    
+
     virtual void                            Seed(TwistWorkSpace *pWorkspace,
                                                  TwistFarmSBox *pFarmSBox,
                                                  TwistFarmSalt *pFarmSalt,
+                                                 std::uint64_t pNonce,
                                                  std::uint8_t *pSource,
                                                  std::uint8_t *pPassword,
                                                  unsigned int pPasswordByteLength);
-    
+
     virtual void                            TwistBlock(TwistWorkSpace *pWorkspace,
+                                                       std::uint64_t pNonce,
                                                        std::uint8_t *pSource,
                                                        std::uint8_t *pDestination);
-    
+
     // this is not virtual, it calls TwistBlock on every block
     void                                    Twist(TwistWorkSpace *pWorkspace,
+                                                  std::uint64_t pNonce,
                                                   std::uint8_t *pSource,
                                                   std::uint8_t *pDestination,
                                                   unsigned int pDestinationByteLength);
@@ -81,6 +84,7 @@ public:
 
     TwistFarmSBox                           *GetFarmSBox() const;
     TwistFarmSalt                           *GetFarmSalt() const;
+    std::uint64_t                           GetSessionNonce() const;
 
     void                                    SyncDomainBundleInbuiltFromLegacy();
     void                                    SyncLegacyFromDomainBundleInbuilt();

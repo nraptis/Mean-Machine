@@ -9,7 +9,6 @@
 #import <XCTest/XCTest.h>
 #include "TwistWorkSpace.hpp"
 #include "Random.hpp"
-#include "GTwistTwister.hpp"
 #include "GSeedDeriveMaterial.hpp"
 #include "GSeedMatrixRollups.hpp"
 #include "FileIO.hpp"
@@ -37,13 +36,13 @@
     // This is exported from something in G, as C++ code we can drop in over DemoExpander
 
     //TwistExpander_Gollum aExpanderA;
-    GTwistTwister aExpanderA;
+    GTwistExpander aExpanderA;
     
     // This uses json load;
-    GTwistTwister aExpanderB;
+    GTwistExpander aExpanderB;
     
     std::string aLoadError;
-    if (!aExpanderB.LoadProjectRoot("CornTesting/Gen/Gollum.json", &aLoadError)) {
+    if (!aExpanderB.LoadJSONProjectRoot("CornTesting/Gen/Gollum.json", &aLoadError)) {
         XCTFail("%s", aLoadError.c_str());
         return;
     }
@@ -74,14 +73,14 @@
         aWorkSpaceA.mWorkLaneD[i] = Random::GetByte();
         aWorkSpaceB.mWorkLaneD[i] = Random::GetByte();
         
-        aWorkSpaceA.mExpandLaneA[i] = Random::GetByte();
-        aWorkSpaceB.mExpandLaneA[i] = Random::GetByte();
-        aWorkSpaceA.mExpandLaneB[i] = Random::GetByte();
-        aWorkSpaceB.mExpandLaneB[i] = Random::GetByte();
-        aWorkSpaceA.mExpandLaneC[i] = Random::GetByte();
-        aWorkSpaceB.mExpandLaneC[i] = Random::GetByte();
-        aWorkSpaceA.mExpandLaneD[i] = Random::GetByte();
-        aWorkSpaceB.mExpandLaneD[i] = Random::GetByte();
+        aWorkSpaceA.mListExpansionLaneA[i] = Random::GetByte();
+        aWorkSpaceB.mListExpansionLaneA[i] = Random::GetByte();
+        aWorkSpaceA.mListExpansionLaneB[i] = Random::GetByte();
+        aWorkSpaceB.mListExpansionLaneB[i] = Random::GetByte();
+        aWorkSpaceA.mListExpansionLaneC[i] = Random::GetByte();
+        aWorkSpaceB.mListExpansionLaneC[i] = Random::GetByte();
+        aWorkSpaceA.mListExpansionLaneD[i] = Random::GetByte();
+        aWorkSpaceB.mListExpansionLaneD[i] = Random::GetByte();
         
         aWorkSpaceA.mMaskLaneA[i] = Random::GetByte();
         aWorkSpaceB.mMaskLaneA[i] = Random::GetByte();
@@ -89,14 +88,14 @@
         aWorkSpaceB.mMaskLaneB[i] = Random::GetByte();
     }
     
-    memset(aWorkSpaceA.mExpandLaneA,0,S_BLOCK);
-    memset(aWorkSpaceA.mExpandLaneB,0,S_BLOCK);
-    memset(aWorkSpaceA.mExpandLaneC,0,S_BLOCK);
-    memset(aWorkSpaceA.mExpandLaneD,0,S_BLOCK);
-    memset(aWorkSpaceB.mExpandLaneA,0,S_BLOCK);
-    memset(aWorkSpaceB.mExpandLaneB,0,S_BLOCK);
-    memset(aWorkSpaceB.mExpandLaneC,0,S_BLOCK);
-    memset(aWorkSpaceB.mExpandLaneD,0,S_BLOCK);
+    memset(aWorkSpaceA.mListExpansionLaneA,0,S_BLOCK);
+    memset(aWorkSpaceA.mListExpansionLaneB,0,S_BLOCK);
+    memset(aWorkSpaceA.mListExpansionLaneC,0,S_BLOCK);
+    memset(aWorkSpaceA.mListExpansionLaneD,0,S_BLOCK);
+    memset(aWorkSpaceB.mListExpansionLaneA,0,S_BLOCK);
+    memset(aWorkSpaceB.mListExpansionLaneB,0,S_BLOCK);
+    memset(aWorkSpaceB.mListExpansionLaneC,0,S_BLOCK);
+    memset(aWorkSpaceB.mListExpansionLaneD,0,S_BLOCK);
     
     /*
     memset(aWorkSpaceA.mWorkLaneA,0,S_BLOCK);
@@ -116,26 +115,26 @@
     TwistFarmSBox aFarmSBox;
     TwistFarmSalt aFarmSalt;
     
-    aExpanderA.Seed(&aWorkSpaceA, &aFarmSBox, &aFarmSalt, aSourceA, (std::uint8_t *)pwd, ps);
+    aExpanderA.Seed(&aWorkSpaceA, &aFarmSBox, &aFarmSalt, 0ULL, aSourceA, (std::uint8_t *)pwd, ps);
     
-    aExpanderB.Seed(&aWorkSpaceB, &aFarmSBox, &aFarmSalt, aSourceB, (std::uint8_t *)pwd, ps);
+    aExpanderB.Seed(&aWorkSpaceB, &aFarmSBox, &aFarmSalt, 0ULL, aSourceB, (std::uint8_t *)pwd, ps);
 
     
     for (int i=0;i<S_BLOCK;i++) {
-        if (aWorkSpaceA.mExpandLaneA[i] != aWorkSpaceB.mExpandLaneA[i]) {
-            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mExpandLaneA[i], aWorkSpaceB.mExpandLaneA[i]);
+        if (aWorkSpaceA.mListExpansionLaneA[i] != aWorkSpaceB.mListExpansionLaneA[i]) {
+            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mListExpansionLaneA[i], aWorkSpaceB.mListExpansionLaneA[i]);
             return;
         }
-        if (aWorkSpaceA.mExpandLaneB[i] != aWorkSpaceB.mExpandLaneB[i]) {
-            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mExpandLaneB[i], aWorkSpaceB.mExpandLaneB[i]);
+        if (aWorkSpaceA.mListExpansionLaneB[i] != aWorkSpaceB.mListExpansionLaneB[i]) {
+            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mListExpansionLaneB[i], aWorkSpaceB.mListExpansionLaneB[i]);
             return;
         }
-        if (aWorkSpaceA.mExpandLaneC[i] != aWorkSpaceB.mExpandLaneC[i]) {
-            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mExpandLaneC[i], aWorkSpaceB.mExpandLaneC[i]);
+        if (aWorkSpaceA.mListExpansionLaneC[i] != aWorkSpaceB.mListExpansionLaneC[i]) {
+            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mListExpansionLaneC[i], aWorkSpaceB.mListExpansionLaneC[i]);
             return;
         }
-        if (aWorkSpaceA.mExpandLaneD[i] != aWorkSpaceB.mExpandLaneD[i]) {
-            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mExpandLaneD[i], aWorkSpaceB.mExpandLaneD[i]);
+        if (aWorkSpaceA.mListExpansionLaneD[i] != aWorkSpaceB.mListExpansionLaneD[i]) {
+            XCTFail("{export test} expand lane a mismatched at %d: A=%u B=%u", i, aWorkSpaceA.mListExpansionLaneD[i], aWorkSpaceB.mListExpansionLaneD[i]);
             return;
         }
     }
@@ -287,56 +286,6 @@
                   "Expected a single C++ statement line.");
     XCTAssertTrue(aLines[0].find("TwistMix64::DiffuseC(") != std::string::npos,
                   "Expected TwistMix64::DiffuseC call in emitted C++.");
-}
-
-- (void)testBatchWhileWithNestedLoopUsingIntegerCondition {
-    GBatch aBatch;
-
-    std::vector<GStatement> aInitStatements;
-    aInitStatements.push_back(GStatement::Assign(
-        GTarget::Symbol(GSymbol::Var("aRun")),
-        GExpr::Const64(2ULL)));
-    aInitStatements.push_back(GStatement::Assign(
-        GTarget::Symbol(GSymbol::Var("aSum")),
-        GExpr::Const64(0ULL)));
-    aBatch.CommitStatements(&aInitStatements);
-
-    GWhile aWhile;
-    aWhile.SetCondition(GSymbol::Var("aRun"));
-
-    std::vector<GStatement> aBeforeLoopStatements;
-    aBeforeLoopStatements.push_back(GStatement::Assign(
-        GTarget::Symbol(GSymbol::Var("aSum")),
-        GExpr::Add(GExpr::Symbol(GSymbol::Var("aSum")), GExpr::Const64(1ULL))));
-    aWhile.CommitStatements(&aBeforeLoopStatements);
-
-    GLoop aLoop;
-    aLoop.mLoopVariable = GSymbol::Var("i");
-    aLoop.mLoopVariableName = "i";
-    aLoop.mLoopBegin = 0;
-    aLoop.mLoopEndText = "4";
-    aLoop.mLoopStep = 1;
-    aLoop.AddBody(GStatement::Assign(
-        GTarget::Symbol(GSymbol::Var("aSum")),
-        GExpr::Add(GExpr::Symbol(GSymbol::Var("aSum")), GExpr::Const64(10ULL))));
-    aWhile.CommitLoop(&aLoop);
-
-    std::vector<GStatement> aAfterLoopStatements;
-    aAfterLoopStatements.push_back(GStatement::Assign(
-        GTarget::Symbol(GSymbol::Var("aRun")),
-        GExpr::Sub(GExpr::Symbol(GSymbol::Var("aRun")), GExpr::Const64(1ULL))));
-    aWhile.CommitStatements(&aAfterLoopStatements);
-
-    aBatch.CommitWhile(&aWhile);
-
-    std::unordered_map<std::string, GRuntimeScalar> aVariables;
-    std::string aError;
-    const bool aOk = aBatch.ExecuteWithVariables(nullptr, nullptr, &aVariables, &aError);
-    XCTAssertTrue(aOk, "Expected while batch execution to succeed: %s", aError.c_str());
-    XCTAssertTrue(aVariables["aRun"] == 0ULL,
-                  "Expected while condition variable to reach zero.");
-    XCTAssertTrue(aVariables["aSum"] == 82ULL,
-                  "Expected nested while+for execution sum to match.");
 }
 
 - (void)testSeedMatrixRollupsEmitsExpansionLanes {

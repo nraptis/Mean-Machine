@@ -27,17 +27,17 @@ enum class GARXType : std::uint8_t {
     
     kCarry = 8,
 
-    kUnwindA = 10,
-    kUnwindB = 11,
-    kUnwindC = 12,
-    kUnwindD = 13,
-    kUnwindE = 14,
-    kUnwindF = 15,
-    kUnwindG = 16,
-    kUnwindH = 17,
-    kUnwindI = 18,
-    kUnwindJ = 19,
-    kUnwindK = 20,
+    kWandererA = 10,
+    kWandererB = 11,
+    kWandererC = 12,
+    kWandererD = 13,
+    kWandererE = 14,
+    kWandererF = 15,
+    kWandererG = 16,
+    kWandererH = 17,
+    kWandererI = 18,
+    kWandererJ = 19,
+    kWandererK = 20,
 
     kOrbiterA = 30,
     kOrbiterB = 31,
@@ -145,7 +145,7 @@ enum class GARXGroupType : std::uint8_t {
     kSeed = 1,
     kForwardTriplet = 2,
     kCrush = 3,
-    kUnwind = 4,
+    kWanderer = 4,
     kCarry = 5
 };
 

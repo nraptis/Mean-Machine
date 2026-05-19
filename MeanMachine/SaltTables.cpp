@@ -72,16 +72,16 @@ std::vector<std::uint64_t> ExpandSaltToWide(const std::vector<std::uint8_t> &pSo
         return (pValue << aShift) | (pValue >> (64U - aShift));
     };
 
-    std::uint64_t aUnwindA = pSeedA ^ (static_cast<std::uint64_t>(pSource.size()) * 0x9E3779B185EBCA87ULL);
-    std::uint64_t aUnwindB = pSeedB ^ 0xD6E8FEB86659FD93ULL;
+    std::uint64_t aWandererA = pSeedA ^ (static_cast<std::uint64_t>(pSource.size()) * 0x9E3779B185EBCA87ULL);
+    std::uint64_t aWandererB = pSeedB ^ 0xD6E8FEB86659FD93ULL;
     for (std::size_t i = 0U; i < pSource.size(); ++i) {
         const std::uint64_t aByte = static_cast<std::uint64_t>(pSource[i]);
-        aUnwindA ^= (aByte + ((static_cast<std::uint64_t>(i) + 1ULL) * 0x100000001B3ULL));
-        aUnwindA = RotL64(aUnwindA, static_cast<std::uint32_t>((11U + i) & 63U));
-        aUnwindA *= 0x94D049BB133111EBULL;
-        aUnwindB += (aByte ^ (static_cast<std::uint64_t>(i) * 0xA24BAED4963EE407ULL));
-        aUnwindB = RotL64(aUnwindB, static_cast<std::uint32_t>((19U + (i * 3U)) & 63U));
-        aUnwindB *= 0xC2B2AE3D27D4EB4FULL;
+        aWandererA ^= (aByte + ((static_cast<std::uint64_t>(i) + 1ULL) * 0x100000001B3ULL));
+        aWandererA = RotL64(aWandererA, static_cast<std::uint32_t>((11U + i) & 63U));
+        aWandererA *= 0x94D049BB133111EBULL;
+        aWandererB += (aByte ^ (static_cast<std::uint64_t>(i) * 0xA24BAED4963EE407ULL));
+        aWandererB = RotL64(aWandererB, static_cast<std::uint32_t>((19U + (i * 3U)) & 63U));
+        aWandererB *= 0xC2B2AE3D27D4EB4FULL;
     }
 
     for (std::size_t i = 0U; i < static_cast<std::size_t>(S_SALT); ++i) {
@@ -93,12 +93,12 @@ std::vector<std::uint64_t> ExpandSaltToWide(const std::vector<std::uint8_t> &pSo
             (static_cast<std::uint64_t>(pSource[aIndexB]) << 16U) |
             (static_cast<std::uint64_t>(pSource[aIndexC]) << 40U);
 
-        aUnwindA ^= aPack + (static_cast<std::uint64_t>(i + 1U) * 0x9E3779B97F4A7C15ULL);
-        aUnwindA = RotL64(aUnwindA, static_cast<std::uint32_t>((23U + i) & 63U));
-        aUnwindB += RotL64(aUnwindA ^ aPack, static_cast<std::uint32_t>((31U + (i * 5U)) & 63U));
-        aUnwindB *= 0xD6E8FEB86659FD93ULL;
-        aUnwindB ^= (aUnwindB >> 29U);
-        aResult[i] = aUnwindA ^ RotL64(aUnwindB, static_cast<std::uint32_t>((i * 9U) & 63U)) ^ (aPack * 0x9E3779B185EBCA87ULL);
+        aWandererA ^= aPack + (static_cast<std::uint64_t>(i + 1U) * 0x9E3779B97F4A7C15ULL);
+        aWandererA = RotL64(aWandererA, static_cast<std::uint32_t>((23U + i) & 63U));
+        aWandererB += RotL64(aWandererA ^ aPack, static_cast<std::uint32_t>((31U + (i * 5U)) & 63U));
+        aWandererB *= 0xD6E8FEB86659FD93ULL;
+        aWandererB ^= (aWandererB >> 29U);
+        aResult[i] = aWandererA ^ RotL64(aWandererB, static_cast<std::uint32_t>((i * 9U) & 63U)) ^ (aPack * 0x9E3779B185EBCA87ULL);
     }
 
     return aResult;
@@ -253,40 +253,27 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
                                                                        pTagCursor + 1ULL);
         pConstants->mDomainConstantCrossIngress = FillDomainConstant(pTableCursor + 2U,
                                                                      pTagCursor + 2ULL);
+        pConstants->mIngress = pConstants->mDomainConstantPublicIngress;
+        pConstants->mPrevious = pConstants->mDomainConstantPrivateIngress;
+        pConstants->mCross = pConstants->mDomainConstantCrossIngress;
     };
 
     TwistDomainSeedRoundMaterial *aMaterials[] = {
-        &pExpander->mDomainBundleInbuilt.mKeyASalts.mUnwind,
-        &pExpander->mDomainBundleInbuilt.mKeyASalts.mOrbiter,
-        &pExpander->mDomainBundleInbuilt.mKeyASalts.mOrbiterInit,
-        &pExpander->mDomainBundleInbuilt.mKeyBSalts.mUnwind,
-        &pExpander->mDomainBundleInbuilt.mKeyBSalts.mOrbiter,
-        &pExpander->mDomainBundleInbuilt.mKeyBSalts.mOrbiterInit,
-        &pExpander->mDomainBundleInbuilt.mMaskASalts.mUnwind,
-        &pExpander->mDomainBundleInbuilt.mMaskASalts.mOrbiter,
-        &pExpander->mDomainBundleInbuilt.mMaskASalts.mOrbiterInit,
-        &pExpander->mDomainBundleInbuilt.mMaskBSalts.mUnwind,
-        &pExpander->mDomainBundleInbuilt.mMaskBSalts.mOrbiter,
-        &pExpander->mDomainBundleInbuilt.mMaskBSalts.mOrbiterInit,
-        &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mUnwind,
-        &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mOrbiter,
-        &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mOrbiterInit,
-        &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mUnwind,
-        &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mOrbiter,
-        &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mOrbiterInit,
-        &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mUnwind,
-        &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mOrbiter,
-        &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mOrbiterInit
+        &pExpander->mDomainBundleInbuilt.mPhaseASalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate
     };
 
     TwistDomainConstants *aConstants[] = {
-        &pExpander->mDomainBundleInbuilt.mKeyAConstants,
-        &pExpander->mDomainBundleInbuilt.mKeyBConstants,
-        &pExpander->mDomainBundleInbuilt.mMaskAConstants,
-        &pExpander->mDomainBundleInbuilt.mMaskBConstants,
-        &pExpander->mDomainBundleInbuilt.mWorkLaneConstants,
-        &pExpander->mDomainBundleInbuilt.mMaskLaneConstants,
-        &pExpander->mDomainBundleInbuilt.mOperationLaneConstants
+        &pExpander->mDomainBundleInbuilt.mPhaseAConstants,
+        &pExpander->mDomainBundleInbuilt.mPhaseBConstants,
+        &pExpander->mDomainBundleInbuilt.mPhaseCConstants
     };
 
     std::size_t aDomainTableCursor = 8U;

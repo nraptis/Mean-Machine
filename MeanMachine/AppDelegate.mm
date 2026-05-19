@@ -27,14 +27,15 @@
 #include "TwistFastMatrix.hpp"
 #include "Random.hpp"
 #include "GTwistExpander.hpp"
-#include "GSeedRunKDF.hpp"
+#include "GSeedRunKDF2.hpp"
 #include "TwistFarmSalt.hpp"
 #include "TwistFarmSBox.hpp"
 #include "TwistSnow.hpp"
 #include "TwistCryptoScoring.hpp"
 #include "Rig.hpp"
 #include "GARXPlan.hpp"
-
+#include "GRunMatrixDiffusion.hpp"
+#include "GAXSK.hpp"
 
 namespace {
 
@@ -73,6 +74,49 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     (void)aNotification;
     
     /*
+    
+    std::vector<GAXSKSkeleton> aSkeletons;
+    std::string aErrorMessage;
+    if (!GAXSK::Bake(GAXSFormat::kSixSix,
+                     {1, 2, 3},
+                     &aSkeletons,
+                     &aErrorMessage)) {
+        printf("bake failed: %s\n", aErrorMessage.c_str());
+        
+    } else {
+        printf("bake succeeded!\n");
+        
+        printf("skeleton count: %zu\n", aSkeletons.size());
+
+        for (std::size_t i = 0; i < aSkeletons.size(); i++) {
+            const GAXSKSkeleton &sk = aSkeletons[i];
+
+            printf("skeleton[%zu], statements=%zu\n", i, sk.mStatements.size());
+
+            for (std::size_t s = 0; s < sk.mStatements.size(); s++) {
+                const GAXSKStatement &statement = sk.mStatements[s];
+
+                printf("  statement[%zu] kind=%d target=%d\n",
+                       s,
+                       static_cast<int>(statement.mKind),
+                       static_cast<int>(statement.mTarget));
+
+                if (statement.mKind == GAXSKStatementKind::kContextWordAssign) {
+                    printf("    xor_slots=%zu add_xor_slots=%zu diffuse=%d domain=%d\n",
+                           statement.mContextWord.mXorSlots.size(),
+                           statement.mContextWord.mAddXorSlots.size(),
+                           static_cast<int>(statement.mContextWord.mDiffuse),
+                           statement.mContextWord.mDomainWordIndex);
+                }
+            }
+        }
+        
+    }
+    
+    */
+    
+    
+    /*
     GMoxPlan plan;
     GMoxModel model = GMoxPresets::FourCompact();
 
@@ -83,20 +127,26 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     */
     
     if (IsRunningUnderXCTest() == false) {
-        GSeedRunKDF aKDF;
+        GSeedRunKDF2 aKDF;
         std::string aError;
         GTwistExpander aExpander;
-        aExpander.mNameBase = "Carbon";
+        aExpander.mNameBase = "Argon";
         
         if (!aKDF.Plan(&aError)) {
-            printf("error on GSeedRunKDF.Plan\n");
+            printf("error on GSeedRunKDF2.Plan\n");
             printf("%s\n", aError.c_str());
             return;
         }
         
         if (!aKDF.Build(aExpander.mKDF, &aError)) {
-            printf("error on GSeedRunKDF.Build\n");
+            printf("error on GSeedRunKDF2.Build\n");
             printf("%s\n", aError.c_str());
+            return;
+        }
+        if (aExpander.mKDF.GetBatchJsonText().empty() &&
+            aExpander.mKDF.GetStringLines().empty()) {
+            printf("error on GSeedRunKDF2.Build\n");
+            printf("kdf branch export was empty (no batches and no lines)\n");
             return;
         }
         
@@ -115,13 +165,40 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
             printf("%s\n", aError.c_str());
             return;
         }
-        */
+       
+        
+        
+        GRunMatrixDiffusionConfig aDiffusionA;
+        aDiffusionA.mInputA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
+        aDiffusionA.mInputB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
+        aDiffusionA.mOutputA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
+        aDiffusionA.mOutputB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
+        aDiffusionA.mShuffleEntropyA = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
+        aDiffusionA.mShuffleEntropyB = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
+        aDiffusionA.mShuffleEntropyC = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
+        aDiffusionA.mShuffleEntropyD = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
+        aDiffusionA.mOperationSourceA = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
+        aDiffusionA.mOperationSourceB = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
+
+        GBatch aBatch;
+        aBatch.AddComment("seed-matrix-diffusion: workA/workC -> maskA/maskB");
+        if (!GRunMatrixDiffusion::Bake(aDiffusionA, &aBatch, &aError)) {
+            printf("error on matrix dif: %s\n", aError.c_str());
+            return;
+        }
+        
+        aExpander.mKDF.AddBatch(aBatch);
+        
+        printf("trying export...\n");
+         */
         
         if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
             !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError)) {
             printf("expander export failed: %s\n", aError.c_str());
             return;
         }
+        printf("done export...\n");
+        
         
     }
     
@@ -430,7 +507,7 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
     
     
     /*
-    if (!aSeedWorkerBuilder.BuildPhaseA(aSeedBranch, aError)) {
+    if (!aSeedWorkLaneBuilder.BuildPhaseA(aSeedBranch, aError)) {
         
     }
     

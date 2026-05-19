@@ -32,12 +32,12 @@ struct GARXSymbolPack {
     GSymbol mStreamCross;
     GSymbol mCarry;
 
-    GSymbol mUnwindA;
-    GSymbol mUnwindB;
-    GSymbol mUnwindC;
-    GSymbol mUnwindD;
-    GSymbol mUnwindE;
-    GSymbol mUnwindF;
+    GSymbol mWandererA;
+    GSymbol mWandererB;
+    GSymbol mWandererC;
+    GSymbol mWandererD;
+    GSymbol mWandererE;
+    GSymbol mWandererF;
 
     GSymbol mOrbiterA;
     GSymbol mOrbiterB;

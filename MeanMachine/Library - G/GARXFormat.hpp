@@ -18,14 +18,14 @@ enum class GARXGroupType : std::uint8_t;
 class GARXFormat {
 public:
     virtual ~GARXFormat() = default;
-
+    
     virtual const char *Name() const = 0;
     virtual std::size_t PlanWidth() const = 0;
     virtual std::size_t PassCount() const = 0;
     virtual std::size_t MaxPlanWidth() const = 0;
 
     virtual std::vector<GARXType> OrbiterTypes() const = 0;
-    virtual std::vector<GARXType> UnwindTypes() const = 0;
+    virtual std::vector<GARXType> WandererTypes() const = 0;
 
     virtual const std::vector<int> &PassSaltBiases() const = 0;
 
@@ -36,7 +36,7 @@ public:
                                         std::size_t pForwardGroupIndex,
                                         std::size_t pPassIndex) const = 0;
     virtual int PickSeedPlugSaltLane(std::size_t pPlugIndexInPhase) const = 0;
-    virtual int PickUnwindPlugSaltLane(std::size_t pPlugIndexInPhase) const = 0;
+    virtual int PickWandererPlugSaltLane(std::size_t pPlugIndexInPhase) const = 0;
 };
 
 class GARXFormatSixSixFour final : public GARXFormat {
@@ -49,7 +49,7 @@ public:
     std::size_t MaxPlanWidth() const override;
 
     std::vector<GARXType> OrbiterTypes() const override;
-    std::vector<GARXType> UnwindTypes() const override;
+    std::vector<GARXType> WandererTypes() const override;
 
     const std::vector<int> &PassSaltBiases() const override;
 
@@ -60,7 +60,7 @@ public:
                                 std::size_t pForwardGroupIndex,
                                 std::size_t pPassIndex) const override;
     int PickSeedPlugSaltLane(std::size_t pPlugIndexInPhase) const override;
-    int PickUnwindPlugSaltLane(std::size_t pPlugIndexInPhase) const override;
+    int PickWandererPlugSaltLane(std::size_t pPlugIndexInPhase) const override;
 };
 
 #endif /* GARXFormat_hpp */

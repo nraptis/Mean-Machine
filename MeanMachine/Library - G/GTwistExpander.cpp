@@ -397,27 +397,25 @@ bool ParseTables(const JsonValue &pRoot,
         return true;
     };
 
-    if (!ParseMaterialObject("mats_key_a_wanderer", &pExpander->mDomainBundleInbuilt.mKeyASalts.mUnwind)) { return false; }
-    if (!ParseMaterialObject("mats_key_a_orbiter", &pExpander->mDomainBundleInbuilt.mKeyASalts.mOrbiter)) { return false; }
-    if (!ParseMaterialObject("mats_key_a_seeder", &pExpander->mDomainBundleInbuilt.mKeyASalts.mOrbiterInit)) { return false; }
-    if (!ParseMaterialObject("mats_key_b_wanderer", &pExpander->mDomainBundleInbuilt.mKeyBSalts.mUnwind)) { return false; }
-    if (!ParseMaterialObject("mats_key_b_orbiter", &pExpander->mDomainBundleInbuilt.mKeyBSalts.mOrbiter)) { return false; }
-    if (!ParseMaterialObject("mats_key_b_seeder", &pExpander->mDomainBundleInbuilt.mKeyBSalts.mOrbiterInit)) { return false; }
-    if (!ParseMaterialObject("mats_mask_a_wanderer", &pExpander->mDomainBundleInbuilt.mMaskASalts.mUnwind)) { return false; }
-    if (!ParseMaterialObject("mats_mask_a_orbiter", &pExpander->mDomainBundleInbuilt.mMaskASalts.mOrbiter)) { return false; }
-    if (!ParseMaterialObject("mats_mask_a_seeder", &pExpander->mDomainBundleInbuilt.mMaskASalts.mOrbiterInit)) { return false; }
-    if (!ParseMaterialObject("mats_mask_b_wanderer", &pExpander->mDomainBundleInbuilt.mMaskBSalts.mUnwind)) { return false; }
-    if (!ParseMaterialObject("mats_mask_b_orbiter", &pExpander->mDomainBundleInbuilt.mMaskBSalts.mOrbiter)) { return false; }
-    if (!ParseMaterialObject("mats_mask_b_seeder", &pExpander->mDomainBundleInbuilt.mMaskBSalts.mOrbiterInit)) { return false; }
-    if (!ParseMaterialObject("mats_work_lane_wanderer", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mUnwind)) { return false; }
-    if (!ParseMaterialObject("mats_work_lane_orbiter", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mOrbiter)) { return false; }
-    if (!ParseMaterialObject("mats_work_lane_seeder", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts.mOrbiterInit)) { return false; }
-    if (!ParseMaterialObject("mats_mask_lane_wanderer", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mUnwind)) { return false; }
-    if (!ParseMaterialObject("mats_mask_lane_orbiter", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mOrbiter)) { return false; }
-    if (!ParseMaterialObject("mats_mask_lane_seeder", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts.mOrbiterInit)) { return false; }
-    if (!ParseMaterialObject("mats_operation_lane_wanderer", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mUnwind)) { return false; }
-    if (!ParseMaterialObject("mats_operation_lane_orbiter", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mOrbiter)) { return false; }
-    if (!ParseMaterialObject("mats_operation_lane_seeder", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts.mOrbiterInit)) { return false; }
+    if (!ParseMaterialObject("mats_phase_a_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mWandererUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_a_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_a_seeder", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterAssign)) { return false; }
+    if (!ParseMaterialObject("mats_phase_b_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mWandererUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_b_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_b_seeder", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterAssign)) { return false; }
+    if (!ParseMaterialObject("mats_phase_c_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_c_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_c_seeder", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign)) { return false; }
+
+    if (!ParseMaterialObject("mats_key_a_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mWandererUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_key_a_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_key_a_seeder", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterAssign)) { return false; }
+    if (!ParseMaterialObject("mats_key_b_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mWandererUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_key_b_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_key_b_seeder", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterAssign)) { return false; }
+    if (!ParseMaterialObject("mats_operation_lane_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_operation_lane_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_operation_lane_seeder", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign)) { return false; }
 
     auto ParseDomainConstantOptional = [&](const char *pKey,
                                            std::uint64_t *pDest) -> bool {
@@ -515,13 +513,13 @@ bool ParseTables(const JsonValue &pRoot,
         return true;
     };
     
-    if (!ParseDomainConstantsObject("constants_key_a", &pExpander->mDomainBundleInbuilt.mKeyAConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_key_b", &pExpander->mDomainBundleInbuilt.mKeyBConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_mask_a", &pExpander->mDomainBundleInbuilt.mMaskAConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_mask_b", &pExpander->mDomainBundleInbuilt.mMaskBConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_work_lane", &pExpander->mDomainBundleInbuilt.mWorkLaneConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_mask_lane", &pExpander->mDomainBundleInbuilt.mMaskLaneConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_operation_lane", &pExpander->mDomainBundleInbuilt.mOperationLaneConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_phase_a", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_phase_b", &pExpander->mDomainBundleInbuilt.mPhaseBConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_phase_c", &pExpander->mDomainBundleInbuilt.mPhaseCConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_key_a", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_key_b", &pExpander->mDomainBundleInbuilt.mPhaseBConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_work_lane", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_operation_lane", &pExpander->mDomainBundleInbuilt.mPhaseCConstants)) { return false; }
     
     auto ParseDomainSaltOptional = [&](const char *pKey,
                                        std::uint64_t *pDest) -> bool {
@@ -779,28 +777,28 @@ bool ResolveAliasSlot(const std::string &pAlias,
     };
 
     static const AliasSlotPair kWorkspaceFieldAliases[] = {
-        {"mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA},
-        {"mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB},
-        {"mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterC},
-        {"mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterD},
-        {"mSaltE", TwistWorkSpaceSlot::kParamDomainSaltUnwindE},
-        {"mSaltF", TwistWorkSpaceSlot::kParamDomainSaltUnwindF},
-        {"mMatsWorkLaneOrbiterInit.mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA},
-        {"mMatsWorkLaneOrbiterInit.mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB},
-        {"mMatsWorkLaneOrbiterInit.mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterC},
-        {"mMatsWorkLaneOrbiterInit.mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterD},
-        {"mMatsWorkLaneOrbiterInit.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltUnwindE},
-        {"mMatsWorkLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltUnwindF},
-        {"mMatsWorkLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltUnwindE},
-        {"mMatsWorkLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltUnwindF},
+        {"mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA},
+        {"mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB},
+        {"mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC},
+        {"mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD},
+        {"mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
+        {"mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
+        {"mMatsWorkLaneOrbiterInit.mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA},
+        {"mMatsWorkLaneOrbiterInit.mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB},
+        {"mMatsWorkLaneOrbiterInit.mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC},
+        {"mMatsWorkLaneOrbiterInit.mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD},
+        {"mMatsWorkLaneOrbiterInit.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
+        {"mMatsWorkLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
+        {"mMatsWorkLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
+        {"mMatsWorkLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
         {"mMatsWorkLaneOrbiter.mSaltA", TwistWorkSpaceSlot::kDerivedSaltOrbiterA},
         {"mMatsWorkLaneOrbiter.mSaltB", TwistWorkSpaceSlot::kDerivedSaltOrbiterB},
         {"mMatsWorkLaneOrbiter.mSaltC", TwistWorkSpaceSlot::kDerivedSaltOrbiterC},
         {"mMatsWorkLaneOrbiter.mSaltD", TwistWorkSpaceSlot::kDerivedSaltOrbiterD},
-        {"mMatsWorkLaneUnwind.mSaltA", TwistWorkSpaceSlot::kDerivedSaltUnwindA},
-        {"mMatsWorkLaneUnwind.mSaltB", TwistWorkSpaceSlot::kDerivedSaltUnwindB},
-        {"mMatsWorkLaneUnwind.mSaltC", TwistWorkSpaceSlot::kDerivedSaltUnwindC},
-        {"mMatsWorkLaneUnwind.mSaltD", TwistWorkSpaceSlot::kDerivedSaltUnwindD},
+        {"mMatsWorkLaneWanderer.mSaltA", TwistWorkSpaceSlot::kDerivedSaltWandererA},
+        {"mMatsWorkLaneWanderer.mSaltB", TwistWorkSpaceSlot::kDerivedSaltWandererB},
+        {"mMatsWorkLaneWanderer.mSaltC", TwistWorkSpaceSlot::kDerivedSaltWandererC},
+        {"mMatsWorkLaneWanderer.mSaltD", TwistWorkSpaceSlot::kDerivedSaltWandererD},
         {"mSBoxA", TwistWorkSpaceSlot::kParamDomainSBoxA},
         {"mSBoxB", TwistWorkSpaceSlot::kParamDomainSBoxB},
         {"mSBoxC", TwistWorkSpaceSlot::kParamDomainSBoxC},
@@ -825,12 +823,12 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mDerivedSBoxF", TwistWorkSpaceSlot::kDerivedSBoxF},
         {"mDerivedSBoxG", TwistWorkSpaceSlot::kDerivedSBoxG},
         {"mDerivedSBoxH", TwistWorkSpaceSlot::kDerivedSBoxH},
-        {"mExpandLaneA", TwistWorkSpaceSlot::kSeedExpansionLaneA},
-        {"mExpandLaneB", TwistWorkSpaceSlot::kSeedExpansionLaneB},
-        {"mExpandLaneC", TwistWorkSpaceSlot::kSeedExpansionLaneC},
-        {"mExpandLaneD", TwistWorkSpaceSlot::kSeedExpansionLaneD},
-        {"mExpandLaneE", TwistWorkSpaceSlot::kSeedExpansionLaneE},
-        {"mExpandLaneF", TwistWorkSpaceSlot::kSeedExpansionLaneF},
+        {"mListExpansionLaneA", TwistWorkSpaceSlot::kExpansionLaneA},
+        {"mListExpansionLaneB", TwistWorkSpaceSlot::kExpansionLaneB},
+        {"mListExpansionLaneC", TwistWorkSpaceSlot::kExpansionLaneC},
+        {"mListExpansionLaneD", TwistWorkSpaceSlot::kExpansionLaneD},
+        {"mListExpansionLaneE", TwistWorkSpaceSlot::kExpansionLaneE},
+        {"mListExpansionLaneF", TwistWorkSpaceSlot::kExpansionLaneF},
         {"mWorkLaneA", TwistWorkSpaceSlot::kWorkLaneA},
         {"mWorkLaneB", TwistWorkSpaceSlot::kWorkLaneB},
         {"mWorkLaneC", TwistWorkSpaceSlot::kWorkLaneC},
@@ -1126,46 +1124,43 @@ bool ResolveConstantsToken(const std::string &pToken,
         return false;
     }
 
-    if ((aToken == "mConstantsKeyA") ||
+    if ((aToken == "mConstantsPhaseA") ||
+        (aToken == "mConstantsKeyA") ||
+        (aToken == "mConstantsMaskA") ||
+        (aToken == "mConstantsWorkLane") ||
+        (aToken == "mDomainBundleInbuilt.mPhaseAConstants") ||
+        (aToken == "mDomainBundle.mPhaseAConstants") ||
         (aToken == "mDomainBundleInbuilt.mKeyAConstants") ||
-        (aToken == "mDomainBundle.mKeyAConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mKeyAConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsKeyB") ||
-        (aToken == "mDomainBundleInbuilt.mKeyBConstants") ||
-        (aToken == "mDomainBundle.mKeyBConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mKeyBConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsMaskA") ||
+        (aToken == "mDomainBundle.mKeyAConstants") ||
         (aToken == "mDomainBundleInbuilt.mMaskAConstants") ||
-        (aToken == "mDomainBundle.mMaskAConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mMaskAConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsMaskB") ||
-        (aToken == "mDomainBundleInbuilt.mMaskBConstants") ||
-        (aToken == "mDomainBundle.mMaskBConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mMaskBConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsWorkLane") ||
+        (aToken == "mDomainBundle.mMaskAConstants") ||
         (aToken == "mDomainBundleInbuilt.mWorkLaneConstants") ||
         (aToken == "mDomainBundle.mWorkLaneConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mWorkLaneConstants);
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseAConstants);
         return true;
     }
-    if ((aToken == "mConstantsMaskLane") ||
+    if ((aToken == "mConstantsPhaseB") ||
+        (aToken == "mConstantsKeyB") ||
+        (aToken == "mConstantsMaskB") ||
+        (aToken == "mConstantsMaskLane") ||
+        (aToken == "mDomainBundleInbuilt.mPhaseBConstants") ||
+        (aToken == "mDomainBundle.mPhaseBConstants") ||
+        (aToken == "mDomainBundleInbuilt.mKeyBConstants") ||
+        (aToken == "mDomainBundle.mKeyBConstants") ||
+        (aToken == "mDomainBundleInbuilt.mMaskBConstants") ||
+        (aToken == "mDomainBundle.mMaskBConstants") ||
         (aToken == "mDomainBundleInbuilt.mMaskLaneConstants") ||
         (aToken == "mDomainBundle.mMaskLaneConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mMaskLaneConstants);
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseBConstants);
         return true;
     }
-    if ((aToken == "mConstantsOperationLane") ||
+    if ((aToken == "mConstantsPhaseC") ||
+        (aToken == "mConstantsOperationLane") ||
+        (aToken == "mDomainBundleInbuilt.mPhaseCConstants") ||
+        (aToken == "mDomainBundle.mPhaseCConstants") ||
         (aToken == "mDomainBundleInbuilt.mOperationLaneConstants") ||
         (aToken == "mDomainBundle.mOperationLaneConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mOperationLaneConstants);
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseCConstants);
         return true;
     }
     return false;
@@ -1196,36 +1191,39 @@ bool ResolveSaltSetToken(const std::string &pToken,
         return true;
     };
 
-    if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSalts", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSalts", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseASalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseBSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseCSalts", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSalts", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
 
     // Legacy compatibility tokens.
-    if (TryWorkspaceSet("mMatsKeyAOrbiterInit", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyAOrbiter", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyAUnwind", &pWorkspace->mDomainBundle.mKeyASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBOrbiterInit", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBOrbiter", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBUnwind", &pWorkspace->mDomainBundle.mKeyBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAOrbiterInit", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAOrbiter", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAUnwind", &pWorkspace->mDomainBundle.mMaskASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBUnwind", &pWorkspace->mDomainBundle.mMaskBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneOrbiterInit", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneOrbiter", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneUnwind", &pWorkspace->mDomainBundle.mWorkLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneUnwind", &pWorkspace->mDomainBundle.mMaskLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneOrbiterInit", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneOrbiter", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneUnwind", &pWorkspace->mDomainBundle.mOperationLaneSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAOrbiterInit", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAOrbiter", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAWanderer", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiterInit", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiter", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBWanderer", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiterInit", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiter", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAWanderer", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBWanderer", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneOrbiterInit", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneOrbiter", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneWanderer", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneWanderer", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneOrbiterInit", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneOrbiter", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneWanderer", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
 
     if (pExpander != nullptr) {
         auto TryExpanderSet = [&](const std::string &pName,
@@ -1240,13 +1238,16 @@ bool ResolveSaltSetToken(const std::string &pToken,
             return true;
         };
 
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASalts", &pExpander->mDomainBundleInbuilt.mKeyASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSalts", &pExpander->mDomainBundleInbuilt.mKeyBSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASalts", &pExpander->mDomainBundleInbuilt.mMaskASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSalts", &pExpander->mDomainBundleInbuilt.mMaskBSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSalts", &pExpander->mDomainBundleInbuilt.mWorkLaneSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSalts", &pExpander->mDomainBundleInbuilt.mMaskLaneSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSalts", &pExpander->mDomainBundleInbuilt.mOperationLaneSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseCSalts", &pExpander->mDomainBundleInbuilt.mPhaseCSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSalts", &pExpander->mDomainBundleInbuilt.mPhaseCSalts)) { return true; }
     }
 
     return false;
@@ -1277,13 +1278,16 @@ bool ResolveSBoxSetToken(const std::string &pToken,
         return true;
     };
 
-    if (TryWorkspaceSet("mDomainBundle.mKeyASBoxes", &pWorkspace->mDomainBundle.mKeyASBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyBSBoxes", &pWorkspace->mDomainBundle.mKeyBSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskASBoxes", &pWorkspace->mDomainBundle.mMaskASBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskBSBoxes", &pWorkspace->mDomainBundle.mMaskBSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSBoxes", &pWorkspace->mDomainBundle.mWorkLaneSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSBoxes", &pWorkspace->mDomainBundle.mMaskLaneSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSBoxes", &pWorkspace->mDomainBundle.mOperationLaneSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseASBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseBSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseCSBoxes", &pWorkspace->mDomainBundle.mPhaseCSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyASBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyBSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskASBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskBSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSBoxes", &pWorkspace->mDomainBundle.mPhaseCSBoxes)) { return true; }
 
     if (pExpander != nullptr) {
         auto TryExpanderSet = [&](const std::string &pName,
@@ -1298,13 +1302,16 @@ bool ResolveSBoxSetToken(const std::string &pToken,
             return true;
         };
 
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASBoxes", &pExpander->mDomainBundleInbuilt.mKeyASBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSBoxes", &pExpander->mDomainBundleInbuilt.mKeyBSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASBoxes", &pExpander->mDomainBundleInbuilt.mMaskASBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSBoxes", &pExpander->mDomainBundleInbuilt.mMaskBSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSBoxes", &pExpander->mDomainBundleInbuilt.mWorkLaneSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSBoxes", &pExpander->mDomainBundleInbuilt.mMaskLaneSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSBoxes", &pExpander->mDomainBundleInbuilt.mOperationLaneSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseASBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseBSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseCSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseCSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseCSBoxes)) { return true; }
     }
 
     return false;
@@ -1324,23 +1331,44 @@ bool ExecuteKDFLine(const std::string &pLine,
         return false;
     }
 
-    if ((aArgs.size() == 10U) || (aArgs.size() == 6U)) {
+    if (aArgs.size() == 10U) {
         SetError(pErrorMessage, "Legacy KDF call shape is no longer supported.");
         return false;
     }
-    if (aArgs.size() != 5U) {
-        SetError(pErrorMessage, "KDF call expects exactly 5 arguments.");
+    if ((aArgs.size() != 5U) && (aArgs.size() != 6U)) {
+        SetError(pErrorMessage, "KDF call expects exactly 5 or 6 arguments.");
         return false;
     }
 
+    const bool aHasExplicitNonce = (aArgs.size() == 6U);
+    std::uint64_t aNonce = pExpander->GetSessionNonce();
+    std::size_t aOffset = 0U;
+    if (aHasExplicitNonce) {
+        aOffset = 1U;
+        const std::string aNonceToken = TrimCopy(aArgs[0]);
+        if (aNonceToken == "pNonce") {
+            aNonce = pExpander->GetSessionNonce();
+        } else if (aNonceToken == "mKDFSessionNonce") {
+            aNonce = pExpander->GetSessionNonce();
+        } else {
+            char *aEnd = nullptr;
+            const unsigned long long aParsed = std::strtoull(aNonceToken.c_str(), &aEnd, 0);
+            if ((aEnd == nullptr) || (*aEnd != '\0')) {
+                SetError(pErrorMessage, "KDF nonce token was invalid: " + aArgs[0]);
+                return false;
+            }
+            aNonce = static_cast<std::uint64_t>(aParsed);
+        }
+    }
+
     TwistWorkSpaceSlot aSourceSlot = TwistWorkSpaceSlot::kInvalid;
-    if (!ResolveAliasSlot(aArgs[0], &aSourceSlot)) {
-        SetError(pErrorMessage, "KDF source alias was invalid: " + aArgs[0]);
+    if (!ResolveAliasSlot(aArgs[aOffset + 0U], &aSourceSlot)) {
+        SetError(pErrorMessage, "KDF source alias was invalid: " + aArgs[aOffset + 0U]);
         return false;
     }
     TwistWorkSpaceSlot aDestSlot = TwistWorkSpaceSlot::kInvalid;
-    if (!ResolveAliasSlot(aArgs[1], &aDestSlot)) {
-        SetError(pErrorMessage, "KDF destination alias was invalid: " + aArgs[1]);
+    if (!ResolveAliasSlot(aArgs[aOffset + 1U], &aDestSlot)) {
+        SetError(pErrorMessage, "KDF destination alias was invalid: " + aArgs[aOffset + 1U]);
         return false;
     }
 
@@ -1352,7 +1380,7 @@ bool ExecuteKDFLine(const std::string &pLine,
         aSource = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSourceSlot);
     }
     if (aSource == nullptr) {
-        SetError(pErrorMessage, "KDF source alias resolved to null: " + aArgs[0]);
+        SetError(pErrorMessage, "KDF source alias resolved to null: " + aArgs[aOffset + 0U]);
         return false;
     }
     TwistBufferKey aDestKey;
@@ -1363,27 +1391,28 @@ bool ExecuteKDFLine(const std::string &pLine,
         aDest = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aDestSlot);
     }
     if (aDest == nullptr) {
-        SetError(pErrorMessage, "KDF destination alias resolved to null: " + aArgs[1]);
+        SetError(pErrorMessage, "KDF destination alias resolved to null: " + aArgs[aOffset + 1U]);
         return false;
     }
 
     TwistDomainConstants *aConstants = nullptr;
-    if (!ResolveConstantsToken(aArgs[2], pExpander, &aConstants)) {
-        SetError(pErrorMessage, "KDF constants token was invalid: " + aArgs[2]);
+    if (!ResolveConstantsToken(aArgs[aOffset + 2U], pExpander, &aConstants)) {
+        SetError(pErrorMessage, "KDF constants token was invalid: " + aArgs[aOffset + 2U]);
         return false;
     }
     TwistDomainSaltSet *aSaltSet = nullptr;
-    if (!ResolveSaltSetToken(aArgs[3], pWorkspace, pExpander, &aSaltSet)) {
-        SetError(pErrorMessage, "KDF salt-set token was invalid: " + aArgs[3]);
+    if (!ResolveSaltSetToken(aArgs[aOffset + 3U], pWorkspace, pExpander, &aSaltSet)) {
+        SetError(pErrorMessage, "KDF salt-set token was invalid: " + aArgs[aOffset + 3U]);
         return false;
     }
     TwistDomainSBoxSet *aSBoxSet = nullptr;
-    if (!ResolveSBoxSetToken(aArgs[4], pWorkspace, pExpander, &aSBoxSet)) {
-        SetError(pErrorMessage, "KDF sbox-set token was invalid: " + aArgs[4]);
+    if (!ResolveSBoxSetToken(aArgs[aOffset + 4U], pWorkspace, pExpander, &aSBoxSet)) {
+        SetError(pErrorMessage, "KDF sbox-set token was invalid: " + aArgs[aOffset + 4U]);
         return false;
     }
 
-    pExpander->KDF(aSource,
+    pExpander->KDF(aNonce,
+                   aSource,
                    aDest,
                    aConstants,
                    aSaltSet,
@@ -1527,6 +1556,7 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
 bool ExecuteBranch(const TwistProgramBranch &pBranch,
                    TwistWorkSpace *pWorkspace,
                    TwistExpander *pExpander,
+                   const std::unordered_map<std::string, GRuntimeScalar> *pInitialVariables,
                    std::string *pErrorMessage) {
     if (pWorkspace == nullptr) {
         SetError(pErrorMessage, "Branch execution received a null workspace.");
@@ -1534,6 +1564,9 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
     }
 
     std::unordered_map<std::string, GRuntimeScalar> aVariables;
+    if (pInitialVariables != nullptr) {
+        aVariables = *pInitialVariables;
+    }
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
         if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, &aVariables, pErrorMessage)) {
@@ -1618,12 +1651,14 @@ void GTwistExpander::RefreshTablePointers() {
     SyncDomainBundleInbuiltFromLegacy();
 }
 
-void GTwistExpander::KDF(std::uint8_t *pSource,
+void GTwistExpander::KDF(std::uint64_t pNonce,
+                         std::uint8_t *pSource,
                          std::uint8_t *pDest,
                          TwistDomainConstants *pDomainConstants,
                          TwistDomainSaltSet *pDomainSaltSet,
                          TwistDomainSBoxSet *pDomainSBoxSet) {
-    TwistExpander::KDF(pSource,
+    TwistExpander::KDF(pNonce,
+                       pSource,
                        pDest,
                        pDomainConstants,
                        pDomainSaltSet,
@@ -1637,7 +1672,25 @@ void GTwistExpander::KDF(std::uint8_t *pSource,
     }
 
     std::string aError;
-    if (!ExecuteBranch(mKDF, mWorkspace, this, &aError)) {
+    std::unordered_map<std::string, GRuntimeScalar> aInitialVariables;
+    const char *aNonceNames[8] = {
+        "aNonceByteA",
+        "aNonceByteB",
+        "aNonceByteC",
+        "aNonceByteD",
+        "aNonceByteE",
+        "aNonceByteF",
+        "aNonceByteG",
+        "aNonceByteH",
+    };
+    for (int i = 0; i < 8; ++i) {
+        aInitialVariables[aNonceNames[i]] = static_cast<GRuntimeScalar>((pNonce >> (i * 8)) & 0xFFULL);
+    }
+    aInitialVariables["aDomainWordIngress"] = static_cast<GRuntimeScalar>(pDomainConstants->mIngress);
+    aInitialVariables["aDomainWordScatter"] = static_cast<GRuntimeScalar>(pDomainConstants->mPrevious);
+    aInitialVariables["aDomainWordCross"] = static_cast<GRuntimeScalar>(pDomainConstants->mCross);
+
+    if (!ExecuteBranch(mKDF, mWorkspace, this, &aInitialVariables, &aError)) {
         std::printf("fatal: GTwistExpander::KDF failed: %s\n", aError.c_str());
     }
 }
@@ -1645,37 +1698,47 @@ void GTwistExpander::KDF(std::uint8_t *pSource,
 void GTwistExpander::Seed(TwistWorkSpace *pWorkspace,
                           TwistFarmSBox *pFarmSBox,
                           TwistFarmSalt *pFarmSalt,
+                          std::uint64_t pNonce,
                           std::uint8_t *pSource,
                           std::uint8_t *pPassword,
                           unsigned int pPasswordByteLength) {
     RefreshTablePointers();
-    TwistExpander::Seed(pWorkspace, pFarmSBox, pFarmSalt, pSource, pPassword, pPasswordByteLength);
+    TwistExpander::Seed(pWorkspace,
+                        pFarmSBox,
+                        pFarmSalt,
+                        pNonce,
+                        pSource,
+                        pPassword,
+                        pPasswordByteLength);
 
     if ((pWorkspace == nullptr) || (pFarmSBox == nullptr) || (pFarmSalt == nullptr)) {
         return;
     }
 
-    KDF(pSource,
+    KDF(pNonce,
+        pSource,
         pWorkspace->mWorkLaneA,
-        &(mDomainBundleInbuilt.mWorkLaneConstants),
-        &(pWorkspace->mDomainBundle.mWorkLaneSalts),
-        &(pWorkspace->mDomainBundle.mWorkLaneSBoxes));
-    KDF(pWorkspace->mWorkLaneA,
+        &(mDomainBundleInbuilt.mPhaseAConstants),
+        &(pWorkspace->mDomainBundle.mPhaseASalts),
+        &(pWorkspace->mDomainBundle.mPhaseASBoxes));
+    KDF(pNonce,
+        pWorkspace->mWorkLaneA,
         pWorkspace->mWorkLaneB,
-        &(mDomainBundleInbuilt.mWorkLaneConstants),
-        &(pWorkspace->mDomainBundle.mWorkLaneSalts),
-        &(pWorkspace->mDomainBundle.mWorkLaneSBoxes));
+        &(mDomainBundleInbuilt.mPhaseAConstants),
+        &(pWorkspace->mDomainBundle.mPhaseASalts),
+        &(pWorkspace->mDomainBundle.mPhaseASBoxes));
 
     std::string aError;
-    if (!ExecuteBranch(mSeed, pWorkspace, this, &aError)) {
+    if (!ExecuteBranch(mSeed, pWorkspace, this, nullptr, &aError)) {
         std::printf("fatal: GTwistExpander::Seed failed: %s\n", aError.c_str());
     }
 }
 
 void GTwistExpander::TwistBlock(TwistWorkSpace *pWorkspace,
+                                std::uint64_t pNonce,
                                 std::uint8_t *pSource,
                                 std::uint8_t *pDestination) {
-    
+    TwistExpander::TwistBlock(pWorkspace, pNonce, pSource, pDestination);
 }
 
 bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,

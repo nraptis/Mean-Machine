@@ -13,7 +13,19 @@
 #include "GMagicNumbers.hpp"
 #include "GARXPlan.hpp"
 
-struct TwistDomainSeedRoundMaterial;
+struct GDomainSeedRoundMaterial {
+    GSymbol                                  mSaltA;
+    GSymbol                                  mSaltB;
+    GSymbol                                  mSaltC;
+    GSymbol                                  mSaltD;
+    GSymbol                                  mSaltE;
+    GSymbol                                  mSaltF;
+};
+
+struct GDomainSaltSet {
+    GDomainSeedRoundMaterial                 mWanderer;
+    GDomainSeedRoundMaterial                 mOrbiter;
+};
 
 class CSPKDF {
     
@@ -30,10 +42,12 @@ public:
                      GExpr pPublicIngressSourceB,
                      GExpr pPublicIngressSourceC,
                      GExpr pPublicIngressSourceD,
+                     
                      GExpr pPrivateIngressSourceA,
                      GExpr pPrivateIngressSourceB,
                      GExpr pPrivateIngressSourceC,
                      GExpr pPrivateIngressSourceD,
+                     
                      GExpr pCrossIngressSourceA,
                      GExpr pCrossIngressSourceB,
                      GExpr pCrossIngressSourceC,
@@ -43,54 +57,17 @@ public:
                      GExpr pPrivateIngressDomainWord,
                      GExpr pCrossIngressDomainWord,
                      
-                     GSymbol pStreamCurrent,
-                     GSymbol pStreamPrevious,
-                     GSymbol pStreamScatter,
-                     GSymbol pStreamCross,
-                     
                      GSymbol pStreamScatterComponentA,
                      GSymbol pStreamScatterComponentB,
                      GSymbol pStreamScatterComponentC,
                      GSymbol pStreamScatterComponentD,
-                     
-                     GSymbol pSecretCurrent,
-                     GSymbol pSecretPrevious,
-                     GSymbol pSecretScatter,
-                     GSymbol pSecretWrite,
                      
                      GSymbol pSecretScatterComponentA,
                      GSymbol pSecretScatterComponentB,
                      GSymbol pSecretScatterComponentC,
                      GSymbol pSecretScatterComponentD,
                      
-                     GSymbol pCarry,
-                     
-                     GSymbol pUnwindA,
-                     GSymbol pUnwindB,
-                     GSymbol pUnwindC,
-                     GSymbol pUnwindD,
-                     GSymbol pUnwindE,
-                     GSymbol pUnwindF,
-                     
-                     GSymbol pOrbiterA,
-                     GSymbol pOrbiterB,
-                     GSymbol pOrbiterC,
-                     GSymbol pOrbiterD,
-                     GSymbol pOrbiterE,
-                     GSymbol pOrbiterF,
-
-                     TwistDomainSeedRoundMaterial *pMatsUnwind,
-                     TwistDomainSeedRoundMaterial *pMatsOrbiter,
-                     TwistDomainSeedRoundMaterial *pMatsOrbiterInit,
-                     
-                     GSymbol pPlugKeyA,
-                     GSymbol pPlugKeyB,
-                     GSymbol pPlugKeyC,
-                     GSymbol pPlugKeyD,
-                     GSymbol pPlugKeyE,
-                     GSymbol pPlugKeyF,
-                     
-                     std::vector<GSymbol> pSBoxes,
+                     const GDomainSaltSet &pDomainSaltSet,
                      
                      GHotPack pHotPack,
                      

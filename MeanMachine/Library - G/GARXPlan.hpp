@@ -89,7 +89,7 @@ public:
     GARXPlan();
     ~GARXPlan();
     
-    const GARXFormat                              *mFormat;
+    const GARXFormat                                *mFormat;
     GARXSkeleton                                    mSkeleton;
     std::vector<GARXPassPlan *>                     mPasses;
     

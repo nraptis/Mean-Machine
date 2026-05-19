@@ -8,7 +8,6 @@
 
 #include <cstdint>
 #include <vector>
-#include "TwistDomains.hpp"
 
 #define S_BLOCK 16384 // 4,096 // 2,048
 
@@ -16,7 +15,6 @@
 
 #define S_SALT 32
 #define S_SALT_DIVIDE_BITSHIFT 5
-
 
 #define S_BLOCK1 16383
 #define S_SBOX1 255
@@ -43,6 +41,15 @@
 #define S_MASK_B (W_MASK_B * H_MASK_B)
 
 class TwistExpander;
+
+enum class TwistDomain : std::uint8_t {
+    kInvalid = 0,
+    kPhaseA,
+    kPhaseB,
+    kPhaseC,
+};
+
+enum class TwistWorkSpaceSlot : std::uint16_t;
 
 enum class TwistBufferKind : std::uint8_t {
     kInvalid = 0,
@@ -84,6 +91,11 @@ enum class TwistDirectBuffer : std::uint16_t {
     kOperationLaneE,
     kOperationLaneF,
 
+    kSnowLaneA,
+    kSnowLaneB,
+    kSnowLaneC,
+    kSnowLaneD,
+
     kMaskLaneA,
     kMaskLaneB,
 
@@ -100,34 +112,6 @@ enum class TwistDirectBuffer : std::uint16_t {
     kMaskRowReadB,
     kMaskRowWriteA,
     kMaskRowWriteB
-};
-
-enum class TwistDomainFamily : std::uint16_t {
-    kInvalid = 0,
-    kKeyA = 1,
-    kKeyB = 2,
-    kMaskA = 3,
-    kMaskB = 4,
-    kWorkLane = 5,
-    kMaskLane = 6,
-    kOperationLane = 7
-};
-
-enum class TwistSaltPhase : std::uint16_t {
-    kInvalid = 0,
-    kUnwind = 1,
-    kOrbiter = 2,
-    kOrbiterInit = 3
-};
-
-enum class TwistSaltLane : std::uint16_t {
-    kInvalid = 0,
-    kA = 1,
-    kB = 2,
-    kC = 3,
-    kD = 4,
-    kE = 5,
-    kF = 6
 };
 
 enum class TwistSBoxLane : std::uint16_t {
@@ -158,23 +142,22 @@ enum class TwistSBoxOwner : std::uint16_t {
 struct TwistBufferKey {
     TwistBufferKind                          mKind = TwistBufferKind::kInvalid;
     TwistDirectBuffer                        mDirect = TwistDirectBuffer::kInvalid;
-    TwistDomainFamily                        mDomain = TwistDomainFamily::kInvalid;
+    TwistDomain                              mDomain = TwistDomain::kInvalid;
+    std::uint16_t                            mSlot = 255U;
+    
     TwistSaltOwner                           mSaltOwner = TwistSaltOwner::kInvalid;
     TwistSBoxOwner                           mSBoxOwner = TwistSBoxOwner::kInvalid;
-    TwistSaltPhase                           mSaltPhase = TwistSaltPhase::kInvalid;
-    TwistSaltLane                            mSaltLane = TwistSaltLane::kInvalid;
     TwistSBoxLane                            mSBoxLane = TwistSBoxLane::kInvalid;
 
     static TwistBufferKey                    Direct(TwistDirectBuffer pBuffer);
     static TwistBufferKey                    Salt(TwistSaltOwner pOwner,
-                                                  TwistDomainFamily pDomain,
-                                                  TwistSaltPhase pPhase,
-                                                  TwistSaltLane pLane);
+                                                  TwistDomain pDomain,
+                                                  TwistWorkSpaceSlot pSlot);
     static TwistBufferKey                    SBox(TwistSBoxOwner pOwner,
-                                                  TwistDomainFamily pDomain,
+                                                  TwistDomain pDomain,
                                                   TwistSBoxLane pLane);
     static TwistBufferKey                    Constants(TwistSaltOwner pOwner,
-                                                       TwistDomainFamily pDomain);
+                                                       TwistDomain pDomain);
 
     bool                                     IsValid() const;
     bool                                     IsDirect() const;
@@ -208,6 +191,7 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kSBoxG=kParamDomainSBoxG,
     kSBoxH=kParamDomainSBoxH,
     
+    
     kDerivedSBoxA=40,
     kDerivedSBoxB=41,
     kDerivedSBoxC=42,
@@ -217,13 +201,12 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kDerivedSBoxG=46,
     kDerivedSBoxH=47,
     
-    
-    kSeedExpansionLaneA=80,
-    kSeedExpansionLaneB=81,
-    kSeedExpansionLaneC=82,
-    kSeedExpansionLaneD=83,
-    kSeedExpansionLaneE=84,
-    kSeedExpansionLaneF=85,
+    kExpansionLaneA=80,
+    kExpansionLaneB=81,
+    kExpansionLaneC=82,
+    kExpansionLaneD=83,
+    kExpansionLaneE=84,
+    kExpansionLaneF=85,
 
     kWorkLaneA=90,
     kWorkLaneB=91,
@@ -238,6 +221,11 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kOperationLaneD=103,
     kOperationLaneE=104,
     kOperationLaneF=105,
+
+    kSnowLaneA=106,
+    kSnowLaneB=107,
+    kSnowLaneC=108,
+    kSnowLaneD=109,
 
     kMaskLaneA=110,
     kMaskLaneB=111,
@@ -277,19 +265,19 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kDomainSaltMaskBoxE=150,
     kDomainSaltMaskBoxF=151,
     
-    kDomainSaltUnwindA=152,
-    kDomainSaltUnwindB=153,
-    kDomainSaltUnwindC=154,
-    kDomainSaltUnwindD=155,
-    kDomainSaltUnwindE=156,
-    kDomainSaltUnwindF=157,
+    kDomainSaltWandererUpdateA=152,
+    kDomainSaltWandererUpdateB=153,
+    kDomainSaltWandererUpdateC=154,
+    kDomainSaltWandererUpdateD=155,
+    kDomainSaltWandererUpdateE=156,
+    kDomainSaltWandererUpdateF=157,
     
-    kDomainSaltOrbiterA=158,
-    kDomainSaltOrbiterB=159,
-    kDomainSaltOrbiterC=160,
-    kDomainSaltOrbiterD=161,
-    kDomainSaltOrbiterE=162,
-    kDomainSaltOrbiterF=163,
+    kDomainSaltOrbiterUpdateA=158,
+    kDomainSaltOrbiterUpdateB=159,
+    kDomainSaltOrbiterUpdateC=160,
+    kDomainSaltOrbiterUpdateD=161,
+    kDomainSaltOrbiterUpdateE=162,
+    kDomainSaltOrbiterUpdateF=163,
     
     kDomainSaltPrismA=164,
     kDomainSaltPrismB=165,
@@ -298,44 +286,81 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kDomainSaltPrismE=168,
     kDomainSaltPrismF=169,
     
-    kParamDomainSaltOrbiterInitA=170,
-    kParamDomainSaltOrbiterInitB=171,
-    kParamDomainSaltOrbiterC=172,
-    kParamDomainSaltOrbiterD=173,
-    kParamDomainSaltUnwindE=174,
-    kParamDomainSaltUnwindF=175,
+    kParamDomainSaltOrbiterAssignA=170,
+    kParamDomainSaltOrbiterAssignB=171,
+    kParamDomainSaltOrbiterAssignC=172,
+    kParamDomainSaltOrbiterAssignD=173,
+    kParamDomainSaltOrbiterAssignE=174,
+    kParamDomainSaltOrbiterAssignF=175,
 
-    kDomainSaltSourceA=kParamDomainSaltOrbiterInitA,
-    kDomainSaltSourceB=kParamDomainSaltOrbiterInitB,
-    kDomainSaltSourceC=kParamDomainSaltOrbiterC,
-    kDomainSaltSourceD=kParamDomainSaltOrbiterD,
-    kDomainSaltSourceE=kParamDomainSaltUnwindE,
-    kDomainSaltSourceF=kParamDomainSaltUnwindF,
+    kParamDomainSaltOrbiterUpdateA=176,
+    kParamDomainSaltOrbiterUpdateB=177,
+    kParamDomainSaltOrbiterUpdateC=178,
+    kParamDomainSaltOrbiterUpdateD=179,
+    kParamDomainSaltOrbiterUpdateE=180,
+    kParamDomainSaltOrbiterUpdateF=181,
 
-    kDerivedSaltOrbiterA=176,
-    kDerivedSaltOrbiterB=177,
-    kDerivedSaltOrbiterC=178,
-    kDerivedSaltOrbiterD=179,
+    kParamDomainSaltWandererUpdateA=182,
+    kParamDomainSaltWandererUpdateB=183,
+    kParamDomainSaltWandererUpdateC=184,
+    kParamDomainSaltWandererUpdateD=185,
+    kParamDomainSaltWandererUpdateE=186,
+    kParamDomainSaltWandererUpdateF=187,
 
-    kDerivedSaltUnwindA=180,
-    kDerivedSaltUnwindB=181,
-    kDerivedSaltUnwindC=182,
-    kDerivedSaltUnwindD=183,
-    
+    /*
+    kDomainSaltSourceA=kParamDomainSaltOrbiterAssignA,
+    kDomainSaltSourceB=kParamDomainSaltOrbiterAssignB,
+    kDomainSaltSourceC=kParamDomainSaltOrbiterUpdateC,
+    kDomainSaltSourceD=kParamDomainSaltOrbiterUpdateD,
+    kDomainSaltSourceE=kParamDomainSaltWandererUpdateE,
+    kDomainSaltSourceF=kParamDomainSaltWandererUpdateF,
+    */
     
     kIndexList256A=190,
     kIndexList256B=191,
     kIndexList256C=192,
     kIndexList256D=193,
+
+    kDerivedSaltOrbiterA=194,
+    kDerivedSaltOrbiterB=195,
+    kDerivedSaltOrbiterC=196,
+    kDerivedSaltOrbiterD=197,
+
+    kDerivedSaltWandererA=198,
+    kDerivedSaltWandererB=199,
+    kDerivedSaltWandererC=200,
+    kDerivedSaltWandererD=201,
     
 };
 
 struct TwistDomainConstants {
 public:
     
+    std::uint64_t                           mIngress;
+    std::uint64_t                           mPrevious;
+    std::uint64_t                           mCross;
+
     std::uint64_t                           mDomainConstantPublicIngress;
     std::uint64_t                           mDomainConstantPrivateIngress;
     std::uint64_t                           mDomainConstantCrossIngress;
+    
+    std::uint64_t                           mMatrixSelectA;
+    std::uint64_t                           mMatrixSelectB;
+    
+    std::uint8_t                            mMatrixUnrollA;
+    std::uint8_t                            mMatrixUnrollB;
+    
+    std::uint8_t                            mMatrixSchemeA;
+    std::uint8_t                            mMatrixSchemeB;
+    
+    std::uint8_t                            mMatrixArgAA;
+    std::uint8_t                            mMatrixArgAB;
+    std::uint8_t                            mMatrixArgBA;
+    std::uint8_t                            mMatrixArgBB;
+    
+    std::uint8_t                            mMaskMutateA;
+    std::uint8_t                            mMaskMutateB;
+    
 };
 
 struct TwistDomainSeedRoundMaterial {
@@ -359,13 +384,15 @@ public:
     std::uint8_t                            mSBoxF[S_SBOX];
     std::uint8_t                            mSBoxG[S_SBOX];
     std::uint8_t                            mSBoxH[S_SBOX];
+    
 };
 
 class TwistDomainSaltSet {
 public:
-    TwistDomainSeedRoundMaterial            mUnwind;
-    TwistDomainSeedRoundMaterial            mOrbiter;
-    TwistDomainSeedRoundMaterial            mOrbiterInit;
+    TwistDomainSeedRoundMaterial            mOrbiterAssign;
+    TwistDomainSeedRoundMaterial            mOrbiterUpdate;
+    TwistDomainSeedRoundMaterial            mWandererUpdate;
+    
 };
 
 class TwistDomainSBoxSet {
@@ -378,38 +405,24 @@ public:
     std::uint8_t                            mSBoxF[S_SBOX];
     std::uint8_t                            mSBoxG[S_SBOX];
     std::uint8_t                            mSBoxH[S_SBOX];
+    
 };
 
 class TwistDomainBundle {
 public:
-    TwistDomainSaltSet                      mKeyASalts;
-    TwistDomainConstants                    mKeyAConstants;
+    TwistDomainSaltSet                      mPhaseASalts;
+    TwistDomainConstants                    mPhaseAConstants;
 
-    TwistDomainSaltSet                      mKeyBSalts;
-    TwistDomainConstants                    mKeyBConstants;
+    TwistDomainSaltSet                      mPhaseBSalts;
+    TwistDomainConstants                    mPhaseBConstants;
 
-    TwistDomainSaltSet                      mMaskASalts;
-    TwistDomainConstants                    mMaskAConstants;
+    TwistDomainSaltSet                      mPhaseCSalts;
+    TwistDomainConstants                    mPhaseCConstants;
 
-    TwistDomainSaltSet                      mMaskBSalts;
-    TwistDomainConstants                    mMaskBConstants;
-
-    TwistDomainSaltSet                      mWorkLaneSalts;
-    TwistDomainConstants                    mWorkLaneConstants;
-
-    TwistDomainSaltSet                      mMaskLaneSalts;
-    TwistDomainConstants                    mMaskLaneConstants;
-
-    TwistDomainSaltSet                      mOperationLaneSalts;
-    TwistDomainConstants                    mOperationLaneConstants;
-
-    TwistDomainSBoxSet                      mKeyASBoxes;
-    TwistDomainSBoxSet                      mKeyBSBoxes;
-    TwistDomainSBoxSet                      mMaskASBoxes;
-    TwistDomainSBoxSet                      mMaskBSBoxes;
-    TwistDomainSBoxSet                      mWorkLaneSBoxes;
-    TwistDomainSBoxSet                      mMaskLaneSBoxes;
-    TwistDomainSBoxSet                      mOperationLaneSBoxes;
+    TwistDomainSBoxSet                      mPhaseASBoxes;
+    TwistDomainSBoxSet                      mPhaseBSBoxes;
+    TwistDomainSBoxSet                      mPhaseCSBoxes;
+    
 };
 
 
@@ -423,12 +436,12 @@ public:
     uint8_t                                 mMaskBoxA[H_MASK_A][W_MASK_A];
     uint8_t                                 mMaskBoxB[H_MASK_B][W_MASK_B];
 
-    std::uint8_t                            mExpandLaneA[S_BLOCK];
-    std::uint8_t                            mExpandLaneB[S_BLOCK];
-    std::uint8_t                            mExpandLaneC[S_BLOCK];
-    std::uint8_t                            mExpandLaneD[S_BLOCK];
-    std::uint8_t                            mExpandLaneE[S_BLOCK];
-    std::uint8_t                            mExpandLaneF[S_BLOCK];
+    std::uint8_t                            mListExpansionLaneA[S_BLOCK];
+    std::uint8_t                            mListExpansionLaneB[S_BLOCK];
+    std::uint8_t                            mListExpansionLaneC[S_BLOCK];
+    std::uint8_t                            mListExpansionLaneD[S_BLOCK];
+    std::uint8_t                            mListExpansionLaneE[S_BLOCK];
+    std::uint8_t                            mListExpansionLaneF[S_BLOCK];
 
     std::uint8_t                            mWorkLaneA[S_BLOCK];
     std::uint8_t                            mWorkLaneB[S_BLOCK];
@@ -443,6 +456,11 @@ public:
     std::uint8_t                            mOperationLaneD[S_BLOCK];
     std::uint8_t                            mOperationLaneE[S_BLOCK];
     std::uint8_t                            mOperationLaneF[S_BLOCK];
+
+    std::uint8_t                            mSnowLaneA[S_BLOCK];
+    std::uint8_t                            mSnowLaneB[S_BLOCK];
+    std::uint8_t                            mSnowLaneC[S_BLOCK];
+    std::uint8_t                            mSnowLaneD[S_BLOCK];
     
     std::uint8_t                            mMaskLaneA[S_BLOCK];
     std::uint8_t                            mMaskLaneB[S_BLOCK];

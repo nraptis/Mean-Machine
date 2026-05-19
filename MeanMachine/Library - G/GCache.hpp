@@ -249,8 +249,8 @@ private:
 };
 
 // Original concrete names.
-using GSymbolCacheHistory = GCacheHistory<GSymbol*>;
-using GSymbolCache = GCache<GSymbol*>;
+using GSymbolCacheHistory = GCacheHistory<const GSymbol*>;
+using GSymbolCache = GCache<const GSymbol*>;
 
 using GIntCacheHistory = GCacheHistory<int>;
 using GIntCache = GCache<int>;

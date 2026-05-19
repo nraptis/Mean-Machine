@@ -44,14 +44,14 @@ std::vector<GARXType> GARXFormatSixSixFour::OrbiterTypes() const {
     };
 }
 
-std::vector<GARXType> GARXFormatSixSixFour::UnwindTypes() const {
+std::vector<GARXType> GARXFormatSixSixFour::WandererTypes() const {
     return {
-        GARXType::kUnwindA,
-        GARXType::kUnwindB,
-        GARXType::kUnwindC,
-        GARXType::kUnwindD,
-        GARXType::kUnwindE,
-        GARXType::kUnwindF
+        GARXType::kWandererA,
+        GARXType::kWandererB,
+        GARXType::kWandererC,
+        GARXType::kWandererD,
+        GARXType::kWandererE,
+        GARXType::kWandererF
     };
 }
 
@@ -68,7 +68,7 @@ int GARXFormatSixSixFour::PickLoopSaltLane(GARXGroupType pGroupType,
             : 1;
     }
 
-    if (pGroupType == GARXGroupType::kUnwind) {
+    if (pGroupType == GARXGroupType::kWanderer) {
         if ((pLoopKeyIndexInPhase & 1U) == 0U) {
             return 4;
         } else {
@@ -97,7 +97,7 @@ int GARXFormatSixSixFour::PickSeedPlugSaltLane(std::size_t pPlugIndexInPhase) co
         : 1;
 }
 
-int GARXFormatSixSixFour::PickUnwindPlugSaltLane(std::size_t pPlugIndexInPhase) const {
+int GARXFormatSixSixFour::PickWandererPlugSaltLane(std::size_t pPlugIndexInPhase) const {
     return ((pPlugIndexInPhase & 1U) == 0U)
         ? 4
         : 5;

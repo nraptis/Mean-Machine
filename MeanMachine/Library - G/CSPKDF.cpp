@@ -11,6 +11,18 @@
 #include <array>
 #include <utility>
 
+#if 0
+
+namespace {
+
+enum class CSPKDFSaltPhase {
+    kOrbiterAssign,
+    kOrbiterUpdate,
+    kWandererUpdate
+};
+
+}
+
 GARXType GARXOrbiterByIndex(const std::uint8_t pIndex) {
     switch (pIndex) {
         case 0: return GARXType::kOrbiterA;
@@ -25,12 +37,12 @@ GARXType GARXOrbiterByIndex(const std::uint8_t pIndex) {
 
 GARXType GARXWandererByIndex(const std::uint8_t pIndex) {
     switch (pIndex) {
-        case 0: return GARXType::kUnwindA;
-        case 1: return GARXType::kUnwindB;
-        case 2: return GARXType::kUnwindC;
-        case 3: return GARXType::kUnwindD;
-        case 4: return GARXType::kUnwindE;
-        case 5: return GARXType::kUnwindF;
+        case 0: return GARXType::kWandererA;
+        case 1: return GARXType::kWandererB;
+        case 2: return GARXType::kWandererC;
+        case 3: return GARXType::kWandererD;
+        case 4: return GARXType::kWandererE;
+        case 5: return GARXType::kWandererF;
         default: return GARXType::kInv;
     }
 }
@@ -55,18 +67,18 @@ void ConfigureFallbackCrushCarry(GARXPassPlan *pPassPlan) {
     pPassPlan->mCrushPlan.mPairC.mRotateA = true;
     pPassPlan->mCrushPlan.mPairC.mRotationAmount = 43;
 
-    pPassPlan->mCarryPlan.mPairA.mTypeA = GARXType::kUnwindA;
-    pPassPlan->mCarryPlan.mPairA.mTypeB = GARXType::kUnwindD;
+    pPassPlan->mCarryPlan.mPairA.mTypeA = GARXType::kWandererA;
+    pPassPlan->mCarryPlan.mPairA.mTypeB = GARXType::kWandererD;
     pPassPlan->mCarryPlan.mPairA.mRotateA = true;
     pPassPlan->mCarryPlan.mPairA.mRotationAmount = 19;
 
-    pPassPlan->mCarryPlan.mPairB.mTypeA = GARXType::kUnwindB;
-    pPassPlan->mCarryPlan.mPairB.mTypeB = GARXType::kUnwindE;
+    pPassPlan->mCarryPlan.mPairB.mTypeA = GARXType::kWandererB;
+    pPassPlan->mCarryPlan.mPairB.mTypeB = GARXType::kWandererE;
     pPassPlan->mCarryPlan.mPairB.mRotateA = false;
     pPassPlan->mCarryPlan.mPairB.mRotationAmount = 37;
 
-    pPassPlan->mCarryPlan.mPairC.mTypeA = GARXType::kUnwindC;
-    pPassPlan->mCarryPlan.mPairC.mTypeB = GARXType::kUnwindF;
+    pPassPlan->mCarryPlan.mPairC.mTypeA = GARXType::kWandererC;
+    pPassPlan->mCarryPlan.mPairC.mTypeB = GARXType::kWandererF;
     pPassPlan->mCarryPlan.mPairC.mRotateA = true;
     pPassPlan->mCarryPlan.mPairC.mRotationAmount = 53;
 
@@ -87,73 +99,67 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                               GExpr pPublicIngressSourceB,
                               GExpr pPublicIngressSourceC,
                               GExpr pPublicIngressSourceD,
-                              GExpr pPrivateIngressSourceA,
+                  
+                  GExpr pPrivateIngressSourceA,
                               GExpr pPrivateIngressSourceB,
                               GExpr pPrivateIngressSourceC,
                               GExpr pPrivateIngressSourceD,
-                              GExpr pCrossIngressSourceA,
+                  
+                  GExpr pCrossIngressSourceA,
                               GExpr pCrossIngressSourceB,
                               GExpr pCrossIngressSourceC,
                               GExpr pCrossIngressSourceD,
+                  
                               GExpr pPublicIngressDomainWord,
                               GExpr pPrivateIngressDomainWord,
                               GExpr pCrossIngressDomainWord,
-                                          
-                              GSymbol pStreamCurrent,
-                              GSymbol pStreamPrevious,
-                              GSymbol pStreamScatter,
-                              GSymbol pStreamCross,
                               
                               GSymbol pStreamScatterComponentA,
                               GSymbol pStreamScatterComponentB,
                               GSymbol pStreamScatterComponentC,
                               GSymbol pStreamScatterComponentD,
                               
-                              
-                              
-                              GSymbol pSecretCurrent,
-                              GSymbol pSecretPrevious,
-                              GSymbol pSecretScatter,
-                              GSymbol pSecretWrite,
-                              
                               GSymbol pSecretScatterComponentA,
                               GSymbol pSecretScatterComponentB,
                               GSymbol pSecretScatterComponentC,
                               GSymbol pSecretScatterComponentD,
                               
-                              GSymbol pCarry,
-                              
-                              GSymbol pUnwindA,
-                              GSymbol pUnwindB,
-                              GSymbol pUnwindC,
-                              GSymbol pUnwindD,
-                              GSymbol pUnwindE,
-                              GSymbol pUnwindF,
-                              
-                              GSymbol pOrbiterA,
-                              GSymbol pOrbiterB,
-                              GSymbol pOrbiterC,
-                              GSymbol pOrbiterD,
-                              GSymbol pOrbiterE,
-                              GSymbol pOrbiterF,
-
-                              TwistDomainSeedRoundMaterial *pMatsUnwind,
-                              TwistDomainSeedRoundMaterial *pMatsOrbiter,
-                              TwistDomainSeedRoundMaterial *pMatsOrbiterInit,
-                              
-                              GSymbol pPlugKeyA,
-                              GSymbol pPlugKeyB,
-                              GSymbol pPlugKeyC,
-                              GSymbol pPlugKeyD,
-                              GSymbol pPlugKeyE,
-                              GSymbol pPlugKeyF,
-                              
-                              std::vector<GSymbol> pSBoxes,
+                              const GDomainSaltSet &pDomainSaltSet,
                               
                               GHotPack pHotPack,
                               
                               std::vector<GStatement> *pStatements,
                               std::string *pErrorMessage) {
+    
+    GSymbol aWandererA = GSymbol::Var(TwistVariable::kWandererA);
+    GSymbol aWandererB = GSymbol::Var(TwistVariable::kWandererB);
+    GSymbol aWandererC = GSymbol::Var(TwistVariable::kWandererC);
+    GSymbol aWandererD = GSymbol::Var(TwistVariable::kWandererD);
+    GSymbol aWandererE = GSymbol::Var(TwistVariable::kWandererE);
+    GSymbol aWandererF = GSymbol::Var(TwistVariable::kWandererF);
+
+    GSymbol aOrbiterA = GSymbol::Var(TwistVariable::kOrbiterA);
+    GSymbol aOrbiterB = GSymbol::Var(TwistVariable::kOrbiterB);
+    GSymbol aOrbiterC = GSymbol::Var(TwistVariable::kOrbiterC);
+    GSymbol aOrbiterD = GSymbol::Var(TwistVariable::kOrbiterD);
+    GSymbol aOrbiterE = GSymbol::Var(TwistVariable::kOrbiterE);
+    GSymbol aOrbiterF = GSymbol::Var(TwistVariable::kOrbiterF);
+    
+    GSymbol aStreamCurrent = GSymbol::Var(TwistVariable::kPublicIngress);
+    GSymbol aStreamPrevious = GSymbol::Var(TwistVariable::kPublicPrevious);
+    GSymbol aStreamScatter = GSymbol::Var(TwistVariable::kPublicScatter);
+    GSymbol aStreamCross = GSymbol::Var(TwistVariable::kCrossIngress);
+    
+    GSymbol aSecretCurrent = GSymbol::Var(TwistVariable::kPrivateIngress);
+    GSymbol aSecretPrevious = GSymbol::Var(TwistVariable::kPrivatePrevious);
+    GSymbol aSecretScatter = GSymbol::Var(TwistVariable::kPrivateScatter);
+    GSymbol aSecretWrite = GSymbol::Var(TwistVariable::kPrivateWrite);
+    
+    GSymbol aCarry = GSymbol::Var(TwistVariable::kCarry);
+    
+    GSymbol aPublicIngressDomainWord = GSymbol::Var(TwistVariable::kPublicIngressDomainWord);
+    GSymbol aPrivateIngressDomainWord = GSymbol::Var(TwistVariable::kPrivateIngressDomainWord);
+    GSymbol aCrossIngressDomainWord = GSymbol::Var(TwistVariable::kCrossIngressDomainWord);
     
     if (pPassPlan == nullptr) {
         if (pErrorMessage != nullptr) {
@@ -169,22 +175,6 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         return false;
     }
 
-    if (pSBoxes.size() < 8) {
-        printf("fatal: CSPKDF::Bake requires at least 8 sboxes for crush mix64_8\n");
-        exit(0);
-    }
-
-    (void)pMatsUnwind;
-    (void)pMatsOrbiter;
-    (void)pMatsOrbiterInit;
-
-    const GSymbol aDomainSaltA = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiterInit, TwistSaltLane::kA);
-    const GSymbol aDomainSaltB = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiterInit, TwistSaltLane::kB);
-    const GSymbol aDomainSaltC = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiter, TwistSaltLane::kC);
-    const GSymbol aDomainSaltD = BufParamSymbolDomainSalt(TwistSaltPhase::kOrbiter, TwistSaltLane::kD);
-    const GSymbol aDomainSaltE = BufParamSymbolDomainSalt(TwistSaltPhase::kUnwind, TwistSaltLane::kE);
-    const GSymbol aDomainSaltF = BufParamSymbolDomainSalt(TwistSaltPhase::kUnwind, TwistSaltLane::kF);
-    
     auto RandomDiffuseKind = [&]() -> GDiffuseKind {
         int aRand = Random::Get(3);
         if (aRand == 0) { return GDiffuseKind::kA; }
@@ -194,30 +184,30 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
     
     auto TypeSymbol = [&](GARXType pType) -> GSymbol {
         switch (pType) {
-            case GARXType::kStreamCurrent: return pStreamCurrent;
-            case GARXType::kStreamPrevious: return pStreamPrevious;
-            case GARXType::kStreamScatter: return pStreamScatter;
-            case GARXType::kStreamCross: return pStreamCross;
+            case GARXType::kStreamCurrent: return aStreamCurrent;
+            case GARXType::kStreamPrevious: return aStreamPrevious;
+            case GARXType::kStreamScatter: return aStreamScatter;
+            case GARXType::kStreamCross: return aStreamCross;
 
-            case GARXType::kSecretCurrent: return pSecretCurrent;
-            case GARXType::kSecretPrevious: return pSecretPrevious;
-            case GARXType::kSecretScatter: return pSecretScatter;
+            case GARXType::kSecretCurrent: return aSecretCurrent;
+            case GARXType::kSecretPrevious: return aSecretPrevious;
+            case GARXType::kSecretScatter: return aSecretScatter;
 
-            case GARXType::kCarry: return pCarry;
+            case GARXType::kCarry: return aCarry;
 
-            case GARXType::kUnwindA: return pUnwindA;
-            case GARXType::kUnwindB: return pUnwindB;
-            case GARXType::kUnwindC: return pUnwindC;
-            case GARXType::kUnwindD: return pUnwindD;
-            case GARXType::kUnwindE: return pUnwindE;
-            case GARXType::kUnwindF: return pUnwindF;
+            case GARXType::kWandererA: return aWandererA;
+            case GARXType::kWandererB: return aWandererB;
+            case GARXType::kWandererC: return aWandererC;
+            case GARXType::kWandererD: return aWandererD;
+            case GARXType::kWandererE: return aWandererE;
+            case GARXType::kWandererF: return aWandererF;
 
-            case GARXType::kOrbiterA: return pOrbiterA;
-            case GARXType::kOrbiterB: return pOrbiterB;
-            case GARXType::kOrbiterC: return pOrbiterC;
-            case GARXType::kOrbiterD: return pOrbiterD;
-            case GARXType::kOrbiterE: return pOrbiterE;
-            case GARXType::kOrbiterF: return pOrbiterF;
+            case GARXType::kOrbiterA: return aOrbiterA;
+            case GARXType::kOrbiterB: return aOrbiterB;
+            case GARXType::kOrbiterC: return aOrbiterC;
+            case GARXType::kOrbiterD: return aOrbiterD;
+            case GARXType::kOrbiterE: return aOrbiterE;
+            case GARXType::kOrbiterF: return aOrbiterF;
 
             default:
                 printf("fatal: CSPKDF::Bake invalid GARXType=%s\n",
@@ -230,61 +220,49 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         return GExpr::Symbol(TypeSymbol(pType));
     };
 
-    auto RotTypeExpr = [&](GARXType pType, int pRotation) -> GExpr {
-        if (pRotation < 0) {
-            printf("fatal: CSPKDF::Bake tried to rotate %s with invalid rotation=%d\n",
-                   GARXSkeleton::GetTypeName(pType),
-                   pRotation);
-            exit(0);
+    auto GetRoundMaterial = [&](CSPKDFSaltPhase pPhase) -> const GDomainSeedRoundMaterial& {
+        switch (pPhase) {
+            case CSPKDFSaltPhase::kOrbiterAssign: return pDomainSaltSet.mOrbiter;
+            case CSPKDFSaltPhase::kOrbiterUpdate: return pDomainSaltSet.mOrbiter;
+            case CSPKDFSaltPhase::kWandererUpdate: return pDomainSaltSet.mWanderer;
+            default:
+                printf("fatal: CSPKDF::Bake invalid salt phase=%d\n",
+                       static_cast<int>(pPhase));
+                exit(0);
         }
-
-        return GQuick::RotL64(TypeExpr(pType), pRotation);
     };
 
-    const GSymbol aSaltLanes[6] = {
-        aDomainSaltA,
-        aDomainSaltB,
-        aDomainSaltC,
-        aDomainSaltD,
-        aDomainSaltE,
-        aDomainSaltF
-    };
-
-    const GSymbol aPlugKeyLanes[6] = {
-        pPlugKeyA,
-        pPlugKeyB,
-        pPlugKeyC,
-        pPlugKeyD,
-        pPlugKeyE,
-        pPlugKeyF
-    };
-
-    auto SaltLaneSymbol = [&](int pSaltLaneIndex) -> GSymbol {
+    auto SaltLaneSymbol = [&](CSPKDFSaltPhase pPhase, int pSaltLaneIndex) -> GSymbol {
         if (pSaltLaneIndex < 0 || pSaltLaneIndex >= 6) {
             printf("fatal: CSPKDF::Bake invalid salt lane=%d\n",
                    pSaltLaneIndex);
             exit(0);
         }
-        return aSaltLanes[pSaltLaneIndex];
+
+        const GDomainSeedRoundMaterial &aMaterial = GetRoundMaterial(pPhase);
+        switch (pSaltLaneIndex) {
+            case 0: return aMaterial.mSaltA;
+            case 1: return aMaterial.mSaltB;
+            case 2: return aMaterial.mSaltC;
+            case 3: return aMaterial.mSaltD;
+            case 4: return aMaterial.mSaltE;
+            case 5: return aMaterial.mSaltF;
+            default:
+                printf("fatal: CSPKDF::Bake invalid salt lane=%d\n",
+                       pSaltLaneIndex);
+                exit(0);
+        }
     };
 
-    auto PlugKeySymbolForLane = [&](int pSaltLaneIndex) -> GSymbol {
-        if (pSaltLaneIndex < 0 || pSaltLaneIndex >= 6) {
-            printf("fatal: CSPKDF::Bake invalid plug-key lane=%d\n",
-                   pSaltLaneIndex);
-            exit(0);
-        }
-        return aPlugKeyLanes[pSaltLaneIndex];
-    };
-    
-    auto MakeLoopKeyExpr = [&](const GARXDatum &pDatum) -> GExpr {
+    auto MakeLoopKeyExpr = [&](const GARXDatum &pDatum,
+                               CSPKDFSaltPhase pPhase) -> GExpr {
 
         if (pDatum.mOffsetAmount < 0) {
             printf("fatal: CSPKDF::Bake loop key has invalid offset\n");
             exit(0);
         }
 
-        GSymbol aSalt = SaltLaneSymbol(pDatum.mSaltLaneIndex);
+        GSymbol aSalt = SaltLaneSymbol(pPhase, pDatum.mSaltLaneIndex);
 
         return GQuick::MakeReadBufferOffsetExpressionDirected(
             aSalt,
@@ -294,36 +272,16 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         );
     };
 
-    auto MakePlugKeyExpr = [&](const GARXDatum &pDatum) -> GExpr {
-        
-        if (pDatum.mPlugTypeA == GARXType::kInv ||
-            pDatum.mPlugTypeB == GARXType::kInv ||
-            pDatum.mRotationAmount < 0 ||
-            pDatum.mOffsetAmount < 0) {
-            printf("fatal: CSPKDF::Bake invalid plug datum lane=%d typeA=%s typeB=%s rot=%d off=%d\n",
-                   pDatum.mSaltLaneIndex,
-                   GARXSkeleton::GetTypeName(pDatum.mPlugTypeA),
-                   GARXSkeleton::GetTypeName(pDatum.mPlugTypeB),
-                   pDatum.mRotationAmount,
-                   pDatum.mOffsetAmount);
-            exit(0);
-        }
-        
-        GSymbol aSalt = SaltLaneSymbol(pDatum.mSaltLaneIndex);
-        GSymbol aPlugKey = PlugKeySymbolForLane(pDatum.mSaltLaneIndex);
-        
-        return GQuickARX::PlugSaltRead(aSalt, aPlugKey, pDatum.mOffsetAmount);
-    };
-    
     auto MakeDatumExpr = [&](const GARXDatum &pDatum,
+                             CSPKDFSaltPhase pPhase,
                              std::size_t pHotIndex) -> GExpr {
         switch (pDatum.mKind) {
             case GARXDatumKind::kType:
                 return GQuickARX::MaybeRotL64(TypeExpr(pDatum.mType), pDatum.mRotationAmount);
             case GARXDatumKind::kLoopKey:
-                return MakeLoopKeyExpr(pDatum);
+                return MakeLoopKeyExpr(pDatum, pPhase);
             case GARXDatumKind::kPlugKey:
-                return MakePlugKeyExpr(pDatum);
+                return MakeLoopKeyExpr(pDatum, pPhase);
             case GARXDatumKind::kHotAdd:
                 return GQuickARX::HotAdd(pHotPack, pHotIndex);
             case GARXDatumKind::kHotMul:
@@ -335,49 +293,13 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         }
     };
     
-    auto EmitPlugPrepForStatement = [&](const GARXStatementPlan &pStatement) {
-        
-        for (const GARXDatum &aDatum: pStatement.mDatums) {
-            
-            if (aDatum.mKind != GARXDatumKind::kPlugKey) {
-                continue;
-            }
-            
-            if (aDatum.mPlugTypeA == GARXType::kInv ||
-                aDatum.mPlugTypeB == GARXType::kInv ||
-                aDatum.mRotationAmount < 0 ||
-                aDatum.mOffsetAmount < 0) {
-                printf("fatal: CSPKDF::Bake invalid plug datum lane=%d typeA=%s typeB=%s rot=%d off=%d\n",
-                       aDatum.mSaltLaneIndex,
-                       GARXSkeleton::GetTypeName(aDatum.mPlugTypeA),
-                       GARXSkeleton::GetTypeName(aDatum.mPlugTypeB),
-                       aDatum.mRotationAmount,
-                       aDatum.mOffsetAmount);
-                exit(0);
-            }
-            
-            GSymbol aPlugKey = PlugKeySymbolForLane(aDatum.mSaltLaneIndex);
-            
-            GExpr aTermA = RotTypeExpr(aDatum.mPlugTypeA,
-                                       aDatum.mRotationAmount);
-            GExpr aTermB = TypeExpr(aDatum.mPlugTypeB);
-            
-            pStatements->push_back(
-                GQuick::MakeAssignVariableStatement(
-                    aPlugKey,
-                    GQuickARX::Diffuse(GExpr::Xor(aTermA, aTermB),
-                                       RandomDiffuseKind())
-                )
-            );
-        }
-    };
-    
     auto MakeStatementTerms = [&](const GARXStatementPlan &pStatement,
+                                  CSPKDFSaltPhase pPhase,
                                   std::size_t pHotIndex) -> std::vector<GExpr> {
         std::vector<GExpr> aTerms;
         for (const GARXDatum &aDatum: pStatement.mDatums) {
             if (aDatum.mKind == GARXDatumKind::kHotMul) { continue; }
-            aTerms.push_back(MakeDatumExpr(aDatum, pHotIndex));
+            aTerms.push_back(MakeDatumExpr(aDatum, pPhase, pHotIndex));
         }
         return aTerms;
     };
@@ -399,8 +321,9 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
     };
     
     auto EmitAssignStatement = [&](const GARXStatementPlan &pStatement,
+                                   CSPKDFSaltPhase pPhase,
                                    std::size_t pHotIndex) -> bool {
-        const std::vector<GExpr> aTerms = MakeStatementTerms(pStatement, pHotIndex);
+        const std::vector<GExpr> aTerms = MakeStatementTerms(pStatement, pPhase, pHotIndex);
         return EmitAddChainAssign(TypeSymbol(pStatement.mTarget), aTerms);
     };
     
@@ -540,7 +463,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
             );
         };
         
-        EmitIngressLane(pStreamCurrent,
+        EmitIngressLane(aStreamCurrent,
                         pPassPlan->mStreamInputBlend,
                         pPublicIngressSourceA,
                         pPublicIngressSourceB,
@@ -549,7 +472,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                         pPublicIngressDomainWord,
                         GDiffuseKind::kA);
         
-        EmitIngressLane(pSecretCurrent,
+        EmitIngressLane(aSecretCurrent,
                         pPassPlan->mSecretInputBlend,
                         pPrivateIngressSourceA,
                         pPrivateIngressSourceB,
@@ -558,7 +481,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                         pPrivateIngressDomainWord,
                         GDiffuseKind::kB);
         
-        EmitIngressLane(pStreamCross,
+        EmitIngressLane(aStreamCross,
                         pPassPlan->mCrossInputBlend,
                         pCrossIngressSourceA,
                         pCrossIngressSourceB,
@@ -568,7 +491,6 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                         GDiffuseKind::kC);
     };
 
-    
     auto EmitSeeds = [&]() -> bool {
         
         std::size_t aSeedHotIndex = 0;
@@ -595,7 +517,6 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                     exit(0);
                 }
 
-                EmitPlugPrepForStatement(*aStatement);
             }
         }
         
@@ -621,7 +542,9 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
                     exit(0);
                 }
 
-                EmitAssignStatement(*aStatement, aSeedHotIndex);
+                EmitAssignStatement(*aStatement,
+                                    CSPKDFSaltPhase::kOrbiterAssign,
+                                    aSeedHotIndex);
                 aSeedHotIndex++;
             }
         }
@@ -699,11 +622,12 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
             std::size_t aLeadHotIndex = aForwardHotIndex++;
             std::size_t aFeedbackHotIndex = aForwardHotIndex++;
             
-            EmitPlugPrepForStatement(*aLeadStatement);
-            EmitPlugPrepForStatement(*aFeedbackStatement);
-            
-            EmitAssignStatement(*aLeadStatement, aLeadHotIndex);
-            EmitAssignStatement(*aFeedbackStatement, aFeedbackHotIndex);
+            EmitAssignStatement(*aLeadStatement,
+                                CSPKDFSaltPhase::kOrbiterUpdate,
+                                aLeadHotIndex);
+            EmitAssignStatement(*aFeedbackStatement,
+                                CSPKDFSaltPhase::kOrbiterUpdate,
+                                aFeedbackHotIndex);
             EmitRotateStatement(*aRotateStatement, aFeedbackHotIndex);
         }
         
@@ -741,66 +665,67 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         }
     };
     
-    auto EmitUnwind = [&]() -> bool {
+    auto EmitWanderer = [&]() -> bool {
         
-        std::size_t aUnwindHotIndex = 18;
+        std::size_t aWandererHotIndex = 18;
 
         for (GARXStatementGroup *aGroup: pPassPlan->mGroups) {
             if (aGroup == nullptr) {
-                printf("fatal: CSPKDF::Bake null group in unwind walk\n");
+                printf("fatal: CSPKDF::Bake null group in Wanderer walk\n");
                 exit(0);
             }
 
-            if (aGroup->mGroupType != GARXGroupType::kUnwind) {
+            if (aGroup->mGroupType != GARXGroupType::kWanderer) {
                 continue;
             }
 
             for (GARXStatementPlan *aStatement: aGroup->mStatements) {
                 if (aStatement == nullptr) {
-                    printf("fatal: CSPKDF::Bake null statement in unwind group\n");
+                    printf("fatal: CSPKDF::Bake null statement in Wanderer group\n");
                     exit(0);
                 }
 
-                if (aStatement->mStatementType != GARXStatementType::kUnwind) {
-                    printf("fatal: CSPKDF::Bake unexpected statement in unwind group: %s\n",
+                if (aStatement->mStatementType != GARXStatementType::kWanderer) {
+                    printf("fatal: CSPKDF::Bake unexpected statement in Wanderer group: %s\n",
                            GARXSkeleton::GetStatementKindName(aStatement->mStatementType));
                     exit(0);
                 }
 
-                EmitPlugPrepForStatement(*aStatement);
             }
         }
         
         for (GARXStatementGroup *aGroup: pPassPlan->mGroups) {
             if (aGroup == nullptr) {
-                printf("fatal: CSPKDF::Bake null group in unwind walk\n");
+                printf("fatal: CSPKDF::Bake null group in Wanderer walk\n");
                 exit(0);
             }
             
-            if (aGroup->mGroupType != GARXGroupType::kUnwind) {
+            if (aGroup->mGroupType != GARXGroupType::kWanderer) {
                 continue;
             }
 
             for (GARXStatementPlan *aStatement: aGroup->mStatements) {
                 if (aStatement == nullptr) {
-                    printf("fatal: CSPKDF::Bake null statement in unwind group\n");
+                    printf("fatal: CSPKDF::Bake null statement in Wanderer group\n");
                     exit(0);
                 }
                 
-                if (aStatement->mStatementType != GARXStatementType::kUnwind) {
-                    printf("fatal: CSPKDF::Bake unexpected statement in unwind group: %s\n",
+                if (aStatement->mStatementType != GARXStatementType::kWanderer) {
+                    printf("fatal: CSPKDF::Bake unexpected statement in Wanderer group: %s\n",
                            GARXSkeleton::GetStatementKindName(aStatement->mStatementType));
                     exit(0);
                 }
 
-                EmitAssignStatement(*aStatement, aUnwindHotIndex);
-                aUnwindHotIndex++;
+                EmitAssignStatement(*aStatement,
+                                    CSPKDFSaltPhase::kWandererUpdate,
+                                    aWandererHotIndex);
+                aWandererHotIndex++;
             }
         }
         
-        if (aUnwindHotIndex != 24) {
-            printf("fatal: CSPKDF::Bake expected 6 unwind statements, got %zu\n",
-                   aUnwindHotIndex - 18);
+        if (aWandererHotIndex != 24) {
+            printf("fatal: CSPKDF::Bake expected 6 Wanderer statements, got %zu\n",
+                   aWandererHotIndex - 18);
             exit(0);
         }
         
@@ -827,7 +752,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         
         const GARXCarryPlan &aCarryPlan = pPassPlan->mCarryPlan;
         
-        GExpr aExpr = GExpr::Add(GExpr::Symbol(pCarry),
+        GExpr aExpr = GExpr::Add(GExpr::Symbol(aCarry),
                                  MakeCarryPairExpr(aCarryPlan.mPairA));
         
         aExpr = GExpr::Add(aExpr, MakeCarryPairExpr(aCarryPlan.mPairB));
@@ -835,32 +760,32 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         
         aExpr = GExpr::Add(
             aExpr,
-            GQuickARX::RotL64(GExpr::Symbol(pSecretCurrent),
+            GQuickARX::RotL64(GExpr::Symbol(aSecretCurrent),
                               aCarryPlan.mSecretCurrentRotation)
         );
         
         pStatements->push_back(
-            GQuick::MakeAssignVariableStatement(pCarry, aExpr)
+            GQuick::MakeAssignVariableStatement(aCarry, aExpr)
         );
         
         GExpr aMul = GExpr::Mul(
-            GExpr::Symbol(pCarry),
+            GExpr::Symbol(aCarry),
             GQuickARX::HotMul(pHotPack, 24)
         );
         
         pStatements->push_back(
             GQuick::MakeAssignVariableStatement(
-                pCarry,
+                aCarry,
                 GQuickARX::RotL64(aMul, aCarryPlan.mMulRotation)
             )
         );
         
         pStatements->push_back(
             GQuick::MakeAssignVariableStatement(
-                pCarry,
+                aCarry,
                 GExpr::Xor(
-                    GExpr::Symbol(pCarry),
-                    GExpr::ShiftR(GExpr::Symbol(pCarry),
+                    GExpr::Symbol(aCarry),
+                    GExpr::ShiftR(GExpr::Symbol(aCarry),
                                     GExpr::Const64(static_cast<std::uint64_t>(aCarryPlan.mShiftAmount)))
                 )
             )
@@ -877,19 +802,19 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
             MakeCrushPairExpr(aCrushPlan.mPairA),
             MakeCrushPairExpr(aCrushPlan.mPairB),
             MakeCrushPairExpr(aCrushPlan.mPairC),
-            GExpr::Symbol(pSecretScatter),
-            GExpr::Symbol(pCarry),
+            GExpr::Symbol(aSecretScatter),
+            GExpr::Symbol(aCarry),
             RandomDiffuseKind()
         );
     };
     
     auto EmitScatterStatement = [&]() {
         GExpr aStreamScatterExpr = MakeStreamScatterExpr();
-        pStatements->push_back(GQuick::MakeAssignVariableStatement(pStreamScatter,
+        pStatements->push_back(GQuick::MakeAssignVariableStatement(aStreamScatter,
                                                                    aStreamScatterExpr));
 
         GExpr aSecretScatterExpr = MakeSecretScatterExpr();
-        pStatements->push_back(GQuick::MakeAssignVariableStatement(pSecretScatter,
+        pStatements->push_back(GQuick::MakeAssignVariableStatement(aSecretScatter,
                                                                    aSecretScatterExpr));
     };
     
@@ -902,7 +827,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
         // This is also the value written to the byte lane after final 64-bit diffuse.
         //
         pStatements->push_back(
-            GQuick::MakeAssignVariableStatement(pSecretCurrent,
+            GQuick::MakeAssignVariableStatement(aSecretCurrent,
                                                 aCrushExpr)
         );
 
@@ -910,13 +835,13 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
             pStatements->push_back(
                 GQuick::MakeAssignDestStatementInverted(pDest,
                                                         pLoopIndex,
-                                                        pSecretCurrent)
+                                                        aSecretCurrent)
             );
         } else {
             pStatements->push_back(
                 GQuick::MakeAssignDestStatement(pDest,
                                                 pLoopIndex,
-                                                pSecretCurrent)
+                                                aSecretCurrent)
             );
         }
         
@@ -949,7 +874,7 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
     
     pStatements->push_back(GStatement::Comment(""));
     
-    if (EmitUnwind() == false) {
+    if (EmitWanderer() == false) {
         return false;
     }
     
@@ -958,4 +883,54 @@ bool CSPKDF::Bake(GARXPassPlan *pPassPlan,
     EmitCarryStatement();
 
     return true;
+}
+
+#endif
+
+bool CSPKDF::Bake(GARXPassPlan *,
+                  
+                  GSymbol,
+                  bool,
+                  
+                  GSymbol,
+                  
+                  GExpr,
+                  GExpr,
+                  GExpr,
+                  GExpr,
+                  
+                  GExpr,
+                  GExpr,
+                  GExpr,
+                  GExpr,
+                  
+                  GExpr,
+                  GExpr,
+                  GExpr,
+                  GExpr,
+                  
+                  GExpr,
+                  GExpr,
+                  GExpr,
+                  
+                  GSymbol,
+                  GSymbol,
+                  GSymbol,
+                  GSymbol,
+                  
+                  GSymbol,
+                  GSymbol,
+                  GSymbol,
+                  GSymbol,
+                  
+                  const GDomainSaltSet &,
+                  
+                  GHotPack,
+                  
+                  std::vector<GStatement> *,
+                  std::string *pErrorMessage) {
+    if (pErrorMessage != nullptr) {
+        *pErrorMessage = "CSPKDF is deprecated";
+    }
+    return false;
 }

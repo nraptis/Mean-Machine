@@ -39,10 +39,10 @@ public:
     GSymbol         mSaltC;
     GSymbol         mSaltD;
     
-    GSymbol         mWorkerA;
-    GSymbol         mWorkerB;
-    GSymbol         mWorkerC;
-    GSymbol         mWorkerD;
+    GSymbol         mWorkLaneA;
+    GSymbol         mWorkLaneB;
+    GSymbol         mWorkLaneC;
+    GSymbol         mWorkLaneD;
     
     GSymbol         mKeyReadA;
     GSymbol         mKeyReadB;

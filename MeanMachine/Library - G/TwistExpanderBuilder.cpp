@@ -143,14 +143,6 @@ bool ContainsText(const std::vector<std::string> &pList,
     return false;
 }
 
-bool EndsWithText(const std::string &pText,
-                  const std::string &pSuffix) {
-    if (pSuffix.size() > pText.size()) {
-        return false;
-    }
-    return pText.compare(pText.size() - pSuffix.size(), pSuffix.size(), pSuffix) == 0;
-}
-
 bool StartsWithText(const std::string &pText,
                     const std::string &pPrefix) {
     if (pPrefix.size() > pText.size()) {
@@ -170,7 +162,7 @@ std::string ScalarCppTypeForName(const std::string &pName) {
     if (IsKeyScalarName(pName)) {
         return "std::size_t";
     }
-    return "std::uint8_t";
+    return "std::uint64_t";
 }
 
 std::string TrimText(const std::string &pText) {
@@ -189,6 +181,23 @@ std::string TrimText(const std::string &pText) {
     }
 
     return pText.substr(aBegin, aEnd - aBegin);
+}
+
+std::string SanitizeSingleLineComment(const std::string &pText) {
+    std::string aText = pText;
+    for (char &aChar : aText) {
+        if ((aChar == '\n') || (aChar == '\r') || (aChar == '\t')) {
+            aChar = ' ';
+        }
+    }
+    while (true) {
+        const std::size_t aPos = aText.find("//");
+        if (aPos == std::string::npos) {
+            break;
+        }
+        aText.replace(aPos, 2U, "/ /");
+    }
+    return aText;
 }
 
 std::string DeclaredIdentifierFromLine(const std::string &pLine) {
@@ -257,12 +266,24 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kSource,
         TwistWorkSpaceSlot::kDest,
 
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA,
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB,
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterC,
-        TwistWorkSpaceSlot::kParamDomainSaltOrbiterD,
-        TwistWorkSpaceSlot::kParamDomainSaltUnwindE,
-        TwistWorkSpaceSlot::kParamDomainSaltUnwindF,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignC,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
 
         TwistWorkSpaceSlot::kParamDomainSBoxA,
         TwistWorkSpaceSlot::kParamDomainSBoxB,
@@ -273,21 +294,34 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kParamDomainSBoxG,
         TwistWorkSpaceSlot::kParamDomainSBoxH,
 
-        TwistWorkSpaceSlot::kSeedExpansionLaneA,
-        TwistWorkSpaceSlot::kSeedExpansionLaneB,
-        TwistWorkSpaceSlot::kSeedExpansionLaneC,
-        TwistWorkSpaceSlot::kSeedExpansionLaneD,
+        TwistWorkSpaceSlot::kExpansionLaneA,
+        TwistWorkSpaceSlot::kExpansionLaneB,
+        TwistWorkSpaceSlot::kExpansionLaneC,
+        TwistWorkSpaceSlot::kExpansionLaneD,
+        TwistWorkSpaceSlot::kExpansionLaneE,
+        TwistWorkSpaceSlot::kExpansionLaneF,
 
         TwistWorkSpaceSlot::kWorkLaneA,
         TwistWorkSpaceSlot::kWorkLaneB,
         TwistWorkSpaceSlot::kWorkLaneC,
         TwistWorkSpaceSlot::kWorkLaneD,
+        TwistWorkSpaceSlot::kWorkLaneE,
+        TwistWorkSpaceSlot::kWorkLaneF,
 
         TwistWorkSpaceSlot::kOperationLaneA,
         TwistWorkSpaceSlot::kOperationLaneB,
+        TwistWorkSpaceSlot::kOperationLaneC,
+        TwistWorkSpaceSlot::kOperationLaneD,
+        TwistWorkSpaceSlot::kOperationLaneE,
+        TwistWorkSpaceSlot::kOperationLaneF,
 
         TwistWorkSpaceSlot::kMaskLaneA,
         TwistWorkSpaceSlot::kMaskLaneB,
+
+        TwistWorkSpaceSlot::kIndexList256A,
+        TwistWorkSpaceSlot::kIndexList256B,
+        TwistWorkSpaceSlot::kIndexList256C,
+        TwistWorkSpaceSlot::kIndexList256D,
 
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
@@ -305,8 +339,42 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
     };
 }
 
+bool IsParamDomainSaltWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignC:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE:
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE:
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF:
+            return true;
+        default:
+            return false;
+    }
+}
+
 std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
     const std::string aAlias = BufAliasName(pSlot);
+    if ((pSlot == TwistWorkSpaceSlot::kIndexList256A) ||
+        (pSlot == TwistWorkSpaceSlot::kIndexList256B) ||
+        (pSlot == TwistWorkSpaceSlot::kIndexList256C) ||
+        (pSlot == TwistWorkSpaceSlot::kIndexList256D)) {
+        return "[[maybe_unused]] std::size_t *" + aAlias + " = reinterpret_cast<std::size_t *>(" +
+               "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
+               std::to_string(static_cast<int>(pSlot)) + ")));";
+    }
     const std::string aPrefix = "[[maybe_unused]] std::uint8_t *" + aAlias + " = ";
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource:
@@ -315,15 +383,42 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
                    "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
 
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitA:
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterInitB:
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterC:
-        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterD:
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindE:
-        case TwistWorkSpaceSlot::kParamDomainSaltUnwindF:
-            return aPrefix +
-                   "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
-                   std::to_string(static_cast<int>(pSlot)) + "));";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterAssignSaltA = pDomainSaltSet->mOrbiterAssign.mSaltA;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterAssignSaltB = pDomainSaltSet->mOrbiterAssign.mSaltB;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignC:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterAssignSaltC = pDomainSaltSet->mOrbiterAssign.mSaltC;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterAssignSaltD = pDomainSaltSet->mOrbiterAssign.mSaltD;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterAssignSaltE = pDomainSaltSet->mOrbiterAssign.mSaltE;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterAssignSaltF = pDomainSaltSet->mOrbiterAssign.mSaltF;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterUpdateSaltA = pDomainSaltSet->mOrbiterUpdate.mSaltA;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterUpdateSaltB = pDomainSaltSet->mOrbiterUpdate.mSaltB;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterUpdateSaltC = pDomainSaltSet->mOrbiterUpdate.mSaltC;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterUpdateSaltD = pDomainSaltSet->mOrbiterUpdate.mSaltD;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterUpdateSaltE = pDomainSaltSet->mOrbiterUpdate.mSaltE;";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF:
+            return "[[maybe_unused]] std::uint64_t *aOrbiterUpdateSaltF = pDomainSaltSet->mOrbiterUpdate.mSaltF;";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA:
+            return "[[maybe_unused]] std::uint64_t *aWandererUpdateSaltA = pDomainSaltSet->mWandererUpdate.mSaltA;";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB:
+            return "[[maybe_unused]] std::uint64_t *aWandererUpdateSaltB = pDomainSaltSet->mWandererUpdate.mSaltB;";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC:
+            return "[[maybe_unused]] std::uint64_t *aWandererUpdateSaltC = pDomainSaltSet->mWandererUpdate.mSaltC;";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD:
+            return "[[maybe_unused]] std::uint64_t *aWandererUpdateSaltD = pDomainSaltSet->mWandererUpdate.mSaltD;";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE:
+            return "[[maybe_unused]] std::uint64_t *aWandererUpdateSaltE = pDomainSaltSet->mWandererUpdate.mSaltE;";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF:
+            return "[[maybe_unused]] std::uint64_t *aWandererUpdateSaltF = pDomainSaltSet->mWandererUpdate.mSaltF;";
 
         case TwistWorkSpaceSlot::kParamDomainSBoxA:
         case TwistWorkSpaceSlot::kParamDomainSBoxB:
@@ -337,18 +432,26 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
                    "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
 
-        case TwistWorkSpaceSlot::kSeedExpansionLaneA: return aPrefix + "pWorkspace->mExpandLaneA;";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneB: return aPrefix + "pWorkspace->mExpandLaneB;";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneC: return aPrefix + "pWorkspace->mExpandLaneC;";
-        case TwistWorkSpaceSlot::kSeedExpansionLaneD: return aPrefix + "pWorkspace->mExpandLaneD;";
+        case TwistWorkSpaceSlot::kExpansionLaneA: return aPrefix + "pWorkspace->mListExpansionLaneA;";
+        case TwistWorkSpaceSlot::kExpansionLaneB: return aPrefix + "pWorkspace->mListExpansionLaneB;";
+        case TwistWorkSpaceSlot::kExpansionLaneC: return aPrefix + "pWorkspace->mListExpansionLaneC;";
+        case TwistWorkSpaceSlot::kExpansionLaneD: return aPrefix + "pWorkspace->mListExpansionLaneD;";
+        case TwistWorkSpaceSlot::kExpansionLaneE: return aPrefix + "pWorkspace->mListExpansionLaneE;";
+        case TwistWorkSpaceSlot::kExpansionLaneF: return aPrefix + "pWorkspace->mListExpansionLaneF;";
 
         case TwistWorkSpaceSlot::kWorkLaneA: return aPrefix + "pWorkspace->mWorkLaneA;";
         case TwistWorkSpaceSlot::kWorkLaneB: return aPrefix + "pWorkspace->mWorkLaneB;";
         case TwistWorkSpaceSlot::kWorkLaneC: return aPrefix + "pWorkspace->mWorkLaneC;";
         case TwistWorkSpaceSlot::kWorkLaneD: return aPrefix + "pWorkspace->mWorkLaneD;";
+        case TwistWorkSpaceSlot::kWorkLaneE: return aPrefix + "pWorkspace->mWorkLaneE;";
+        case TwistWorkSpaceSlot::kWorkLaneF: return aPrefix + "pWorkspace->mWorkLaneF;";
 
         case TwistWorkSpaceSlot::kOperationLaneA: return aPrefix + "pWorkspace->mOperationLaneA;";
         case TwistWorkSpaceSlot::kOperationLaneB: return aPrefix + "pWorkspace->mOperationLaneB;";
+        case TwistWorkSpaceSlot::kOperationLaneC: return aPrefix + "pWorkspace->mOperationLaneC;";
+        case TwistWorkSpaceSlot::kOperationLaneD: return aPrefix + "pWorkspace->mOperationLaneD;";
+        case TwistWorkSpaceSlot::kOperationLaneE: return aPrefix + "pWorkspace->mOperationLaneE;";
+        case TwistWorkSpaceSlot::kOperationLaneF: return aPrefix + "pWorkspace->mOperationLaneF;";
 
         case TwistWorkSpaceSlot::kMaskLaneA: return aPrefix + "pWorkspace->mMaskLaneA;";
         case TwistWorkSpaceSlot::kMaskLaneB: return aPrefix + "pWorkspace->mMaskLaneB;";
@@ -393,6 +496,7 @@ bool ParseBatchJson(const std::string &pBatchJson,
 }
 
 bool AppendBranchBody(const TwistProgramBranch &pBranch,
+                      const bool pIncludeKDFParameterAliases,
                       std::ostringstream *pStream,
                       std::string *pError) {
     if (pStream == nullptr) {
@@ -400,13 +504,31 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         return false;
     }
 
-    std::vector<GBatch> aBatches;
+    struct ParsedBatch {
+        bool mValid = false;
+        std::size_t mIndex = 0U;
+        GBatch mBatch;
+        std::string mError;
+    };
+
+    std::vector<ParsedBatch> aParsedBatches;
+    std::size_t aBatchIndex = 0U;
     for (const std::string &aBatchJson : pBranch.GetBatchJsonText()) {
+        ParsedBatch aParsed;
+        aParsed.mIndex = aBatchIndex++;
         GBatch aBatch;
-        if (!ParseBatchJson(aBatchJson, &aBatch, pError)) {
-            return false;
+        std::string aBatchError;
+        if (!ParseBatchJson(aBatchJson, &aBatch, &aBatchError)) {
+            aParsed.mValid = false;
+            aParsed.mError = aBatchError.empty() ? "unknown parse error" : aBatchError;
+            std::printf("warn: AppendBranchBody skipping batch %zu due to parse failure: %s\n",
+                        aParsed.mIndex,
+                        aParsed.mError.c_str());
+        } else {
+            aParsed.mValid = true;
+            aParsed.mBatch = aBatch;
         }
-        aBatches.push_back(aBatch);
+        aParsedBatches.push_back(aParsed);
     }
 
     std::vector<std::string> aDeclaredNames;
@@ -420,7 +542,11 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
 
     std::vector<std::string> aLoopVariables;
     std::vector<std::string> aScalarVariables;
-    for (const GBatch &aBatch : aBatches) {
+    for (const ParsedBatch &aParsed : aParsedBatches) {
+        if (!aParsed.mValid) {
+            continue;
+        }
+        const GBatch &aBatch = aParsed.mBatch;
         for (const GLoop &aLoop : aBatch.mLoops) {
             if (!aLoop.mLoopVariableName.empty()) {
                 AppendUniqueValue(&aLoopVariables, aLoop.mLoopVariableName);
@@ -442,11 +568,15 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     bool aWroteDeclaration = false;
     const std::vector<TwistWorkSpaceSlot> aAllSlots = FixedWorkspaceSlotOrder();
     for (TwistWorkSpaceSlot aSlot : aAllSlots) {
+        if (!pIncludeKDFParameterAliases && IsParamDomainSaltWorkspaceSlot(aSlot)) {
+            continue;
+        }
         const std::string aAliasName = BufAliasName(aSlot);
         if (ContainsText(aDeclaredNames, aAliasName)) {
             continue;
         }
         *pStream << "    " << WorkspaceAliasDeclaration(aSlot) << '\n';
+        AppendUniqueValue(&aDeclaredNames, aAliasName);
         aWroteDeclaration = true;
     }
 
@@ -466,13 +596,25 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         *pStream << '\n';
     }
 
-    for (const GBatch &aBatch : aBatches) {
-        const std::string aScopeBlock = aBatch.BuildCppScopeBlock(pError, false);
+    for (const ParsedBatch &aParsed : aParsedBatches) {
+        if (!aParsed.mValid) {
+            *pStream << "    // export warning: skipped batch #" << aParsed.mIndex
+                     << " (" << SanitizeSingleLineComment(aParsed.mError) << ")\n";
+            continue;
+        }
+
+        std::string aScopeError;
+        const std::string aScopeBlock = aParsed.mBatch.BuildCppScopeBlock(&aScopeError, false);
         if (aScopeBlock.empty()) {
-            if ((pError != nullptr) && pError->empty()) {
-                *pError = "Batch scope-block export returned empty text.";
+            if (aScopeError.empty()) {
+                aScopeError = "Batch scope-block export returned empty text.";
             }
-            return false;
+            std::printf("warn: AppendBranchBody skipping batch %zu due to scope-build failure: %s\n",
+                        aParsed.mIndex,
+                        aScopeError.c_str());
+            *pStream << "    // export warning: skipped batch #" << aParsed.mIndex
+                     << " (" << SanitizeSingleLineComment(aScopeError) << ")\n";
+            continue;
         }
 
         *pStream << IndentBlock(aScopeBlock, 1) << '\n';
@@ -489,49 +631,31 @@ JsonValue BranchToJsonValue(const TwistProgramBranch &pBranch,
     }
 
     JsonValue::Array aBatches;
+    std::size_t aBatchIndex = 0U;
     for (const std::string &aBatchJson : pBranch.GetBatchJsonText()) {
         auto aParsed = JsonValue::Parse(aBatchJson, pError);
         if (!aParsed.has_value() || !aParsed->is_object()) {
-            if ((pError != nullptr) && pError->empty()) {
-                *pError = "Failed to parse branch batch JSON for program export.";
+            std::string aParseError = (pError != nullptr) ? *pError : std::string();
+            if (aParseError.empty()) {
+                aParseError = "unknown JSON parse error";
             }
-            return JsonValue::ObjectValue({});
+            std::printf("warn: BranchToJsonValue skipping batch %zu due to parse failure: %s\n",
+                        aBatchIndex,
+                        aParseError.c_str());
+            if (pError != nullptr) {
+                pError->clear();
+            }
+            ++aBatchIndex;
+            continue;
         }
         aBatches.push_back(*aParsed);
+        ++aBatchIndex;
     }
 
     JsonValue::Object aObject;
     aObject["string_lines"] = JsonValue::ArrayValue(std::move(aLines));
     aObject["batches"] = JsonValue::ArrayValue(std::move(aBatches));
     return JsonValue::ObjectValue(std::move(aObject));
-}
-
-std::string BytesToCppArray(const std::vector<std::uint8_t> &pBytes,
-                            const std::string &pName,
-                            const std::string &pLenToken) {
-    std::ostringstream aOut;
-    aOut << "const std::uint8_t " << pName << "[" << pLenToken << "] = {\n";
-
-    for (std::size_t i = 0; i < pBytes.size(); ++i) {
-        if ((i % 16U) == 0U) {
-            aOut << "    ";
-        }
-
-        char aHex[8];
-        std::snprintf(aHex, sizeof(aHex), "0x%02X", pBytes[i]);
-        aOut << aHex;
-
-        if (i + 1U < pBytes.size()) {
-            aOut << ", ";
-        }
-
-        if ((i % 16U) == 15U || (i + 1U == pBytes.size())) {
-            aOut << '\n';
-        }
-    }
-
-    aOut << "};\n";
-    return aOut.str();
 }
 
 JsonValue::Array BytesToJsonArray(const std::vector<std::uint8_t> &pBytes) {
@@ -541,6 +665,198 @@ JsonValue::Array BytesToJsonArray(const std::vector<std::uint8_t> &pBytes) {
         aOut.push_back(JsonValue::Number(static_cast<double>(aByte)));
     }
     return aOut;
+}
+
+std::string IndentSpaces(const int pIndentLevel) {
+    return std::string(static_cast<std::size_t>(pIndentLevel * 4), ' ');
+}
+
+std::string ByteCppLiteral(const std::uint8_t pValue) {
+    char aHex[8];
+    std::snprintf(aHex, sizeof(aHex), "0x%02X", pValue);
+    return aHex;
+}
+
+std::string UInt64CppLiteral(const std::uint64_t pValue) {
+    char aHex[32];
+    std::snprintf(aHex,
+                  sizeof(aHex),
+                  "0x%016llXULL",
+                  static_cast<unsigned long long>(pValue));
+    return aHex;
+}
+
+void AppendByteArrayInitializer(std::ostringstream *pOut,
+                                const std::uint8_t *pValues,
+                                const std::size_t pCount,
+                                const int pIndentLevel) {
+    if ((pOut == nullptr) || (pValues == nullptr)) {
+        return;
+    }
+
+    *pOut << IndentSpaces(pIndentLevel) << "{\n";
+    for (std::size_t i = 0U; i < pCount; ++i) {
+        if ((i % 16U) == 0U) {
+            *pOut << IndentSpaces(pIndentLevel + 1);
+        }
+
+        *pOut << ByteCppLiteral(pValues[i]);
+        if (i + 1U < pCount) {
+            *pOut << ", ";
+        }
+
+        if (((i % 16U) == 15U) || (i + 1U == pCount)) {
+            *pOut << '\n';
+        }
+    }
+    *pOut << IndentSpaces(pIndentLevel) << "}";
+}
+
+void AppendUInt64ArrayInitializer(std::ostringstream *pOut,
+                                  const std::uint64_t *pValues,
+                                  const std::size_t pCount,
+                                  const int pIndentLevel) {
+    if ((pOut == nullptr) || (pValues == nullptr)) {
+        return;
+    }
+
+    *pOut << IndentSpaces(pIndentLevel) << "{\n";
+    for (std::size_t i = 0U; i < pCount; ++i) {
+        if ((i % 4U) == 0U) {
+            *pOut << IndentSpaces(pIndentLevel + 1);
+        }
+
+        *pOut << UInt64CppLiteral(pValues[i]);
+        if (i + 1U < pCount) {
+            *pOut << ", ";
+        }
+
+        if (((i % 4U) == 3U) || (i + 1U == pCount)) {
+            *pOut << '\n';
+        }
+    }
+    *pOut << IndentSpaces(pIndentLevel) << "}";
+}
+
+void AppendSeedRoundMaterialInitializer(std::ostringstream *pOut,
+                                        const TwistDomainSeedRoundMaterial &pMaterial,
+                                        const int pIndentLevel) {
+    if (pOut == nullptr) {
+        return;
+    }
+
+    *pOut << IndentSpaces(pIndentLevel) << "{\n";
+    AppendUInt64ArrayInitializer(pOut, pMaterial.mSaltA, S_SALT, pIndentLevel + 1);
+    *pOut << ",\n";
+    AppendUInt64ArrayInitializer(pOut, pMaterial.mSaltB, S_SALT, pIndentLevel + 1);
+    *pOut << ",\n";
+    AppendUInt64ArrayInitializer(pOut, pMaterial.mSaltC, S_SALT, pIndentLevel + 1);
+    *pOut << ",\n";
+    AppendUInt64ArrayInitializer(pOut, pMaterial.mSaltD, S_SALT, pIndentLevel + 1);
+    *pOut << ",\n";
+    AppendUInt64ArrayInitializer(pOut, pMaterial.mSaltE, S_SALT, pIndentLevel + 1);
+    *pOut << ",\n";
+    AppendUInt64ArrayInitializer(pOut, pMaterial.mSaltF, S_SALT, pIndentLevel + 1);
+    *pOut << "\n" << IndentSpaces(pIndentLevel) << "}";
+}
+
+void AppendSaltSetDefinition(std::ostringstream *pOut,
+                             const std::string &pClassName,
+                             const std::string &pMemberName,
+                             const TwistDomainSaltSet &pSaltSet) {
+    if (pOut == nullptr) {
+        return;
+    }
+
+    *pOut << "const TwistDomainSaltSet " << pClassName << "::" << pMemberName << " = {\n";
+    AppendSeedRoundMaterialInitializer(pOut, pSaltSet.mOrbiterAssign, 1);
+    *pOut << ",\n";
+    AppendSeedRoundMaterialInitializer(pOut, pSaltSet.mOrbiterUpdate, 1);
+    *pOut << ",\n";
+    AppendSeedRoundMaterialInitializer(pOut, pSaltSet.mWandererUpdate, 1);
+    *pOut << "\n};\n";
+}
+
+void AppendConstantsDefinition(std::ostringstream *pOut,
+                               const std::string &pClassName,
+                               const std::string &pMemberName,
+                               const TwistDomainConstants &pConstants) {
+    if (pOut == nullptr) {
+        return;
+    }
+
+    *pOut << "const TwistDomainConstants " << pClassName << "::" << pMemberName << " = {\n"
+          << "    " << UInt64CppLiteral(pConstants.mIngress) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mPrevious) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mCross) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mDomainConstantPublicIngress) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mDomainConstantPrivateIngress) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mDomainConstantCrossIngress) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mMatrixSelectA) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mMatrixSelectB) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixUnrollA) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixUnrollB) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixSchemeA) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixSchemeB) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgAA) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgAB) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgBA) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgBB) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMaskMutateA) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMaskMutateB) << "\n"
+          << "};\n";
+}
+
+void AppendSBoxSetDefinition(std::ostringstream *pOut,
+                             const std::string &pClassName,
+                             const std::string &pMemberName,
+                             const TwistDomainSBoxSet &pSBoxSet) {
+    if (pOut == nullptr) {
+        return;
+    }
+
+    *pOut << "const TwistDomainSBoxSet " << pClassName << "::" << pMemberName << " = {\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxA, S_SBOX, 1);
+    *pOut << ",\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxB, S_SBOX, 1);
+    *pOut << ",\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxC, S_SBOX, 1);
+    *pOut << ",\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxD, S_SBOX, 1);
+    *pOut << ",\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxE, S_SBOX, 1);
+    *pOut << ",\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxF, S_SBOX, 1);
+    *pOut << ",\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxG, S_SBOX, 1);
+    *pOut << ",\n";
+    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxH, S_SBOX, 1);
+    *pOut << "\n};\n";
+}
+
+std::string DomainBundleStaticDefinitions(const std::string &pClassName,
+                                          const TwistDomainBundle &pBundle) {
+    std::ostringstream aOut;
+
+    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseASalts", pBundle.mPhaseASalts);
+    aOut << '\n';
+    AppendConstantsDefinition(&aOut, pClassName, "kPhaseAConstants", pBundle.mPhaseAConstants);
+    aOut << '\n';
+    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseBSalts", pBundle.mPhaseBSalts);
+    aOut << '\n';
+    AppendConstantsDefinition(&aOut, pClassName, "kPhaseBConstants", pBundle.mPhaseBConstants);
+    aOut << '\n';
+    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseCSalts", pBundle.mPhaseCSalts);
+    aOut << '\n';
+    AppendConstantsDefinition(&aOut, pClassName, "kPhaseCConstants", pBundle.mPhaseCConstants);
+    aOut << '\n';
+    AppendSBoxSetDefinition(&aOut, pClassName, "kPhaseASBoxes", pBundle.mPhaseASBoxes);
+    aOut << '\n';
+    AppendSBoxSetDefinition(&aOut, pClassName, "kPhaseBSBoxes", pBundle.mPhaseBSBoxes);
+    aOut << '\n';
+    AppendSBoxSetDefinition(&aOut, pClassName, "kPhaseCSBoxes", pBundle.mPhaseCSBoxes);
+
+    return aOut.str();
 }
 
 } // namespace
@@ -634,80 +950,102 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
             << "    " << aClassName << "();\n"
             << "    ~" << aClassName << "() override = default;\n"
             << "\n"
+            << "    void KDF(std::uint64_t pNonce,\n"
+            << "             std::uint8_t *pInput,\n"
+            << "             std::uint8_t *pOutput,\n"
+            << "             TwistDomainConstants *pConstants,\n"
+            << "             TwistDomainSaltSet *pDomainSaltSet,\n"
+            << "             TwistDomainSBoxSet *pDomainSBoxSet) override;\n"
             << "    void Seed(TwistWorkSpace *pWorkspace,\n"
-            << "              std::uint8_t *pSource,\n"
+            << "              TwistFarmSBox *pFarmSBox,\n"
+            << "              TwistFarmSalt *pFarmSalt,\n"
+            << "              std::uint64_t pNonce,\n"
+            << "              std::uint8_t *pSourceInput,\n"
             << "              std::uint8_t *pPassword,\n"
             << "              unsigned int pPasswordByteLength) override;\n"
             << "    void TwistBlock(TwistWorkSpace *pWorkspace,\n"
-            << "                    std::uint8_t *pSource,\n"
-            << "                    std::uint8_t *pDestination) override;\n"
+            << "                    std::uint64_t pNonce,\n"
+            << "                    std::uint8_t *pSourceInput,\n"
+            << "                    std::uint8_t *pDestinationOutput) override;\n"
             << "\n"
             << "private:\n"
-            << "    static const std::uint8_t kSBoxA[S_SBOX];\n"
-            << "    static const std::uint8_t kSBoxB[S_SBOX];\n"
-            << "    static const std::uint8_t kSBoxC[S_SBOX];\n"
-            << "    static const std::uint8_t kSBoxD[S_SBOX];\n"
-            << "    static const std::uint8_t kSBoxE[S_SBOX];\n"
-            << "    static const std::uint8_t kSBoxF[S_SBOX];\n"
-            << "    static const std::uint8_t kSBoxG[S_SBOX];\n"
-            << "    static const std::uint8_t kSBoxH[S_SBOX];\n"
+            << "    static const TwistDomainSaltSet kPhaseASalts;\n"
+            << "    static const TwistDomainConstants kPhaseAConstants;\n"
+            << "    static const TwistDomainSaltSet kPhaseBSalts;\n"
+            << "    static const TwistDomainConstants kPhaseBConstants;\n"
+            << "    static const TwistDomainSaltSet kPhaseCSalts;\n"
+            << "    static const TwistDomainConstants kPhaseCConstants;\n"
+            << "    static const TwistDomainSBoxSet kPhaseASBoxes;\n"
+            << "    static const TwistDomainSBoxSet kPhaseBSBoxes;\n"
+            << "    static const TwistDomainSBoxSet kPhaseCSBoxes;\n"
             << "};\n";
 
     std::ostringstream aCpp;
     aCpp << "#include \"" << aClassName << ".hpp\"\n"
          << "#include \"TwistFunctional.hpp\"\n"
+         << "#include \"TwistIndexShuffle.hpp\"\n"
+         << "#include \"TwistMix64.hpp\"\n"
          << "\n"
          << "#include <cstring>\n"
          << "\n"
-         << BytesToCppArray(aSnapshot._mSBoxA, aClassName + "::kSBoxA", "S_SBOX")
-         << '\n'
-         << BytesToCppArray(aSnapshot._mSBoxB, aClassName + "::kSBoxB", "S_SBOX")
-         << '\n'
-         << BytesToCppArray(aSnapshot._mSBoxC, aClassName + "::kSBoxC", "S_SBOX")
-         << '\n'
-         << BytesToCppArray(aSnapshot._mSBoxD, aClassName + "::kSBoxD", "S_SBOX")
-         << '\n'
-         << BytesToCppArray(aSnapshot._mSBoxE, aClassName + "::kSBoxE", "S_SBOX")
-         << '\n'
-         << BytesToCppArray(aSnapshot._mSBoxF, aClassName + "::kSBoxF", "S_SBOX")
-         << '\n'
-         << BytesToCppArray(aSnapshot._mSBoxG, aClassName + "::kSBoxG", "S_SBOX")
-         << '\n'
-         << BytesToCppArray(aSnapshot._mSBoxH, aClassName + "::kSBoxH", "S_SBOX")
-         << '\n'
          << aClassName << "::" << aClassName << "()\n"
          << ": TwistExpander() {\n"
-         << "    mSBoxA = const_cast<std::uint8_t*>(kSBoxA);\n"
-         << "    mSBoxB = const_cast<std::uint8_t*>(kSBoxB);\n"
-         << "    mSBoxC = const_cast<std::uint8_t*>(kSBoxC);\n"
-         << "    mSBoxD = const_cast<std::uint8_t*>(kSBoxD);\n"
-         << "    mSBoxE = const_cast<std::uint8_t*>(kSBoxE);\n"
-         << "    mSBoxF = const_cast<std::uint8_t*>(kSBoxF);\n"
-         << "    mSBoxG = const_cast<std::uint8_t*>(kSBoxG);\n"
-         << "    mSBoxH = const_cast<std::uint8_t*>(kSBoxH);\n"
+         << "    mDomainBundleInbuilt.mPhaseASalts = kPhaseASalts;\n"
+         << "    mDomainBundleInbuilt.mPhaseAConstants = kPhaseAConstants;\n"
+         << "    mDomainBundleInbuilt.mPhaseBSalts = kPhaseBSalts;\n"
+         << "    mDomainBundleInbuilt.mPhaseBConstants = kPhaseBConstants;\n"
+         << "    mDomainBundleInbuilt.mPhaseCSalts = kPhaseCSalts;\n"
+         << "    mDomainBundleInbuilt.mPhaseCConstants = kPhaseCConstants;\n"
+         << "    mDomainBundleInbuilt.mPhaseASBoxes = kPhaseASBoxes;\n"
+         << "    mDomainBundleInbuilt.mPhaseBSBoxes = kPhaseBSBoxes;\n"
+         << "    mDomainBundleInbuilt.mPhaseCSBoxes = kPhaseCSBoxes;\n"
+         << "    SyncLegacyFromDomainBundleInbuilt();\n"
+         << "    std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));\n"
          << "}\n"
          << "\n"
+         << "void " << aClassName << "::KDF(std::uint64_t pNonce,\n"
+         << "                                std::uint8_t *pInput,\n"
+         << "                                std::uint8_t *pOutput,\n"
+         << "                                TwistDomainConstants *pConstants,\n"
+         << "                                TwistDomainSaltSet *pDomainSaltSet,\n"
+         << "                                TwistDomainSBoxSet *pDomainSBoxSet) {\n"
+         << "    TwistExpander::KDF(pNonce, pInput, pOutput, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
+         << "    TwistWorkSpace *pWorkspace = mWorkspace;\n"
+         << "    if ((pWorkspace == nullptr) || (pInput == nullptr) || (pOutput == nullptr) ||\n"
+         << "        (pConstants == nullptr) || (pDomainSaltSet == nullptr) || (pDomainSBoxSet == nullptr)) { return; }\n";
+    if (!AppendBranchBody(aSnapshot.mKDF, true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n"
+         << "\n"
          << "void " << aClassName << "::Seed(TwistWorkSpace *pWorkspace,\n"
-         << "                                 std::uint8_t *pSource,\n"
+         << "                                 TwistFarmSBox *pFarmSBox,\n"
+         << "                                 TwistFarmSalt *pFarmSalt,\n"
+         << "                                 std::uint64_t pNonce,\n"
+         << "                                 std::uint8_t *pSourceInput,\n"
          << "                                 std::uint8_t *pPassword,\n"
          << "                                 unsigned int pPasswordByteLength) {\n"
-         << "    TwistExpander::Seed(pWorkspace, pSource, pPassword, pPasswordByteLength);\n"
+         << "    TwistExpander::Seed(pWorkspace, pFarmSBox, pFarmSalt, pNonce, pSourceInput, pPassword, pPasswordByteLength);\n"
          << "    if (pWorkspace == nullptr) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mSeed, &aCpp, pError)) {
+    if (!AppendBranchBody(aSnapshot.mSeed, false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n"
          << "\n"
          << "void " << aClassName << "::TwistBlock(TwistWorkSpace *pWorkspace,\n"
-         << "                                       std::uint8_t *pSource,\n"
-         << "                                       std::uint8_t *pDestination) {\n"
-         << "    TwistExpander::TwistBlock(pWorkspace, pSource, pDestination);\n"
-         << "    if ((pWorkspace == nullptr) || (pDestination == nullptr)) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mTwister, &aCpp, pError)) {
+         << "                                       std::uint64_t pNonce,\n"
+         << "                                       std::uint8_t *pSourceInput,\n"
+         << "                                       std::uint8_t *pDestinationOutput) {\n"
+         << "    TwistExpander::TwistBlock(pWorkspace, pNonce, pSourceInput, pDestinationOutput);\n"
+         << "    if ((pWorkspace == nullptr) || (pDestinationOutput == nullptr)) { return; }\n";
+    if (!AppendBranchBody(aSnapshot.mTwister, false, &aCpp, pError)) {
         return false;
     }
-    aCpp << "    std::memcpy(pDestination, pWorkspace->mWorkLaneD, S_BLOCK);\n"
-         << "}\n";
+    aCpp << "    std::memcpy(pDestinationOutput, pWorkspace->mWorkLaneD, S_BLOCK);\n"
+         << "}\n"
+         << "\n"
+         << DomainBundleStaticDefinitions(aClassName, aSnapshot.mDomainBundleInbuilt)
+         << "\n";
 
     if (!SaveTextFile(aHeaderPath, aHeader.str(), pError)) {
         return false;
@@ -729,6 +1067,11 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
 
     JsonValue::Object aRootObject;
     aRootObject["name_base"] = JsonValue::String(aBaseInput);
+    aRootObject["kdf"] = BranchToJsonValue(aSnapshot.mKDF, pError);
+    if ((pError != nullptr) && !pError->empty()) {
+        return false;
+    }
+
     aRootObject["seed"] = BranchToJsonValue(aSnapshot.mSeed, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;

@@ -136,12 +136,12 @@ private:
     static bool IsBlockSizedSlot(const TwistWorkSpaceSlot pSlot) {
         switch (pSlot) {
             case TwistWorkSpaceSlot::kSource:
-            case TwistWorkSpaceSlot::kSeedExpansionLaneA:
-            case TwistWorkSpaceSlot::kSeedExpansionLaneB:
-            case TwistWorkSpaceSlot::kSeedExpansionLaneC:
-            case TwistWorkSpaceSlot::kSeedExpansionLaneD:
-            case TwistWorkSpaceSlot::kSeedExpansionLaneE:
-            case TwistWorkSpaceSlot::kSeedExpansionLaneF:
+            case TwistWorkSpaceSlot::kExpansionLaneA:
+            case TwistWorkSpaceSlot::kExpansionLaneB:
+            case TwistWorkSpaceSlot::kExpansionLaneC:
+            case TwistWorkSpaceSlot::kExpansionLaneD:
+            case TwistWorkSpaceSlot::kExpansionLaneE:
+            case TwistWorkSpaceSlot::kExpansionLaneF:
             case TwistWorkSpaceSlot::kWorkLaneA:
             case TwistWorkSpaceSlot::kWorkLaneB:
             case TwistWorkSpaceSlot::kWorkLaneC:

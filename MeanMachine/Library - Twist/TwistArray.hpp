@@ -29,6 +29,21 @@ public:
         
         pItems->insert(pItems->end(), pItemsToAppend->begin(), pItemsToAppend->end());
     }
+    
+    template <typename T>
+    static void Replace(std::vector<T>* pItems, const std::vector<T>* pItemsToReplace) {
+        
+        if (pItems == nullptr) {
+            return;
+        }
+        
+        if (pItemsToReplace == nullptr) {
+            return;
+        }
+        
+        pItems->clear();
+        pItems->insert(pItems->end(), pItemsToReplace->begin(), pItemsToReplace->end());
+    }
 
     template <typename T>
     static void RemoveAll(std::vector<T>* pItems, const T& pItem) {
