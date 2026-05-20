@@ -2,10 +2,10 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_Argon : public TwistExpander {
+class TwistExpander_Golden : public TwistExpander {
 public:
-    TwistExpander_Argon();
-    ~TwistExpander_Argon() override = default;
+    TwistExpander_Golden();
+    ~TwistExpander_Golden() override = default;
 
     void KDF(std::uint64_t pNonce,
              std::uint8_t *pInput,

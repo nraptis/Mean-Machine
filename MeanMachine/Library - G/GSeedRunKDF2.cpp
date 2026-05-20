@@ -145,7 +145,9 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
     }
 
     Reset();
-    if (!GAXSK::Bake(GAXSFormat::kSixSix,
+    
+    GAXSK *aAXSK = new GAXSK();
+    if (!aAXSK->Bake(GAXSFormat::kSixSix,
                      {1, 2, 3, 4},
                      true,
                      &mARXSkeletons,
@@ -153,8 +155,10 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
         if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
             *pErrorMessage = "GAXSK::Bake failed while planning GSeedRunKDF2";
         }
+        delete aAXSK;
         return false;
     }
+    delete aAXSK;
     return true;
 }
 

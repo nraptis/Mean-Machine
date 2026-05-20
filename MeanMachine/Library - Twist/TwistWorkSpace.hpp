@@ -182,24 +182,24 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kParamDomainSBoxG=36,
     kParamDomainSBoxH=37,
 
-    kSBoxA=kParamDomainSBoxA,
-    kSBoxB=kParamDomainSBoxB,
-    kSBoxC=kParamDomainSBoxC,
-    kSBoxD=kParamDomainSBoxD,
-    kSBoxE=kParamDomainSBoxE,
-    kSBoxF=kParamDomainSBoxF,
-    kSBoxG=kParamDomainSBoxG,
-    kSBoxH=kParamDomainSBoxH,
+    kSBoxA=kParamDomainSBoxA, // try to remove
+    kSBoxB=kParamDomainSBoxB, // try to remove
+    kSBoxC=kParamDomainSBoxC, // try to remove
+    kSBoxD=kParamDomainSBoxD, // try to remove
+    kSBoxE=kParamDomainSBoxE, // try to remove
+    kSBoxF=kParamDomainSBoxF, // try to remove
+    kSBoxG=kParamDomainSBoxG, // try to remove
+    kSBoxH=kParamDomainSBoxH, // try to remove
     
     
-    kDerivedSBoxA=40,
-    kDerivedSBoxB=41,
-    kDerivedSBoxC=42,
-    kDerivedSBoxD=43,
-    kDerivedSBoxE=44,
-    kDerivedSBoxF=45,
-    kDerivedSBoxG=46,
-    kDerivedSBoxH=47,
+    kDerivedSBoxA=40, // try to remove
+    kDerivedSBoxB=41, // try to remove
+    kDerivedSBoxC=42, // try to remove
+    kDerivedSBoxD=43, // try to remove
+    kDerivedSBoxE=44, // try to remove
+    kDerivedSBoxF=45, // try to remove
+    kDerivedSBoxG=46, // try to remove
+    kDerivedSBoxH=47, // try to remove
     
     kExpansionLaneA=80,
     kExpansionLaneB=81,
@@ -251,40 +251,40 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kMaskRowWriteA=134, // size is S_MASK_A
     kMaskRowWriteB=135, // size is S_MASK_B
     
-    kDomainSaltKeyBoxA=140,
-    kDomainSaltKeyBoxB=141,
-    kDomainSaltKeyBoxC=142,
-    kDomainSaltKeyBoxD=143,
-    kDomainSaltKeyBoxE=144,
+    kDomainSaltKeyBoxA=140, // try to remove
+    kDomainSaltKeyBoxB=141, // try to remove
+    kDomainSaltKeyBoxC=142, // try to remove
+    kDomainSaltKeyBoxD=143, // try to remove
+    kDomainSaltKeyBoxE=144, // try to remove
     //kDomainSaltKeyBoxF=145,
     
-    kDomainSaltMaskBoxA=146,
-    kDomainSaltMaskBoxB=147,
-    kDomainSaltMaskBoxC=148,
-    kDomainSaltMaskBoxD=149,
-    kDomainSaltMaskBoxE=150,
-    kDomainSaltMaskBoxF=151,
+    kDomainSaltMaskBoxA=146, // try to remove
+    kDomainSaltMaskBoxB=147, // try to remove
+    kDomainSaltMaskBoxC=148, // try to remove
+    kDomainSaltMaskBoxD=149, // try to remove
+    kDomainSaltMaskBoxE=150, // try to remove
+    kDomainSaltMaskBoxF=151, // try to remove
     
-    kDomainSaltWandererUpdateA=152,
-    kDomainSaltWandererUpdateB=153,
-    kDomainSaltWandererUpdateC=154,
-    kDomainSaltWandererUpdateD=155,
-    kDomainSaltWandererUpdateE=156,
-    kDomainSaltWandererUpdateF=157,
+    kDomainSaltWandererUpdateA=152, // try to remove
+    kDomainSaltWandererUpdateB=153, // try to remove
+    kDomainSaltWandererUpdateC=154, // try to remove
+    kDomainSaltWandererUpdateD=155, // try to remove
+    kDomainSaltWandererUpdateE=156, // try to remove
+    kDomainSaltWandererUpdateF=157, // try to remove
     
-    kDomainSaltOrbiterUpdateA=158,
-    kDomainSaltOrbiterUpdateB=159,
-    kDomainSaltOrbiterUpdateC=160,
-    kDomainSaltOrbiterUpdateD=161,
-    kDomainSaltOrbiterUpdateE=162,
-    kDomainSaltOrbiterUpdateF=163,
+    kDomainSaltOrbiterUpdateA=158, // try to remove
+    kDomainSaltOrbiterUpdateB=159, // try to remove
+    kDomainSaltOrbiterUpdateC=160, // try to remove
+    kDomainSaltOrbiterUpdateD=161, // try to remove
+    kDomainSaltOrbiterUpdateE=162, // try to remove
+    kDomainSaltOrbiterUpdateF=163, // try to remove
     
-    kDomainSaltPrismA=164,
-    kDomainSaltPrismB=165,
-    kDomainSaltPrismC=166,
-    kDomainSaltPrismD=167,
-    kDomainSaltPrismE=168,
-    kDomainSaltPrismF=169,
+    kDomainSaltPrismA=164, // try to remove
+    kDomainSaltPrismB=165, // try to remove
+    kDomainSaltPrismC=166, // try to remove
+    kDomainSaltPrismD=167, // try to remove
+    kDomainSaltPrismE=168, // try to remove
+    kDomainSaltPrismF=169, // try to remove
     
     kParamDomainSaltOrbiterAssignA=170,
     kParamDomainSaltOrbiterAssignB=171,
@@ -321,15 +321,15 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kIndexList256C=192,
     kIndexList256D=193,
 
-    kDerivedSaltOrbiterA=194,
-    kDerivedSaltOrbiterB=195,
-    kDerivedSaltOrbiterC=196,
-    kDerivedSaltOrbiterD=197,
+    kDerivedSaltOrbiterA=194, // try to remove
+    kDerivedSaltOrbiterB=195, // try to remove
+    kDerivedSaltOrbiterC=196, // try to remove
+    kDerivedSaltOrbiterD=197, // try to remove
 
-    kDerivedSaltWandererA=198,
-    kDerivedSaltWandererB=199,
-    kDerivedSaltWandererC=200,
-    kDerivedSaltWandererD=201,
+    kDerivedSaltWandererA=198, // try to remove
+    kDerivedSaltWandererB=199, // try to remove
+    kDerivedSaltWandererC=200, // try to remove
+    kDerivedSaltWandererD=201, // try to remove
     
 };
 

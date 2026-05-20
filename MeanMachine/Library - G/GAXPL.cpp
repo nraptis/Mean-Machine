@@ -22,6 +22,7 @@ void SetError(std::string *pErrorMessage,
 
 void GAXPL::Reset() {
     mSkeleton = nullptr;
+    mLoop = nullptr;
 
     mSaltsOrbiterAssign.clear();
     mSaltsOrbiterUpdate.clear();
@@ -44,23 +45,18 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
                  const std::vector<GSymbol> &pSources,
                  const std::vector<GSymbol> &pOrbiters,
                  const std::vector<GSymbol> &pWanderers,
-                 
                  GLoop *pLoop,
                  std::string *pErrorMessage) {
     
     Reset();
     
     if (pSkeleton == nullptr) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "GAXPL::Bake received null skeleton";
-        }
+        SetError(pErrorMessage, "GAXPL::Configure received null skeleton");
         return false;
     }
-    
+
     if (pLoop == nullptr) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "GAXPL::Bake received null loop";
-        }
+        SetError(pErrorMessage, "GAXPL::Configure received null loop");
         return false;
     }
     
@@ -80,9 +76,6 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
     if (!BuildOrbiterMap(pErrorMessage)) { return false; }
     if (!BuildWandererMap(pErrorMessage)) { return false; }
     
-    
-    if (!GenerateIngressStatements(pErrorMessage)) { return false; }
-    
     return true;
 }
 
@@ -93,20 +86,15 @@ bool GAXPL::Bake(const GAXSKSkeleton *pSkeleton,
                  const std::vector<GSymbol> &pSources,
                  const std::vector<GSymbol> &pOrbiters,
                  const std::vector<GSymbol> &pWanderers,
-                 
                  GLoop *pLoop,
                  std::string *pErrorMessage) {
-    
-    if (!Configure(pSkeleton,
-                   pSaltBag,
-                   pNonceBytes,
-                   pSources,
-                   pOrbiters,
-                   pWanderers,
-                   pLoop,
-                   pErrorMessage)) {
+    if (!Configure(pSkeleton, pSaltBag, pNonceBytes, pSources,
+                   pOrbiters, pWanderers, pLoop, pErrorMessage)) {
         return false;
     }
+    
+    if (!GenerateStatements(pErrorMessage)) { return false; }
+    
     return true;
 }
 
@@ -123,9 +111,7 @@ int GAXPL::GetOrbiterIndex(GAXSKVariable pVariable) const {
         case GAXSKVariable::kOrbitI: return 8;
         case GAXSKVariable::kOrbitJ: return 9;
         case GAXSKVariable::kOrbitK: return 10;
-
-        default:
-            return -1;
+        default: return -1;
     }
 }
 
@@ -142,9 +128,7 @@ int GAXPL::GetWandererIndex(GAXSKVariable pVariable) const {
         case GAXSKVariable::kWandererI: return 8;
         case GAXSKVariable::kWandererJ: return 9;
         case GAXSKVariable::kWandererK: return 10;
-
-        default:
-            return -1;
+        default: return -1;
     }
 }
 
@@ -158,9 +142,7 @@ int GAXPL::GetNonceByteIndex(GAXSKNonceByteKind pNonce) const {
         case GAXSKNonceByteKind::kNonceF: return 5;
         case GAXSKNonceByteKind::kNonceG: return 6;
         case GAXSKNonceByteKind::kNonceH: return 7;
-
-        default:
-            return -1;
+        default: return -1;
     }
 }
 
@@ -170,9 +152,7 @@ int GAXPL::GetSourceIndex(GAXSKSourceKind pSource) const {
         case GAXSKSourceKind::kSourceB: return 1;
         case GAXSKSourceKind::kSourceC: return 2;
         case GAXSKSourceKind::kSourceD: return 3;
-
-        default:
-            return -1;
+        default: return -1;
     }
 }
 
@@ -227,60 +207,24 @@ bool GAXPL::BuildSourceMap(std::string *pErrorMessage) {
 
         const GAXSKContextWordPlan &aPlan = aStatement.mContextWord;
 
-        for (const GAXSKInputSlot &aSlot : aPlan.mXorSlots) {
+        for (const GAXSKInputSlot &aSlot : aPlan.mSlots) {
             if (aSlot.mKind != GAXSKInputSlotKind::kSource) {
                 continue;
             }
 
             const int aSourceIndex = GetSourceIndex(aSlot.mSource);
             if (aSourceIndex < 0) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildSourceMap found invalid source kind";
-                }
+                SetError(pErrorMessage, "GAXPL::BuildSourceMap found invalid source kind");
                 return false;
             }
 
             if (static_cast<std::size_t>(aSourceIndex) >= mSources.size()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildSourceMap could not bind skeleton source";
-                }
+                SetError(pErrorMessage, "GAXPL::BuildSourceMap could not bind skeleton source");
                 return false;
             }
 
             if (mSources[static_cast<std::size_t>(aSourceIndex)].IsInvalid()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildSourceMap source symbol is invalid";
-                }
-                return false;
-            }
-
-            mSourceMap[aSlot.mSource] = mSources[static_cast<std::size_t>(aSourceIndex)];
-        }
-
-        for (const GAXSKInputSlot &aSlot : aPlan.mAddXorSlots) {
-            if (aSlot.mKind != GAXSKInputSlotKind::kSource) {
-                continue;
-            }
-
-            const int aSourceIndex = GetSourceIndex(aSlot.mSource);
-            if (aSourceIndex < 0) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildSourceMap found invalid source kind";
-                }
-                return false;
-            }
-
-            if (static_cast<std::size_t>(aSourceIndex) >= mSources.size()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildSourceMap could not bind skeleton source";
-                }
-                return false;
-            }
-
-            if (mSources[static_cast<std::size_t>(aSourceIndex)].IsInvalid()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildSourceMap source symbol is invalid";
-                }
+                SetError(pErrorMessage, "GAXPL::BuildSourceMap source symbol is invalid");
                 return false;
             }
 
@@ -295,9 +239,7 @@ bool GAXPL::BuildNonceMap(std::string *pErrorMessage) {
     mNonceMap.clear();
 
     if (mSkeleton == nullptr) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "GAXPL::BuildNonceMap has null skeleton";
-        }
+        SetError(pErrorMessage, "GAXPL::BuildNonceMap has null skeleton");
         return false;
     }
 
@@ -308,60 +250,24 @@ bool GAXPL::BuildNonceMap(std::string *pErrorMessage) {
 
         const GAXSKContextWordPlan &aPlan = aStatement.mContextWord;
 
-        for (const GAXSKInputSlot &aSlot : aPlan.mXorSlots) {
+        for (const GAXSKInputSlot &aSlot : aPlan.mSlots) {
             if (aSlot.mKind != GAXSKInputSlotKind::kNonceByte) {
                 continue;
             }
 
             const int aNonceIndex = GetNonceByteIndex(aSlot.mNonceByte);
             if (aNonceIndex < 0) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildNonceMap found invalid nonce byte kind";
-                }
+                SetError(pErrorMessage, "GAXPL::BuildNonceMap found invalid nonce byte kind");
                 return false;
             }
 
             if (static_cast<std::size_t>(aNonceIndex) >= mNonceBytes.size()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildNonceMap could not bind skeleton nonce byte";
-                }
+                SetError(pErrorMessage, "GAXPL::BuildNonceMap could not bind skeleton nonce byte");
                 return false;
             }
 
             if (mNonceBytes[static_cast<std::size_t>(aNonceIndex)].IsInvalid()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildNonceMap nonce byte symbol is invalid";
-                }
-                return false;
-            }
-
-            mNonceMap[aSlot.mNonceByte] = mNonceBytes[static_cast<std::size_t>(aNonceIndex)];
-        }
-
-        for (const GAXSKInputSlot &aSlot : aPlan.mAddXorSlots) {
-            if (aSlot.mKind != GAXSKInputSlotKind::kNonceByte) {
-                continue;
-            }
-
-            const int aNonceIndex = GetNonceByteIndex(aSlot.mNonceByte);
-            if (aNonceIndex < 0) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildNonceMap found invalid nonce byte kind";
-                }
-                return false;
-            }
-
-            if (static_cast<std::size_t>(aNonceIndex) >= mNonceBytes.size()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildNonceMap could not bind skeleton nonce byte";
-                }
-                return false;
-            }
-
-            if (mNonceBytes[static_cast<std::size_t>(aNonceIndex)].IsInvalid()) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "GAXPL::BuildNonceMap nonce byte symbol is invalid";
-                }
+                SetError(pErrorMessage, "GAXPL::BuildNonceMap nonce byte symbol is invalid");
                 return false;
             }
 
@@ -414,40 +320,60 @@ bool GAXPL::BuildWandererMap(std::string *pErrorMessage) {
     return true;
 }
 
-GSymbol GAXPL::SymbolForVariable(GAXSKVariable pVariable,
-                                  std::string *pErrorMessage) const {
+bool GAXPL::SymbolForVariable(GAXSKVariable pVariable,
+                              GSymbol *pResult,
+                              std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXPL::SymbolForVariable received null result");
+        return false;
+    }
+
+    *pResult = GSymbol();
+
     switch (pVariable) {
-        case GAXSKVariable::kIngress: return GSymbol::Var("aIngress");
-        case GAXSKVariable::kCross: return GSymbol::Var("aCross");
-        case GAXSKVariable::kPrevious: return GSymbol::Var("aPrevious");
-        case GAXSKVariable::kScatter: return GSymbol::Var("aScatter");
-        case GAXSKVariable::kCarry: return GSymbol::Var("aCarry");
+        case GAXSKVariable::kIngress:
+            *pResult = GSymbol::Var(TwistVariable::kIngress);
+            break;
+        case GAXSKVariable::kCross:
+            *pResult = GSymbol::Var(TwistVariable::kCross);
+            break;
+        case GAXSKVariable::kPrevious:
+            *pResult = GSymbol::Var(TwistVariable::kPrevious);
+            break;
+        case GAXSKVariable::kScatter:
+            *pResult = GSymbol::Var(TwistVariable::kScatter);
+            break;
+        case GAXSKVariable::kCarry:
+            *pResult = GSymbol::Var(TwistVariable::kCarry);
+            break;
         default:
+            if (GetOrbiterIndex(pVariable) >= 0) {
+                const auto aIterator = mOrbiterMap.find(pVariable);
+                if (aIterator == mOrbiterMap.end()) {
+                    SetError(pErrorMessage, "GAXPL::SymbolForVariable could not bind orbiter");
+                    return false;
+                }
+                *pResult = aIterator->second;
+            } else if (GetWandererIndex(pVariable) >= 0) {
+                const auto aIterator = mWandererMap.find(pVariable);
+                if (aIterator == mWandererMap.end()) {
+                    SetError(pErrorMessage, "GAXPL::SymbolForVariable could not bind wanderer");
+                    return false;
+                }
+                *pResult = aIterator->second;
+            } else {
+                SetError(pErrorMessage, "GAXPL::SymbolForVariable received invalid variable");
+                return false;
+            }
             break;
     }
 
-    const int aOrbiterIndex = GetOrbiterIndex(pVariable);
-    if (aOrbiterIndex >= 0) {
-        const auto aIterator = mOrbiterMap.find(pVariable);
-        if (aIterator != mOrbiterMap.end() && !aIterator->second.IsInvalid()) {
-            return aIterator->second;
-        }
-        SetError(pErrorMessage, "GAXPL::SymbolForVariable could not bind orbiter");
-        return GSymbol();
+    if (pResult->IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::SymbolForVariable produced invalid symbol");
+        return false;
     }
 
-    const int aWandererIndex = GetWandererIndex(pVariable);
-    if (aWandererIndex >= 0) {
-        const auto aIterator = mWandererMap.find(pVariable);
-        if (aIterator != mWandererMap.end() && !aIterator->second.IsInvalid()) {
-            return aIterator->second;
-        }
-        SetError(pErrorMessage, "GAXPL::SymbolForVariable could not bind wanderer");
-        return GSymbol();
-    }
-
-    SetError(pErrorMessage, "GAXPL::SymbolForVariable received invalid variable");
-    return GSymbol();
+    return true;
 }
 
 bool GAXPL::GeneratePreviousAssignStatement(const GAXSKStatement &pStatement,
@@ -457,19 +383,16 @@ bool GAXPL::GeneratePreviousAssignStatement(const GAXSKStatement &pStatement,
         SetError(pErrorMessage, "GAXPL::GeneratePreviousAssignStatement received null statements");
         return false;
     }
-
-    const GSymbol aTarget = SymbolForVariable(pStatement.mTarget, pErrorMessage);
-    const GSymbol aSource = SymbolForVariable(pStatement.mSource, pErrorMessage);
-
-    if (aTarget.IsInvalid() || aSource.IsInvalid()) {
+    GSymbol aTarget;
+    if (!SymbolForVariable(pStatement.mTarget, &aTarget, pErrorMessage)) {
         return false;
     }
-
-    pStatements->push_back(
-        GStatement::Assign(GTarget::Symbol(aTarget),
-                           GExpr::Symbol(aSource))
-    );
-
+    GSymbol aSource;
+    if (!SymbolForVariable(pStatement.mSource, &aSource, pErrorMessage)) {
+        return false;
+    }
+    pStatements->push_back(GStatement::Comment(""));
+    pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget), GExpr::Symbol(aSource)));
     return true;
 }
 
@@ -483,27 +406,17 @@ bool GAXPL::GenerateContextWordStatement(const GAXSKStatement &pStatement,
     
     const GAXSKContextWordPlan &aPlan = pStatement.mContextWord;
     
-    const GSymbol aTarget = SymbolForVariable(aPlan.mTarget, pErrorMessage);
-    if (aTarget.IsInvalid()) {
+    GSymbol aTarget;
+    if (!SymbolForVariable(aPlan.mTarget, &aTarget, pErrorMessage)) {
         return false;
     }
     
-    if (aPlan.mTarget == GAXSKVariable::kIngress) {
-        pStatements->push_back(GStatement::Comment("ingress word"));
-    } else if (aPlan.mTarget == GAXSKVariable::kCross) {
-        pStatements->push_back(GStatement::Comment("cross word"));
-    } else {
-        pStatements->push_back(GStatement::Comment("context word"));
-    }
+    pStatements->push_back(GStatement::Comment(""));
+    pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget), GExpr::Const(0)));
     
-    pStatements->push_back(
-                           GStatement::Assign(GTarget::Symbol(aTarget),
-                                              GExpr::Const(0))
-                           );
-    
-    if (GAXPLQuick::InputsRequireXorNonces(aPlan.mXorSlots)) {
+    {
         GExpr aExpr;
-        if (!GAXPLQuick::BakeInputSlotWordsXorNonces(aPlan.mXorSlots,
+        if (!GAXPLQuick::BakeInputSlotWordsXorNonces(aPlan.mSlots,
                                                      mSourceMap,
                                                      mNonceMap,
                                                      &aExpr,
@@ -511,17 +424,13 @@ bool GAXPL::GenerateContextWordStatement(const GAXSKStatement &pStatement,
             return false;
         }
         
-        pStatements->push_back(
-                               GStatement::Assign(
-                                                  GTarget::Symbol(aTarget),
-                                                  GExpr::Xor(GExpr::Symbol(aTarget), aExpr)
-                                                  )
-                               );
+        pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget),
+                                                  GExpr::Xor(GExpr::Symbol(aTarget), aExpr)));
     }
     
-    if (GAXPLQuick::InputsRequireXorSources(aPlan.mXorSlots)) {
+    {
         GExpr aExpr;
-        if (!GAXPLQuick::BakeInputSlotWordsXorSources(aPlan.mXorSlots,
+        if (!GAXPLQuick::BakeInputSlotWordsXorSources(aPlan.mSlots,
                                                       mSourceMap,
                                                       mNonceMap,
                                                       &aExpr,
@@ -529,48 +438,8 @@ bool GAXPL::GenerateContextWordStatement(const GAXSKStatement &pStatement,
             return false;
         }
         
-        pStatements->push_back(
-                               GStatement::Assign(
-                                                  GTarget::Symbol(aTarget),
-                                                  GExpr::Xor(GExpr::Symbol(aTarget), aExpr)
-                                                  )
-                               );
-    }
-    
-    if (GAXPLQuick::InputsRequireAddNonces(aPlan.mAddXorSlots)) {
-        GExpr aExpr;
-        if (!GAXPLQuick::BakeInputSlotWordsAddNonces(aPlan.mAddXorSlots,
-                                                     mSourceMap,
-                                                     mNonceMap,
-                                                     &aExpr,
-                                                     pErrorMessage)) {
-            return false;
-        }
-        
-        pStatements->push_back(
-                               GStatement::Assign(
-                                                  GTarget::Symbol(aTarget),
-                                                  GExpr::Add(GExpr::Symbol(aTarget), aExpr)
-                                                  )
-                               );
-    }
-    
-    if (GAXPLQuick::InputsRequireAddSources(aPlan.mAddXorSlots)) {
-        GExpr aExpr;
-        if (!GAXPLQuick::BakeInputSlotWordsAddSources(aPlan.mAddXorSlots,
-                                                      mSourceMap,
-                                                      mNonceMap,
-                                                      &aExpr,
-                                                      pErrorMessage)) {
-            return false;
-        }
-        
-        pStatements->push_back(
-                               GStatement::Assign(
-                                                  GTarget::Symbol(aTarget),
-                                                  GExpr::Add(GExpr::Symbol(aTarget), aExpr)
-                                                  )
-                               );
+        pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget),
+                                                  GExpr::Xor(GExpr::Symbol(aTarget), aExpr)));
     }
     
     GExpr aDiffuse;
@@ -598,22 +467,104 @@ bool GAXPL::GenerateContextWordStatement(const GAXSKStatement &pStatement,
         return false;
     }
     
-    pStatements->push_back(
-                           GStatement::Assign(GTarget::Symbol(aTarget),
-                                              aDiffuse)
-                           );
+    pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget),
+                                              aDiffuse));
     
     return true;
 }
 
-bool GAXPL::GenerateIngressStatements(std::string *pErrorMessage) {
+bool GAXPL::GenerateScatterMixStatement(const GAXSKStatement &pStatement,
+                                        std::vector<GStatement> *pStatements,
+                                        std::string *pErrorMessage) {
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement received null statements");
+        return false;
+    }
+
+    const GAXSKScatterMixPlan &aPlan = pStatement.mScatterMix;
+
+    GSymbol aTarget;
+    if (!SymbolForVariable(aPlan.mTarget, &aTarget, pErrorMessage)) {
+        return false;
+    }
+
+    std::vector<GExpr> aXorTerms;
+    for (const GAXSKVariableTerm &aTerm : aPlan.mXorTerms) {
+        GSymbol aSymbol;
+        if (!SymbolForVariable(aTerm.mVariable, &aSymbol, pErrorMessage)) {
+            return false;
+        }
+
+        GExpr aExpr = GAXPLQuick::RotateSymbol(aSymbol, aTerm.mRotation);
+        if (aExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to build xor term");
+            return false;
+        }
+
+        aXorTerms.push_back(aExpr);
+    }
+
+    std::vector<GExpr> aAddTerms;
+    for (const GAXSKVariableTerm &aTerm : aPlan.mAddTerms) {
+        GSymbol aSymbol;
+        if (!SymbolForVariable(aTerm.mVariable, &aSymbol, pErrorMessage)) {
+            return false;
+        }
+
+        GExpr aExpr = GAXPLQuick::RotateSymbol(aSymbol, aTerm.mRotation);
+        if (aExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to build add term");
+            return false;
+        }
+
+        aAddTerms.push_back(aExpr);
+    }
+
+    if (aXorTerms.empty()) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement received no xor terms");
+        return false;
+    }
+
+    if (aAddTerms.empty()) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement received no add terms");
+        return false;
+    }
+
+    GExpr aExpr = GExpr::Add(GQuick::XorChain(aXorTerms),
+                             GQuick::XorChain(aAddTerms));
+
+    if (aPlan.mHasDomainMix) {
+        GSymbol aDomainWord = GAXPLQuick::DomainConstantScatter();
+
+        if (aDomainWord.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement produced invalid domain word");
+            return false;
+        }
+
+        aExpr = GExpr::Xor(aExpr, GExpr::Symbol(aDomainWord));
+    }
+
+    aExpr = GAXPLQuick::Diffuse(aExpr, aPlan.mDiffuse);
+
+    if (aExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to diffuse scatter");
+        return false;
+    }
+
+    pStatements->push_back(GStatement::Comment(""));
+    pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget), aExpr));
+
+    return true;
+}
+
+bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
     if (mLoop == nullptr) {
-        SetError(pErrorMessage, "GAXPL::GenerateIngressStatements received null loop");
+        SetError(pErrorMessage, "GAXPL::GenerateStatements received null loop");
         return false;
     }
 
     if (mSkeleton == nullptr) {
-        SetError(pErrorMessage, "GAXPL::GenerateIngressStatements received null skeleton");
+        SetError(pErrorMessage, "GAXPL::GenerateStatements received null skeleton");
         return false;
     }
 
@@ -637,63 +588,22 @@ bool GAXPL::GenerateIngressStatements(std::string *pErrorMessage) {
             }
             continue;
         }
-    }
-
-    mLoop->AddBody(&aStatements);
-    return true;
-}
-
-/*
-bool GAXPL::GenerateIngressStatements(std::string *pErrorMessage) {
-    if (mLoop == nullptr) {
-        SetError(pErrorMessage, "GAXPL::GenerateIngressStatements received null loop");
-        return false;
-    }
-
-    if (mSkeleton == nullptr) {
-        SetError(pErrorMessage, "GAXPL::GenerateIngressStatements received null skeleton");
-        return false;
-    }
-
-    std::vector<GStatement> aStatements;
-
-    for (const GAXSKStatement &aSkeletonStatement : mSkeleton->mStatements) {
-        if (aSkeletonStatement.mKind == GAXSKStatementKind::kPreviousAssign) {
-            const GSymbol aTarget = SymbolForVariable(aSkeletonStatement.mTarget,
-                                                      pErrorMessage);
-            const GSymbol aSource = SymbolForVariable(aSkeletonStatement.mSource,
-                                                      pErrorMessage);
-            if (aTarget.IsInvalid() || aSource.IsInvalid()) {
+        
+        if (aSkeletonStatement.mKind == GAXSKStatementKind::kScatterMix) {
+            if (!GenerateScatterMixStatement(aSkeletonStatement,
+                                             &aStatements,
+                                             pErrorMessage)) {
                 return false;
             }
-
-            aStatements.push_back(
-                GStatement::Assign(GTarget::Symbol(aTarget),
-                                   GExpr::Symbol(aSource))
-            );
             continue;
         }
-
-        if (aSkeletonStatement.mKind == GAXSKStatementKind::kContextWordAssign) {
-            const GSymbol aTarget = SymbolForVariable(aSkeletonStatement.mTarget,
-                                                      pErrorMessage);
-            if (aTarget.IsInvalid()) {
-                return false;
-            }
-
-            const GExpr aExpr = BuildContextExpr(aSkeletonStatement.mContextWord,
-                                                 pErrorMessage);
-            if (aExpr.IsInvalid()) {
-                return false;
-            }
-
-            aStatements.push_back(
-                GStatement::Assign(GTarget::Symbol(aTarget), aExpr)
-            );
-        }
+        
+        SetError(pErrorMessage,
+                 "GAXPL::GenerateStatements unsupported statement kind: " +
+                 std::to_string(static_cast<int>(aSkeletonStatement.mKind)));
+        return false;
     }
 
     mLoop->AddBody(&aStatements);
     return true;
 }
-*/

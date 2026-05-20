@@ -21,6 +21,7 @@ GExpr GQuickARX::Diffuse(const GExpr &pExpr,
     }
 }
 
+
 GExpr GQuickARX::RotL64(const GExpr &pExpr,
                         int pRotation) {
     return GExpr::RotL64(pExpr,

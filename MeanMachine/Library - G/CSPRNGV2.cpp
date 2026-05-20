@@ -143,7 +143,7 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         
     }
     
-    GAXPL aPlan;
+    GAXPL *aPlan = new GAXPL();
     
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
         
@@ -156,7 +156,7 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         aLoop.mLoopEndText = "S_BLOCK";
         aLoop.mLoopStep = 1;
         
-        if (!aPlan.Bake(&aSlice.mARXSkeleton,
+        if (!aPlan->Bake(&aSlice.mARXSkeleton,
                         aSlice.mSaltBag,
                         aSlice.mNonceBytes,
                         aSlice.mSources,
@@ -166,10 +166,13 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
                         pErrorMessage)) {
             const char *aErrorText = (pErrorMessage != nullptr) ? pErrorMessage->c_str() : "unknown error";
             printf("GAXPL::Bake Error => %s\n", aErrorText);
+            delete aPlan;
             return false;
         }
 
         pLoops->push_back(aLoop);
     }
+    
+    delete aPlan;
     return true;
 }

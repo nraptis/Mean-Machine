@@ -130,7 +130,7 @@ void TwistCryptoScoring::PrintBox_SBox(const char *pName, const std::uint8_t *pD
         GSeedRunKDF2 aKDF;
         std::string aError;
         GTwistExpander aExpander;
-        aExpander.mNameBase = "Argon";
+        aExpander.mNameBase = "Golden";
         
         if (!aKDF.Plan(&aError)) {
             printf("error on GSeedRunKDF2.Plan\n");

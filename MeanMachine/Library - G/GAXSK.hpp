@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 
+class GAXSKPool;
 
 enum class GAXSFormat : std::uint8_t {
     kInvalid = 0,
@@ -126,46 +127,46 @@ enum class GAXSKStatementKind : std::uint8_t {
 
 struct GAXSKInputSlot {
     GAXSKInputSlotKind mKind = GAXSKInputSlotKind::kInvalid;
-
     GAXSKSourceKind mSource = GAXSKSourceKind::kInvalid;
     GAXSKNonceByteKind mNonceByte = GAXSKNonceByteKind::kInvalid;
-
     int mOffset = 0;
     bool mReverse = false;
-
     int mRotation = -1;
 };
 
 struct GAXSKContextWordPlan {
     GAXSKVariable mTarget = GAXSKVariable::kInvalid;
-    
-    std::vector<GAXSKInputSlot> mXorSlots;
-    std::vector<GAXSKInputSlot> mAddXorSlots;
-
+    std::vector<GAXSKInputSlot> mSlots;
     bool mHasDomainMix = true;
     bool mIsIngress = false;
-
     GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
 };
 
+struct GAXSKVariableTerm {
+    GAXSKVariable mVariable = GAXSKVariable::kInvalid;
+    int mRotation = -1;
+};
+
+struct GAXSKScatterMixPlan {
+    GAXSKVariable mTarget = GAXSKVariable::kScatter;
+
+    std::vector<GAXSKVariableTerm> mXorTerms;
+    std::vector<GAXSKVariableTerm> mAddTerms;
+
+    bool mHasDomainMix = true;
+    GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
+};
+
+
 struct GAXSKStatement {
-    
-    // ingress =
-    //
-    // source a, reversed, offset 17, rotated 3
-    // source b, non-reversed, offset 11, rotated 11
-    // source c, non-reversed, offset 0, rotated 23
-    // nonce byte a, rotated 51
-    // nonce byte b, rotated 43
-    // nonce byte c, rotated 35
-    
     GAXSKStatementKind mKind = GAXSKStatementKind::kInvalid;
     GAXSKVariable mTarget = GAXSKVariable::kInvalid;
-
     GAXSKVariable mSource = GAXSKVariable::kInvalid;
-
     GAXSKContextWordPlan mContextWord;
+    GAXSKScatterMixPlan mScatterMix;
 };
+
+
 
 struct GAXSKSkeleton {
     std::vector<GAXSKStatement> mStatements;
@@ -173,42 +174,67 @@ struct GAXSKSkeleton {
 
 class GAXSK {
 public:
-    // new plan: we want to minimize the number of source reads.
-    // so, if there's 2, we should do 1 read ingress < source_a, and one cross < source_b
-    // if there's 1, we still have to do 2
-    // if there's 3, we add 1 more to ingress
-    // if there's 4, we do 2 and 2
-    // then that's it, if it's not [1, 2, 3, 4], it's an error
-    static bool                                 Bake(GAXSFormat pFormat,
-                                                     std::vector<int> pLaneCounts,
-                                                     bool pHasDomainMix,
-                                                     std::vector<GAXSKSkeleton> *pResult,
-                                                     std::string *pErrorMessage);
     
-    static GAXSKSourceKind                      SourceForIndex(int pIndex);
-    static GAXSKNonceByteKind                   NonceForIndex(int pIndex);
+    GAXSK(const GAXSK &) = delete;
+    GAXSK();
+    ~GAXSK();
     
-    static GAXSKInputSlot                       MakeSourceSlot(GAXSKSourceKind pSource,
-                                                               int pOffset,
-                                                               bool pReverse,
-                                                               int pRotation);
+    GAXSK &operator=(const GAXSK &) = delete;
     
-    static GAXSKInputSlot                       MakeNonceSlot(GAXSKNonceByteKind pNonceByte,
-                                                              int pRotation);
+    static bool                             RotationsClash_64_8(int pRotationA, int pRotationB);
+    static bool                             RotationsClash_64_8(std::vector<int> pRotations);
     
-    static GAXSKStatement                       MakePreviousAssignStatement();
     
-    static GAXSKStatement                       MakeContextWordStatement(GAXSKVariable pTarget,
-                                                                         GAXSKDiffuseKind pDiffuse,
-                                                                         bool pIsIngress,
-                                                                         bool pHasDomainMix);
+    void                                    Reset();
+    bool                                    Bake(GAXSFormat pFormat,
+                                                 std::vector<int> pLaneCounts,
+                                                 bool pHasDomainMix,
+                                                 std::vector<GAXSKSkeleton> *pResult,
+                                                 std::string *pErrorMessage);
     
-    static bool                                 BuildTinySkeletonForLaneCount(int pLaneCount,
-                                                                              GAXSKSkeleton *pSkeleton,
-                                                                              std::string *pErrorMessage);
+    bool                                    GetPassCount(int *pResult, std::string *pErrorMessage) const;
+    bool                                    GetOrbiterCount(int *pResult, std::string *pErrorMessage) const;
+    bool                                    GetWandererCount(int *pResult, std::string *pErrorMessage) const;
     
-    static void                                 SetError(std::string *pErrorMessage,
-                                                         const std::string &pMessage);
+    
+    bool                                    GetLaneCountForPass(int pPassIndex,
+                                                                int *pResult,
+                                                                std::string *pErrorMessage) const;
+    
+    GAXSKSourceKind                         SourceForIndex(int pIndex);
+    GAXSKNonceByteKind                      NonceForIndex(int pIndex);
+    
+    GAXSKInputSlot                          MakeSourceSlot(GAXSKSourceKind pSource,
+                                                           int pOffset,
+                                                           bool pReverse,
+                                                           int pRotation);
+    
+    GAXSKInputSlot                          MakeNonceSlot(GAXSKNonceByteKind pNonceByte,
+                                                          int pRotation);
+    
+    GAXSKStatement                          MakePreviousAssignStatement();
+    
+    GAXSKStatement                          MakeContextWordStatement(GAXSKVariable pTarget,
+                                                                     GAXSKDiffuseKind pDiffuse,
+                                                                     bool pIsIngress);
+    
+    bool                                    MakeScatterMixStatement(GAXSKStatement *pResult,
+                                                                    std::string *pErrorMessage);
+    
+    bool                                    BuildSkeletonForLaneCount(int pPassIndex,
+                                                                      int pLaneCount,
+                                                                      GAXSKSkeleton *pSkeleton,
+                                                                      std::string *pErrorMessage);
+    
+    bool                                    BuildTinySkeletonForLaneCount(int pLaneCount,
+                                                                          GAXSKSkeleton *pSkeleton,
+                                                                          std::string *pErrorMessage);
+    
+    GAXSFormat                              mFormat = GAXSFormat::kInvalid;
+    bool                                    mHasDomainMix = false;
+    std::vector<GAXSKPool *>                mPools;
+    std::vector<int>                        mLaneCounts;
+    
 };
 
 

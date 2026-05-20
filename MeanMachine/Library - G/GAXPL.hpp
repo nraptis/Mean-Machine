@@ -65,7 +65,7 @@ public:
     std::unordered_map<GAXSKVariable, GSymbol>          mWandererMap;
     
     
-    bool                                                GenerateIngressStatements(std::string *pErrorMessage);
+    bool                                                GenerateStatements(std::string *pErrorMessage);
     
     bool                                                GeneratePreviousAssignStatement(const GAXSKStatement &pStatement,
                                                                                         std::vector<GStatement> *pStatements,
@@ -74,6 +74,10 @@ public:
     bool                                                GenerateContextWordStatement(const GAXSKStatement &pStatement,
                                                                                      std::vector<GStatement> *pStatements,
                                                                                      std::string *pErrorMessage);
+    
+    bool                                                GenerateScatterMixStatement(const GAXSKStatement &pStatement,
+                                                                                    std::vector<GStatement> *pStatements,
+                                                                                    std::string *pErrorMessage);
     
     // store maps as member variables, so we do not need to pass them all over.
     
@@ -93,9 +97,9 @@ private:
     bool                                                BuildOrbiterMap(std::string *pErrorMessage);
     bool                                                BuildWandererMap(std::string *pErrorMessage);
     
-    GSymbol                                             SymbolForVariable(GAXSKVariable pVariable,
+    bool                                                SymbolForVariable(GAXSKVariable pVariable,
+                                                                          GSymbol *pResult,
                                                                           std::string *pErrorMessage) const;
-    
     
 };
 
