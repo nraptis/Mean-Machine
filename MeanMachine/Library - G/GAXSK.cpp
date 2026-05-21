@@ -6,8 +6,11 @@
 //
 
 #include "GAXSK.hpp"
+#include "GAXSKModel.hpp"
 #include "GAXSKPool.hpp"
-
+#include "Random.hpp"
+#include "TwistArray.hpp"
+#include "GCache.hpp"
 
 namespace {
 
@@ -15,6 +18,46 @@ void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
     if (pErrorMessage != nullptr) {
         *pErrorMessage = pMessage;
+    }
+}
+
+bool IsOrbiterVariable(GAXSKVariable pVariable) {
+    switch (pVariable) {
+        case GAXSKVariable::kOrbitA:
+        case GAXSKVariable::kOrbitB:
+        case GAXSKVariable::kOrbitC:
+        case GAXSKVariable::kOrbitD:
+        case GAXSKVariable::kOrbitE:
+        case GAXSKVariable::kOrbitF:
+        case GAXSKVariable::kOrbitG:
+        case GAXSKVariable::kOrbitH:
+        case GAXSKVariable::kOrbitI:
+        case GAXSKVariable::kOrbitJ:
+        case GAXSKVariable::kOrbitK:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+bool IsWandererVariable(GAXSKVariable pVariable) {
+    switch (pVariable) {
+        case GAXSKVariable::kWandererA:
+        case GAXSKVariable::kWandererB:
+        case GAXSKVariable::kWandererC:
+        case GAXSKVariable::kWandererD:
+        case GAXSKVariable::kWandererE:
+        case GAXSKVariable::kWandererF:
+        case GAXSKVariable::kWandererG:
+        case GAXSKVariable::kWandererH:
+        case GAXSKVariable::kWandererI:
+        case GAXSKVariable::kWandererJ:
+        case GAXSKVariable::kWandererK:
+            return true;
+
+        default:
+            return false;
     }
 }
 
@@ -29,36 +72,160 @@ GAXSK::~GAXSK() {
     Reset();
 }
 
+int GAXSK::GetIndexForOrbiter(GAXSKVariable pOrbiter) {
+    switch (pOrbiter) {
+        case GAXSKVariable::kOrbitA: return 0;
+        case GAXSKVariable::kOrbitB: return 1;
+        case GAXSKVariable::kOrbitC: return 2;
+        case GAXSKVariable::kOrbitD: return 3;
+        case GAXSKVariable::kOrbitE: return 4;
+        case GAXSKVariable::kOrbitF: return 5;
+        case GAXSKVariable::kOrbitG: return 6;
+        case GAXSKVariable::kOrbitH: return 7;
+        case GAXSKVariable::kOrbitI: return 8;
+        case GAXSKVariable::kOrbitJ: return 9;
+        case GAXSKVariable::kOrbitK: return 10;
+        default: return -1;
+    }
+}
+
+bool GAXSK::ChooseUpdateRotations(int pCount,
+                                  int pMinimumDistance,
+                                  std::vector<int> *pResult,
+                                  std::string *pErrorMessage) {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXSK::ChooseUpdateRotations received null result");
+        return false;
+    }
+
+    pResult->clear();
+
+    if (pCount <= 0) {
+        return true;
+    }
+
+    static const std::vector<int> kGAXSKOddRotations = {
+        3, 5, 11, 13, 19, 21, 23, 27, 29,
+        35, 37, 39, 41, 43, 47, 51, 53, 57
+    };
+
+    static const std::vector<int> kGAXSKEvenRotations = {
+        4, 6, 10, 12, 14, 18, 20, 22, 24, 26, 28, 30,
+        34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60
+    };
+
+    std::vector<int> aRotations;
+    aRotations.resize(static_cast<std::size_t>(pCount));
+
+    int aTryCount = 0;
+
+    do {
+        for (int aIndex = 0; aIndex < pCount; aIndex++) {
+            if ((aIndex % 4) == 0) {
+                aRotations[static_cast<std::size_t>(aIndex)] = Random::Choice(kGAXSKEvenRotations);
+            } else {
+                aRotations[static_cast<std::size_t>(aIndex)] = Random::Choice(kGAXSKOddRotations);
+            }
+        }
+
+        Random::Shuffle(&aRotations);
+
+        aTryCount++;
+        if (aTryCount > 10000) {
+            SetError(pErrorMessage, "GAXSK::ChooseUpdateRotations failed to choose rotations");
+            return false;
+        }
+
+    } while (RotationsClash_64_N(aRotations, pMinimumDistance));
+
+    *pResult = aRotations;
+    return true;
+}
+
+bool GAXSK::AreOrbitersAdjacent(GAXSKVariable pOrbiterA,
+                                GAXSKVariable pOrbiterB) {
+    const int aIndexA = GetIndexForOrbiter(pOrbiterA);
+    const int aIndexB = GetIndexForOrbiter(pOrbiterB);
+
+    if ((aIndexA < 0) || (aIndexB < 0)) {
+        return false;
+    }
+
+    if (aIndexA == aIndexB) {
+        return true;
+    }
+
+    int aDelta = aIndexA - aIndexB;
+    if (aDelta < 0) {
+        aDelta = -aDelta;
+    }
+
+    return (aDelta == 1);
+}
+
+bool GAXSK::RotationsClash_64_2(int pRotationA, int pRotationB) {
+    return RotationsClash_64_N(pRotationA, pRotationB, 2);
+}
+
+bool GAXSK::RotationsClash_64_2(const std::vector<int> &pRotations) {
+    return RotationsClash_64_N(pRotations, 2);
+}
+
 bool GAXSK::RotationsClash_64_8(int pRotationA, int pRotationB) {
+    return RotationsClash_64_N(pRotationA, pRotationB, 8);
+}
+
+bool GAXSK::RotationsClash_64_8(const std::vector<int> &pRotations) {
+    return RotationsClash_64_N(pRotations, 8);
+}
+
+bool GAXSK::RotationsClash_64_12(int pRotationA, int pRotationB) {
+    return RotationsClash_64_N(pRotationA, pRotationB, 12);
+}
+
+bool GAXSK::RotationsClash_64_12(const std::vector<int> &pRotations) {
+    return RotationsClash_64_N(pRotations, 12);
+}
+
+bool GAXSK::RotationsClash_64_N(int pRotationA,
+                                int pRotationB,
+                                int pMinimumDistance) {
     if ((pRotationA < 0) || (pRotationA >= 64)) {
         return true;
     }
-    
+
     if ((pRotationB < 0) || (pRotationB >= 64)) {
         return true;
     }
-    
+
+    if (pMinimumDistance < 0) {
+        return true;
+    }
+
     int aDelta = pRotationA - pRotationB;
     if (aDelta < 0) {
         aDelta = -aDelta;
     }
-    
+
     if (aDelta > 32) {
         aDelta = 64 - aDelta;
     }
-    
-    return (aDelta < 8);
+
+    return (aDelta < pMinimumDistance);
 }
 
-bool GAXSK::RotationsClash_64_8(std::vector<int> pRotations) {
-    for (int aIndexA = 0; aIndexA < pRotations.size(); aIndexA++) {
-        for (int aIndexB = aIndexA + 1; aIndexB < pRotations.size(); aIndexB++) {
-            if (RotationsClash_64_8(pRotations[aIndexA], pRotations[aIndexB])) {
+bool GAXSK::RotationsClash_64_N(const std::vector<int> &pRotations,
+                                int pMinimumDistance) {
+    for (std::size_t aIndexA = 0; aIndexA < pRotations.size(); aIndexA++) {
+        for (std::size_t aIndexB = aIndexA + 1U; aIndexB < pRotations.size(); aIndexB++) {
+            if (RotationsClash_64_N(pRotations[aIndexA],
+                                    pRotations[aIndexB],
+                                    pMinimumDistance)) {
                 return true;
             }
         }
     }
-    
+
     return false;
 }
 
@@ -105,6 +272,9 @@ bool GAXSK::GetPassCount(int *pResult, std::string *pErrorMessage) const {
     *pResult = 0;
 
     switch (mFormat) {
+        case GAXSFormat::kFourFour:
+            *pResult = 4;
+            break;
         case GAXSFormat::kSixSix:
             *pResult = 4;
             break;
@@ -132,6 +302,9 @@ bool GAXSK::GetOrbiterCount(int *pResult,
     *pResult = 0;
 
     switch (mFormat) {
+        case GAXSFormat::kFourFour:
+            *pResult = 4;
+            break;
         case GAXSFormat::kSixSix:
             *pResult = 6;
             break;
@@ -159,6 +332,9 @@ bool GAXSK::GetWandererCount(int *pResult,
     *pResult = 0;
 
     switch (mFormat) {
+        case GAXSFormat::kFourFour:
+            *pResult = 4;
+            break;
         case GAXSFormat::kSixSix:
             *pResult = 6;
             break;
@@ -265,104 +441,126 @@ bool GAXSK::MakeScatterMixStatement(GAXSKStatement *pResult,
         return false;
     }
 
-    GAXSKStatement aStatement;
-    aStatement.mKind = GAXSKStatementKind::kScatterMix;
-    aStatement.mTarget = GAXSKVariable::kScatter;
+    pResult->mKind = GAXSKStatementKind::kScatterMix;
+    pResult->mTarget = GAXSKVariable::kScatter;
 
-    aStatement.mScatterMix.mTarget = GAXSKVariable::kScatter;
-    aStatement.mScatterMix.mHasDomainMix = mHasDomainMix;
-    aStatement.mScatterMix.mDiffuse = GAXSKDiffuseKind::kDiffuseB;
+    GAXSKScatterMixPlan &aPlan = pResult->mScatterMix;
 
-    // Tiny first version.
-    aStatement.mScatterMix.mXorTerms.push_back({ GAXSKVariable::kIngress, 17 });
-    aStatement.mScatterMix.mXorTerms.push_back({ GAXSKVariable::kCross, 41 });
+    aPlan.mTarget = GAXSKVariable::kScatter;
+    aPlan.mHasDomainMix = mHasDomainMix;
 
-    aStatement.mScatterMix.mAddTerms.push_back({ GAXSKVariable::kPrevious, 29 });
-    aStatement.mScatterMix.mAddTerms.push_back({ GAXSKVariable::kCarry, 53 });
+    std::vector<GAXSKDiffuseKind> aDiffuseList = {
+        GAXSKDiffuseKind::kDiffuseA,
+        GAXSKDiffuseKind::kDiffuseB,
+        GAXSKDiffuseKind::kDiffuseC
+    };
+    aPlan.mDiffuse = Random::Choice(aDiffuseList);
 
-    *pResult = aStatement;
+    // Legal base layout:
+    //
+    //   pair A: ingress with carry
+    //   pair B: previous with cross
+    //
+    // This avoids ingress with previous.
+    aPlan.mLeftPair.mLeft.mVariable = GAXSKVariable::kIngress;
+    aPlan.mLeftPair.mRight.mVariable = GAXSKVariable::kCarry;
+
+    aPlan.mRightPair.mLeft.mVariable = GAXSKVariable::kPrevious;
+    aPlan.mRightPair.mRight.mVariable = GAXSKVariable::kCross;
+
+    if (Random::Bool()) { std::swap(aPlan.mLeftPair.mLeft, aPlan.mRightPair.mLeft); }
+    if (Random::Bool()) { std::swap(aPlan.mLeftPair, aPlan.mRightPair); }
+    if (Random::Bool()) { std::swap(aPlan.mLeftPair.mLeft, aPlan.mLeftPair.mRight); }
+    if (Random::Bool()) { std::swap(aPlan.mRightPair.mLeft, aPlan.mRightPair.mRight); }
+    
+    static const std::vector<int> kGAXSKOddRotations = { 3, 5, 11, 13, 19, 21, 23, 27, 29, 35, 37, 39, 41, 43, 47, 51, 53, 57 };
+    static const std::vector<int> kGAXSKEvenRotations = { 4, 6, 10, 12, 14, 18, 20, 22, 24, 26, 28, 30, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60 };
+
+    int aWhichEven = Random::Get(4);
+
+    std::vector<int> aRotations;
+    aRotations.resize(4);
+
+    int aTryCount = 0;
+
+    do {
+        for (std::size_t aIndex = 0; aIndex < aRotations.size(); aIndex++) {
+            if (static_cast<int>(aIndex) == aWhichEven) {
+                aRotations[aIndex] = Random::Choice(kGAXSKEvenRotations);
+            } else {
+                aRotations[aIndex] = Random::Choice(kGAXSKOddRotations);
+            }
+        }
+
+        aTryCount++;
+        if (aTryCount > 10000) {
+            SetError(pErrorMessage, "GAXSK::MakeScatterMixStatement failed to choose scatter rotations");
+            return false;
+        }
+    } while (RotationsClash_64_12(aRotations));
+    
+    aPlan.mLeftPair.mLeft.mRotation = aRotations[0];
+    aPlan.mLeftPair.mRight.mRotation = aRotations[1];
+    aPlan.mRightPair.mLeft.mRotation = aRotations[2];
+    aPlan.mRightPair.mRight.mRotation = aRotations[3];
+    
+    static const std::vector<GAXSKScatterMixOp> kScatterMixOps = {
+        GAXSKScatterMixOp::kAdd,
+        GAXSKScatterMixOp::kXor
+    };
+
+    std::vector<GAXSKScatterMixOp> aOps;
+    aOps.resize(3);
+
+    do {
+        aOps[0] = Random::Choice(kScatterMixOps);
+        aOps[1] = Random::Choice(kScatterMixOps);
+        aOps[2] = Random::Choice(kScatterMixOps);
+    } while (TwistArray::AllEqual(&aOps));
+
+    aPlan.mLeftPair.mOp = aOps[0];
+    aPlan.mRightPair.mOp = aOps[1];
+    aPlan.mOuterOp = aOps[2];
+
     return true;
 }
 
-bool GAXSK::BuildTinySkeletonForLaneCount(int pLaneCount,
-                                          GAXSKSkeleton *pSkeleton,
-                                          std::string *pErrorMessage) {
-    if (pSkeleton == nullptr) {
-        SetError(pErrorMessage, "GAXSK::Bake received null skeleton");
+bool GAXSK::InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                                      std::string *pErrorMessage) {
+    if (pSlots == nullptr) {
+        SetError(pErrorMessage, "GAXSK::InfuseUpdateRotationSlots received null slots");
         return false;
     }
 
-    if (pLaneCount < 1 || pLaneCount > 4) {
-        SetError(pErrorMessage, "GAXSK::Bake lane count must be 1, 2, 3, or 4");
+    int aRotationCount = static_cast<int>(pSlots->size());
+    if (aRotationCount <= 0) {
+        return true;
+    }
+
+    int aMinimumDistance = 12;
+    if (aRotationCount > 10) {
+        aMinimumDistance = 2;
+    } else if (aRotationCount > 6) {
+        aMinimumDistance = 8;
+    }
+
+    std::vector<int> aRotations;
+    if (!ChooseUpdateRotations(aRotationCount,
+                               aMinimumDistance,
+                               &aRotations,
+                               pErrorMessage)) {
         return false;
     }
 
-    pSkeleton->mStatements.clear();
+    for (int aIndex = 0; aIndex < aRotationCount; aIndex++) {
+        GAXSKUpdateRotationSlot &aSlot = (*pSlots)[static_cast<std::size_t>(aIndex)];
 
-    pSkeleton->mStatements.push_back(MakePreviousAssignStatement());
-
-    GAXSKStatement aIngress = MakeContextWordStatement(GAXSKVariable::kIngress, GAXSKDiffuseKind::kDiffuseA, true);
-    GAXSKStatement aCross = MakeContextWordStatement(GAXSKVariable::kCross, GAXSKDiffuseKind::kDiffuseC, false);
-    
-    // Always include nonce pressure. This keeps the tiny skeleton stable.
-    aIngress.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceA, 7));
-    aIngress.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceB, 19));
-    aIngress.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceC, 37));
-    aIngress.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceD, 53));
-
-    aCross.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceE, 11));
-    aCross.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceF, 23));
-    aCross.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceG, 41));
-    aCross.mContextWord.mSlots.push_back(MakeNonceSlot(GAXSKNonceByteKind::kNonceH, 59));
-
-    if (pLaneCount == 1) {
-        aIngress.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceA, 0, false, 13)
-        );
-
-        aCross.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceA, 17, true, 43)
-        );
-
-    } else if (pLaneCount == 2) {
-        aIngress.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceA, 0, false, 13)
-        );
-
-        aCross.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceB, 17, true, 43)
-        );
-
-    } else if (pLaneCount == 3) {
-        aIngress.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceA, 0, false, 13)
-        );
-        aIngress.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceB, 11, false, 29)
-        );
-
-        aCross.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceC, 17, true, 43)
-        );
-
-    } else {
-        aIngress.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceA, 0, false, 13)
-        );
-        aIngress.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceB, 11, false, 29)
-        );
-
-        aCross.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceC, 17, true, 43)
-        );
-        aCross.mContextWord.mSlots.push_back(
-            MakeSourceSlot(GAXSKSourceKind::kSourceD, 5, true, 61)
-        );
+        if (aSlot.mTerm != nullptr) {
+            aSlot.mTerm->mRotation = aRotations[static_cast<std::size_t>(aIndex)];
+        } else if (aSlot.mStatementRotation != nullptr) {
+            *(aSlot.mStatementRotation) = aRotations[static_cast<std::size_t>(aIndex)];
+        }
     }
-
-    pSkeleton->mStatements.push_back(aIngress);
-    pSkeleton->mStatements.push_back(aCross);
 
     return true;
 }
@@ -375,61 +573,62 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
         SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount received null skeleton");
         return false;
     }
-
+    
     if (pPassIndex < 0) {
         SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount received negative pass index");
         return false;
     }
-
+    
     if (static_cast<std::size_t>(pPassIndex) >= mPools.size()) {
         SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount pass index exceeded pool count");
         return false;
     }
-
+    
     if ((pLaneCount < 1) || (pLaneCount > 4)) {
         SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount lane count must be 1, 2, 3, or 4");
         return false;
     }
-
+    
     GAXSKPool *aPool = mPools[static_cast<std::size_t>(pPassIndex)];
     if (aPool == nullptr) {
         SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount found null pool");
         return false;
     }
-
+    
     GAXSKInputSlotOrdering aOrdering;
     if (!aPool->GenerateInputSlotOrdering(&aOrdering, pErrorMessage)) {
         return false;
     }
-
+    
     if (aOrdering.mIngress.empty()) {
         SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount received empty ingress ordering");
         return false;
     }
-
+    
     if (aOrdering.mCross.empty()) {
         SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount received empty cross ordering");
         return false;
     }
-
+    
     pSkeleton->mStatements.clear();
-
+    
     pSkeleton->mStatements.push_back(MakePreviousAssignStatement());
-
+    
+    std::vector<GAXSKDiffuseKind> aDiffuseList = { GAXSKDiffuseKind::kDiffuseA, GAXSKDiffuseKind::kDiffuseB, GAXSKDiffuseKind::kDiffuseC };
+    
     GAXSKStatement aIngress = MakeContextWordStatement(GAXSKVariable::kIngress,
-                                                       GAXSKDiffuseKind::kDiffuseA,
+                                                       Random::Choice(aDiffuseList),
                                                        true);
-
+    
     GAXSKStatement aCross = MakeContextWordStatement(GAXSKVariable::kCross,
-                                                     GAXSKDiffuseKind::kDiffuseC,
+                                                     Random::Choice(aDiffuseList),
                                                      false);
-
+    
     aIngress.mContextWord.mSlots = aOrdering.mIngress;
     aCross.mContextWord.mSlots = aOrdering.mCross;
-
+    
     pSkeleton->mStatements.push_back(aIngress);
     pSkeleton->mStatements.push_back(aCross);
-    
     
     GAXSKStatement aScatter;
     if (!MakeScatterMixStatement(&aScatter, pErrorMessage)) {
@@ -438,6 +637,194 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
     pSkeleton->mStatements.push_back(aScatter);
     
     
+    GAXSKModel aModel = GAXSKModel::MakeOrbiterPlan4x4();
+
+    std::vector<GAXSKStatement> aUpdateStatements;
+    aUpdateStatements.reserve(aModel.mStatements.size());
+
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterAssignContextSlots;
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterAssignCarrySlots;
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterUpdateContextSlots;
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterHotMulSlots;
+
+    std::vector<GAXSKUpdateRotationSlot> aWandererContextSlots;
+    std::vector<GAXSKUpdateRotationSlot> aWandererOrbiterSlots;
+    std::vector<GAXSKUpdateRotationSlot> aWandererCarrySlots;
+
+    auto AddTermSlot = [](std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                          GAXSKUpdateTerm *pTerm) {
+        if ((pSlots == nullptr) || (pTerm == nullptr)) {
+            return;
+        }
+
+        GAXSKUpdateRotationSlot aSlot;
+        aSlot.mTerm = pTerm;
+        pSlots->push_back(aSlot);
+    };
+
+    auto AddStatementSlot = [](std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                               int *pRotation) {
+        if ((pSlots == nullptr) || (pRotation == nullptr)) {
+            return;
+        }
+
+        GAXSKUpdateRotationSlot aSlot;
+        aSlot.mStatementRotation = pRotation;
+        pSlots->push_back(aSlot);
+    };
+
+    auto IsContextVariable = [](GAXSKVariable pVariable) -> bool {
+        switch (pVariable) {
+            case GAXSKVariable::kIngress:
+            case GAXSKVariable::kScatter:
+            case GAXSKVariable::kPrevious:
+            case GAXSKVariable::kCross:
+                return true;
+
+            default:
+                return false;
+        }
+    };
+
+    for (const GAXSKModelStatement &aModelStatement : aModel.mStatements) {
+        GAXSKStatement aUpdateStatement;
+
+        if (!MakeModelUpdateStatement(aModelStatement,
+                                      &aUpdateStatement,
+                                      pErrorMessage)) {
+            return false;
+        }
+
+        aUpdateStatements.push_back(aUpdateStatement);
+    }
+
+    for (GAXSKStatement &aStatement : aUpdateStatements) {
+        const bool aIsOrbiterAssign = (aStatement.mKind == GAXSKStatementKind::kOrbiterAssign);
+
+        const bool aIsOrbiterUpdate = (aStatement.mKind == GAXSKStatementKind::kOrbiterAdd ||
+                                       aStatement.mKind == GAXSKStatementKind::kOrbiterXor);
+
+        const bool aIsOrbiterMul = (aStatement.mKind == GAXSKStatementKind::kOrbiterMulRotate);
+
+        const bool aIsWandererUpdate = (aStatement.mKind == GAXSKStatementKind::kWandererAdd ||
+                                        aStatement.mKind == GAXSKStatementKind::kWandererXor);
+
+        if (aIsOrbiterMul && aStatement.mUpdate.mHasRotation) {
+            AddStatementSlot(&aOrbiterHotMulSlots, &aStatement.mUpdate.mRotation);
+        }
+
+        for (GAXSKUpdateTerm &aTerm : aStatement.mUpdate.mTerms) {
+            if (!aTerm.mHasRotation) {
+                continue;
+            }
+
+            if (aIsOrbiterAssign && IsContextVariable(aTerm.mVariable)) {
+                AddTermSlot(&aOrbiterAssignContextSlots, &aTerm);
+            } else if (aIsOrbiterAssign && aTerm.mVariable == GAXSKVariable::kCarry) {
+                AddTermSlot(&aOrbiterAssignCarrySlots, &aTerm);
+            } else if (aIsOrbiterUpdate && IsContextVariable(aTerm.mVariable)) {
+                AddTermSlot(&aOrbiterUpdateContextSlots, &aTerm);
+            } else if (aIsWandererUpdate && IsContextVariable(aTerm.mVariable)) {
+                AddTermSlot(&aWandererContextSlots, &aTerm);
+            } else if (aIsWandererUpdate && aTerm.mVariable == GAXSKVariable::kCarry) {
+                AddTermSlot(&aWandererCarrySlots, &aTerm);
+            } else if (aIsWandererUpdate && IsOrbiterVariable(aTerm.mVariable)) {
+                AddTermSlot(&aWandererOrbiterSlots, &aTerm);
+            }
+        }
+    }
+
+    if (!InfuseUpdateRotationSlots(&aOrbiterAssignContextSlots, pErrorMessage)) { return false; }
+    if (!InfuseUpdateRotationSlots(&aOrbiterAssignCarrySlots, pErrorMessage)) { return false; }
+    if (!InfuseUpdateRotationSlots(&aOrbiterUpdateContextSlots, pErrorMessage)) { return false; }
+    if (!InfuseUpdateRotationSlots(&aOrbiterHotMulSlots, pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aWandererContextSlots, pErrorMessage)) { return false; }
+    if (!InfuseUpdateRotationSlots(&aWandererOrbiterSlots, pErrorMessage)) { return false; }
+    if (!InfuseUpdateRotationSlots(&aWandererCarrySlots, pErrorMessage)) { return false; }
+
+    for (const GAXSKStatement &aStatement : aUpdateStatements) {
+        pSkeleton->mStatements.push_back(aStatement);
+    }
+
+    
+    return true;
+}
+
+bool GAXSK::MakeModelUpdateStatement(const GAXSKModelStatement &pModelStatement,
+                                     GAXSKStatement *pResult,
+                                     std::string *pErrorMessage) {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXSK::MakeModelUpdateStatement received null result");
+        return false;
+    }
+
+    if (pModelStatement.mTarget == GAXSKVariable::kInvalid) {
+        SetError(pErrorMessage, "GAXSK::MakeModelUpdateStatement received invalid target");
+        return false;
+    }
+
+    GAXSKStatement aStatement;
+    aStatement.mTarget = pModelStatement.mTarget;
+    aStatement.mUpdate.mTarget = pModelStatement.mTarget;
+
+    const bool aIsOrbiter = IsOrbiterVariable(pModelStatement.mTarget);
+    const bool aIsWanderer = IsWandererVariable(pModelStatement.mTarget);
+
+    if (!aIsOrbiter && !aIsWanderer) {
+        SetError(pErrorMessage, "GAXSK::MakeModelUpdateStatement target is not orbiter or wanderer");
+        return false;
+    }
+
+    switch (pModelStatement.mOperation) {
+        case GAXSKModelOperation::kSet:
+            if (!aIsOrbiter) {
+                SetError(pErrorMessage, "GAXSK::MakeModelUpdateStatement kSet currently only supports orbiters");
+                return false;
+            }
+            aStatement.mKind = GAXSKStatementKind::kOrbiterAssign;
+            break;
+
+        case GAXSKModelOperation::kAdd:
+            aStatement.mKind = aIsOrbiter
+                ? GAXSKStatementKind::kOrbiterAdd
+                : GAXSKStatementKind::kWandererAdd;
+            break;
+
+        case GAXSKModelOperation::kXor:
+            aStatement.mKind = aIsOrbiter
+                ? GAXSKStatementKind::kOrbiterXor
+                : GAXSKStatementKind::kWandererXor;
+            break;
+
+        case GAXSKModelOperation::kMulRotate:
+            aStatement.mKind = aIsOrbiter
+                ? GAXSKStatementKind::kOrbiterMulRotate
+                : GAXSKStatementKind::kWandererMulRotate;
+            break;
+
+        default:
+            SetError(pErrorMessage, "GAXSK::MakeModelUpdateStatement received invalid operation");
+            return false;
+    }
+
+    for (const GAXSKModelTerm &aModelTerm : pModelStatement.mTerms) {
+        GAXSKUpdateTerm aTerm;
+
+        aTerm.mKind = aModelTerm.mKind;
+        aTerm.mVariable = aModelTerm.mVariable;
+        aTerm.mSaltSlot = aModelTerm.mSaltSlot;
+        aTerm.mNonceSlot = aModelTerm.mNonceSlot;
+        aTerm.mHotIndex = aModelTerm.mHotIndex;
+        aTerm.mHasRotation = aModelTerm.mNeedsRotation;
+        aTerm.mRotation = -1;
+        aStatement.mUpdate.mTerms.push_back(aTerm);
+    }
+
+    aStatement.mUpdate.mHasRotation = pModelStatement.mNeedsRotation;
+    aStatement.mUpdate.mRotation = -1;
+
+    *pResult = aStatement;
     return true;
 }
 

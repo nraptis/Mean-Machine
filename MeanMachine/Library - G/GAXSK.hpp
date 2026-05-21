@@ -13,9 +13,32 @@
 #include <string>
 
 class GAXSKPool;
+struct GAXSKModelStatement;
+
+
+enum class GAXSKModelOperation: std::uint8_t {
+    kInvalid = 0,
+    kSet,
+    kAdd,
+    kXor,
+    kMulRotate
+};
+
+enum class GAXSKModelTermKind: std::uint8_t {
+    kInvalid = 0,
+
+    kVariable,
+
+    kMandatorySalt,
+    kOptionalSalt,
+    kOptionalNonce,
+    kHotAdd,
+    kHotMul
+};
 
 enum class GAXSFormat : std::uint8_t {
     kInvalid = 0,
+    kFourFour,
     kSixSix
 };
 
@@ -147,16 +170,64 @@ struct GAXSKVariableTerm {
     int mRotation = -1;
 };
 
+enum class GAXSKScatterMixOp : std::uint8_t {
+    kInvalid = 0,
+    kAdd = 1,
+    kXor = 2
+};
+
+struct GAXSKScatterMixPair {
+    GAXSKVariableTerm mLeft;
+    GAXSKVariableTerm mRight;
+    GAXSKScatterMixOp mOp = GAXSKScatterMixOp::kInvalid;
+};
+
 struct GAXSKScatterMixPlan {
+    
+    /*
+    (a + b) ^ (c + d)
+    (a ^ b) + (c ^ d)
+    (a + b) + (c ^ d)
+    (a ^ b) ^ (c + d)
+    (a + b) ^ (c ^ d)
+    (a ^ b) + (c + d)
+    */
+    
     GAXSKVariable mTarget = GAXSKVariable::kScatter;
 
-    std::vector<GAXSKVariableTerm> mXorTerms;
-    std::vector<GAXSKVariableTerm> mAddTerms;
+    GAXSKScatterMixPair mLeftPair;
+    GAXSKScatterMixPair mRightPair;
+    GAXSKScatterMixOp mOuterOp = GAXSKScatterMixOp::kInvalid;
 
     bool mHasDomainMix = true;
     GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
 };
 
+struct GAXSKUpdateTerm {
+    GAXSKModelTermKind mKind = GAXSKModelTermKind::kInvalid;
+
+    GAXSKVariable mVariable = GAXSKVariable::kInvalid;
+
+    int mSaltSlot = -1;
+    int mNonceSlot = -1;
+    int mHotIndex = -1;
+
+    bool mHasRotation = false;
+    int mRotation = 32;
+};
+
+struct GAXSKUpdateRotationSlot {
+    GAXSKUpdateTerm *mTerm = nullptr;
+    int *mStatementRotation = nullptr;
+};
+
+struct GAXSKUpdatePlan {
+    GAXSKVariable mTarget = GAXSKVariable::kInvalid;
+    std::vector<GAXSKUpdateTerm> mTerms;
+
+    bool mHasRotation = false;
+    int mRotation = 32;
+};
 
 struct GAXSKStatement {
     GAXSKStatementKind mKind = GAXSKStatementKind::kInvalid;
@@ -164,6 +235,7 @@ struct GAXSKStatement {
     GAXSKVariable mSource = GAXSKVariable::kInvalid;
     GAXSKContextWordPlan mContextWord;
     GAXSKScatterMixPlan mScatterMix;
+    GAXSKUpdatePlan mUpdate;
 };
 
 
@@ -181,8 +253,26 @@ public:
     
     GAXSK &operator=(const GAXSK &) = delete;
     
+    static bool                             RotationsClash_64_N(int pRotationA,
+                                                                int pRotationB,
+                                                                int pMinimumDistance);
+    static bool                             RotationsClash_64_N(const std::vector<int> &pRotations,
+                                                                int pMinimumDistance);
+    
+    static bool                             RotationsClash_64_2(int pRotationA, int pRotationB);
+    static bool                             RotationsClash_64_2(const std::vector<int> &pRotations);
+    
     static bool                             RotationsClash_64_8(int pRotationA, int pRotationB);
-    static bool                             RotationsClash_64_8(std::vector<int> pRotations);
+    static bool                             RotationsClash_64_8(const std::vector<int> &pRotations);
+    
+    static bool                             RotationsClash_64_12(int pRotationA, int pRotationB);
+    static bool                             RotationsClash_64_12(const std::vector<int> &pRotations);
+    
+    
+    static bool                             ChooseUpdateRotations(int pCount,
+                                                                  int pMinimumDistance,
+                                                                  std::vector<int> *pResult,
+                                                                  std::string *pErrorMessage);
     
     
     void                                    Reset();
@@ -195,6 +285,10 @@ public:
     bool                                    GetPassCount(int *pResult, std::string *pErrorMessage) const;
     bool                                    GetOrbiterCount(int *pResult, std::string *pErrorMessage) const;
     bool                                    GetWandererCount(int *pResult, std::string *pErrorMessage) const;
+    
+    static int                              GetIndexForOrbiter(GAXSKVariable pOrbiter);
+    static bool                             AreOrbitersAdjacent(GAXSKVariable pOrbiterA,
+                                                                GAXSKVariable pOrbiterB);
     
     
     bool                                    GetLaneCountForPass(int pPassIndex,
@@ -221,14 +315,19 @@ public:
     bool                                    MakeScatterMixStatement(GAXSKStatement *pResult,
                                                                     std::string *pErrorMessage);
     
+    bool                                    MakeModelUpdateStatement(const GAXSKModelStatement &pModelStatement,
+                                                                     GAXSKStatement *pResult,
+                                                                     std::string *pErrorMessage);
+    
+    
+    bool                                    InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                                                                      std::string *pErrorMessage);
+    
+    
     bool                                    BuildSkeletonForLaneCount(int pPassIndex,
                                                                       int pLaneCount,
                                                                       GAXSKSkeleton *pSkeleton,
                                                                       std::string *pErrorMessage);
-    
-    bool                                    BuildTinySkeletonForLaneCount(int pLaneCount,
-                                                                          GAXSKSkeleton *pSkeleton,
-                                                                          std::string *pErrorMessage);
     
     GAXSFormat                              mFormat = GAXSFormat::kInvalid;
     bool                                    mHasDomainMix = false;
@@ -236,6 +335,5 @@ public:
     std::vector<int>                        mLaneCounts;
     
 };
-
 
 #endif /* GAXSK_hpp */

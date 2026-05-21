@@ -17,6 +17,48 @@ class TwistArray {
 public:
     
     template <typename T>
+    static bool AllEqual(const std::vector<T>* pItems) {
+        if (pItems == nullptr) {
+            return false;
+        }
+
+        if (pItems->size() <= 1U) {
+            return true;
+        }
+
+        const T& aFirst = (*pItems)[0];
+
+        for (std::size_t i = 1U; i < pItems->size(); i++) {
+            if ((*pItems)[i] != aFirst) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
+    template <typename T>
+    static bool AnyEqual(const std::vector<T>* pItems) {
+        if (pItems == nullptr) {
+            return false;
+        }
+
+        if (pItems->size() <= 1U) {
+            return false;
+        }
+
+        for (std::size_t aIndexA = 0U; aIndexA < pItems->size(); aIndexA++) {
+            for (std::size_t aIndexB = aIndexA + 1U; aIndexB < pItems->size(); aIndexB++) {
+                if ((*pItems)[aIndexA] == (*pItems)[aIndexB]) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+    
+    template <typename T>
     static void Append(std::vector<T>* pItems, const std::vector<T>* pItemsToAppend) {
         
         if (pItems == nullptr) {

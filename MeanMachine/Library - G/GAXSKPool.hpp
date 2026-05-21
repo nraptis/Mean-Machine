@@ -28,9 +28,7 @@ public:
     void                                    SetWandererCount(int pWandererCount);
     bool                                    FinalizeCounts(std::string *pErrorMessage);
     
-    
     bool                                    GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult, std::string *pErrorMessage);
-    
     
     std::vector<GAXSKNonceByteKind>         mNoncesIngress;
     std::vector<GAXSKSourceKind>            mSourcesIngress;

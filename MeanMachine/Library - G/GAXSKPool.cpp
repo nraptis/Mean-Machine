@@ -8,7 +8,7 @@
 #include "GAXSKPool.hpp"
 #include "Random.hpp"
 #include "TwistWorkSpace.hpp"
-
+#include "TwistArray.hpp"
 
 namespace {
 
@@ -65,9 +65,9 @@ bool GAXSKPool::FinalizeCounts(std::string *pErrorMessage) {
     aNonces.push_back(GAXSKNonceByteKind::kNonceG);
     aNonces.push_back(GAXSKNonceByteKind::kNonceH);
 
-    const int aMinNoncesIngress = 1;
+    const int aMinNoncesIngress = 2;
     const int aMaxNoncesIngress = 3;
-    const int aMinNoncesCross = 1;
+    const int aMinNoncesCross = 2;
     const int aMaxNoncesCross = 3;
     const int aMinNoncesOrbiterUpdate = 1;
     int aMaxNoncesOrbiterUpdate = mOrbiterCount;
@@ -118,14 +118,23 @@ bool GAXSKPool::FinalizeCounts(std::string *pErrorMessage) {
     
     if (mSourceCount == 1) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
+        mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
+        mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
         mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
     } else if (mSourceCount == 2) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
+        mSourcesIngress.push_back(GAXSKSourceKind::kSourceB);
         mSourcesCross.push_back(GAXSKSourceKind::kSourceB);
+        mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
     } else if (mSourceCount == 3) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceB);
         mSourcesCross.push_back(GAXSKSourceKind::kSourceC);
+        if (Random::Bool()) {
+            mSourcesCross.push_back(GAXSKSourceKind::kSourceB);
+        } else {
+            mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
+        }
     } else if (mSourceCount == 4) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceB);
@@ -139,143 +148,224 @@ bool GAXSKPool::FinalizeCounts(std::string *pErrorMessage) {
     return true;
 }
 
-bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult, std::string *pErrorMessage) {
-    
+bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
+                                          std::string *pErrorMessage) {
     if (pResult == nullptr) {
         SetError(pErrorMessage, "GAXSKPool::GenerateInputSlotOrdering received null result");
         return false;
     }
-    
+
     pResult->mIngress.clear();
     pResult->mCross.clear();
-    
+
     std::vector<GAXSKInputSlot> aIngress;
     std::vector<GAXSKInputSlot> aCross;
-    
-    for (int i = 0; i < mNoncesIngress.size(); i++) {
+
+    for (std::size_t i = 0U; i < mNoncesIngress.size(); i++) {
         GAXSKInputSlot aSlot;
         aSlot.mKind = GAXSKInputSlotKind::kNonceByte;
         aSlot.mSource = GAXSKSourceKind::kInvalid;
         aSlot.mNonceByte = mNoncesIngress[i];
+        aSlot.mRotation = 0;
+        aSlot.mReverse = false;
+        aSlot.mOffset = 0;
         aIngress.push_back(aSlot);
     }
-    
-    for (int i = 0; i < mSourcesIngress.size(); i++) {
+
+    for (std::size_t i = 0U; i < mSourcesIngress.size(); i++) {
         GAXSKInputSlot aSlot;
         aSlot.mKind = GAXSKInputSlotKind::kSource;
         aSlot.mSource = mSourcesIngress[i];
         aSlot.mNonceByte = GAXSKNonceByteKind::kInvalid;
+        aSlot.mRotation = 0;
+        aSlot.mReverse = false;
+        aSlot.mOffset = 0;
         aIngress.push_back(aSlot);
     }
-    
-    for (int i = 0; i < mNoncesCross.size(); i++) {
+
+    for (std::size_t i = 0U; i < mNoncesCross.size(); i++) {
         GAXSKInputSlot aSlot;
         aSlot.mKind = GAXSKInputSlotKind::kNonceByte;
         aSlot.mSource = GAXSKSourceKind::kInvalid;
         aSlot.mNonceByte = mNoncesCross[i];
+        aSlot.mRotation = 0;
+        aSlot.mReverse = false;
+        aSlot.mOffset = 0;
         aCross.push_back(aSlot);
     }
-    
-    for (int i = 0; i < mSourcesCross.size(); i++) {
+
+    for (std::size_t i = 0U; i < mSourcesCross.size(); i++) {
         GAXSKInputSlot aSlot;
         aSlot.mKind = GAXSKInputSlotKind::kSource;
         aSlot.mSource = mSourcesCross[i];
         aSlot.mNonceByte = GAXSKNonceByteKind::kInvalid;
+        aSlot.mRotation = 0;
+        aSlot.mReverse = true;
+        aSlot.mOffset = 0;
         aCross.push_back(aSlot);
     }
-    
+
     if (aIngress.empty()) {
         SetError(pErrorMessage, "GAXSKPool::GenerateInputSlotOrdering produced empty ingress slots");
         return false;
     }
-    
+
     if (aCross.empty()) {
         SetError(pErrorMessage, "GAXSKPool::GenerateInputSlotOrdering produced empty cross slots");
         return false;
     }
-    
-    std::vector<std::vector<GAXSKInputSlot> *> aLists;
-    aLists.push_back(&aIngress);
-    aLists.push_back(&aCross);
-    
+
     static const std::vector<int> kGAXSKOddRotations = {
-        1, 3, 5, 11, 13, 19, 21, 23, 27, 29, 35, 37, 39, 41, 43, 47, 51, 53, 57
+        3, 5, 11, 13, 19, 21, 23, 27, 29,
+        35, 37, 39, 41, 43, 47, 51, 53, 57
     };
 
     static const std::vector<int> kGAXSKEvenRotations = {
-        2, 4, 6, 10, 12, 14, 18, 20, 22, 24, 26, 28, 30, 34, 36, 38, 40, 42, 44,
-        46, 48, 50, 52, 54, 56, 58, 60, 62
+        4, 6, 10, 12, 14, 18, 20, 22, 24, 26, 28,
+        30, 34, 36, 38, 40, 42, 44, 46, 48, 50,
+        52, 54, 56, 58, 60
     };
 
-    for (int aListIndex=0; aListIndex<aLists.size(); aListIndex++) {
-        
-        std::vector<GAXSKInputSlot> *aList = aLists[aListIndex];
-        
+    auto IsSmallRotation = [](int pRotation) -> bool {
+        return pRotation <= 6;
+    };
+
+    auto CountSmallRotations = [&](const std::vector<int> &pRotations) -> int {
+        int aCount = 0;
+        for (int aRotation : pRotations) {
+            if (IsSmallRotation(aRotation)) {
+                aCount++;
+            }
+        }
+        return aCount;
+    };
+
+    auto AssignRotations = [&](std::vector<GAXSKInputSlot> *pList,
+                               const char *pErrorText) -> bool {
+        if (pList == nullptr) {
+            SetError(pErrorMessage, "GAXSKPool::GenerateInputSlotOrdering received null rotation list");
+            return false;
+        }
+
+        const int aCount = static_cast<int>(pList->size());
+        if (aCount <= 0) {
+            SetError(pErrorMessage, pErrorText);
+            return false;
+        }
+
         std::vector<bool> aIsEven;
-        std::vector<int> aRotation;
-        int aCount = (int)aList->size();
-        for (int i=0; i<aCount; i++) {
-            aIsEven.push_back(false);
-            aRotation.push_back(0);
-        }
-        aIsEven[Random::Get(aCount)] = true;
-        
+        std::vector<int> aRotations;
+
+        aIsEven.resize(static_cast<std::size_t>(aCount), false);
+        aRotations.resize(static_cast<std::size_t>(aCount), 0);
+
+        // Exactly one even rotation per ingress/cross expression.
+        aIsEven[static_cast<std::size_t>(Random::Get(aCount))] = true;
+
+        int aTryCount = 0;
+
         do {
-            for (int i=0; i<aCount; i++) {
-                if (aIsEven[i] == true) {
-                    aRotation[i] = Random::Choice(kGAXSKEvenRotations);
+            for (int i = 0; i < aCount; i++) {
+                if (aIsEven[static_cast<std::size_t>(i)]) {
+                    aRotations[static_cast<std::size_t>(i)] = Random::Choice(kGAXSKEvenRotations);
                 } else {
-                    aRotation[i] = Random::Choice(kGAXSKOddRotations);
+                    aRotations[static_cast<std::size_t>(i)] = Random::Choice(kGAXSKOddRotations);
                 }
             }
-        } while (GAXSK::RotationsClash_64_8(aRotation));
-        
+
+            aTryCount++;
+            if (aTryCount > 10000) {
+                SetError(pErrorMessage, pErrorText);
+                return false;
+            }
+
+        } while (GAXSK::RotationsClash_64_8(aRotations) ||
+                 (CountSmallRotations(aRotations) > 1));
+
         for (int i = 0; i < aCount; i++) {
-            (*aList)[i].mRotation = aRotation[i];
-        }
-        
-        int aOffsetSecondIngress = Random::Get(1, S_BLOCK1);
-        int aOffsetSecondCross = Random::Get(1, S_BLOCK1);
-
-        int aIngressSourceCount = 0;
-        for (int i=0; i<aIngress.size(); i++) {
-            if (aIngress[i].mKind != GAXSKInputSlotKind::kSource) {
-                continue;
-            }
-
-            aIngress[i].mReverse = false;
-            aIngress[i].mOffset = 0;
-
-            if (aIngressSourceCount == 1) {
-                aIngress[i].mOffset = aOffsetSecondIngress;
-
-                if (mSourcesIngress.size() > 1) {
-                    aIngress[i].mReverse = Random::Bool();
-                }
-            }
-
-            aIngressSourceCount++;
+            (*pList)[static_cast<std::size_t>(i)].mRotation =
+                aRotations[static_cast<std::size_t>(i)];
         }
 
-        int aCrossSourceCount = 0;
-        for (int i=0; i<aCross.size(); i++) {
-            if (aCross[i].mKind != GAXSKInputSlotKind::kSource) {
-                continue;
-            }
+        return true;
+    };
 
-            aCross[i].mReverse = true;
-            aCross[i].mOffset = 0;
-
-            if (aCrossSourceCount == 1) {
-                aCross[i].mOffset = aOffsetSecondCross;
-            }
-
-            aCrossSourceCount++;
-        }
+    if (!AssignRotations(&aIngress,
+                         "GAXSKPool::GenerateInputSlotOrdering failed to choose ingress rotations")) {
+        return false;
     }
+
+    if (!AssignRotations(&aCross,
+                         "GAXSKPool::GenerateInputSlotOrdering failed to choose cross rotations")) {
+        return false;
+    }
+
+    // Source direction / offset rules:
+    //
+    //   ingress primary source: forward, direct
+    //   cross primary source:   reverse, direct
+    //
+    //   secondary source reads:
+    //     nonzero offset
+    //     direction may flip
+    //
+    // This preserves the main source read while still adding an offset wrinkle.
+    std::vector<int> aOffsets;
+    aOffsets.resize(4U);
+
+    do {
+        aOffsets[0] = Random::Get(1, S_BLOCK1);
+        aOffsets[1] = Random::Get(1, S_BLOCK1);
+        aOffsets[2] = Random::Get(1, S_BLOCK1);
+        aOffsets[3] = Random::Get(1, S_BLOCK1);
+    } while (TwistArray::AnyEqual(&aOffsets));
+
+    const int aOffsetIngressA = aOffsets[0];
+    const int aOffsetIngressB = aOffsets[1];
+    const int aOffsetCrossA = aOffsets[2];
+    const int aOffsetCrossB = aOffsets[3];
     
+    const bool aLockDirections = (mSourceCount <= 2);
+
+    int aIngressSourceCount = 0;
+    for (std::size_t i = 0U; i < aIngress.size(); i++) {
+        if (aIngress[i].mKind != GAXSKInputSlotKind::kSource) {
+            continue;
+        }
+
+
+        // Ingress source slots.
+        if (aIngressSourceCount == 0) {
+            aIngress[i].mReverse = false;
+            aIngress[i].mOffset = aOffsetIngressA;
+        } else {
+            aIngress[i].mReverse = aLockDirections ? false : Random::Bool();
+            aIngress[i].mOffset = aOffsetIngressB;
+        }
+
+        aIngressSourceCount++;
+    }
+
+    int aCrossSourceCount = 0;
+    for (std::size_t i = 0U; i < aCross.size(); i++) {
+        if (aCross[i].mKind != GAXSKInputSlotKind::kSource) {
+            continue;
+        }
+
+        // Cross source slots.
+        if (aCrossSourceCount == 0) {
+            aCross[i].mReverse = true;
+            aCross[i].mOffset = aOffsetCrossA;
+        } else {
+            aCross[i].mReverse = aLockDirections ? true : Random::Bool();
+            aCross[i].mOffset = aOffsetCrossB;
+        }
+
+        aCrossSourceCount++;
+    }
+
     pResult->mIngress = aIngress;
     pResult->mCross = aCross;
-    
+
     return true;
 }

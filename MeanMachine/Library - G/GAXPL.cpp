@@ -488,50 +488,130 @@ bool GAXPL::GenerateScatterMixStatement(const GAXSKStatement &pStatement,
         return false;
     }
 
-    std::vector<GExpr> aXorTerms;
-    for (const GAXSKVariableTerm &aTerm : aPlan.mXorTerms) {
+    auto BuildTermExpr = [&](const GAXSKVariableTerm &pTerm,
+                             GExpr *pResult,
+                             const char *pErrorText) -> bool {
+        if (pResult == nullptr) {
+            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement received null term result");
+            return false;
+        }
+
         GSymbol aSymbol;
-        if (!SymbolForVariable(aTerm.mVariable, &aSymbol, pErrorMessage)) {
+        if (!SymbolForVariable(pTerm.mVariable, &aSymbol, pErrorMessage)) {
             return false;
         }
 
-        GExpr aExpr = GAXPLQuick::RotateSymbol(aSymbol, aTerm.mRotation);
+        GExpr aExpr = GAXPLQuick::RotateSymbol(aSymbol, pTerm.mRotation);
         if (aExpr.IsInvalid()) {
-            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to build xor term");
+            SetError(pErrorMessage, pErrorText);
             return false;
         }
 
-        aXorTerms.push_back(aExpr);
-    }
+        *pResult = aExpr;
+        return true;
+    };
 
-    std::vector<GExpr> aAddTerms;
-    for (const GAXSKVariableTerm &aTerm : aPlan.mAddTerms) {
-        GSymbol aSymbol;
-        if (!SymbolForVariable(aTerm.mVariable, &aSymbol, pErrorMessage)) {
+    auto ApplyScatterOp = [&](const GExpr &pLeft,
+                              const GExpr &pRight,
+                              GAXSKScatterMixOp pOp,
+                              GExpr *pResult,
+                              const char *pErrorText) -> bool {
+        if (pResult == nullptr) {
+            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement received null op result");
             return false;
         }
 
-        GExpr aExpr = GAXPLQuick::RotateSymbol(aSymbol, aTerm.mRotation);
-        if (aExpr.IsInvalid()) {
-            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to build add term");
+        switch (pOp) {
+            case GAXSKScatterMixOp::kAdd:
+                *pResult = GExpr::Add(pLeft, pRight);
+                break;
+
+            case GAXSKScatterMixOp::kXor:
+                *pResult = GExpr::Xor(pLeft, pRight);
+                break;
+
+            default:
+                SetError(pErrorMessage, pErrorText);
+                return false;
+        }
+
+        if (pResult->IsInvalid()) {
+            SetError(pErrorMessage, pErrorText);
             return false;
         }
 
-        aAddTerms.push_back(aExpr);
-    }
+        return true;
+    };
 
-    if (aXorTerms.empty()) {
-        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement received no xor terms");
+    GExpr aLeftA;
+    GExpr aLeftB;
+    GExpr aRightA;
+    GExpr aRightB;
+
+    if (!BuildTermExpr(aPlan.mLeftPair.mLeft,
+                       &aLeftA,
+                       "GAXPL::GenerateScatterMixStatement failed to build left pair left term")) {
         return false;
     }
 
-    if (aAddTerms.empty()) {
-        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement received no add terms");
+    if (!BuildTermExpr(aPlan.mLeftPair.mRight,
+                       &aLeftB,
+                       "GAXPL::GenerateScatterMixStatement failed to build left pair right term")) {
         return false;
     }
 
-    GExpr aExpr = GExpr::Add(GQuick::XorChain(aXorTerms),
-                             GQuick::XorChain(aAddTerms));
+    if (!BuildTermExpr(aPlan.mRightPair.mLeft,
+                       &aRightA,
+                       "GAXPL::GenerateScatterMixStatement failed to build right pair left term")) {
+        return false;
+    }
+
+    if (!BuildTermExpr(aPlan.mRightPair.mRight,
+                       &aRightB,
+                       "GAXPL::GenerateScatterMixStatement failed to build right pair right term")) {
+        return false;
+    }
+
+    GExpr aLeftPairExpr;
+    if (!ApplyScatterOp(aLeftA,
+                        aLeftB,
+                        aPlan.mLeftPair.mOp,
+                        &aLeftPairExpr,
+                        "GAXPL::GenerateScatterMixStatement failed to build left pair expression")) {
+        return false;
+    }
+
+    GExpr aRightPairExpr;
+    if (!ApplyScatterOp(aRightA,
+                        aRightB,
+                        aPlan.mRightPair.mOp,
+                        &aRightPairExpr,
+                        "GAXPL::GenerateScatterMixStatement failed to build right pair expression")) {
+        return false;
+    }
+
+    GExpr aScatterExpr;
+    if (!ApplyScatterOp(aLeftPairExpr,
+                        aRightPairExpr,
+                        aPlan.mOuterOp,
+                        &aScatterExpr,
+                        "GAXPL::GenerateScatterMixStatement failed to build outer scatter expression")) {
+        return false;
+    }
+
+    if (aScatterExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement produced invalid scatter expression");
+        return false;
+    }
+
+    pStatements->push_back(GStatement::Comment(""));
+    pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget), aScatterExpr));
+
+    GExpr aFinalizeExpr = GExpr::Symbol(aTarget);
+    if (aFinalizeExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement produced invalid scatter symbol expression");
+        return false;
+    }
 
     if (aPlan.mHasDomainMix) {
         GSymbol aDomainWord = GAXPLQuick::DomainConstantScatter();
@@ -541,20 +621,171 @@ bool GAXPL::GenerateScatterMixStatement(const GAXSKStatement &pStatement,
             return false;
         }
 
-        aExpr = GExpr::Xor(aExpr, GExpr::Symbol(aDomainWord));
+        aFinalizeExpr = GExpr::Xor(aFinalizeExpr, GExpr::Symbol(aDomainWord));
+        if (aFinalizeExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to apply scatter domain mix");
+            return false;
+        }
     }
 
-    aExpr = GAXPLQuick::Diffuse(aExpr, aPlan.mDiffuse);
+    aFinalizeExpr = GAXPLQuick::Diffuse(aFinalizeExpr, aPlan.mDiffuse);
 
-    if (aExpr.IsInvalid()) {
+    if (aFinalizeExpr.IsInvalid()) {
         SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to diffuse scatter");
         return false;
     }
 
-    pStatements->push_back(GStatement::Comment(""));
-    pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget), aExpr));
+    pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget), aFinalizeExpr));
 
     return true;
+}
+
+bool GAXPL::GenerateUpdateStatement(const GAXSKStatement &pStatement,
+                                    std::vector<GStatement> *pStatements,
+                                    std::string *pErrorMessage) {
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement received null statements");
+        return false;
+    }
+
+    const GAXSKUpdatePlan &aPlan = pStatement.mUpdate;
+
+    GSymbol aTarget;
+    if (!SymbolForVariable(aPlan.mTarget, &aTarget, pErrorMessage)) {
+        return false;
+    }
+
+    auto MakeTermExpr = [&](const GAXSKUpdateTerm &pTerm,
+                            GExpr *pResult) -> bool {
+        if (pResult == nullptr) {
+            SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement received null term result");
+            return false;
+        }
+
+        switch (pTerm.mKind) {
+            case GAXSKModelTermKind::kVariable: {
+                GSymbol aSymbol;
+                if (!SymbolForVariable(pTerm.mVariable, &aSymbol, pErrorMessage)) {
+                    return false;
+                }
+
+                if (pTerm.mHasRotation) {
+                    *pResult = GAXPLQuick::RotateSymbol(aSymbol, pTerm.mRotation);
+                } else {
+                    *pResult = GExpr::Symbol(aSymbol);
+                }
+
+                break;
+            }
+
+            case GAXSKModelTermKind::kHotAdd:
+                *pResult = GExpr::Const64(0x9E3779B97F4A7C15ULL);
+                break;
+
+            case GAXSKModelTermKind::kHotMul:
+                *pResult = GExpr::Const64(0xD6E8FEB86659FD93ULL);
+                break;
+
+            default:
+                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement unsupported update term kind");
+                return false;
+        }
+
+        if (pResult->IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement produced invalid term expression");
+            return false;
+        }
+
+        return true;
+    };
+
+    auto MakeTerms = [&]() -> std::vector<GExpr> {
+        std::vector<GExpr> aTerms;
+
+        for (const GAXSKUpdateTerm &aTerm : aPlan.mTerms) {
+            GExpr aExpr;
+            if (!MakeTermExpr(aTerm, &aExpr)) {
+                return {};
+            }
+            aTerms.push_back(aExpr);
+        }
+
+        return aTerms;
+    };
+
+    switch (pStatement.mKind) {
+        case GAXSKStatementKind::kOrbiterAssign:
+        case GAXSKStatementKind::kOrbiterAdd:
+        case GAXSKStatementKind::kWandererAdd: {
+            std::vector<GExpr> aTerms = MakeTerms();
+            if (aTerms.empty()) {
+                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement add/assign had no terms");
+                return false;
+            }
+
+            pStatements->push_back(
+                GStatement::Assign(
+                    GTarget::Symbol(aTarget),
+                    GQuick::AddChain(aTerms)
+                )
+            );
+
+            return true;
+        }
+
+        case GAXSKStatementKind::kOrbiterXor:
+        case GAXSKStatementKind::kWandererXor: {
+            std::vector<GExpr> aTerms = MakeTerms();
+            if (aTerms.empty()) {
+                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement xor had no terms");
+                return false;
+            }
+
+            pStatements->push_back(
+                GStatement::Assign(
+                    GTarget::Symbol(aTarget),
+                    GQuick::XorChain(aTerms)
+                )
+            );
+
+            return true;
+        }
+
+        case GAXSKStatementKind::kOrbiterMulRotate:
+        case GAXSKStatementKind::kWandererMulRotate: {
+            const int aRotation = aPlan.mHasRotation ? aPlan.mRotation : 32;
+
+            GExpr aExpr = GExpr::Mul(
+                GExpr::Symbol(aTarget),
+                GExpr::Const64(0xD6E8FEB86659FD93ULL)
+            );
+
+            if (aExpr.IsInvalid()) {
+                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement failed to build mul expression");
+                return false;
+            }
+
+            aExpr = GQuick::RotL64(aExpr, aRotation);
+
+            if (aExpr.IsInvalid()) {
+                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement failed to build mul-rotate expression");
+                return false;
+            }
+
+            pStatements->push_back(
+                GStatement::Assign(
+                    GTarget::Symbol(aTarget),
+                    aExpr
+                )
+            );
+
+            return true;
+        }
+
+        default:
+            SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement received unsupported statement kind");
+            return false;
+    }
 }
 
 bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
@@ -593,6 +824,19 @@ bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
             if (!GenerateScatterMixStatement(aSkeletonStatement,
                                              &aStatements,
                                              pErrorMessage)) {
+                return false;
+            }
+            continue;
+        }
+        
+        if (aSkeletonStatement.mKind == GAXSKStatementKind::kOrbiterAssign ||
+            aSkeletonStatement.mKind == GAXSKStatementKind::kOrbiterAdd ||
+            aSkeletonStatement.mKind == GAXSKStatementKind::kOrbiterXor ||
+            aSkeletonStatement.mKind == GAXSKStatementKind::kOrbiterMulRotate ||
+            aSkeletonStatement.mKind == GAXSKStatementKind::kWandererAdd ||
+            aSkeletonStatement.mKind == GAXSKStatementKind::kWandererXor ||
+            aSkeletonStatement.mKind == GAXSKStatementKind::kWandererMulRotate) {
+            if (!GenerateUpdateStatement(aSkeletonStatement, &aStatements, pErrorMessage)) {
                 return false;
             }
             continue;

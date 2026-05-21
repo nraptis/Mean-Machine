@@ -53,65 +53,9 @@ enum class TwistWorkSpaceSlot : std::uint16_t;
 
 enum class TwistBufferKind : std::uint8_t {
     kInvalid = 0,
-    kDirect,
-    kSalt,
-    kSBox,
-    kConstants
-};
-
-enum class TwistDirectBuffer : std::uint16_t {
-    kInvalid = 0,
-
-    kSource,
-    kDest,
-
-    kIndexList256A,
-    kIndexList256B,
-    kIndexList256C,
-    kIndexList256D,
-
-    kExpansionLaneA,
-    kExpansionLaneB,
-    kExpansionLaneC,
-    kExpansionLaneD,
-    kExpansionLaneE,
-    kExpansionLaneF,
-
-    kWorkLaneA,
-    kWorkLaneB,
-    kWorkLaneC,
-    kWorkLaneD,
-    kWorkLaneE,
-    kWorkLaneF,
-
-    kOperationLaneA,
-    kOperationLaneB,
-    kOperationLaneC,
-    kOperationLaneD,
-    kOperationLaneE,
-    kOperationLaneF,
-
-    kSnowLaneA,
-    kSnowLaneB,
-    kSnowLaneC,
-    kSnowLaneD,
-
-    kMaskLaneA,
-    kMaskLaneB,
-
-    kKeyBoxUnrolledA,
-    kKeyBoxUnrolledB,
-    kKeyRowReadA,
-    kKeyRowReadB,
-    kKeyRowWriteA,
-    kKeyRowWriteB,
-
-    kMaskBoxUnrolledA,
-    kMaskBoxUnrolledB,
-    kMaskRowReadA,
-    kMaskRowReadB,
-    kMaskRowWriteA,
-    kMaskRowWriteB
+    kSalt = 2,
+    kSBox = 3,
+    kConstants = 4
 };
 
 enum class TwistSBoxLane : std::uint16_t {
@@ -128,20 +72,18 @@ enum class TwistSBoxLane : std::uint16_t {
 
 enum class TwistSaltOwner : std::uint16_t {
     kInvalid = 0,
-    kLocal = 1,
     kInbuilt = 2,
     kEphemeral = 3
 };
 
 enum class TwistSBoxOwner : std::uint16_t {
     kInvalid = 0,
-    kLocal = 1,
-    kInbuilt = 2
+    kInbuilt = 2,
+    kEphemeral = 3
 };
 
 struct TwistBufferKey {
     TwistBufferKind                          mKind = TwistBufferKind::kInvalid;
-    TwistDirectBuffer                        mDirect = TwistDirectBuffer::kInvalid;
     TwistDomain                              mDomain = TwistDomain::kInvalid;
     std::uint16_t                            mSlot = 255U;
     
@@ -149,7 +91,6 @@ struct TwistBufferKey {
     TwistSBoxOwner                           mSBoxOwner = TwistSBoxOwner::kInvalid;
     TwistSBoxLane                            mSBoxLane = TwistSBoxLane::kInvalid;
 
-    static TwistBufferKey                    Direct(TwistDirectBuffer pBuffer);
     static TwistBufferKey                    Salt(TwistSaltOwner pOwner,
                                                   TwistDomain pDomain,
                                                   TwistWorkSpaceSlot pSlot);
@@ -160,7 +101,6 @@ struct TwistBufferKey {
                                                        TwistDomain pDomain);
 
     bool                                     IsValid() const;
-    bool                                     IsDirect() const;
     bool                                     IsSalt() const;
     bool                                     IsSBox() const;
     bool                                     IsConstants() const;
@@ -182,16 +122,6 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kParamDomainSBoxG=36,
     kParamDomainSBoxH=37,
 
-    kSBoxA=kParamDomainSBoxA, // try to remove
-    kSBoxB=kParamDomainSBoxB, // try to remove
-    kSBoxC=kParamDomainSBoxC, // try to remove
-    kSBoxD=kParamDomainSBoxD, // try to remove
-    kSBoxE=kParamDomainSBoxE, // try to remove
-    kSBoxF=kParamDomainSBoxF, // try to remove
-    kSBoxG=kParamDomainSBoxG, // try to remove
-    kSBoxH=kParamDomainSBoxH, // try to remove
-    
-    
     kDerivedSBoxA=40, // try to remove
     kDerivedSBoxB=41, // try to remove
     kDerivedSBoxC=42, // try to remove
@@ -307,15 +237,6 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kParamDomainSaltWandererUpdateE=186,
     kParamDomainSaltWandererUpdateF=187,
 
-    /*
-    kDomainSaltSourceA=kParamDomainSaltOrbiterAssignA,
-    kDomainSaltSourceB=kParamDomainSaltOrbiterAssignB,
-    kDomainSaltSourceC=kParamDomainSaltOrbiterUpdateC,
-    kDomainSaltSourceD=kParamDomainSaltOrbiterUpdateD,
-    kDomainSaltSourceE=kParamDomainSaltWandererUpdateE,
-    kDomainSaltSourceF=kParamDomainSaltWandererUpdateF,
-    */
-    
     kIndexList256A=190,
     kIndexList256B=191,
     kIndexList256C=192,

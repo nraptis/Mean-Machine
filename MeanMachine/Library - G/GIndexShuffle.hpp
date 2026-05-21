@@ -26,29 +26,12 @@ public:
             }
             return false;
         }
-        bool aIndexListValid = false;
-        const TwistBufferKey aIndexListKey = ResolveBufferKey(pIndexList);
-        if (aIndexListKey.IsValid() &&
-            aIndexListKey.mKind == TwistBufferKind::kDirect) {
-            switch (aIndexListKey.mDirect) {
-                case TwistDirectBuffer::kIndexList256A:
-                case TwistDirectBuffer::kIndexList256B:
-                case TwistDirectBuffer::kIndexList256C:
-                case TwistDirectBuffer::kIndexList256D:
-                    aIndexListValid = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-        if (!aIndexListValid) {
-            const TwistWorkSpaceSlot aIndexListSlot = ResolveBufferSlot(pIndexList);
-            aIndexListValid =
-                (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256A) ||
-                (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256B) ||
-                (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256C) ||
-                (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256D);
-        }
+        const TwistWorkSpaceSlot aIndexListSlot = ResolveBufferSlot(pIndexList);
+        const bool aIndexListValid =
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256A) ||
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256B) ||
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256C) ||
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256D);
         if (!aIndexListValid) {
             if (pErrorMessage != nullptr) {
                 *pErrorMessage = "GIndexShuffle::BakeExecute256 index-list key must be one of index_list_256_a/b/c/d.";

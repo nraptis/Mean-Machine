@@ -147,7 +147,7 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
     Reset();
     
     GAXSK *aAXSK = new GAXSK();
-    if (!aAXSK->Bake(GAXSFormat::kSixSix,
+    if (!aAXSK->Bake(GAXSFormat::kFourFour,
                      {1, 2, 3, 4},
                      true,
                      &mARXSkeletons,

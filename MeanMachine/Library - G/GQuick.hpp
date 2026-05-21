@@ -20,48 +20,48 @@ public:
     // the modulo is handled by GExpr::Read()
     //buffer[(index + offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpression(GSymbol pBuffer, GSymbol pIndex, std::uint32_t pOffset);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(index + rand_offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpression(GSymbol pBuffer, GSymbol pIndex);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(size - 1 - index + offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpressionInverted(GSymbol pBuffer, GSymbol pIndex, std::uint32_t pOffset);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(size - 1 - index + rand_offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpressionInverted(GSymbol pBuffer, GSymbol pIndex);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(index + offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpression(GSymbol pBuffer, GExpr pIndex, std::uint32_t pOffset);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(index + rand_offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpression(GSymbol pBuffer, GExpr pIndex);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(size - 1 - index + offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpressionInverted(GSymbol pBuffer, GExpr pIndex, std::uint32_t pOffset);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(size - 1 - index + rand_offset) % size]
     static GExpr                                    MakeReadBufferOffsetExpressionInverted(GSymbol pBuffer, GExpr pIndex);
-
-
+    
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(index) % size]
     static GExpr                                    MakeReadBufferReadExpression(GSymbol pBuffer, GSymbol pIndex);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(size - 1 - index) % size]
     static GExpr                                    MakeReadBufferReadExpressionInverted(GSymbol pBuffer, GSymbol pIndex);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(index) % size]
     static GExpr                                    MakeReadBufferReadExpression(GSymbol pBuffer, GExpr pIndex);
-
+    
     // the modulo is handled by GExpr::Read()
     //buffer[(size - 1 - index) % size]
     static GExpr                                    MakeReadBufferReadExpressionInverted(GSymbol pBuffer, GExpr pIndex);
@@ -118,8 +118,8 @@ public:
     static GStatement                               ShiftRightEqualBuffer(const GSymbol pSymbol, const GSymbol pOtherSymbol, const GSymbol pIndex, const int pOffset);
     static GStatement                               ShiftLeftEqualBuffer(const GSymbol pSymbol, const GSymbol pOtherSymbol, const GSymbol pIndex, const int pOffset);
     static GStatement                               RotateLeftEqualBuffer(const GSymbol pSymbol, const GSymbol pOtherSymbol, const GSymbol pIndex, const int pOffset);
-
-
+    
+    
     // symbol *= buffer[buffer_size - 1 - index + offset]
     static GStatement                               MulEqualBufferInverted(const GSymbol pSymbol, const GSymbol pBuffer, const GSymbol pIndex, const int pOffset);
     static GStatement                               AddEqualBufferInverted(const GSymbol pSymbol, const GSymbol pOtherSymbol, const GSymbol pIndex, const int pOffset);
@@ -137,22 +137,22 @@ public:
     static GExpr                                    XorChain(const std::vector<GExpr> &pExprs);
     
     static GExpr                                    MakeReadBufferOffsetExpressionDirected(const GSymbol pBuffer,
-                                                        const GSymbol pIndex,
-                                                        bool pInverted,
-                                                        std::uint32_t pOffset);
-
+                                                                                           const GSymbol pIndex,
+                                                                                           bool pInverted,
+                                                                                           std::uint32_t pOffset);
+    
     static GExpr                                    MakeReadBufferOffsetExpressionDirected(const GSymbol pBuffer,
-                                                        GExpr pIndex,
-                                                        bool pInverted,
-                                                        std::uint32_t pOffset);
+                                                                                           GExpr pIndex,
+                                                                                           bool pInverted,
+                                                                                           std::uint32_t pOffset);
     
     static GStatement                               MakeAssignDestStatement(const GSymbol pDest,
-                                              const GSymbol pIndex,
-                                              const GExpr pValue);
-
+                                                                            const GSymbol pIndex,
+                                                                            const GExpr pValue);
+    
     static GStatement                               MakeAssignDestStatementInverted(const GSymbol pDest,
-                                                      const GSymbol pIndex,
-                                                      const GExpr pValue);
+                                                                                    const GSymbol pIndex,
+                                                                                    const GExpr pValue);
     
 };
 

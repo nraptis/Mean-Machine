@@ -79,6 +79,10 @@ public:
                                                                                     std::vector<GStatement> *pStatements,
                                                                                     std::string *pErrorMessage);
     
+    bool                                                GenerateUpdateStatement(const GAXSKStatement &pStatement,
+                                                                                std::vector<GStatement> *pStatements,
+                                                                                std::string *pErrorMessage);
+    
     // store maps as member variables, so we do not need to pass them all over.
     
     

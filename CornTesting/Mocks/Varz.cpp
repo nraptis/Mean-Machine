@@ -29,15 +29,15 @@ Varz::Varz() {
     e = VarSymbol("e");
     f = VarSymbol("f");
     
-    mSBoxA = BufSymbol(TwistWorkSpaceSlot::kSBoxA);
-    mSBoxB = BufSymbol(TwistWorkSpaceSlot::kSBoxB);
-    mSBoxC = BufSymbol(TwistWorkSpaceSlot::kSBoxC);
-    mSBoxD = BufSymbol(TwistWorkSpaceSlot::kSBoxD);
+    mSBoxA = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxA);
+    mSBoxB = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxB);
+    mSBoxC = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxC);
+    mSBoxD = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxD);
     
-    mSaltA = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceA);
-    mSaltB = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceB);
-    mSaltC = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceC);
-    mSaltD = BufSymbol(TwistWorkSpaceSlot::kDomainSaltSourceD);
+    mSaltA = BufSymbol(TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA);
+    mSaltB = BufSymbol(TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB);
+    mSaltC = BufSymbol(TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC);
+    mSaltD = BufSymbol(TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD);
     
     mWorkLaneA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
     mWorkLaneB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneB);

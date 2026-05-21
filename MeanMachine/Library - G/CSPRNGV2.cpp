@@ -33,15 +33,21 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         return false;
     }
     
-    GSymbol aIndex = GSymbol::Var("aIndex");
+    GSymbol aIndex = GSymbol::Var(TwistVariable::kIndex);
 
-    GSymbol aWandererA = GSymbol::Var("aWandererA"); GSymbol aWandererB = GSymbol::Var("aWandererB");
-    GSymbol aWandererC = GSymbol::Var("aWandererC"); GSymbol aWandererD = GSymbol::Var("aWandererD");
-    GSymbol aWandererE = GSymbol::Var("aWandererE"); GSymbol aWandererF = GSymbol::Var("aWandererF");
+    GSymbol aWandererA = GSymbol::Var(TwistVariable::kWandererA); GSymbol aWandererB = GSymbol::Var(TwistVariable::kWandererB);
+    GSymbol aWandererC = GSymbol::Var(TwistVariable::kWandererC); GSymbol aWandererD = GSymbol::Var(TwistVariable::kWandererD);
+    GSymbol aWandererE = GSymbol::Var(TwistVariable::kWandererE); GSymbol aWandererF = GSymbol::Var(TwistVariable::kWandererF);
+    GSymbol aWandererG = GSymbol::Var(TwistVariable::kWandererG); GSymbol aWandererH = GSymbol::Var(TwistVariable::kWandererH);
+    GSymbol aWandererI = GSymbol::Var(TwistVariable::kWandererI); GSymbol aWandererJ = GSymbol::Var(TwistVariable::kWandererJ);
+    GSymbol aWandererK = GSymbol::Var(TwistVariable::kWandererK);
 
-    GSymbol aOrbiterA = GSymbol::Var("aOrbitA"); GSymbol aOrbiterB = GSymbol::Var("aOrbitB");
-    GSymbol aOrbiterC = GSymbol::Var("aOrbitC"); GSymbol aOrbiterD = GSymbol::Var("aOrbitD");
-    GSymbol aOrbiterE = GSymbol::Var("aOrbitE"); GSymbol aOrbiterF = GSymbol::Var("aOrbitF");
+    GSymbol aOrbiterA = GSymbol::Var(TwistVariable::kOrbiterA); GSymbol aOrbiterB = GSymbol::Var(TwistVariable::kOrbiterB);
+    GSymbol aOrbiterC = GSymbol::Var(TwistVariable::kOrbiterC); GSymbol aOrbiterD = GSymbol::Var(TwistVariable::kOrbiterD);
+    GSymbol aOrbiterE = GSymbol::Var(TwistVariable::kOrbiterE); GSymbol aOrbiterF = GSymbol::Var(TwistVariable::kOrbiterF);
+    GSymbol aOrbiterG = GSymbol::Var(TwistVariable::kOrbiterG); GSymbol aOrbiterH = GSymbol::Var(TwistVariable::kOrbiterH);
+    GSymbol aOrbiterI = GSymbol::Var(TwistVariable::kOrbiterI); GSymbol aOrbiterJ = GSymbol::Var(TwistVariable::kOrbiterJ);
+    GSymbol aOrbiterK = GSymbol::Var(TwistVariable::kOrbiterK);
 
     GSymbol aNonceByteA = GSymbol::Var("aNonceByteA"); GSymbol aNonceByteB = GSymbol::Var("aNonceByteB");
     GSymbol aNonceByteC = GSymbol::Var("aNonceByteC"); GSymbol aNonceByteD = GSymbol::Var("aNonceByteD");
@@ -95,13 +101,15 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         
         pSlices[aSliceIndex].mOrbiters = {
             aOrbiterA, aOrbiterB, aOrbiterC, aOrbiterD,
-            aOrbiterE, aOrbiterF,
+            aOrbiterE, aOrbiterF, aOrbiterG, aOrbiterH,
+            aOrbiterI, aOrbiterJ, aOrbiterK,
         };
         Random::Shuffle(&pSlices[aSliceIndex].mOrbiters);
         
         pSlices[aSliceIndex].mWanderers = {
             aWandererA, aWandererB, aWandererC, aWandererD,
-            aWandererE, aWandererF
+            aWandererE, aWandererF, aWandererG, aWandererH,
+            aWandererI, aWandererJ, aWandererK
         };
         Random::Shuffle(&pSlices[aSliceIndex].mWanderers);
     }
@@ -133,11 +141,13 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
             };
             pSlices[aSliceIndex].mOrbiters = {
                 aOrbiterA, aOrbiterB, aOrbiterC, aOrbiterD,
-                aOrbiterE, aOrbiterF,
+                aOrbiterE, aOrbiterF, aOrbiterG, aOrbiterH,
+                aOrbiterI, aOrbiterJ, aOrbiterK,
             };
             pSlices[aSliceIndex].mWanderers = {
                 aWandererA, aWandererB, aWandererC, aWandererD,
-                aWandererE, aWandererF
+                aWandererE, aWandererF, aWandererG, aWandererH,
+                aWandererI, aWandererJ, aWandererK
             };
         }
         

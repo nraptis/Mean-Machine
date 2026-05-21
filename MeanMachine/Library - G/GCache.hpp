@@ -19,7 +19,7 @@
 #include "TwistMix64.hpp"
 #include "TwistFastMatrix.hpp"
 #include "GARXSkeleton.hpp"
-
+#include "GAXSKModel.hpp"
 
 template <typename T>
 class GCacheHistory {
@@ -266,6 +266,9 @@ using GUnrollCache = GCache<TwistFastMatrixUnrollScheme>;
 
 using GARXTypeCacheHistory = GCacheHistory<GARXType>;
 using GARXTypeCache = GCache<GARXType>;
+
+using GAXSKVariableCacheHistory = GCacheHistory<GAXSKVariable>;
+using GAXSKVariableCache = GCache<GAXSKVariable>;
 
 
 

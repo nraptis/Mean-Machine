@@ -53,10 +53,10 @@ bool GRunMatrixDiffusion::Bake(const GRunMatrixDiffusionConfig &pConfig,
     if (!EnsureBufferSymbol(pConfig.mOperationSourceA, "operation_source_a", pErrorMessage)) { return false; }
     if (!EnsureBufferSymbol(pConfig.mOperationSourceB, "operation_source_b", pErrorMessage)) { return false; }
 
-    const GSymbol aIndexListA = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256A));
-    const GSymbol aIndexListB = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256B));
-    const GSymbol aIndexListC = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256C));
-    const GSymbol aIndexListD = BufSymbol(TwistBufferKey::Direct(TwistDirectBuffer::kIndexList256D));
+    const GSymbol aIndexListA = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
+    const GSymbol aIndexListB = BufSymbol(TwistWorkSpaceSlot::kIndexList256B);
+    const GSymbol aIndexListC = BufSymbol(TwistWorkSpaceSlot::kIndexList256C);
+    const GSymbol aIndexListD = BufSymbol(TwistWorkSpaceSlot::kIndexList256D);
 
     const GSymbol aLoopIndex = VarSymbol("aMatrixDiffusionIndex");
     const GSymbol aSelect = pConfig.mSelect.IsVar() ? pConfig.mSelect : VarSymbol("aMatrixDiffusionSelect");

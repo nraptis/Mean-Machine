@@ -7,13 +7,6 @@
 #include "TwistExpander.hpp"
 #include <cstring>
 
-inline TwistBufferKey TwistBufferKey::Direct(TwistDirectBuffer pBuffer) {
-    TwistBufferKey aKey;
-    aKey.mKind = TwistBufferKind::kDirect;
-    aKey.mDirect = pBuffer;
-    return aKey;
-}
-
 inline TwistBufferKey TwistBufferKey::Salt(TwistSaltOwner pOwner,
                                            TwistDomain pDomain,
                                            TwistWorkSpaceSlot pSlot) {
@@ -49,10 +42,6 @@ inline bool TwistBufferKey::IsValid() const {
     return mKind != TwistBufferKind::kInvalid;
 }
 
-inline bool TwistBufferKey::IsDirect() const {
-    return mKind == TwistBufferKind::kDirect;
-}
-
 inline bool TwistBufferKey::IsSalt() const {
     return mKind == TwistBufferKind::kSalt;
 }
@@ -67,197 +56,9 @@ inline bool TwistBufferKey::IsConstants() const {
 
 namespace {
 
-[[maybe_unused]] TwistWorkSpaceSlot DirectBufferToSlot(TwistDirectBuffer pBuffer) {
-    switch (pBuffer) {
-        case TwistDirectBuffer::kSource: return TwistWorkSpaceSlot::kSource;
-        case TwistDirectBuffer::kDest: return TwistWorkSpaceSlot::kDest;
-        case TwistDirectBuffer::kIndexList256A: return TwistWorkSpaceSlot::kIndexList256A;
-        case TwistDirectBuffer::kIndexList256B: return TwistWorkSpaceSlot::kIndexList256B;
-        case TwistDirectBuffer::kIndexList256C: return TwistWorkSpaceSlot::kIndexList256C;
-        case TwistDirectBuffer::kIndexList256D: return TwistWorkSpaceSlot::kIndexList256D;
-        case TwistDirectBuffer::kExpansionLaneA: return TwistWorkSpaceSlot::kExpansionLaneA;
-        case TwistDirectBuffer::kExpansionLaneB: return TwistWorkSpaceSlot::kExpansionLaneB;
-        case TwistDirectBuffer::kExpansionLaneC: return TwistWorkSpaceSlot::kExpansionLaneC;
-        case TwistDirectBuffer::kExpansionLaneD: return TwistWorkSpaceSlot::kExpansionLaneD;
-        case TwistDirectBuffer::kExpansionLaneE: return TwistWorkSpaceSlot::kExpansionLaneE;
-        case TwistDirectBuffer::kExpansionLaneF: return TwistWorkSpaceSlot::kExpansionLaneF;
-        case TwistDirectBuffer::kWorkLaneA: return TwistWorkSpaceSlot::kWorkLaneA;
-        case TwistDirectBuffer::kWorkLaneB: return TwistWorkSpaceSlot::kWorkLaneB;
-        case TwistDirectBuffer::kWorkLaneC: return TwistWorkSpaceSlot::kWorkLaneC;
-        case TwistDirectBuffer::kWorkLaneD: return TwistWorkSpaceSlot::kWorkLaneD;
-        case TwistDirectBuffer::kWorkLaneE: return TwistWorkSpaceSlot::kWorkLaneE;
-        case TwistDirectBuffer::kWorkLaneF: return TwistWorkSpaceSlot::kWorkLaneF;
-        case TwistDirectBuffer::kOperationLaneA: return TwistWorkSpaceSlot::kOperationLaneA;
-        case TwistDirectBuffer::kOperationLaneB: return TwistWorkSpaceSlot::kOperationLaneB;
-        case TwistDirectBuffer::kOperationLaneC: return TwistWorkSpaceSlot::kOperationLaneC;
-        case TwistDirectBuffer::kOperationLaneD: return TwistWorkSpaceSlot::kOperationLaneD;
-        case TwistDirectBuffer::kOperationLaneE: return TwistWorkSpaceSlot::kOperationLaneE;
-        case TwistDirectBuffer::kOperationLaneF: return TwistWorkSpaceSlot::kOperationLaneF;
-        case TwistDirectBuffer::kSnowLaneA: return TwistWorkSpaceSlot::kSnowLaneA;
-        case TwistDirectBuffer::kSnowLaneB: return TwistWorkSpaceSlot::kSnowLaneB;
-        case TwistDirectBuffer::kSnowLaneC: return TwistWorkSpaceSlot::kSnowLaneC;
-        case TwistDirectBuffer::kSnowLaneD: return TwistWorkSpaceSlot::kSnowLaneD;
-        case TwistDirectBuffer::kMaskLaneA: return TwistWorkSpaceSlot::kMaskLaneA;
-        case TwistDirectBuffer::kMaskLaneB: return TwistWorkSpaceSlot::kMaskLaneB;
-        case TwistDirectBuffer::kKeyBoxUnrolledA: return TwistWorkSpaceSlot::kKeyBoxUnrolledA;
-        case TwistDirectBuffer::kKeyBoxUnrolledB: return TwistWorkSpaceSlot::kKeyBoxUnrolledB;
-        case TwistDirectBuffer::kKeyRowReadA: return TwistWorkSpaceSlot::kKeyRowReadA;
-        case TwistDirectBuffer::kKeyRowReadB: return TwistWorkSpaceSlot::kKeyRowReadB;
-        case TwistDirectBuffer::kKeyRowWriteA: return TwistWorkSpaceSlot::kKeyRowWriteA;
-        case TwistDirectBuffer::kKeyRowWriteB: return TwistWorkSpaceSlot::kKeyRowWriteB;
-        case TwistDirectBuffer::kMaskBoxUnrolledA: return TwistWorkSpaceSlot::kMaskBoxUnrolledA;
-        case TwistDirectBuffer::kMaskBoxUnrolledB: return TwistWorkSpaceSlot::kMaskBoxUnrolledB;
-        case TwistDirectBuffer::kMaskRowReadA: return TwistWorkSpaceSlot::kMaskRowReadA;
-        case TwistDirectBuffer::kMaskRowReadB: return TwistWorkSpaceSlot::kMaskRowReadB;
-        case TwistDirectBuffer::kMaskRowWriteA: return TwistWorkSpaceSlot::kMaskRowWriteA;
-        case TwistDirectBuffer::kMaskRowWriteB: return TwistWorkSpaceSlot::kMaskRowWriteB;
-        default: return TwistWorkSpaceSlot::kInvalid;
-    }
-}
-
-bool DirectBufferFromSlot(TwistWorkSpaceSlot pSlot,
-                          TwistDirectBuffer *pBufferOut) {
-    if (pBufferOut == nullptr) {
-        return false;
-    }
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource:
-            *pBufferOut = TwistDirectBuffer::kSource;
-            return true;
-        case TwistWorkSpaceSlot::kDest:
-            *pBufferOut = TwistDirectBuffer::kDest;
-            return true;
-        case TwistWorkSpaceSlot::kIndexList256A:
-            *pBufferOut = TwistDirectBuffer::kIndexList256A;
-            return true;
-        case TwistWorkSpaceSlot::kIndexList256B:
-            *pBufferOut = TwistDirectBuffer::kIndexList256B;
-            return true;
-        case TwistWorkSpaceSlot::kIndexList256C:
-            *pBufferOut = TwistDirectBuffer::kIndexList256C;
-            return true;
-        case TwistWorkSpaceSlot::kIndexList256D:
-            *pBufferOut = TwistDirectBuffer::kIndexList256D;
-            return true;
-        case TwistWorkSpaceSlot::kExpansionLaneA:
-            *pBufferOut = TwistDirectBuffer::kExpansionLaneA;
-            return true;
-        case TwistWorkSpaceSlot::kExpansionLaneB:
-            *pBufferOut = TwistDirectBuffer::kExpansionLaneB;
-            return true;
-        case TwistWorkSpaceSlot::kExpansionLaneC:
-            *pBufferOut = TwistDirectBuffer::kExpansionLaneC;
-            return true;
-        case TwistWorkSpaceSlot::kExpansionLaneD:
-            *pBufferOut = TwistDirectBuffer::kExpansionLaneD;
-            return true;
-        case TwistWorkSpaceSlot::kExpansionLaneE:
-            *pBufferOut = TwistDirectBuffer::kExpansionLaneE;
-            return true;
-        case TwistWorkSpaceSlot::kExpansionLaneF:
-            *pBufferOut = TwistDirectBuffer::kExpansionLaneF;
-            return true;
-        case TwistWorkSpaceSlot::kWorkLaneA:
-            *pBufferOut = TwistDirectBuffer::kWorkLaneA;
-            return true;
-        case TwistWorkSpaceSlot::kWorkLaneB:
-            *pBufferOut = TwistDirectBuffer::kWorkLaneB;
-            return true;
-        case TwistWorkSpaceSlot::kWorkLaneC:
-            *pBufferOut = TwistDirectBuffer::kWorkLaneC;
-            return true;
-        case TwistWorkSpaceSlot::kWorkLaneD:
-            *pBufferOut = TwistDirectBuffer::kWorkLaneD;
-            return true;
-        case TwistWorkSpaceSlot::kWorkLaneE:
-            *pBufferOut = TwistDirectBuffer::kWorkLaneE;
-            return true;
-        case TwistWorkSpaceSlot::kWorkLaneF:
-            *pBufferOut = TwistDirectBuffer::kWorkLaneF;
-            return true;
-        case TwistWorkSpaceSlot::kOperationLaneA:
-            *pBufferOut = TwistDirectBuffer::kOperationLaneA;
-            return true;
-        case TwistWorkSpaceSlot::kOperationLaneB:
-            *pBufferOut = TwistDirectBuffer::kOperationLaneB;
-            return true;
-        case TwistWorkSpaceSlot::kOperationLaneC:
-            *pBufferOut = TwistDirectBuffer::kOperationLaneC;
-            return true;
-        case TwistWorkSpaceSlot::kOperationLaneD:
-            *pBufferOut = TwistDirectBuffer::kOperationLaneD;
-            return true;
-        case TwistWorkSpaceSlot::kOperationLaneE:
-            *pBufferOut = TwistDirectBuffer::kOperationLaneE;
-            return true;
-        case TwistWorkSpaceSlot::kOperationLaneF:
-            *pBufferOut = TwistDirectBuffer::kOperationLaneF;
-            return true;
-        case TwistWorkSpaceSlot::kSnowLaneA:
-            *pBufferOut = TwistDirectBuffer::kSnowLaneA;
-            return true;
-        case TwistWorkSpaceSlot::kSnowLaneB:
-            *pBufferOut = TwistDirectBuffer::kSnowLaneB;
-            return true;
-        case TwistWorkSpaceSlot::kSnowLaneC:
-            *pBufferOut = TwistDirectBuffer::kSnowLaneC;
-            return true;
-        case TwistWorkSpaceSlot::kSnowLaneD:
-            *pBufferOut = TwistDirectBuffer::kSnowLaneD;
-            return true;
-        case TwistWorkSpaceSlot::kMaskLaneA:
-            *pBufferOut = TwistDirectBuffer::kMaskLaneA;
-            return true;
-        case TwistWorkSpaceSlot::kMaskLaneB:
-            *pBufferOut = TwistDirectBuffer::kMaskLaneB;
-            return true;
-        case TwistWorkSpaceSlot::kKeyBoxUnrolledA:
-            *pBufferOut = TwistDirectBuffer::kKeyBoxUnrolledA;
-            return true;
-        case TwistWorkSpaceSlot::kKeyBoxUnrolledB:
-            *pBufferOut = TwistDirectBuffer::kKeyBoxUnrolledB;
-            return true;
-        case TwistWorkSpaceSlot::kKeyRowReadA:
-            *pBufferOut = TwistDirectBuffer::kKeyRowReadA;
-            return true;
-        case TwistWorkSpaceSlot::kKeyRowReadB:
-            *pBufferOut = TwistDirectBuffer::kKeyRowReadB;
-            return true;
-        case TwistWorkSpaceSlot::kKeyRowWriteA:
-            *pBufferOut = TwistDirectBuffer::kKeyRowWriteA;
-            return true;
-        case TwistWorkSpaceSlot::kKeyRowWriteB:
-            *pBufferOut = TwistDirectBuffer::kKeyRowWriteB;
-            return true;
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledA:
-            *pBufferOut = TwistDirectBuffer::kMaskBoxUnrolledA;
-            return true;
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledB:
-            *pBufferOut = TwistDirectBuffer::kMaskBoxUnrolledB;
-            return true;
-        case TwistWorkSpaceSlot::kMaskRowReadA:
-            *pBufferOut = TwistDirectBuffer::kMaskRowReadA;
-            return true;
-        case TwistWorkSpaceSlot::kMaskRowReadB:
-            *pBufferOut = TwistDirectBuffer::kMaskRowReadB;
-            return true;
-        case TwistWorkSpaceSlot::kMaskRowWriteA:
-            *pBufferOut = TwistDirectBuffer::kMaskRowWriteA;
-            return true;
-        case TwistWorkSpaceSlot::kMaskRowWriteB:
-            *pBufferOut = TwistDirectBuffer::kMaskRowWriteB;
-            return true;
-        default:
-            return false;
-    }
-}
-
-TwistDomainBundle *GetSaltDomainBundle(TwistWorkSpace *pWorkspace,
-                                       TwistExpander *pExpander,
+TwistDomainBundle *GetSaltDomainBundle(TwistExpander *pExpander,
                                        TwistSaltOwner pOwner) {
     switch (pOwner) {
-        case TwistSaltOwner::kLocal:
-            return pWorkspace ? &pWorkspace->mDomainBundle : nullptr;
         case TwistSaltOwner::kInbuilt:
             return pExpander ? &pExpander->mDomainBundleInbuilt : nullptr;
         case TwistSaltOwner::kEphemeral:
@@ -267,14 +68,13 @@ TwistDomainBundle *GetSaltDomainBundle(TwistWorkSpace *pWorkspace,
     }
 }
 
-TwistDomainBundle *GetSBoxDomainBundle(TwistWorkSpace *pWorkspace,
-                                       TwistExpander *pExpander,
+TwistDomainBundle *GetSBoxDomainBundle(TwistExpander *pExpander,
                                        TwistSBoxOwner pOwner) {
     switch (pOwner) {
-        case TwistSBoxOwner::kLocal:
-            return pWorkspace ? &pWorkspace->mDomainBundle : nullptr;
         case TwistSBoxOwner::kInbuilt:
             return pExpander ? &pExpander->mDomainBundleInbuilt : nullptr;
+        case TwistSBoxOwner::kEphemeral:
+            return pExpander ? &pExpander->mDomainBundleEphemeral : nullptr;
         default:
             return nullptr;
     }
@@ -522,70 +322,7 @@ bool TryMapLegacySlotToKey(const TwistWorkSpaceSlot pSlot,
         return false;
     }
 
-    if (TryMapLegacySaltSlotToKey(pSlot, pKeyOut)) {
-        return true;
-    }
-
-    TwistDirectBuffer aDirectBuffer = TwistDirectBuffer::kInvalid;
-    if (DirectBufferFromSlot(pSlot, &aDirectBuffer)) {
-        *pKeyOut = TwistBufferKey::Direct(aDirectBuffer);
-        return true;
-    }
-
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSaltWandererA:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSaltWandererB:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSaltWandererC:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSaltWandererD:
-            *pKeyOut = TwistBufferKey::Salt(TwistSaltOwner::kLocal, TwistDomain::kPhaseA, pSlot);
-            return true;
-
-        case TwistWorkSpaceSlot::kDerivedSBoxA:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kA);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSBoxB:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kB);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSBoxC:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kC);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSBoxD:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kD);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSBoxE:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kE);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSBoxF:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kF);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSBoxG:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kG);
-            return true;
-        case TwistWorkSpaceSlot::kDerivedSBoxH:
-            *pKeyOut = TwistBufferKey::SBox(TwistSBoxOwner::kLocal, TwistDomain::kPhaseA, TwistSBoxLane::kH);
-            return true;
-
-        default:
-            return false;
-    }
+    return TryMapLegacySaltSlotToKey(pSlot, pKeyOut);
 }
 
 } // namespace
@@ -805,112 +542,21 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
         return nullptr;
     }
 
-    if (pKey.IsDirect()) {
-        switch (pKey.mDirect) {
-            case TwistDirectBuffer::kSource:
-                return pExpander ? pExpander->mSource : nullptr;
-            case TwistDirectBuffer::kDest:
-                return pExpander ? pExpander->mDest : nullptr;
-            case TwistDirectBuffer::kIndexList256A:
-                return pExpander ? reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256A) : nullptr;
-            case TwistDirectBuffer::kIndexList256B:
-                return pExpander ? reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256B) : nullptr;
-            case TwistDirectBuffer::kIndexList256C:
-                return pExpander ? reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256C) : nullptr;
-            case TwistDirectBuffer::kIndexList256D:
-                return pExpander ? reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256D) : nullptr;
-            case TwistDirectBuffer::kExpansionLaneA:
-                return pWorkspace ? pWorkspace->mListExpansionLaneA : nullptr;
-            case TwistDirectBuffer::kExpansionLaneB:
-                return pWorkspace ? pWorkspace->mListExpansionLaneB : nullptr;
-            case TwistDirectBuffer::kExpansionLaneC:
-                return pWorkspace ? pWorkspace->mListExpansionLaneC : nullptr;
-            case TwistDirectBuffer::kExpansionLaneD:
-                return pWorkspace ? pWorkspace->mListExpansionLaneD : nullptr;
-            case TwistDirectBuffer::kExpansionLaneE:
-                return pWorkspace ? pWorkspace->mListExpansionLaneE : nullptr;
-            case TwistDirectBuffer::kExpansionLaneF:
-                return pWorkspace ? pWorkspace->mListExpansionLaneF : nullptr;
-            case TwistDirectBuffer::kWorkLaneA:
-                return pWorkspace ? pWorkspace->mWorkLaneA : nullptr;
-            case TwistDirectBuffer::kWorkLaneB:
-                return pWorkspace ? pWorkspace->mWorkLaneB : nullptr;
-            case TwistDirectBuffer::kWorkLaneC:
-                return pWorkspace ? pWorkspace->mWorkLaneC : nullptr;
-            case TwistDirectBuffer::kWorkLaneD:
-                return pWorkspace ? pWorkspace->mWorkLaneD : nullptr;
-            case TwistDirectBuffer::kWorkLaneE:
-                return pWorkspace ? pWorkspace->mWorkLaneE : nullptr;
-            case TwistDirectBuffer::kWorkLaneF:
-                return pWorkspace ? pWorkspace->mWorkLaneF : nullptr;
-            case TwistDirectBuffer::kOperationLaneA:
-                return pWorkspace ? pWorkspace->mOperationLaneA : nullptr;
-            case TwistDirectBuffer::kOperationLaneB:
-                return pWorkspace ? pWorkspace->mOperationLaneB : nullptr;
-            case TwistDirectBuffer::kOperationLaneC:
-                return pWorkspace ? pWorkspace->mOperationLaneC : nullptr;
-            case TwistDirectBuffer::kOperationLaneD:
-                return pWorkspace ? pWorkspace->mOperationLaneD : nullptr;
-            case TwistDirectBuffer::kOperationLaneE:
-                return pWorkspace ? pWorkspace->mOperationLaneE : nullptr;
-            case TwistDirectBuffer::kOperationLaneF:
-                return pWorkspace ? pWorkspace->mOperationLaneF : nullptr;
-            case TwistDirectBuffer::kSnowLaneA:
-                return pWorkspace ? pWorkspace->mSnowLaneA : nullptr;
-            case TwistDirectBuffer::kSnowLaneB:
-                return pWorkspace ? pWorkspace->mSnowLaneB : nullptr;
-            case TwistDirectBuffer::kSnowLaneC:
-                return pWorkspace ? pWorkspace->mSnowLaneC : nullptr;
-            case TwistDirectBuffer::kSnowLaneD:
-                return pWorkspace ? pWorkspace->mSnowLaneD : nullptr;
-            case TwistDirectBuffer::kMaskLaneA:
-                return pWorkspace ? pWorkspace->mMaskLaneA : nullptr;
-            case TwistDirectBuffer::kMaskLaneB:
-                return pWorkspace ? pWorkspace->mMaskLaneB : nullptr;
-            case TwistDirectBuffer::kKeyBoxUnrolledA:
-                return pWorkspace ? &(pWorkspace->mKeyBoxA[0][0]) : nullptr;
-            case TwistDirectBuffer::kKeyBoxUnrolledB:
-                return pWorkspace ? &(pWorkspace->mKeyBoxB[0][0]) : nullptr;
-            case TwistDirectBuffer::kKeyRowReadA:
-                return pWorkspace ? &(pWorkspace->mKeyBoxA[H_KEY_A - 1][0]) : nullptr;
-            case TwistDirectBuffer::kKeyRowReadB:
-                return pWorkspace ? &(pWorkspace->mKeyBoxB[H_KEY_B - 1][0]) : nullptr;
-            case TwistDirectBuffer::kKeyRowWriteA:
-                return pWorkspace ? &(pWorkspace->mKeyBoxA[0][0]) : nullptr;
-            case TwistDirectBuffer::kKeyRowWriteB:
-                return pWorkspace ? &(pWorkspace->mKeyBoxB[0][0]) : nullptr;
-            case TwistDirectBuffer::kMaskBoxUnrolledA:
-                return pWorkspace ? &(pWorkspace->mMaskBoxA[0][0]) : nullptr;
-            case TwistDirectBuffer::kMaskBoxUnrolledB:
-                return pWorkspace ? &(pWorkspace->mMaskBoxB[0][0]) : nullptr;
-            case TwistDirectBuffer::kMaskRowReadA:
-                return pWorkspace ? &(pWorkspace->mMaskBoxA[H_MASK_A - 1][0]) : nullptr;
-            case TwistDirectBuffer::kMaskRowReadB:
-                return pWorkspace ? &(pWorkspace->mMaskBoxB[H_MASK_B - 1][0]) : nullptr;
-            case TwistDirectBuffer::kMaskRowWriteA:
-                return pWorkspace ? &(pWorkspace->mMaskBoxA[0][0]) : nullptr;
-            case TwistDirectBuffer::kMaskRowWriteB:
-                return pWorkspace ? &(pWorkspace->mMaskBoxB[0][0]) : nullptr;
-            default:
-                return nullptr;
-        }
-    }
-
     if (pKey.IsSalt()) {
-        TwistDomainBundle *aBundle = GetSaltDomainBundle(pWorkspace, pExpander, pKey.mSaltOwner);
+        TwistDomainBundle *aBundle = GetSaltDomainBundle(pExpander, pKey.mSaltOwner);
         TwistDomainSaltSet *aSet = GetSaltSet(aBundle, pKey.mDomain);
         std::uint64_t *aLane = GetSaltSlot(aSet, static_cast<TwistWorkSpaceSlot>(pKey.mSlot));
         return reinterpret_cast<std::uint8_t *>(aLane);
     }
 
     if (pKey.IsSBox()) {
-        TwistDomainBundle *aBundle = GetSBoxDomainBundle(pWorkspace, pExpander, pKey.mSBoxOwner);
+        TwistDomainBundle *aBundle = GetSBoxDomainBundle(pExpander, pKey.mSBoxOwner);
         TwistDomainSBoxSet *aSet = GetSBoxSet(aBundle, pKey.mDomain);
         return GetSBoxLane(aSet, pKey.mSBoxLane);
     }
 
     if (pKey.IsConstants()) {
-        TwistDomainBundle *aBundle = GetSaltDomainBundle(pWorkspace, pExpander, pKey.mSaltOwner);
+        TwistDomainBundle *aBundle = GetSaltDomainBundle(pExpander, pKey.mSaltOwner);
         TwistDomainConstants *aConstants = GetDomainConstants(aBundle, pKey.mDomain);
         return reinterpret_cast<std::uint8_t *>(aConstants);
     }
@@ -1031,41 +677,6 @@ int TwistWorkSpace::GetBufferLength(TwistBufferKey pKey) {
         case TwistBufferKind::kConstants:
             return static_cast<int>(sizeof(TwistDomainConstants));
 
-        case TwistBufferKind::kDirect: {
-            switch (pKey.mDirect) {
-                case TwistDirectBuffer::kIndexList256A:
-                case TwistDirectBuffer::kIndexList256B:
-                case TwistDirectBuffer::kIndexList256C:
-                case TwistDirectBuffer::kIndexList256D:
-                    return static_cast<int>(256U * sizeof(std::size_t));
-
-                case TwistDirectBuffer::kKeyBoxUnrolledA:
-                    return S_KEY_A;
-                case TwistDirectBuffer::kKeyBoxUnrolledB:
-                    return S_KEY_B;
-                case TwistDirectBuffer::kKeyRowReadA:
-                case TwistDirectBuffer::kKeyRowWriteA:
-                    return W_KEY_A;
-                case TwistDirectBuffer::kKeyRowReadB:
-                case TwistDirectBuffer::kKeyRowWriteB:
-                    return W_KEY_B;
-
-                case TwistDirectBuffer::kMaskBoxUnrolledA:
-                    return S_MASK_A;
-                case TwistDirectBuffer::kMaskBoxUnrolledB:
-                    return S_MASK_B;
-                case TwistDirectBuffer::kMaskRowReadA:
-                case TwistDirectBuffer::kMaskRowWriteA:
-                    return W_MASK_A;
-                case TwistDirectBuffer::kMaskRowReadB:
-                case TwistDirectBuffer::kMaskRowWriteB:
-                    return W_MASK_B;
-
-                default:
-                    return S_BLOCK;
-            }
-        }
-
         default:
             return 0;
     }
@@ -1085,6 +696,14 @@ bool TwistWorkSpace::IsSBox(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSBoxF:
         case TwistWorkSpaceSlot::kParamDomainSBoxG:
         case TwistWorkSpaceSlot::kParamDomainSBoxH:
+        case TwistWorkSpaceSlot::kDerivedSBoxA:
+        case TwistWorkSpaceSlot::kDerivedSBoxB:
+        case TwistWorkSpaceSlot::kDerivedSBoxC:
+        case TwistWorkSpaceSlot::kDerivedSBoxD:
+        case TwistWorkSpaceSlot::kDerivedSBoxE:
+        case TwistWorkSpaceSlot::kDerivedSBoxF:
+        case TwistWorkSpaceSlot::kDerivedSBoxG:
+        case TwistWorkSpaceSlot::kDerivedSBoxH:
             return true;
         default:
             return false;
@@ -1100,7 +719,22 @@ bool TwistWorkSpace::IsSalt(TwistWorkSpaceSlot pSlot) {
     if (TryLegacySlotToBufferKey(pSlot, &aMappedKey)) {
         return IsSalt(aMappedKey);
     }
-    return IsParamSaltSlot(pSlot);
+    if (IsParamSaltSlot(pSlot)) {
+        return true;
+    }
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA:
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB:
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC:
+        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD:
+        case TwistWorkSpaceSlot::kDerivedSaltWandererA:
+        case TwistWorkSpaceSlot::kDerivedSaltWandererB:
+        case TwistWorkSpaceSlot::kDerivedSaltWandererC:
+        case TwistWorkSpaceSlot::kDerivedSaltWandererD:
+            return true;
+        default:
+            return false;
+    }
 }
 
 bool TwistWorkSpace::IsSalt(TwistBufferKey pKey) {

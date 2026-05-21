@@ -14,7 +14,6 @@ namespace {
 bool BufferKeysEqual(const TwistBufferKey &pLHS,
                      const TwistBufferKey &pRHS) {
     return (pLHS.mKind == pRHS.mKind) &&
-           (pLHS.mDirect == pRHS.mDirect) &&
            (pLHS.mDomain == pRHS.mDomain) &&
            (pLHS.mSlot == pRHS.mSlot) &&
            (pLHS.mSaltOwner == pRHS.mSaltOwner) &&
@@ -584,7 +583,6 @@ std::string BufAliasName(const GSymbol &pSymbol) {
 std::string BufferKeyToken(TwistBufferKey pKey) {
     return "k:" +
            std::to_string(static_cast<int>(pKey.mKind)) + ":" +
-           std::to_string(static_cast<int>(pKey.mDirect)) + ":" +
            std::to_string(static_cast<int>(pKey.mDomain)) + ":" +
            std::to_string(static_cast<int>(pKey.mSaltOwner)) + ":" +
            std::to_string(static_cast<int>(pKey.mSBoxOwner)) + ":" +
@@ -619,18 +617,25 @@ bool BufferKeyFromToken(const std::string &pToken,
         }
         aCursor = aColon + 1U;
     }
-    if (aValueCount != 7) {
+    if ((aValueCount != 6) && (aValueCount != 7)) {
         return false;
     }
 
+    const int aKind = aValues[0];
+    if ((aKind != static_cast<int>(TwistBufferKind::kSalt)) &&
+        (aKind != static_cast<int>(TwistBufferKind::kSBox)) &&
+        (aKind != static_cast<int>(TwistBufferKind::kConstants))) {
+        return false;
+    }
+
+    const int aOffset = (aValueCount == 7) ? 1 : 0;
     TwistBufferKey aKey;
     aKey.mKind = static_cast<TwistBufferKind>(aValues[0]);
-    aKey.mDirect = static_cast<TwistDirectBuffer>(aValues[1]);
-    aKey.mDomain = static_cast<TwistDomain>(aValues[2]);
-    aKey.mSaltOwner = static_cast<TwistSaltOwner>(aValues[3]);
-    aKey.mSBoxOwner = static_cast<TwistSBoxOwner>(aValues[4]);
-    aKey.mSlot = static_cast<std::uint16_t>(aValues[5]);
-    aKey.mSBoxLane = static_cast<TwistSBoxLane>(aValues[6]);
+    aKey.mDomain = static_cast<TwistDomain>(aValues[1 + aOffset]);
+    aKey.mSaltOwner = static_cast<TwistSaltOwner>(aValues[2 + aOffset]);
+    aKey.mSBoxOwner = static_cast<TwistSBoxOwner>(aValues[3 + aOffset]);
+    aKey.mSlot = static_cast<std::uint16_t>(aValues[4 + aOffset]);
+    aKey.mSBoxLane = static_cast<TwistSBoxLane>(aValues[5 + aOffset]);
 
     *pKeyOut = aKey;
     return aKey.IsValid();
