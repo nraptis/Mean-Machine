@@ -237,7 +237,7 @@ public:
     }};
     
     static constexpr GHotPack Get(std::uint16_t pIndex) {
-        return sPack[pIndex & 0x007FU];
+        return sPack[pIndex % G_HOT_PACK_COUNT];
     }
     
 };

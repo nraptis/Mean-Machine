@@ -13,10 +13,8 @@
 #include <string>
 
 struct GAXSKInputSlotOrdering {
-    
-    std::vector<GAXSKInputSlot>         mIngress;
-    std::vector<GAXSKInputSlot>         mCross;
-    
+    std::vector<GAXSKInputSlot>             mIngress;
+    std::vector<GAXSKInputSlot>             mCross;
 };
 
 class GAXSKPool {
@@ -44,7 +42,6 @@ private:
     int                                     mSourceCount = 0;
     int                                     mOrbiterCount = 0;
     int                                     mWandererCount = 0;
-    
     
 };
 

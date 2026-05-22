@@ -181,41 +181,6 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kMaskRowWriteA=134, // size is S_MASK_A
     kMaskRowWriteB=135, // size is S_MASK_B
     
-    kDomainSaltKeyBoxA=140, // try to remove
-    kDomainSaltKeyBoxB=141, // try to remove
-    kDomainSaltKeyBoxC=142, // try to remove
-    kDomainSaltKeyBoxD=143, // try to remove
-    kDomainSaltKeyBoxE=144, // try to remove
-    //kDomainSaltKeyBoxF=145,
-    
-    kDomainSaltMaskBoxA=146, // try to remove
-    kDomainSaltMaskBoxB=147, // try to remove
-    kDomainSaltMaskBoxC=148, // try to remove
-    kDomainSaltMaskBoxD=149, // try to remove
-    kDomainSaltMaskBoxE=150, // try to remove
-    kDomainSaltMaskBoxF=151, // try to remove
-    
-    kDomainSaltWandererUpdateA=152, // try to remove
-    kDomainSaltWandererUpdateB=153, // try to remove
-    kDomainSaltWandererUpdateC=154, // try to remove
-    kDomainSaltWandererUpdateD=155, // try to remove
-    kDomainSaltWandererUpdateE=156, // try to remove
-    kDomainSaltWandererUpdateF=157, // try to remove
-    
-    kDomainSaltOrbiterUpdateA=158, // try to remove
-    kDomainSaltOrbiterUpdateB=159, // try to remove
-    kDomainSaltOrbiterUpdateC=160, // try to remove
-    kDomainSaltOrbiterUpdateD=161, // try to remove
-    kDomainSaltOrbiterUpdateE=162, // try to remove
-    kDomainSaltOrbiterUpdateF=163, // try to remove
-    
-    kDomainSaltPrismA=164, // try to remove
-    kDomainSaltPrismB=165, // try to remove
-    kDomainSaltPrismC=166, // try to remove
-    kDomainSaltPrismD=167, // try to remove
-    kDomainSaltPrismE=168, // try to remove
-    kDomainSaltPrismF=169, // try to remove
-    
     kParamDomainSaltOrbiterAssignA=170,
     kParamDomainSaltOrbiterAssignB=171,
     kParamDomainSaltOrbiterAssignC=172,

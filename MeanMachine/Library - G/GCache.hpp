@@ -18,7 +18,6 @@
 #include "Random.hpp"
 #include "TwistMix64.hpp"
 #include "TwistFastMatrix.hpp"
-#include "GARXSkeleton.hpp"
 #include "GAXSKModel.hpp"
 
 template <typename T>
@@ -263,9 +262,6 @@ using GMix648Cache = GCache<Mix64Type_8>;
 
 using GUnrollCacheHistory = GCacheHistory<TwistFastMatrixUnrollScheme>;
 using GUnrollCache = GCache<TwistFastMatrixUnrollScheme>;
-
-using GARXTypeCacheHistory = GCacheHistory<GARXType>;
-using GARXTypeCache = GCache<GARXType>;
 
 using GAXSKVariableCacheHistory = GCacheHistory<GAXSKVariable>;
 using GAXSKVariableCache = GCache<GAXSKVariable>;

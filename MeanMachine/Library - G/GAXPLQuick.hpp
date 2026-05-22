@@ -17,36 +17,36 @@
 
 class GAXPLQuick {
 public:
-    static GExpr            Rotate(const GExpr &pExpr, int pRotation);
-    static GExpr            RotateSymbol(const GSymbol &pSymbol, int pRotation);
+    static GExpr                                Rotate(const GExpr &pExpr, int pRotation);
+    static GExpr                                RotateSymbol(const GSymbol &pSymbol, int pRotation);
     
-    static GExpr            Diffuse(const GExpr &pExpr, GAXSKDiffuseKind pDiffuse);
-    static GExpr            DiffuseAndXor(const GExpr &pExpr,
-                                          const GExpr &pXor,
-                                          GAXSKDiffuseKind pDiffuse);
+    static GExpr                                Diffuse(const GExpr &pExpr, GAXSKDiffuseKind pDiffuse);
+    static GExpr                                DiffuseAndXor(const GExpr &pExpr,
+                                                              const GExpr &pXor,
+                                                              GAXSKDiffuseKind pDiffuse);
     
-    static GSymbol          DomainConstantIngress();
-    static GSymbol          DomainConstantScatter();
-    static GSymbol          DomainConstantCross();
+    static GSymbol                              DomainConstantIngress();
+    static GSymbol                              DomainConstantScatter();
+    static GSymbol                              DomainConstantCross();
     
-    static bool             BakeInputSlotWord(const GAXSKInputSlot &pSlot,
-                                              const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
-                                              const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
-                                              GExpr *pExpr,
-                                              std::string *pErrorMessage);
+    static bool                                 BakeInputSlotWord(const GAXSKInputSlot &pSlot,
+                                                                  const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
+                                                                  const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
+                                                                  GExpr *pExpr,
+                                                                  std::string *pErrorMessage);
     
     
-    static bool             BakeInputSlotWordsXorSources(const std::vector<GAXSKInputSlot> &pInputs,
-                                                         const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
-                                                         const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
-                                                         GExpr *pExpr,
-                                                         std::string *pErrorMessage);
+    static bool                                 BakeInputSlotWordsXorSources(const std::vector<GAXSKInputSlot> &pInputs,
+                                                                             const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
+                                                                             const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
+                                                                             GExpr *pExpr,
+                                                                             std::string *pErrorMessage);
     
-    static bool             BakeInputSlotWordsXorNonces(const std::vector<GAXSKInputSlot> &pInputs,
-                                                        const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
-                                                        const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
-                                                        GExpr *pExpr,
-                                                        std::string *pErrorMessage);
+    static bool                                 BakeInputSlotWordsXorNonces(const std::vector<GAXSKInputSlot> &pInputs,
+                                                                            const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
+                                                                            const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
+                                                                            GExpr *pExpr,
+                                                                            std::string *pErrorMessage);
     
 };
 

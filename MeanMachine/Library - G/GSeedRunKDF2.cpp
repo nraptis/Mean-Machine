@@ -136,7 +136,7 @@ void GSeedRunKDF2::Reset() {
     }
 
     mARXSkeletons.clear();
-    mHotPacks = GMagicNumbers::GetHotPacks(4);
+    mHotPacks = GMagicNumbers::GetHotPacks(12);
 }
 
 bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
@@ -198,7 +198,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     aSlice1.mDestWriteInverted = false;
     aSlice1.mHotPack = mHotPacks[0];
     aSlices.push_back(aSlice1);
-    
+
     CSPRNGV2Slice aSlice2;
     aSlice2.mARXSkeleton = mARXSkeletons[1];
     aSlice2.mSources.push_back(mWorkLanes[0]);
@@ -207,7 +207,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     aSlice2.mDestWriteInverted = true;
     aSlice2.mHotPack = mHotPacks[1];
     aSlices.push_back(aSlice2);
-    
+
     CSPRNGV2Slice aSlice3;
     aSlice3.mARXSkeleton = mARXSkeletons[2];
     aSlice3.mSources.push_back(mWorkLanes[1]);
@@ -217,7 +217,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     aSlice3.mDestWriteInverted = false;
     aSlice3.mHotPack = mHotPacks[2];
     aSlices.push_back(aSlice3);
-    
+
     CSPRNGV2Slice aSlice4;
     aSlice4.mARXSkeleton = mARXSkeletons[3];
     aSlice4.mSources.push_back(mWorkLanes[2]);

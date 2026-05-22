@@ -89,8 +89,94 @@ int GAXSK::GetIndexForOrbiter(GAXSKVariable pOrbiter) {
     }
 }
 
+static int CountEvenRotationSlots(const std::vector<bool> &pIsEven) {
+    int aResult = 0;
+
+    for (bool aValue : pIsEven) {
+        if (aValue) {
+            aResult++;
+        }
+    }
+
+    return aResult;
+}
+
+static bool EvenRotationSlotsHaveMinimumDistance(const std::vector<bool> &pIsEven,
+                                                 int pMinimumDistance) {
+    int aPreviousEvenIndex = -1;
+
+    for (int aIndex = 0; aIndex < static_cast<int>(pIsEven.size()); aIndex++) {
+        if (pIsEven[static_cast<std::size_t>(aIndex)] == false) {
+            continue;
+        }
+
+        if (aPreviousEvenIndex >= 0) {
+            if ((aIndex - aPreviousEvenIndex) < pMinimumDistance) {
+                return false;
+            }
+        }
+
+        aPreviousEvenIndex = aIndex;
+    }
+
+    return true;
+}
+
+static bool ChooseEvenRotationSlots(int pCount,
+                                    int pEvenCount,
+                                    int pMinimumEvenDistance,
+                                    std::vector<bool> *pIsEven,
+                                    std::string *pErrorMessage) {
+    if (pIsEven == nullptr) {
+        SetError(pErrorMessage, "ChooseEvenRotationSlots received null result");
+        return false;
+    }
+
+    pIsEven->clear();
+
+    if (pCount <= 0) {
+        return true;
+    }
+
+    if (pEvenCount < 0 || pEvenCount > pCount) {
+        SetError(pErrorMessage, "ChooseEvenRotationSlots received invalid even count");
+        return false;
+    }
+
+    pIsEven->resize(static_cast<std::size_t>(pCount), false);
+
+    if (pEvenCount == 0) {
+        return true;
+    }
+
+    int aTryCount = 0;
+
+    do {
+        for (int aIndex = 0; aIndex < pCount; aIndex++) {
+            (*pIsEven)[static_cast<std::size_t>(aIndex)] = false;
+        }
+
+        for (int aIndex = 0; aIndex < pEvenCount; aIndex++) {
+            (*pIsEven)[static_cast<std::size_t>(Random::Get(pCount))] = true;
+        }
+
+        aTryCount++;
+        if (aTryCount > 10000) {
+            SetError(pErrorMessage, "ChooseEvenRotationSlots failed to choose even slots");
+            return false;
+        }
+
+    } while (
+        CountEvenRotationSlots(*pIsEven) != pEvenCount ||
+        EvenRotationSlotsHaveMinimumDistance(*pIsEven, pMinimumEvenDistance) == false
+    );
+
+    return true;
+}
+
 bool GAXSK::ChooseUpdateRotations(int pCount,
                                   int pMinimumDistance,
+                                  bool pAllowEvenRotation,
                                   std::vector<int> *pResult,
                                   std::string *pErrorMessage) {
     if (pResult == nullptr) {
@@ -114,6 +200,18 @@ bool GAXSK::ChooseUpdateRotations(int pCount,
         34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60
     };
 
+    const int aEvenCount = pAllowEvenRotation ? (pCount / 4) : 0;
+    const int aMinimumEvenDistance = 4;
+
+    std::vector<bool> aIsEven;
+    if (!ChooseEvenRotationSlots(pCount,
+                                 aEvenCount,
+                                 aMinimumEvenDistance,
+                                 &aIsEven,
+                                 pErrorMessage)) {
+        return false;
+    }
+
     std::vector<int> aRotations;
     aRotations.resize(static_cast<std::size_t>(pCount));
 
@@ -121,14 +219,14 @@ bool GAXSK::ChooseUpdateRotations(int pCount,
 
     do {
         for (int aIndex = 0; aIndex < pCount; aIndex++) {
-            if ((aIndex % 4) == 0) {
-                aRotations[static_cast<std::size_t>(aIndex)] = Random::Choice(kGAXSKEvenRotations);
+            if (aIsEven[static_cast<std::size_t>(aIndex)]) {
+                aRotations[static_cast<std::size_t>(aIndex)] =
+                    Random::Choice(kGAXSKEvenRotations);
             } else {
-                aRotations[static_cast<std::size_t>(aIndex)] = Random::Choice(kGAXSKOddRotations);
+                aRotations[static_cast<std::size_t>(aIndex)] =
+                    Random::Choice(kGAXSKOddRotations);
             }
         }
-
-        Random::Shuffle(&aRotations);
 
         aTryCount++;
         if (aTryCount > 10000) {
@@ -526,6 +624,7 @@ bool GAXSK::MakeScatterMixStatement(GAXSKStatement *pResult,
 }
 
 bool GAXSK::InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                                      GAXSKUpdateRotationParityMode pParityMode,
                                       std::string *pErrorMessage) {
     if (pSlots == nullptr) {
         SetError(pErrorMessage, "GAXSK::InfuseUpdateRotationSlots received null slots");
@@ -547,6 +646,7 @@ bool GAXSK::InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlo
     std::vector<int> aRotations;
     if (!ChooseUpdateRotations(aRotationCount,
                                aMinimumDistance,
+                               pParityMode == GAXSKUpdateRotationParityMode::kAllowEven,
                                &aRotations,
                                pErrorMessage)) {
         return false;
@@ -734,14 +834,33 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
         }
     }
 
-    if (!InfuseUpdateRotationSlots(&aOrbiterAssignContextSlots, pErrorMessage)) { return false; }
-    if (!InfuseUpdateRotationSlots(&aOrbiterAssignCarrySlots, pErrorMessage)) { return false; }
-    if (!InfuseUpdateRotationSlots(&aOrbiterUpdateContextSlots, pErrorMessage)) { return false; }
-    if (!InfuseUpdateRotationSlots(&aOrbiterHotMulSlots, pErrorMessage)) { return false; }
+    if (!InfuseUpdateRotationSlots(&aOrbiterAssignContextSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
 
-    if (!InfuseUpdateRotationSlots(&aWandererContextSlots, pErrorMessage)) { return false; }
-    if (!InfuseUpdateRotationSlots(&aWandererOrbiterSlots, pErrorMessage)) { return false; }
-    if (!InfuseUpdateRotationSlots(&aWandererCarrySlots, pErrorMessage)) { return false; }
+    if (!InfuseUpdateRotationSlots(&aOrbiterAssignCarrySlots,
+                                   GAXSKUpdateRotationParityMode::kSuppressEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aOrbiterUpdateContextSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aOrbiterHotMulSlots,
+                                   GAXSKUpdateRotationParityMode::kSuppressEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aWandererContextSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aWandererOrbiterSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aWandererCarrySlots,
+                                   GAXSKUpdateRotationParityMode::kSuppressEven,
+                                   pErrorMessage)) { return false; }
 
     for (const GAXSKStatement &aStatement : aUpdateStatements) {
         pSkeleton->mStatements.push_back(aStatement);
@@ -813,8 +932,6 @@ bool GAXSK::MakeModelUpdateStatement(const GAXSKModelStatement &pModelStatement,
 
         aTerm.mKind = aModelTerm.mKind;
         aTerm.mVariable = aModelTerm.mVariable;
-        aTerm.mSaltSlot = aModelTerm.mSaltSlot;
-        aTerm.mNonceSlot = aModelTerm.mNonceSlot;
         aTerm.mHotIndex = aModelTerm.mHotIndex;
         aTerm.mHasRotation = aModelTerm.mNeedsRotation;
         aTerm.mRotation = -1;

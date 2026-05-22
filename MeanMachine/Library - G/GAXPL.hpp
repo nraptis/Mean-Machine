@@ -11,6 +11,8 @@
 #include "GAXSK.hpp"
 #include "GQuick.hpp"
 #include "GSeedProgram.hpp"
+#include "GMagicNumbers.hpp"
+
 
 #include <string>
 #include <vector>
@@ -22,8 +24,30 @@ struct GAXPLSaltBag {
     std::vector<GSymbol>                                mWandererUpdate; // 2 salts
 };
 
+struct SaltBehavior {
+    bool mReversed = false;
+    int mOffset = -1;
+};
+
+struct NonceBehavior {
+    int mRotation = -1;
+};
+
+struct NonceSymbolChoice {
+    GSymbol mSymbol;
+    bool mPreferred = false;
+    bool mUseFullNonce = false;
+};
+
 class GAXPL {
 public:
+    
+    bool                                                MakeSaltBehaviors(std::vector<SaltBehavior> *pResult,
+                                                                          std::string *pErrorMessage) const;
+    
+    bool                                                MakeNonceBehaviors(std::vector<NonceBehavior> *pResult,
+                                                                           std::string *pErrorMessage) const;
+    
     
     
     void                                                Reset();
@@ -34,7 +58,8 @@ public:
                                                              const std::vector<GSymbol> &pSources,
                                                              const std::vector<GSymbol> &pOrbiters,
                                                              const std::vector<GSymbol> &pWanderers,
-                                                             
+                                                             GHotPack pHotPack,
+                                                             bool pUseFullNonce,
                                                              GLoop *pLoop,
                                                              std::string *pErrorMessage);
     
@@ -44,9 +69,59 @@ public:
                                                                   const std::vector<GSymbol> &pSources,
                                                                   const std::vector<GSymbol> &pOrbiters,
                                                                   const std::vector<GSymbol> &pWanderers,
-                                                                  
+                                                                  GHotPack pHotPack,
+                                                                  bool pUseFullNonce,
                                                                   GLoop *pLoop,
                                                                   std::string *pErrorMessage);
+    
+    
+    bool                                                MakeHotAddExpr(int pHotIndex,
+                                                                       GExpr *pResult,
+                                                                       std::string *pErrorMessage) const;
+    
+    bool                                                MakeHotMulExpr(int pHotIndex,
+                                                                       GExpr *pResult,
+                                                                       std::string *pErrorMessage) const;
+    
+    bool                                                MakeVariableTermExpr(const GAXSKUpdateTerm &pTerm,
+                                                                             GExpr *pResult,
+                                                                             std::string *pErrorMessage) const;
+    
+    bool                                                MakeUpdateTermExpr(const GAXSKUpdateTerm &pTerm,
+                                                                           GExpr *pResult,
+                                                                           std::string *pErrorMessage) const;
+    
+    bool                                                MakeUpdateTerms(const GAXSKUpdatePlan &pPlan,
+                                                                        std::vector<GExpr> *pTerms,
+                                                                        std::string *pErrorMessage) const;
+    
+    bool                                                EmitAddAssign(GSymbol pTarget,
+                                                                      std::vector<GExpr> pTerms,
+                                                                      const GExpr &pSaltExpr,
+                                                                      const GExpr &pNonceExpr,
+                                                                      std::vector<GStatement> *pStatements,
+                                                                      std::string *pErrorMessage) const;
+    
+    bool                                                EmitXorAssign(GSymbol pTarget,
+                                                                      std::vector<GExpr> pTerms,
+                                                                      const GExpr &pSaltExpr,
+                                                                      const GExpr &pNonceExpr,
+                                                                      std::vector<GStatement> *pStatements,
+                                                                      std::string *pErrorMessage) const;
+    
+    bool                                                EmitMulRotate(const GAXSKUpdatePlan &pPlan,
+                                                                      GSymbol pTarget,
+                                                                      std::vector<GStatement> *pStatements,
+                                                                      std::string *pErrorMessage) const;
+    
+    bool                                                EmitWandererUpdate(const GAXSKUpdatePlan &pPlan,
+                                                                           GSymbol pTarget,
+                                                                           bool pUseXorBoundary,
+                                                                           const GExpr &pSaltExpr,
+                                                                           const GExpr &pNonceExpr,
+                                                                           std::vector<GStatement> *pStatements,
+                                                                           std::string *pErrorMessage) const;
+    
     
     const GAXSKSkeleton                                 *mSkeleton = nullptr;
     GLoop                                               *mLoop = nullptr;
@@ -59,10 +134,42 @@ public:
     std::vector<GSymbol>                                mOrbiters;
     std::vector<GSymbol>                                mWanderers;
     
+    GHotPack                                            mHotPack;
+    
     std::unordered_map<GAXSKSourceKind, GSymbol>        mSourceMap;
     std::unordered_map<GAXSKNonceByteKind, GSymbol>     mNonceMap;
     std::unordered_map<GAXSKVariable, GSymbol>          mOrbiterMap;
     std::unordered_map<GAXSKVariable, GSymbol>          mWandererMap;
+    
+    std::unordered_map<int, GExpr>                      mSaltExprMap;
+    std::unordered_map<int, GExpr>                      mNonceExprMap;
+    
+    std::vector<SaltBehavior>                           mSaltBehaviors;
+    std::vector<NonceBehavior>                          mNonceBehaviors;
+    
+    
+    std::vector<GSymbol>                                mPreferredNonceSymbols;
+    std::vector<GSymbol>                                mFallbackNonceSymbols;
+    std::vector<NonceSymbolChoice>                      mNonceChoices;
+    
+    bool                                                mUseFullNonce = false;
+    
+    bool                                                BuildNonceChoices(std::string *pErrorMessage);
+    
+    bool                                                BuildSaltExprMap(std::string *pErrorMessage);
+    
+    bool                                                BuildSaltExprMapForRole(GAXSKSaltRole pRole,
+                                                                                int pSaltCount,
+                                                                                const std::vector<GSymbol> &pSaltSymbols,
+                                                                                int *pBehaviorIndex,
+                                                                                std::string *pErrorMessage);
+    
+    bool                                                BuildNonceExprMap(std::string *pErrorMessage);
+    
+    bool                                                BuildNonceExprMapForRole(GAXSKSaltRole pRole,
+                                                                                 int pNonceCount,
+                                                                                 int *pBehaviorIndex,
+                                                                                 std::string *pErrorMessage);
     
     
     bool                                                GenerateStatements(std::string *pErrorMessage);
@@ -79,7 +186,8 @@ public:
                                                                                     std::vector<GStatement> *pStatements,
                                                                                     std::string *pErrorMessage);
     
-    bool                                                GenerateUpdateStatement(const GAXSKStatement &pStatement,
+    bool                                                GenerateUpdateStatement(int pStatementIndex,
+                                                                                const GAXSKStatement &pStatement,
                                                                                 std::vector<GStatement> *pStatements,
                                                                                 std::string *pErrorMessage);
     

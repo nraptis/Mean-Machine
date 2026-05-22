@@ -10,6 +10,21 @@
 #include <unordered_map>
 #include <unordered_set>
 
+static int OrbiterPairKey(GAXSKVariable pOrbiterA,
+                          GAXSKVariable pOrbiterB) {
+    int aIndexA = GAXSK::GetIndexForOrbiter(pOrbiterA);
+    int aIndexB = GAXSK::GetIndexForOrbiter(pOrbiterB);
+
+    if ((aIndexA < 0) || (aIndexB < 0)) {
+        return -1;
+    }
+
+    if (aIndexA > aIndexB) {
+        std::swap(aIndexA, aIndexB);
+    }
+
+    return aIndexA * 100 + aIndexB;
+}
 
 static bool SameVariableDistanceClash(const std::vector<GAXSKVariable> &pList,
                                       int pMinimumDistance) {
@@ -40,38 +55,41 @@ static std::vector<GAXSKVariable> MakeContextSchedule(int pTargetCount) {
         GAXSKVariable::kPrevious,
         GAXSKVariable::kCross
     };
-
+    
     std::vector<GAXSKVariable> aResult;
-
+    
     if (pTargetCount <= 0) {
         return aResult;
     }
-
+    
     int aTryCount = 0;
-
+    
     do {
         aResult.clear();
-
+        
         for (int aGroupIndex = 0; aGroupIndex < 3; aGroupIndex++) {
             std::vector<GAXSKVariable> aGroup = aBase;
             Random::Shuffle(&aGroup);
-
+            
             for (const GAXSKVariable aVariable : aGroup) {
                 aResult.push_back(aVariable);
             }
         }
-
+        
         aTryCount++;
+        
         if (aTryCount > 10000) {
+            std::printf("warning: MakeContextSchedule hit retry limit, target_count=%d\n",
+                        pTargetCount);
             break;
         }
-
+        
     } while (SameVariableDistanceClash(aResult, 2));
-
+    
     if (static_cast<int>(aResult.size()) > pTargetCount) {
         aResult.resize(static_cast<std::size_t>(pTargetCount));
     }
-
+    
     return aResult;
 }
 
@@ -151,18 +169,20 @@ GAXSKModelStatement GAXSKModel::XorStatement(GAXSKVariable pTarget,
     return aStatement;
 }
 
-GAXSKModelStatement GAXSKModel::MulRotateStatement(GAXSKVariable pTarget) {
+GAXSKModelStatement GAXSKModel::MulRotateStatement(GAXSKVariable pTarget,
+                                                   int pHotIndex) {
     GAXSKModelStatement aStatement;
     aStatement.mOperation = GAXSKModelOperation::kMulRotate;
     aStatement.mTarget = pTarget;
     aStatement.mTerms.push_back(VarTerm(pTarget));
-    aStatement.mTerms.push_back(HotMulTerm());
+    aStatement.mTerms.push_back(HotMulTerm(pHotIndex));
     aStatement.mNeedsRotation = true;
     return aStatement;
 }
 
 void GAXSKModel::AppendOrbiterAssignStatements(const std::vector<GAXSKVariable> &pOrbiters,
                                                const std::vector<GAXSKVariable> &pWanderers,
+                                               int pHotIndexBase,
                                                std::vector<GAXSKModelStatement> *pStatements) {
     if (pStatements == nullptr) {
         return;
@@ -176,7 +196,16 @@ void GAXSKModel::AppendOrbiterAssignStatements(const std::vector<GAXSKVariable> 
         return;
     }
 
-    std::vector<GAXSKVariable> aContextSchedule = MakeContextSchedule((int)pOrbiters.size());
+    struct OrbiterAssignRowPlan {
+        int mIndex = -1;
+        GAXSKVariable mOrbiter = GAXSKVariable::kInvalid;
+        GAXSKVariable mWanderer = GAXSKVariable::kInvalid;
+        GAXSKVariable mContext = GAXSKVariable::kInvalid;
+        bool mUseCarry = false;
+    };
+
+    std::vector<GAXSKVariable> aContextSchedule =
+        MakeContextSchedule(static_cast<int>(pOrbiters.size()));
 
     std::unordered_map<GAXSKVariable, int> aWandererUsage;
     for (const GAXSKVariable aWanderer : pWanderers) {
@@ -208,8 +237,10 @@ void GAXSKModel::AppendOrbiterAssignStatements(const std::vector<GAXSKVariable> 
         return aResult;
     };
 
+    std::vector<OrbiterAssignRowPlan> aRows;
+
     for (std::size_t aIndex = 0U; aIndex < pOrbiters.size(); aIndex++) {
-        GAXSKVariable aOrbiter = pOrbiters[aIndex];
+        const GAXSKVariable aOrbiter = pOrbiters[aIndex];
 
         if (aOrbiter == GAXSKVariable::kInvalid) {
             continue;
@@ -220,19 +251,82 @@ void GAXSKModel::AppendOrbiterAssignStatements(const std::vector<GAXSKVariable> 
             aContext = aContextSchedule[aIndex];
         }
 
-        GAXSKVariable aWanderer = PopRandomLowestUsageWanderer();
+        OrbiterAssignRowPlan aRow;
+        aRow.mIndex = static_cast<int>(aIndex);
+        aRow.mOrbiter = aOrbiter;
+        aRow.mWanderer = PopRandomLowestUsageWanderer();
+        aRow.mContext = aContext;
 
+        aRows.push_back(aRow);
+    }
+
+    //
+    // Pick 1 or 2 carry rows, grouped by context type.
+    //
+    // This avoids carrying on two rows with the same context flavor, without
+    // needing retry helpers or SelectedIndexesHaveUniqueContext.
+    //
+    //const int aCarryCount = Random::Bool() ? 1 : 2;
+    const int aCarryCount = 3;
+    
+
+    std::vector<GAXSKVariable> aContextKinds = {
+        GAXSKVariable::kIngress,
+        GAXSKVariable::kScatter,
+        GAXSKVariable::kPrevious,
+        GAXSKVariable::kCross
+    };
+
+    Random::Shuffle(&aContextKinds);
+
+    int aCarryAssignedCount = 0;
+
+    for (const GAXSKVariable aContextKind : aContextKinds) {
+        std::vector<int> aCandidateRowIndexes;
+
+        for (int aRowIndex = 0; aRowIndex < static_cast<int>(aRows.size()); aRowIndex++) {
+            const OrbiterAssignRowPlan &aRow =
+                aRows[static_cast<std::size_t>(aRowIndex)];
+
+            if (aRow.mContext == aContextKind) {
+                aCandidateRowIndexes.push_back(aRowIndex);
+            }
+        }
+
+        if (aCandidateRowIndexes.empty()) {
+            continue;
+        }
+
+        const int aChosenRowIndex = Random::Choice(aCandidateRowIndexes);
+        aRows[static_cast<std::size_t>(aChosenRowIndex)].mUseCarry = true;
+
+        aCarryAssignedCount++;
+        if (aCarryAssignedCount >= aCarryCount) {
+            break;
+        }
+    }
+
+    if (aCarryAssignedCount != aCarryCount) {
+        std::printf("warning: AppendOrbiterAssignStatements assigned carry_count=%d requested=%d rows=%zu\n",
+                    aCarryAssignedCount,
+                    aCarryCount,
+                    aRows.size());
+    }
+
+    for (const OrbiterAssignRowPlan &aRow : aRows) {
         std::vector<GAXSKModelTerm> aTerms;
-        aTerms.push_back(VarTerm(aWanderer));
-        aTerms.push_back(RotVarTerm(aContext));
 
-        if (aIndex < 2U) {
+        aTerms.push_back(VarTerm(aRow.mWanderer));
+        aTerms.push_back(RotVarTerm(aRow.mContext));
+
+        if (aRow.mUseCarry) {
             aTerms.push_back(RotVarTerm(GAXSKVariable::kCarry));
         }
 
-        pStatements->push_back(SetStatement(aOrbiter, aTerms));
+        aTerms.push_back(HotAddTerm(pHotIndexBase + aRow.mIndex));
+
+        pStatements->push_back(SetStatement(aRow.mOrbiter, aTerms));
     }
-    
 }
 
 void GAXSKModel::AppendWandererUpdateStatements(const std::vector<GAXSKVariable> &pOrbiters,
@@ -249,31 +343,27 @@ void GAXSKModel::AppendWandererUpdateStatements(const std::vector<GAXSKVariable>
     if (pWandererCount <= 0) {
         return;
     }
-    
+
+    struct WandererUpdateRowPlan {
+        int mIndex = -1;
+        GAXSKVariable mTarget = GAXSKVariable::kInvalid;
+        GAXSKVariable mStream = GAXSKVariable::kInvalid;
+        GAXSKVariable mOrbiterA = GAXSKVariable::kInvalid;
+        GAXSKVariable mOrbiterB = GAXSKVariable::kInvalid;
+        bool mUseXor = false;
+        bool mUseCarry = false;
+    };
+
     std::vector<GAXSKVariable> aContextSchedule = MakeContextSchedule(pWandererCount);
-    
+
     std::unordered_map<GAXSKVariable, int> aOrbiterUsageLHS;
     for (const GAXSKVariable aOrbiter : pOrbiters) {
         aOrbiterUsageLHS[aOrbiter] = 0;
     }
-    
+
     std::unordered_set<int> aUsedOrbiterPairs;
-    auto OrbiterPairKey = [](GAXSKVariable pOrbiterA,
-                             GAXSKVariable pOrbiterB) -> int {
-        int aIndexA = GAXSK::GetIndexForOrbiter(pOrbiterA);
-        int aIndexB = GAXSK::GetIndexForOrbiter(pOrbiterB);
 
-        if ((aIndexA < 0) || (aIndexB < 0)) {
-            return -1;
-        }
 
-        if (aIndexA > aIndexB) {
-            std::swap(aIndexA, aIndexB);
-        }
-
-        return aIndexA * 100 + aIndexB;
-    };
-    
     auto PopRandomLowestUsageOrbiter = [&]() -> GAXSKVariable {
         int aLowestUsage = 0;
         bool aFoundAny = false;
@@ -298,7 +388,7 @@ void GAXSKModel::AppendWandererUpdateStatements(const std::vector<GAXSKVariable>
         aOrbiterUsageLHS[aResult] += 1;
         return aResult;
     };
-    
+
     auto PopRandomNonAdjacentOrbiterUnsafe = [&](GAXSKVariable pLeft) -> GAXSKVariable {
         std::vector<GAXSKVariable> aCandidates;
 
@@ -360,70 +450,193 @@ void GAXSKModel::AppendWandererUpdateStatements(const std::vector<GAXSKVariable>
 
         return Random::Choice(pOrbiters);
     };
-    
+
     const bool aFlipXorAndAdd = Random::Bool();
-    
+
+    std::vector<WandererUpdateRowPlan> aRows;
+
     for (int aIndex = 0; aIndex < pWandererCount; aIndex++) {
         GAXSKVariable aTarget = WandererForIndex(aIndex);
         if (aTarget == GAXSKVariable::kInvalid) {
             continue;
         }
-        
-        GAXSKVariable aStream = aContextSchedule[aIndex];
-        
+
+        GAXSKVariable aStream = aContextSchedule[static_cast<std::size_t>(aIndex)];
+
         GAXSKVariable aOrbiterA = PopRandomLowestUsageOrbiter();
         GAXSKVariable aOrbiterB = PopRandomNonAdjacentOrbiterUnsafe(aOrbiterA);
         if (Random::Bool()) {
             std::swap(aOrbiterA, aOrbiterB);
         }
-        
+
         const int aPairKey = OrbiterPairKey(aOrbiterA, aOrbiterB);
         if (aPairKey >= 0) {
             aUsedOrbiterPairs.insert(aPairKey);
         }
-        
+
         bool aUseXor = ((aIndex & 1) == 1);
         if (aFlipXorAndAdd) {
             aUseXor = !aUseXor;
         }
-        const bool aUseCarry = (aIndex >= (pWandererCount - 2));
-        
-        std::vector<GAXSKModelTerm> aTerms;
-        aTerms.push_back(VarTerm(aTarget));
-        aTerms.push_back(RotVarTerm(aStream));
-        
-        if (Random::Bool()) {
-            aTerms.push_back(RotVarTerm(aOrbiterA));
-            aTerms.push_back(VarTerm(aOrbiterB));
-        } else {
-            aTerms.push_back(VarTerm(aOrbiterA));
-            aTerms.push_back(RotVarTerm(aOrbiterB));
+
+        WandererUpdateRowPlan aRow;
+        aRow.mIndex = aIndex;
+        aRow.mTarget = aTarget;
+        aRow.mStream = aStream;
+        aRow.mOrbiterA = aOrbiterA;
+        aRow.mOrbiterB = aOrbiterB;
+        aRow.mUseXor = aUseXor;
+
+        aRows.push_back(aRow);
+    }
+
+    auto CarryRowsAreValid =
+        [&](const std::vector<int> &pSelectedRowIndexes) -> bool {
+
+        std::unordered_set<GAXSKVariable> aUsedContext;
+        std::unordered_set<int> aUsedOrbiterPairs;
+
+        int aRepeatedOrbiterCount = 0;
+        std::unordered_set<GAXSKVariable> aUsedOrbiters;
+
+        for (int aRowIndex : pSelectedRowIndexes) {
+            if (aRowIndex < 0 || aRowIndex >= static_cast<int>(aRows.size())) {
+                return false;
+            }
+
+            const WandererUpdateRowPlan &aRow =
+                aRows[static_cast<std::size_t>(aRowIndex)];
+
+            // Carry only on add rows.
+            if (aRow.mUseXor) {
+                return false;
+            }
+
+            // Context must be unique.
+            if (aUsedContext.find(aRow.mStream) != aUsedContext.end()) {
+                return false;
+            }
+            aUsedContext.insert(aRow.mStream);
+
+            if (aRow.mOrbiterA == GAXSKVariable::kInvalid ||
+                aRow.mOrbiterB == GAXSKVariable::kInvalid ||
+                aRow.mOrbiterA == aRow.mOrbiterB) {
+                return false;
+            }
+
+            // The unordered orbiter pair itself must not repeat.
+            const int aPairKey = OrbiterPairKey(aRow.mOrbiterA, aRow.mOrbiterB);
+            if (aPairKey < 0) {
+                return false;
+            }
+
+            if (aUsedOrbiterPairs.find(aPairKey) != aUsedOrbiterPairs.end()) {
+                return false;
+            }
+            aUsedOrbiterPairs.insert(aPairKey);
+
+            // Across all carry rows, allow at most one repeated orbiter.
+            if (aUsedOrbiters.find(aRow.mOrbiterA) != aUsedOrbiters.end()) {
+                aRepeatedOrbiterCount++;
+            } else {
+                aUsedOrbiters.insert(aRow.mOrbiterA);
+            }
+
+            if (aUsedOrbiters.find(aRow.mOrbiterB) != aUsedOrbiters.end()) {
+                aRepeatedOrbiterCount++;
+            } else {
+                aUsedOrbiters.insert(aRow.mOrbiterB);
+            }
+
+            if (aRepeatedOrbiterCount > 1) {
+                return false;
+            }
         }
 
-        if (aUseCarry) {
+        return true;
+    };
+    
+    std::vector<int> aCarryRowIndexes;
+
+    //const int aCarryCount = Random::Bool() ? 1 : 2;
+    const int aCarryCount = 2;
+
+    int aCarryTryCount = 0;
+    do {
+        aCarryRowIndexes.clear();
+
+        std::vector<int> aCandidateRowIndexes;
+        for (int i = 0; i < static_cast<int>(aRows.size()); i++) {
+            aCandidateRowIndexes.push_back(i);
+        }
+
+        Random::Shuffle(&aCandidateRowIndexes);
+
+        for (int i = 0;
+             i < aCarryCount && i < static_cast<int>(aCandidateRowIndexes.size());
+             i++) {
+            aCarryRowIndexes.push_back(aCandidateRowIndexes[static_cast<std::size_t>(i)]);
+        }
+
+        aCarryTryCount++;
+        if (aCarryTryCount > 10000) {
+            std::printf("warning: AppendWandererUpdateStatements hit carry retry limit, rows=%zu carry_count=%d\n",
+                        aRows.size(),
+                        aCarryCount);
+            aCarryRowIndexes.clear();
+            break;
+        }
+
+    } while (!CarryRowsAreValid(aCarryRowIndexes));
+
+    for (int aRowIndex : aCarryRowIndexes) {
+        if (aRowIndex >= 0 && aRowIndex < static_cast<int>(aRows.size())) {
+            aRows[static_cast<std::size_t>(aRowIndex)].mUseCarry = true;
+        }
+    }
+
+    for (const WandererUpdateRowPlan &aRow : aRows) {
+        std::vector<GAXSKModelTerm> aTerms;
+        aTerms.push_back(VarTerm(aRow.mTarget));
+        aTerms.push_back(RotVarTerm(aRow.mStream));
+
+        if (Random::Bool()) {
+            aTerms.push_back(RotVarTerm(aRow.mOrbiterA));
+            aTerms.push_back(VarTerm(aRow.mOrbiterB));
+        } else {
+            aTerms.push_back(VarTerm(aRow.mOrbiterA));
+            aTerms.push_back(RotVarTerm(aRow.mOrbiterB));
+        }
+
+        if (aRow.mUseCarry) {
             aTerms.push_back(RotVarTerm(GAXSKVariable::kCarry));
         }
 
-        if (aUseXor) {
-            pStatements->push_back(XorStatement(aTarget, aTerms));
+        if (aRow.mUseXor) {
+            pStatements->push_back(XorStatement(aRow.mTarget, aTerms));
         } else {
-            pStatements->push_back(AddStatement(aTarget, aTerms));
+            pStatements->push_back(AddStatement(aRow.mTarget, aTerms));
         }
     }
 }
 
 void GAXSKModel::AppendOrbiterRoundStatements(const GAXSKModelOrbiterRound &pRound,
+                                              int pHotIndex,
                                               std::vector<GAXSKModelStatement> *pStatements) {
     if (pStatements == nullptr) {
         return;
     }
+
+    const int aLeadHotIndex = pHotIndex;
+    const int aFeedbackHotIndex = pHotIndex + 1;
 
     pStatements->push_back(
         AddStatement(
             pRound.mLead,
             {
                 VarTerm(pRound.mLead),
-                VarTerm(pRound.mSource)
+                VarTerm(pRound.mSource),
+                HotAddTerm(aLeadHotIndex)
             }
         )
     );
@@ -433,13 +646,14 @@ void GAXSKModel::AppendOrbiterRoundStatements(const GAXSKModelOrbiterRound &pRou
             pRound.mFeedback,
             {
                 VarTerm(pRound.mFeedback),
-                VarTerm(pRound.mLead)
+                VarTerm(pRound.mLead),
+                HotAddTerm(aFeedbackHotIndex)
             }
         )
     );
 
     pStatements->push_back(
-        MulRotateStatement(pRound.mFeedback)
+        MulRotateStatement(pRound.mFeedback, aFeedbackHotIndex)
     );
 }
 
@@ -449,23 +663,16 @@ GAXSKModel GAXSKModel::MakeOrbiterPlan4x4() {
     aModel.mName = "GAXSKModelOrbiter4x4";
     
     aModel.mOrbiters = { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD };
-    aModel.mUnwind = {
-        GAXSKVariable::kWandererA,
-        GAXSKVariable::kWandererB,
-        GAXSKVariable::kWandererC,
-        GAXSKVariable::kWandererD,
-        GAXSKVariable::kWandererE,
-        
-        GAXSKVariable::kWandererF,
-        GAXSKVariable::kWandererG,
-        GAXSKVariable::kWandererH,
-        GAXSKVariable::kWandererI,
-        GAXSKVariable::kWandererJ,
-        
-        GAXSKVariable::kWandererK
-    };
+    aModel.mWanderers = { GAXSKVariable::kWandererA, GAXSKVariable::kWandererB, GAXSKVariable::kWandererC, GAXSKVariable::kWandererD, };
     
-    AppendOrbiterAssignStatements(aModel.mOrbiters, aModel.mUnwind, &aModel.mStatements);
+    int aHotIndex = Random::Get(32);
+
+    AppendOrbiterAssignStatements(aModel.mOrbiters,
+                                  aModel.mWanderers,
+                                  aHotIndex,
+                                  &aModel.mStatements);
+
+    aHotIndex += static_cast<int>(aModel.mOrbiters.size());
     
     const std::vector<GAXSKModelOrbiterRound> aRounds = {
         { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD },
@@ -475,11 +682,15 @@ GAXSKModel GAXSKModel::MakeOrbiterPlan4x4() {
     };
     
     for (const GAXSKModelOrbiterRound &aRound : aRounds) {
-        AppendOrbiterRoundStatements(aRound, &aModel.mStatements);
+        AppendOrbiterRoundStatements(aRound,
+                                     aHotIndex,
+                                     &aModel.mStatements);
+
+        aHotIndex += 2;
     }
     
     AppendWandererUpdateStatements(aModel.mOrbiters,
-                                   static_cast<int>(aModel.mUnwind.size()),
+                                   static_cast<int>(aModel.mWanderers.size()),
                                    &aModel.mStatements);
     
     return aModel;

@@ -300,16 +300,6 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
         return false;
     }
 
-    // Source direction / offset rules:
-    //
-    //   ingress primary source: forward, direct
-    //   cross primary source:   reverse, direct
-    //
-    //   secondary source reads:
-    //     nonzero offset
-    //     direction may flip
-    //
-    // This preserves the main source read while still adding an offset wrinkle.
     std::vector<int> aOffsets;
     aOffsets.resize(4U);
 

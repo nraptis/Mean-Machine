@@ -9,6 +9,7 @@
 #include "TwistArray.hpp"
 #include "GAXPLQuick.hpp"
 
+
 namespace {
 
 void SetError(std::string *pErrorMessage,
@@ -18,6 +19,763 @@ void SetError(std::string *pErrorMessage,
     }
 }
 
+}
+
+static bool AppendOptionalExpr(std::vector<GExpr> *pTerms,
+                               const GExpr &pExpr) {
+    if (pTerms == nullptr) {
+        return false;
+    }
+
+    if (pExpr.IsInvalid() == false) {
+        pTerms->push_back(pExpr);
+    }
+
+    return true;
+}
+
+static int WrapHotIndex(int pHotIndex) {
+    if (G_HOT_PACK_SIZE <= 0) {
+        return -1;
+    }
+
+    int aIndex = pHotIndex % G_HOT_PACK_SIZE;
+    if (aIndex < 0) {
+        aIndex += G_HOT_PACK_SIZE;
+    }
+
+    return aIndex;
+}
+
+bool GAXPL::MakeHotAddExpr(int pHotIndex,
+                           GExpr *pResult,
+                           std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXPL::MakeHotAddExpr received null result");
+        return false;
+    }
+
+    const int aHotIndex = WrapHotIndex(pHotIndex);
+    if (aHotIndex < 0) {
+        SetError(pErrorMessage, "GAXPL::MakeHotAddExpr could not wrap hot index");
+        return false;
+    }
+
+    *pResult = GExpr::Const64(
+        mHotPack.mPair[static_cast<std::size_t>(aHotIndex)].mAdd
+    );
+
+    return !pResult->IsInvalid();
+}
+
+bool GAXPL::MakeHotMulExpr(int pHotIndex,
+                           GExpr *pResult,
+                           std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXPL::MakeHotMulExpr received null result");
+        return false;
+    }
+
+    const int aHotIndex = WrapHotIndex(pHotIndex);
+    if (aHotIndex < 0) {
+        SetError(pErrorMessage, "GAXPL::MakeHotMulExpr could not wrap hot index");
+        return false;
+    }
+
+    *pResult = GExpr::Const64(
+        mHotPack.mPair[static_cast<std::size_t>(aHotIndex)].mMul
+    );
+
+    return !pResult->IsInvalid();
+}
+bool GAXPL::MakeVariableTermExpr(const GAXSKUpdateTerm &pTerm,
+                                 GExpr *pResult,
+                                 std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXPL::MakeVariableTermExpr received null result");
+        return false;
+    }
+
+    GSymbol aSymbol;
+    if (!SymbolForVariable(pTerm.mVariable, &aSymbol, pErrorMessage)) {
+        return false;
+    }
+
+    if (pTerm.mHasRotation) {
+        *pResult = GAXPLQuick::RotateSymbol(aSymbol, pTerm.mRotation);
+    } else {
+        *pResult = GExpr::Symbol(aSymbol);
+    }
+
+    if (pResult->IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::MakeVariableTermExpr produced invalid expression");
+        return false;
+    }
+
+    return true;
+}
+
+bool GAXPL::MakeUpdateTermExpr(const GAXSKUpdateTerm &pTerm,
+                               GExpr *pResult,
+                               std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXPL::MakeUpdateTermExpr received null result");
+        return false;
+    }
+
+    switch (pTerm.mKind) {
+        case GAXSKModelTermKind::kVariable:
+            return MakeVariableTermExpr(pTerm, pResult, pErrorMessage);
+
+        case GAXSKModelTermKind::kHotAdd:
+            return MakeHotAddExpr(pTerm.mHotIndex, pResult, pErrorMessage);
+
+        case GAXSKModelTermKind::kHotMul:
+            return MakeHotMulExpr(pTerm.mHotIndex, pResult, pErrorMessage);
+
+        default:
+            SetError(pErrorMessage, "GAXPL::MakeUpdateTermExpr unsupported update term kind");
+            return false;
+    }
+}
+
+bool GAXPL::MakeUpdateTerms(const GAXSKUpdatePlan &pPlan,
+                            std::vector<GExpr> *pTerms,
+                            std::string *pErrorMessage) const {
+    if (pTerms == nullptr) {
+        SetError(pErrorMessage, "GAXPL::MakeUpdateTerms received null terms");
+        return false;
+    }
+
+    pTerms->clear();
+
+    for (const GAXSKUpdateTerm &aTerm : pPlan.mTerms) {
+        GExpr aExpr;
+        if (!MakeUpdateTermExpr(aTerm, &aExpr, pErrorMessage)) {
+            return false;
+        }
+
+        if (aExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::MakeUpdateTerms produced invalid term");
+            return false;
+        }
+
+        pTerms->push_back(aExpr);
+    }
+
+    return true;
+}
+
+bool GAXPL::BuildSaltExprMapForRole(GAXSKSaltRole pRole,
+                                    int pSaltCount,
+                                    const std::vector<GSymbol> &pSaltSymbols,
+                                    int *pBehaviorIndex,
+                                    std::string *pErrorMessage) {
+    if (mSkeleton == nullptr) {
+        SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole has null skeleton");
+        return false;
+    }
+
+    if (pBehaviorIndex == nullptr) {
+        SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole received null behavior index");
+        return false;
+    }
+
+    if (pSaltCount < 0) {
+        SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole received negative salt count");
+        return false;
+    }
+
+    if (pSaltCount == 0) {
+        return true;
+    }
+
+    if (static_cast<int>(pSaltSymbols.size()) < pSaltCount) {
+        SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole did not have enough salt symbols");
+        return false;
+    }
+
+    if ((*pBehaviorIndex + pSaltCount) > static_cast<int>(mSaltBehaviors.size())) {
+        SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole did not have enough salt behaviors");
+        return false;
+    }
+
+    std::vector<int> aCandidateStatementIndexes;
+
+    for (int aStatementIndex = 0;
+         aStatementIndex < static_cast<int>(mSkeleton->mStatements.size());
+         ++aStatementIndex) {
+
+        const GAXSKStatement &aStatement =
+            mSkeleton->mStatements[static_cast<std::size_t>(aStatementIndex)];
+
+        bool aIsCandidate = false;
+
+        switch (pRole) {
+            case GAXSKSaltRole::kOrbiterAssign:
+                aIsCandidate = (aStatement.mKind == GAXSKStatementKind::kOrbiterAssign);
+                break;
+
+            case GAXSKSaltRole::kOrbiterUpdate:
+                aIsCandidate = (aStatement.mKind == GAXSKStatementKind::kOrbiterAdd ||
+                                aStatement.mKind == GAXSKStatementKind::kOrbiterXor);
+                break;
+
+            case GAXSKSaltRole::kWandererUpdate:
+                aIsCandidate = (aStatement.mKind == GAXSKStatementKind::kWandererAdd ||
+                                aStatement.mKind == GAXSKStatementKind::kWandererXor);
+                break;
+
+            default:
+                SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole received invalid salt role");
+                return false;
+        }
+
+        if (aIsCandidate) {
+            aCandidateStatementIndexes.push_back(aStatementIndex);
+        }
+    }
+
+    if (static_cast<int>(aCandidateStatementIndexes.size()) < pSaltCount) {
+        SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole did not have enough candidate statements");
+        return false;
+    }
+
+    std::vector<int> aSaltIndexes;
+    aSaltIndexes.reserve(pSaltSymbols.size());
+
+    for (int i = 0; i < static_cast<int>(pSaltSymbols.size()); ++i) {
+        if (pSaltSymbols[static_cast<std::size_t>(i)].IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole found invalid salt symbol");
+            return false;
+        }
+
+        aSaltIndexes.push_back(i);
+    }
+
+    Random::Shuffle(&aCandidateStatementIndexes);
+    Random::Shuffle(&aSaltIndexes);
+
+    for (int i = 0; i < pSaltCount; ++i) {
+        const int aStatementIndex = aCandidateStatementIndexes[static_cast<std::size_t>(i)];
+        const int aSaltIndex = aSaltIndexes[static_cast<std::size_t>(i)];
+
+        const SaltBehavior &aBehavior =
+            mSaltBehaviors[static_cast<std::size_t>(*pBehaviorIndex)];
+
+        (*pBehaviorIndex)++;
+
+        const GSymbol &aSaltSymbol =
+            pSaltSymbols[static_cast<std::size_t>(aSaltIndex)];
+
+        GExpr aSaltExpr;
+
+        // Replace this with your actual indexed salt-buffer expression builder.
+        // Intended emitted shape:
+        //   salt[(aIndex + offset) & S_SALT1]
+        // or:
+        //   salt[(S_SALT1 - aIndex + offset) & S_SALT1]
+        aSaltExpr = GQuick::MakeReadBufferOffsetExpressionDirected(
+            aSaltSymbol,
+            GSymbol::Var(TwistVariable::kIndex),
+            aBehavior.mReversed,
+            static_cast<std::uint32_t>(aBehavior.mOffset)
+        );
+
+        if (aSaltExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::BuildSaltExprMapForRole failed to build salt expression");
+            return false;
+        }
+
+        mSaltExprMap[aStatementIndex] = aSaltExpr;
+    }
+
+    return true;
+}
+
+bool GAXPL::BuildNonceExprMapForRole(GAXSKSaltRole pRole,
+                                     int pNonceCount,
+                                     int *pBehaviorIndex,
+                                     std::string *pErrorMessage) {
+    if (mSkeleton == nullptr) {
+        SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole has null skeleton");
+        return false;
+    }
+
+    if (pBehaviorIndex == nullptr) {
+        SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole received null behavior index");
+        return false;
+    }
+
+    if (pNonceCount < 0) {
+        SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole received negative nonce count");
+        return false;
+    }
+
+    if (pNonceCount == 0) {
+        return true;
+    }
+
+    if ((*pBehaviorIndex + pNonceCount) > static_cast<int>(mNonceChoices.size())) {
+        SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole did not have enough nonce choices");
+        return false;
+    }
+
+    if (mNonceBytes.empty()) {
+        SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole had no nonce symbols");
+        return false;
+    }
+
+    std::vector<int> aCandidateStatementIndexes;
+
+    for (int aStatementIndex = 0;
+         aStatementIndex < static_cast<int>(mSkeleton->mStatements.size());
+         ++aStatementIndex) {
+
+        const GAXSKStatement &aStatement =
+            mSkeleton->mStatements[static_cast<std::size_t>(aStatementIndex)];
+
+        bool aIsCandidate = false;
+
+        switch (pRole) {
+            case GAXSKSaltRole::kOrbiterAssign:
+                aIsCandidate = (aStatement.mKind == GAXSKStatementKind::kOrbiterAssign);
+                break;
+
+            case GAXSKSaltRole::kOrbiterUpdate:
+                aIsCandidate = (aStatement.mKind == GAXSKStatementKind::kOrbiterAdd ||
+                                aStatement.mKind == GAXSKStatementKind::kOrbiterXor);
+                break;
+
+            case GAXSKSaltRole::kWandererUpdate:
+                aIsCandidate = (aStatement.mKind == GAXSKStatementKind::kWandererAdd ||
+                                aStatement.mKind == GAXSKStatementKind::kWandererXor);
+                break;
+
+            default:
+                SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole received invalid role");
+                return false;
+        }
+
+        if (aIsCandidate) {
+            aCandidateStatementIndexes.push_back(aStatementIndex);
+        }
+    }
+
+    if (static_cast<int>(aCandidateStatementIndexes.size()) < pNonceCount) {
+        SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole did not have enough candidate statements");
+        return false;
+    }
+
+    Random::Shuffle(&aCandidateStatementIndexes);
+
+
+    for (int i = 0; i < pNonceCount; ++i) {
+        const int aStatementIndex = aCandidateStatementIndexes[static_cast<std::size_t>(i)];
+        
+        const int aChoiceIndex = *pBehaviorIndex;
+
+        const NonceBehavior &aBehavior =
+            mNonceBehaviors[static_cast<std::size_t>(aChoiceIndex)];
+
+        const NonceSymbolChoice &aChoice =
+            mNonceChoices[static_cast<std::size_t>(aChoiceIndex)];
+
+        (*pBehaviorIndex)++;
+
+        GExpr aNonceExpr;
+
+        if (aChoice.mUseFullNonce) {
+            aNonceExpr = GQuick::RotL64(GSymbol::Var("pNonce"), aBehavior.mRotation);
+        } else {
+            if (aChoice.mSymbol.IsInvalid()) {
+                SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole found invalid nonce choice");
+                return false;
+            }
+
+            aNonceExpr = GQuick::RotL64(aChoice.mSymbol, aBehavior.mRotation);
+        }
+        
+
+        if (aNonceExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole failed to build nonce expression");
+            return false;
+        }
+
+        mNonceExprMap[aStatementIndex] = aNonceExpr;
+    }
+
+    return true;
+}
+
+bool GAXPL::BuildNonceExprMap(std::string *pErrorMessage) {
+    mNonceExprMap.clear();
+
+    static constexpr int kNonceCountOrbiterAssign = 2;
+    static constexpr int kNonceCountOrbiterUpdate = 2;
+    static constexpr int kNonceCountWandererUpdate = 2;
+
+    int aBehaviorIndex = 0;
+
+    if (!BuildNonceExprMapForRole(GAXSKSaltRole::kOrbiterAssign,
+                                  kNonceCountOrbiterAssign,
+                                  &aBehaviorIndex,
+                                  pErrorMessage)) {
+        return false;
+    }
+
+    if (!BuildNonceExprMapForRole(GAXSKSaltRole::kOrbiterUpdate,
+                                  kNonceCountOrbiterUpdate,
+                                  &aBehaviorIndex,
+                                  pErrorMessage)) {
+        return false;
+    }
+
+    if (!BuildNonceExprMapForRole(GAXSKSaltRole::kWandererUpdate,
+                                  kNonceCountWandererUpdate,
+                                  &aBehaviorIndex,
+                                  pErrorMessage)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool GAXPL::BuildSaltExprMap(std::string *pErrorMessage) {
+    mSaltExprMap.clear();
+
+    static constexpr int kSaltCountOrbiterAssign = 2;
+    static constexpr int kSaltCountOrbiterUpdate = 4;
+    static constexpr int kSaltCountWandererUpdate = 2;
+    
+
+    int aBehaviorIndex = 0;
+
+    if (!BuildSaltExprMapForRole(GAXSKSaltRole::kOrbiterAssign,
+                                 kSaltCountOrbiterAssign,
+                                 mSaltsOrbiterAssign,
+                                 &aBehaviorIndex,
+                                 pErrorMessage)) {
+        return false;
+    }
+
+    if (!BuildSaltExprMapForRole(GAXSKSaltRole::kOrbiterUpdate,
+                                 kSaltCountOrbiterUpdate,
+                                 mSaltsOrbiterUpdate,
+                                 &aBehaviorIndex,
+                                 pErrorMessage)) {
+        return false;
+    }
+
+    if (!BuildSaltExprMapForRole(GAXSKSaltRole::kWandererUpdate,
+                                 kSaltCountWandererUpdate,
+                                 mSaltsWandererUpdate,
+                                 &aBehaviorIndex,
+                                 pErrorMessage)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool GAXPL::EmitAddAssign(GSymbol pTarget,
+                          std::vector<GExpr> pTerms,
+                          const GExpr &pSaltExpr,
+                          const GExpr &pNonceExpr,
+                          std::vector<GStatement> *pStatements,
+                          std::string *pErrorMessage) const {
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXPL::EmitAddAssign received null statements");
+        return false;
+    }
+
+    AppendOptionalExpr(&pTerms, pSaltExpr);
+    AppendOptionalExpr(&pTerms, pNonceExpr);
+
+    if (pTerms.empty()) {
+        SetError(pErrorMessage, "GAXPL::EmitAddAssign received no terms");
+        return false;
+    }
+
+    GExpr aExpr = GQuick::AddChain(pTerms);
+
+    if (aExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::EmitAddAssign produced invalid expression");
+        return false;
+    }
+
+    pStatements->push_back(
+        GStatement::Assign(
+            GTarget::Symbol(pTarget),
+            aExpr
+        )
+    );
+
+    return true;
+}
+
+bool GAXPL::EmitXorAssign(GSymbol pTarget,
+                          std::vector<GExpr> pTerms,
+                          const GExpr &pSaltExpr,
+                          const GExpr &pNonceExpr,
+                          std::vector<GStatement> *pStatements,
+                          std::string *pErrorMessage) const {
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXPL::EmitXorAssign received null statements");
+        return false;
+    }
+
+    AppendOptionalExpr(&pTerms, pSaltExpr);
+    AppendOptionalExpr(&pTerms, pNonceExpr);
+
+    if (pTerms.empty()) {
+        SetError(pErrorMessage, "GAXPL::EmitXorAssign received no terms");
+        return false;
+    }
+
+    GExpr aExpr = GQuick::XorChain(pTerms);
+
+    if (aExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::EmitXorAssign produced invalid expression");
+        return false;
+    }
+
+    pStatements->push_back(
+        GStatement::Assign(
+            GTarget::Symbol(pTarget),
+            aExpr
+        )
+    );
+
+    return true;
+}
+
+bool GAXPL::EmitMulRotate(const GAXSKUpdatePlan &pPlan,
+                          GSymbol pTarget,
+                          std::vector<GStatement> *pStatements,
+                          std::string *pErrorMessage) const {
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXPL::EmitMulRotate received null statements");
+        return false;
+    }
+
+    const int aRotation = pPlan.mHasRotation ? pPlan.mRotation : 32;
+
+    GExpr aMulExpr;
+    bool aFoundHotMul = false;
+
+    for (const GAXSKUpdateTerm &aTerm : pPlan.mTerms) {
+        if (aTerm.mKind == GAXSKModelTermKind::kHotMul) {
+            if (!MakeHotMulExpr(aTerm.mHotIndex, &aMulExpr, pErrorMessage)) {
+                return false;
+            }
+
+            aFoundHotMul = true;
+            break;
+        }
+    }
+
+    if (!aFoundHotMul) {
+        SetError(pErrorMessage, "GAXPL::EmitMulRotate found no hot mul term");
+        return false;
+    }
+
+    GExpr aExpr = GExpr::Mul(
+        GExpr::Symbol(pTarget),
+        aMulExpr
+    );
+
+    if (aExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::EmitMulRotate failed to build mul expression");
+        return false;
+    }
+
+    aExpr = GQuick::RotL64(aExpr, aRotation);
+
+    if (aExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::EmitMulRotate failed to build rotate expression");
+        return false;
+    }
+
+    pStatements->push_back(
+        GStatement::Assign(
+            GTarget::Symbol(pTarget),
+            aExpr
+        )
+    );
+
+    return true;
+}
+
+bool GAXPL::EmitWandererUpdate(const GAXSKUpdatePlan &pPlan,
+                               GSymbol pTarget,
+                               bool pUseXorBoundary,
+                               const GExpr &pSaltExpr,
+                               const GExpr &pNonceExpr,
+                               std::vector<GStatement> *pStatements,
+                               std::string *pErrorMessage) const {
+    std::vector<GExpr> aMixTerms;
+
+    for (const GAXSKUpdateTerm &aTerm : pPlan.mTerms) {
+        if (aTerm.mKind == GAXSKModelTermKind::kVariable &&
+            aTerm.mVariable == pPlan.mTarget) {
+            continue;
+        }
+
+        GExpr aExpr;
+        if (!MakeUpdateTermExpr(aTerm, &aExpr, pErrorMessage)) {
+            return false;
+        }
+
+        aMixTerms.push_back(aExpr);
+    }
+
+    AppendOptionalExpr(&aMixTerms, pNonceExpr);
+
+    if (aMixTerms.empty()) {
+        SetError(pErrorMessage, "GAXPL::EmitWandererUpdate received no mix terms");
+        return false;
+    }
+
+    GExpr aMix = GQuick::AddChain(aMixTerms);
+
+    if (aMix.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::EmitWandererUpdate failed to build mix");
+        return false;
+    }
+
+    if (pSaltExpr.IsInvalid() == false) {
+        // Future salt policy can choose add or xor. For now, leave prepared.
+        aMix = GExpr::Add(aMix, pSaltExpr);
+    }
+
+    GExpr aExpr;
+    if (pUseXorBoundary) {
+        aExpr = GExpr::Xor(GExpr::Symbol(pTarget), aMix);
+    } else {
+        aExpr = GExpr::Add(GExpr::Symbol(pTarget), aMix);
+    }
+
+    if (aExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::EmitWandererUpdate produced invalid expression");
+        return false;
+    }
+
+    pStatements->push_back(
+        GStatement::Assign(
+            GTarget::Symbol(pTarget),
+            aExpr
+        )
+    );
+
+    return true;
+}
+
+bool GAXPL::MakeSaltBehaviors(std::vector<SaltBehavior> *pResult,
+                              std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "salt behavior output pointer was null.";
+        }
+        return false;
+    }
+
+    static constexpr int kBehaviorCount = 16;
+    static constexpr int kReverseCount = 8;
+
+    pResult->clear();
+    pResult->reserve(kBehaviorCount);
+
+    std::vector<int> aOddOffsets = {
+        3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29
+    };
+
+    std::vector<int> aEvenOffsets = {
+        4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28
+    };
+
+    Random::Shuffle(&aOddOffsets);
+    Random::Shuffle(&aEvenOffsets);
+
+    std::vector<int> aOffsets;
+    aOffsets.reserve(kBehaviorCount);
+
+    for (int i = 0; i < 10; i++) {
+        aOffsets.push_back(aOddOffsets[i]);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        aOffsets.push_back(aEvenOffsets[i]);
+    }
+
+    Random::Shuffle(&aOffsets);
+
+    std::vector<int> aReverseFlags;
+    aReverseFlags.reserve(kBehaviorCount);
+
+    for (int i = 0; i < kBehaviorCount; ++i) {
+        aReverseFlags.push_back(i < kReverseCount ? 1 : 0);
+    }
+
+    Random::Shuffle(&aReverseFlags);
+
+    for (int i = 0; i < kBehaviorCount; ++i) {
+        SaltBehavior aBehavior;
+        aBehavior.mReversed = (aReverseFlags[i] != 0);
+        aBehavior.mOffset = aOffsets[i] + S_SALT * Random::Get(256);
+        pResult->push_back(aBehavior);
+    }
+
+    return true;
+}
+
+bool GAXPL::MakeNonceBehaviors(std::vector<NonceBehavior> *pResult,
+                               std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "nonce behavior output pointer was null.");
+        return false;
+    }
+
+    static constexpr int kBehaviorCount = 6;
+
+    pResult->clear();
+    pResult->reserve(kBehaviorCount);
+
+    std::vector<int> aOddRotations = {
+        3, 5, 7, 9, 11, 13, 15, 17,
+        19, 21, 23, 25, 27, 29, 31,
+        35, 37, 39, 41, 43, 45, 47,
+        49, 51, 53, 55, 57, 59, 61
+    };
+
+    std::vector<int> aEvenRotations = {
+        4, 6, 8, 10, 12, 14, 16, 18,
+        20, 22, 24, 26, 28, 30, 34,
+        36, 38, 40, 42, 44, 46, 48,
+        50, 52, 54, 56, 58, 60
+    };
+
+    Random::Shuffle(&aOddRotations);
+    Random::Shuffle(&aEvenRotations);
+
+    std::vector<int> aRotations;
+    aRotations.reserve(kBehaviorCount);
+
+    for (int i = 0; i < 5; ++i) {
+        aRotations.push_back(aOddRotations[i]);
+    }
+
+    aRotations.push_back(aEvenRotations[0]);
+
+    Random::Shuffle(&aRotations);
+
+    for (int i = 0; i < kBehaviorCount; ++i) {
+        NonceBehavior aBehavior;
+        aBehavior.mRotation = aRotations[i];
+        pResult->push_back(aBehavior);
+    }
+
+    return true;
 }
 
 void GAXPL::Reset() {
@@ -37,6 +795,19 @@ void GAXPL::Reset() {
     mNonceMap.clear();
     mOrbiterMap.clear();
     mWandererMap.clear();
+    
+    mSaltExprMap.clear();
+    mNonceExprMap.clear();
+
+    mSaltBehaviors.clear();
+    mNonceBehaviors.clear();
+
+    mPreferredNonceSymbols.clear();
+    mFallbackNonceSymbols.clear();
+    
+    mNonceChoices.clear();
+    
+    mUseFullNonce = false;
 }
 
 bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
@@ -45,10 +816,15 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
                  const std::vector<GSymbol> &pSources,
                  const std::vector<GSymbol> &pOrbiters,
                  const std::vector<GSymbol> &pWanderers,
+                      GHotPack pHotPack,
+                      bool pUseFullNonce,
                  GLoop *pLoop,
                  std::string *pErrorMessage) {
     
     Reset();
+    
+    if (!MakeSaltBehaviors(&mSaltBehaviors, pErrorMessage)) { return false; }
+    if (!MakeNonceBehaviors(&mNonceBehaviors, pErrorMessage)) { return false; }
     
     if (pSkeleton == nullptr) {
         SetError(pErrorMessage, "GAXPL::Configure received null skeleton");
@@ -71,6 +847,10 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
     TwistArray::Replace(&mOrbiters, &(pOrbiters));
     TwistArray::Replace(&mWanderers, &(pWanderers));
     
+    mHotPack = pHotPack;
+    
+    mUseFullNonce = pUseFullNonce;
+    
     if (!BuildSourceMap(pErrorMessage)) { return false; }
     if (!BuildNonceMap(pErrorMessage)) { return false; }
     if (!BuildOrbiterMap(pErrorMessage)) { return false; }
@@ -86,10 +866,12 @@ bool GAXPL::Bake(const GAXSKSkeleton *pSkeleton,
                  const std::vector<GSymbol> &pSources,
                  const std::vector<GSymbol> &pOrbiters,
                  const std::vector<GSymbol> &pWanderers,
+                 GHotPack pHotPack,
+                 bool pUseFullNonce,
                  GLoop *pLoop,
                  std::string *pErrorMessage) {
     if (!Configure(pSkeleton, pSaltBag, pNonceBytes, pSources,
-                   pOrbiters, pWanderers, pLoop, pErrorMessage)) {
+                   pOrbiters, pWanderers, pHotPack, pUseFullNonce, pLoop, pErrorMessage)) {
         return false;
     }
     
@@ -640,7 +1422,8 @@ bool GAXPL::GenerateScatterMixStatement(const GAXSKStatement &pStatement,
     return true;
 }
 
-bool GAXPL::GenerateUpdateStatement(const GAXSKStatement &pStatement,
+bool GAXPL::GenerateUpdateStatement(int pStatementIndex,
+                                    const GAXSKStatement &pStatement,
                                     std::vector<GStatement> *pStatements,
                                     std::string *pErrorMessage) {
     if (pStatements == nullptr) {
@@ -654,138 +1437,168 @@ bool GAXPL::GenerateUpdateStatement(const GAXSKStatement &pStatement,
     if (!SymbolForVariable(aPlan.mTarget, &aTarget, pErrorMessage)) {
         return false;
     }
+    
 
-    auto MakeTermExpr = [&](const GAXSKUpdateTerm &pTerm,
-                            GExpr *pResult) -> bool {
-        if (pResult == nullptr) {
-            SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement received null term result");
-            return false;
-        }
+    // These are placeholders for the upcoming assignment-list binder.
+    GExpr aSaltExpr;
+    GExpr aNonceExpr;
+    
+    auto aSaltIt = mSaltExprMap.find(pStatementIndex);
+    if (aSaltIt != mSaltExprMap.end()) {
+        aSaltExpr = aSaltIt->second;
+    }
 
-        switch (pTerm.mKind) {
-            case GAXSKModelTermKind::kVariable: {
-                GSymbol aSymbol;
-                if (!SymbolForVariable(pTerm.mVariable, &aSymbol, pErrorMessage)) {
-                    return false;
-                }
-
-                if (pTerm.mHasRotation) {
-                    *pResult = GAXPLQuick::RotateSymbol(aSymbol, pTerm.mRotation);
-                } else {
-                    *pResult = GExpr::Symbol(aSymbol);
-                }
-
-                break;
-            }
-
-            case GAXSKModelTermKind::kHotAdd:
-                *pResult = GExpr::Const64(0x9E3779B97F4A7C15ULL);
-                break;
-
-            case GAXSKModelTermKind::kHotMul:
-                *pResult = GExpr::Const64(0xD6E8FEB86659FD93ULL);
-                break;
-
-            default:
-                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement unsupported update term kind");
-                return false;
-        }
-
-        if (pResult->IsInvalid()) {
-            SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement produced invalid term expression");
-            return false;
-        }
-
-        return true;
-    };
-
-    auto MakeTerms = [&]() -> std::vector<GExpr> {
-        std::vector<GExpr> aTerms;
-
-        for (const GAXSKUpdateTerm &aTerm : aPlan.mTerms) {
-            GExpr aExpr;
-            if (!MakeTermExpr(aTerm, &aExpr)) {
-                return {};
-            }
-            aTerms.push_back(aExpr);
-        }
-
-        return aTerms;
-    };
+    auto aNonceIt = mNonceExprMap.find(pStatementIndex);
+    if (aNonceIt != mNonceExprMap.end()) {
+        aNonceExpr = aNonceIt->second;
+    }
 
     switch (pStatement.mKind) {
         case GAXSKStatementKind::kOrbiterAssign:
-        case GAXSKStatementKind::kOrbiterAdd:
-        case GAXSKStatementKind::kWandererAdd: {
-            std::vector<GExpr> aTerms = MakeTerms();
-            if (aTerms.empty()) {
-                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement add/assign had no terms");
+        case GAXSKStatementKind::kOrbiterAdd: {
+            std::vector<GExpr> aTerms;
+            if (!MakeUpdateTerms(aPlan, &aTerms, pErrorMessage)) {
                 return false;
             }
 
-            pStatements->push_back(
-                GStatement::Assign(
-                    GTarget::Symbol(aTarget),
-                    GQuick::AddChain(aTerms)
-                )
-            );
-
-            return true;
+            return EmitAddAssign(aTarget,
+                                 aTerms,
+                                 aSaltExpr,
+                                 aNonceExpr,
+                                 pStatements,
+                                 pErrorMessage);
         }
 
-        case GAXSKStatementKind::kOrbiterXor:
-        case GAXSKStatementKind::kWandererXor: {
-            std::vector<GExpr> aTerms = MakeTerms();
-            if (aTerms.empty()) {
-                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement xor had no terms");
+        case GAXSKStatementKind::kOrbiterXor: {
+            std::vector<GExpr> aTerms;
+            if (!MakeUpdateTerms(aPlan, &aTerms, pErrorMessage)) {
                 return false;
             }
 
-            pStatements->push_back(
-                GStatement::Assign(
-                    GTarget::Symbol(aTarget),
-                    GQuick::XorChain(aTerms)
-                )
-            );
-
-            return true;
+            return EmitXorAssign(aTarget,
+                                 aTerms,
+                                 aSaltExpr,
+                                 aNonceExpr,
+                                 pStatements,
+                                 pErrorMessage);
         }
+
+        case GAXSKStatementKind::kWandererAdd:
+            return EmitWandererUpdate(aPlan,
+                                      aTarget,
+                                      false,
+                                      aSaltExpr,
+                                      aNonceExpr,
+                                      pStatements,
+                                      pErrorMessage);
+
+        case GAXSKStatementKind::kWandererXor:
+            return EmitWandererUpdate(aPlan,
+                                      aTarget,
+                                      true,
+                                      aSaltExpr,
+                                      aNonceExpr,
+                                      pStatements,
+                                      pErrorMessage);
 
         case GAXSKStatementKind::kOrbiterMulRotate:
-        case GAXSKStatementKind::kWandererMulRotate: {
-            const int aRotation = aPlan.mHasRotation ? aPlan.mRotation : 32;
-
-            GExpr aExpr = GExpr::Mul(
-                GExpr::Symbol(aTarget),
-                GExpr::Const64(0xD6E8FEB86659FD93ULL)
-            );
-
-            if (aExpr.IsInvalid()) {
-                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement failed to build mul expression");
-                return false;
-            }
-
-            aExpr = GQuick::RotL64(aExpr, aRotation);
-
-            if (aExpr.IsInvalid()) {
-                SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement failed to build mul-rotate expression");
-                return false;
-            }
-
-            pStatements->push_back(
-                GStatement::Assign(
-                    GTarget::Symbol(aTarget),
-                    aExpr
-                )
-            );
-
-            return true;
-        }
+        case GAXSKStatementKind::kWandererMulRotate:
+            return EmitMulRotate(aPlan,
+                                 aTarget,
+                                 pStatements,
+                                 pErrorMessage);
 
         default:
             SetError(pErrorMessage, "GAXPL::GenerateUpdateStatement received unsupported statement kind");
             return false;
     }
+}
+
+bool GAXPL::BuildNonceChoices(std::string *pErrorMessage) {
+    static constexpr int kNonceChoiceCount = 6;
+
+    mNonceChoices.clear();
+    mNonceChoices.reserve(kNonceChoiceCount);
+
+    if (mNonceBytes.empty()) {
+        SetError(pErrorMessage, "GAXPL::BuildNonceChoices had no nonce symbols");
+        return false;
+    }
+
+    for (const GSymbol &aSymbol : mNonceBytes) {
+        if (aSymbol.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::BuildNonceChoices found invalid nonce symbol");
+            return false;
+        }
+    }
+
+    auto PushSymbolChoice = [&](const GSymbol &pSymbol, bool pPreferred) -> bool {
+        if (pSymbol.IsInvalid()) {
+            return false;
+        }
+
+        NonceSymbolChoice aChoice;
+        aChoice.mSymbol = pSymbol;
+        aChoice.mPreferred = pPreferred;
+        aChoice.mUseFullNonce = false;
+
+        mNonceChoices.push_back(aChoice);
+        return true;
+    };
+
+    for (const GSymbol &aSymbol : mPreferredNonceSymbols) {
+        if (static_cast<int>(mNonceChoices.size()) >= kNonceChoiceCount) {
+            break;
+        }
+
+        if (!PushSymbolChoice(aSymbol, true)) {
+            SetError(pErrorMessage, "GAXPL::BuildNonceChoices failed to push preferred nonce");
+            return false;
+        }
+    }
+
+    for (const GSymbol &aSymbol : mFallbackNonceSymbols) {
+        if (static_cast<int>(mNonceChoices.size()) >= kNonceChoiceCount) {
+            break;
+        }
+
+        if (!PushSymbolChoice(aSymbol, false)) {
+            SetError(pErrorMessage, "GAXPL::BuildNonceChoices failed to push fallback nonce");
+            return false;
+        }
+    }
+
+    while (static_cast<int>(mNonceChoices.size()) < kNonceChoiceCount) {
+        const int aIndex = Random::Get(static_cast<int>(mNonceBytes.size()));
+
+        if (!PushSymbolChoice(mNonceBytes[static_cast<std::size_t>(aIndex)], false)) {
+            SetError(pErrorMessage, "GAXPL::BuildNonceChoices failed to reuse nonce");
+            return false;
+        }
+    }
+
+    if (mUseFullNonce) {
+        std::vector<int> aFullNonceCandidateIndexes;
+
+        for (int i = 0; i < static_cast<int>(mNonceChoices.size()); ++i) {
+            if (!mNonceChoices[static_cast<std::size_t>(i)].mPreferred) {
+                aFullNonceCandidateIndexes.push_back(i);
+            }
+        }
+
+        if (!aFullNonceCandidateIndexes.empty()) {
+            Random::Shuffle(&aFullNonceCandidateIndexes);
+
+            const int aChoiceIndex = aFullNonceCandidateIndexes[0];
+
+            mNonceChoices[static_cast<std::size_t>(aChoiceIndex)].mUseFullNonce = true;
+            mNonceChoices[static_cast<std::size_t>(aChoiceIndex)].mSymbol = GSymbol();
+        }
+    }
+
+    Random::Shuffle(&mNonceChoices);
+
+    return true;
 }
 
 bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
@@ -798,10 +1611,72 @@ bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
         SetError(pErrorMessage, "GAXPL::GenerateStatements received null skeleton");
         return false;
     }
+    
+    
+    
+    mPreferredNonceSymbols.clear();
+    mFallbackNonceSymbols.clear();
+    
+    std::array<bool, 8> aUsed = {};
+
+    for (const GAXSKStatement &aStatement : mSkeleton->mStatements) {
+        if (aStatement.mKind != GAXSKStatementKind::kContextWordAssign) {
+            continue;
+        }
+
+        for (const GAXSKInputSlot &aSlot : aStatement.mContextWord.mSlots) {
+            if (aSlot.mKind != GAXSKInputSlotKind::kNonceByte) {
+                continue;
+            }
+
+            const int aNonceIndex = GetNonceByteIndex(aSlot.mNonceByte);
+            if (aNonceIndex >= 0 && aNonceIndex < 8) {
+                aUsed[static_cast<std::size_t>(aNonceIndex)] = true;
+            }
+        }
+    }
+
+    for (int i = 0; i < 8; ++i) {
+        if (static_cast<std::size_t>(i) >= mNonceBytes.size()) {
+            SetError(pErrorMessage, "GAXPL::BuildNonceExprMap missing nonce byte symbol");
+            return false;
+        }
+
+        if (mNonceBytes[static_cast<std::size_t>(i)].IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::BuildNonceExprMap found invalid nonce byte symbol");
+            return false;
+        }
+
+        if (aUsed[static_cast<std::size_t>(i)]) {
+            mFallbackNonceSymbols.push_back(mNonceBytes[static_cast<std::size_t>(i)]);
+        } else {
+            mPreferredNonceSymbols.push_back(mNonceBytes[static_cast<std::size_t>(i)]);
+        }
+    }
+    
+    Random::Shuffle(&mPreferredNonceSymbols);
+    Random::Shuffle(&mFallbackNonceSymbols);
+    
+    if (!BuildNonceChoices(pErrorMessage)) {
+        return false;
+    }
+    
+    if (!BuildSaltExprMap(pErrorMessage)) {
+        return false;
+    }
+    
+    if (!BuildNonceExprMap(pErrorMessage)) {
+        return false;
+    }
+    
+    mNonceChoices.clear();
 
     std::vector<GStatement> aStatements;
-
-    for (const GAXSKStatement &aSkeletonStatement : mSkeleton->mStatements) {
+    for (int aStatementIndex = 0; aStatementIndex < mSkeleton->mStatements.size(); aStatementIndex++) {
+        
+        const GAXSKStatement &aSkeletonStatement =
+            mSkeleton->mStatements[static_cast<std::size_t>(aStatementIndex)];
+        
         if (aSkeletonStatement.mKind == GAXSKStatementKind::kPreviousAssign) {
             if (!GeneratePreviousAssignStatement(aSkeletonStatement,
                                                  &aStatements,
@@ -836,7 +1711,7 @@ bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
             aSkeletonStatement.mKind == GAXSKStatementKind::kWandererAdd ||
             aSkeletonStatement.mKind == GAXSKStatementKind::kWandererXor ||
             aSkeletonStatement.mKind == GAXSKStatementKind::kWandererMulRotate) {
-            if (!GenerateUpdateStatement(aSkeletonStatement, &aStatements, pErrorMessage)) {
+            if (!GenerateUpdateStatement(aStatementIndex, aSkeletonStatement, &aStatements, pErrorMessage)) {
                 return false;
             }
             continue;

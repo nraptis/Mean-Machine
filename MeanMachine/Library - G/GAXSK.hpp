@@ -15,6 +15,10 @@
 class GAXSKPool;
 struct GAXSKModelStatement;
 
+enum class GAXSKUpdateRotationParityMode : std::uint8_t {
+    kAllowEven = 0,
+    kSuppressEven
+};
 
 enum class GAXSKModelOperation: std::uint8_t {
     kInvalid = 0,
@@ -26,12 +30,7 @@ enum class GAXSKModelOperation: std::uint8_t {
 
 enum class GAXSKModelTermKind: std::uint8_t {
     kInvalid = 0,
-
     kVariable,
-
-    kMandatorySalt,
-    kOptionalSalt,
-    kOptionalNonce,
     kHotAdd,
     kHotMul
 };
@@ -49,12 +48,6 @@ enum class GAXSKDiffuseKind : std::uint8_t {
     kDiffuseC
 };
 
-enum class GAXSKSaltRole : std::uint8_t {
-    kInvalid = 0,
-    kOrbiterAssign,
-    kOrbiterUpdate,
-    kWandererAssign,
-};
 
 enum class GAXSKInputSlotKind : std::uint8_t {
     kInvalid = 0,
@@ -129,8 +122,8 @@ enum class GAXSKStatementKind : std::uint8_t {
     kPreviousAssign,
 
     kContextWordAssign,
-    kContextWordDomainMix,
-    kContextWordDiffuse,
+    //kContextWordDomainMix,
+    //kContextWordDiffuse,
 
     kScatterMix,
 
@@ -183,35 +176,18 @@ struct GAXSKScatterMixPair {
 };
 
 struct GAXSKScatterMixPlan {
-    
-    /*
-    (a + b) ^ (c + d)
-    (a ^ b) + (c ^ d)
-    (a + b) + (c ^ d)
-    (a ^ b) ^ (c + d)
-    (a + b) ^ (c ^ d)
-    (a ^ b) + (c + d)
-    */
-    
     GAXSKVariable mTarget = GAXSKVariable::kScatter;
-
     GAXSKScatterMixPair mLeftPair;
     GAXSKScatterMixPair mRightPair;
     GAXSKScatterMixOp mOuterOp = GAXSKScatterMixOp::kInvalid;
-
     bool mHasDomainMix = true;
     GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
 };
 
 struct GAXSKUpdateTerm {
     GAXSKModelTermKind mKind = GAXSKModelTermKind::kInvalid;
-
     GAXSKVariable mVariable = GAXSKVariable::kInvalid;
-
-    int mSaltSlot = -1;
-    int mNonceSlot = -1;
     int mHotIndex = -1;
-
     bool mHasRotation = false;
     int mRotation = 32;
 };
@@ -229,6 +205,44 @@ struct GAXSKUpdatePlan {
     int mRotation = 32;
 };
 
+enum class GAXSKSaltRole : std::uint8_t {
+    kInvalid = 0,
+    kOrbiterAssign,
+    kOrbiterUpdate,
+    kWandererUpdate
+};
+
+/*
+enum class GAXSKSaltOp : std::uint8_t {
+    kInvalid = 0,
+    kAdd,
+    kXor
+};
+
+struct GAXSKSaltLineAssignment {
+    GAXSKSaltRole mRole = GAXSKSaltRole::kInvalid;
+
+    // Which generated skeleton statement gets this salt.
+    int mStatementIndexA = -1;
+    int mStatementIndexB = -1;
+    
+    
+    // How AXPL stitches it into that statement.
+    GAXSKSaltOp mOpA = GAXSKSaltOp::kInvalid;
+    GAXSKSaltOp mOpB = GAXSKSaltOp::kInvalid;
+};
+*/
+
+struct WandererUpdateRowPlan {
+    int mIndex = -1;
+    GAXSKVariable mTarget = GAXSKVariable::kInvalid;
+    GAXSKVariable mStream = GAXSKVariable::kInvalid;
+    GAXSKVariable mOrbiterA = GAXSKVariable::kInvalid;
+    GAXSKVariable mOrbiterB = GAXSKVariable::kInvalid;
+    bool mUseXor = false;
+    bool mUseCarry = false;
+};
+
 struct GAXSKStatement {
     GAXSKStatementKind mKind = GAXSKStatementKind::kInvalid;
     GAXSKVariable mTarget = GAXSKVariable::kInvalid;
@@ -238,10 +252,8 @@ struct GAXSKStatement {
     GAXSKUpdatePlan mUpdate;
 };
 
-
-
 struct GAXSKSkeleton {
-    std::vector<GAXSKStatement> mStatements;
+    std::vector<GAXSKStatement>             mStatements;
 };
 
 class GAXSK {
@@ -271,6 +283,7 @@ public:
     
     static bool                             ChooseUpdateRotations(int pCount,
                                                                   int pMinimumDistance,
+                                                                  bool pAllowEvenRotation,
                                                                   std::vector<int> *pResult,
                                                                   std::string *pErrorMessage);
     
@@ -321,6 +334,7 @@ public:
     
     
     bool                                    InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                                                                      GAXSKUpdateRotationParityMode pParityMode,
                                                                       std::string *pErrorMessage);
     
     

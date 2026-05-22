@@ -155,6 +155,8 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
     
     GAXPL *aPlan = new GAXPL();
     
+    int aFullNonceIndex = Random::Get((int)(pSlices.size()));
+    
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
         
         const CSPRNGV2Slice &aSlice = pSlices[aSliceIndex];
@@ -167,13 +169,15 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         aLoop.mLoopStep = 1;
         
         if (!aPlan->Bake(&aSlice.mARXSkeleton,
-                        aSlice.mSaltBag,
-                        aSlice.mNonceBytes,
-                        aSlice.mSources,
-                        aSlice.mOrbiters,
-                        aSlice.mWanderers,
-                        &aLoop,
-                        pErrorMessage)) {
+                         aSlice.mSaltBag,
+                         aSlice.mNonceBytes,
+                         aSlice.mSources,
+                         aSlice.mOrbiters,
+                         aSlice.mWanderers,
+                         aSlice.mHotPack,
+                         (aFullNonceIndex == aSliceIndex),
+                         &aLoop,
+                         pErrorMessage)) {
             const char *aErrorText = (pErrorMessage != nullptr) ? pErrorMessage->c_str() : "unknown error";
             printf("GAXPL::Bake Error => %s\n", aErrorText);
             delete aPlan;
