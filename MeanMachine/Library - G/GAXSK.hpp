@@ -14,6 +14,7 @@
 
 class GAXSKPool;
 struct GAXSKModelStatement;
+class GAXSKModel;
 
 enum class GAXSKUpdateRotationParityMode : std::uint8_t {
     kAllowEven = 0,
@@ -118,13 +119,12 @@ enum class GAXSKVariable : std::uint8_t {
 
 enum class GAXSKStatementKind : std::uint8_t {
     kInvalid = 0,
+    
+    kComment,
 
     kPreviousAssign,
 
     kContextWordAssign,
-    //kContextWordDomainMix,
-    //kContextWordDiffuse,
-
     kScatterMix,
 
     kOrbiterAssign,
@@ -132,13 +132,13 @@ enum class GAXSKStatementKind : std::uint8_t {
     kOrbiterXor,
     kOrbiterMulRotate,
 
+    kIngressCrush,
+    
     kWandererAdd,
     kWandererXor,
     kWandererMulRotate,
-
-    kCarryMix,
-    kCarryMulRotate,
-    kCarryFinalXor
+    
+    kCarryCrush
 };
 
 struct GAXSKInputSlot {
@@ -205,6 +205,39 @@ struct GAXSKUpdatePlan {
     int mRotation = 32;
 };
 
+struct GAXSKCrushPairPlan {
+    GAXSKVariable mA = GAXSKVariable::kInvalid;
+    GAXSKVariable mB = GAXSKVariable::kInvalid;
+
+    bool mRotateA = false;
+    int mRotation = -1;
+
+    GAXSKOpKind mOp = GAXSKOpKind::kInvalid; // add or xor
+};
+
+struct GAXSKCrushOddPlan {
+    GAXSKVariable mVariable = GAXSKVariable::kInvalid;
+
+    bool mHasRotation = false;
+    int mRotation = -1;
+};
+
+struct GAXSKCrushPlan {
+    GAXSKVariable mTarget = GAXSKVariable::kInvalid;
+
+    std::vector<GAXSKCrushPairPlan> mPairs;
+
+    bool mHasOdd = false;
+    GAXSKCrushOddPlan mOdd;
+
+    bool mHasFinalTerm = false;
+    GAXSKVariableTerm mFinalTerm;
+
+    GAXSKOpKind mOuterOp = GAXSKOpKind::kInvalid;
+    bool mHasDiffuse = true;
+    GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
+};
+
 enum class GAXSKSaltRole : std::uint8_t {
     kInvalid = 0,
     kOrbiterAssign,
@@ -212,44 +245,25 @@ enum class GAXSKSaltRole : std::uint8_t {
     kWandererUpdate
 };
 
-/*
-enum class GAXSKSaltOp : std::uint8_t {
-    kInvalid = 0,
-    kAdd,
-    kXor
-};
-
-struct GAXSKSaltLineAssignment {
-    GAXSKSaltRole mRole = GAXSKSaltRole::kInvalid;
-
-    // Which generated skeleton statement gets this salt.
-    int mStatementIndexA = -1;
-    int mStatementIndexB = -1;
-    
-    
-    // How AXPL stitches it into that statement.
-    GAXSKSaltOp mOpA = GAXSKSaltOp::kInvalid;
-    GAXSKSaltOp mOpB = GAXSKSaltOp::kInvalid;
-};
-*/
-
 struct WandererUpdateRowPlan {
-    int mIndex = -1;
-    GAXSKVariable mTarget = GAXSKVariable::kInvalid;
-    GAXSKVariable mStream = GAXSKVariable::kInvalid;
-    GAXSKVariable mOrbiterA = GAXSKVariable::kInvalid;
-    GAXSKVariable mOrbiterB = GAXSKVariable::kInvalid;
-    bool mUseXor = false;
-    bool mUseCarry = false;
+    int                         mIndex = -1;
+    GAXSKVariable               mTarget = GAXSKVariable::kInvalid;
+    GAXSKVariable               mStream = GAXSKVariable::kInvalid;
+    GAXSKVariable               mOrbiterA = GAXSKVariable::kInvalid;
+    GAXSKVariable               mOrbiterB = GAXSKVariable::kInvalid;
+    bool                        mUseXor = false;
+    bool                        mUseCarry = false;
 };
 
 struct GAXSKStatement {
-    GAXSKStatementKind mKind = GAXSKStatementKind::kInvalid;
-    GAXSKVariable mTarget = GAXSKVariable::kInvalid;
-    GAXSKVariable mSource = GAXSKVariable::kInvalid;
-    GAXSKContextWordPlan mContextWord;
-    GAXSKScatterMixPlan mScatterMix;
-    GAXSKUpdatePlan mUpdate;
+    GAXSKStatementKind          mKind = GAXSKStatementKind::kInvalid;
+    GAXSKVariable               mTarget = GAXSKVariable::kInvalid;
+    GAXSKVariable               mSource = GAXSKVariable::kInvalid;
+    GAXSKContextWordPlan        mContextWord;
+    GAXSKScatterMixPlan         mScatterMix;
+    GAXSKUpdatePlan             mUpdate;
+    GAXSKCrushPlan              mCrush;
+    GAXSKCrushPlan              mCarry;
 };
 
 struct GAXSKSkeleton {
@@ -319,7 +333,20 @@ public:
     GAXSKInputSlot                          MakeNonceSlot(GAXSKNonceByteKind pNonceByte,
                                                           int pRotation);
     
+    bool                                    MakeIngressCrushStatement(GAXSKVariable pTarget,
+                                                                      const std::vector<GAXSKVariable> &pOrbiters,
+                                                                      GAXSKStatement *pResult,
+                                                                      std::string *pErrorMessage);
+    
+    bool                                    MakeCarryMixStatement(const std::vector<GAXSKVariable> &pWanderers,
+                                      GAXSKStatement *pResult,
+                                      std::string *pErrorMessage);
+    
+    
+    
     GAXSKStatement                          MakePreviousAssignStatement();
+    
+    GAXSKStatement                          MakeCommentStatement();
     
     GAXSKStatement                          MakeContextWordStatement(GAXSKVariable pTarget,
                                                                      GAXSKDiffuseKind pDiffuse,
@@ -342,6 +369,12 @@ public:
                                                                       int pLaneCount,
                                                                       GAXSKSkeleton *pSkeleton,
                                                                       std::string *pErrorMessage);
+    
+    
+    bool                                    FinishModelStatements(const GAXSKModel &pModel,
+                                                                  std::vector<GAXSKStatement> *pStatements,
+                                                                  std::string *pErrorMessage);
+    
     
     GAXSFormat                              mFormat = GAXSFormat::kInvalid;
     bool                                    mHasDomainMix = false;

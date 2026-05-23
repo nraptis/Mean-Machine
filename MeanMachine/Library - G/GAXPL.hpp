@@ -60,6 +60,8 @@ public:
                                                              const std::vector<GSymbol> &pWanderers,
                                                              GHotPack pHotPack,
                                                              bool pUseFullNonce,
+                                                             GSymbol pDest,
+                                                             bool pDestWriteInverted,
                                                              GLoop *pLoop,
                                                              std::string *pErrorMessage);
     
@@ -71,6 +73,8 @@ public:
                                                                   const std::vector<GSymbol> &pWanderers,
                                                                   GHotPack pHotPack,
                                                                   bool pUseFullNonce,
+                                                                  GSymbol pDest,
+                                                                  bool pDestWriteInverted,
                                                                   GLoop *pLoop,
                                                                   std::string *pErrorMessage);
     
@@ -90,6 +94,11 @@ public:
     bool                                                MakeUpdateTermExpr(const GAXSKUpdateTerm &pTerm,
                                                                            GExpr *pResult,
                                                                            std::string *pErrorMessage) const;
+    
+    bool                                                GenerateCarryCrushStatement(const GAXSKStatement &pStatement,
+                                     std::vector<GStatement> *pStatements,
+                                     std::string *pErrorMessage);
+    
     
     bool                                                MakeUpdateTerms(const GAXSKUpdatePlan &pPlan,
                                                                         std::vector<GExpr> *pTerms,
@@ -135,6 +144,9 @@ public:
     std::vector<GSymbol>                                mWanderers;
     
     GHotPack                                            mHotPack;
+    
+    GSymbol                                             mDest;
+    bool                                                mDestWriteInverted;
     
     std::unordered_map<GAXSKSourceKind, GSymbol>        mSourceMap;
     std::unordered_map<GAXSKNonceByteKind, GSymbol>     mNonceMap;
@@ -192,6 +204,14 @@ public:
                                                                                 std::string *pErrorMessage);
     
     // store maps as member variables, so we do not need to pass them all over.
+    
+    bool                                                GenerateIngressCrushStatement(const GAXSKStatement &pStatement,
+                                                                                      std::vector<GStatement> *pStatements,
+                                                                                      std::string *pErrorMessage);
+    
+    bool                                                MakeCrushPairExpr(const GAXSKCrushPairPlan &pPair,
+                                                                          GExpr *pResult,
+                                                                          std::string *pErrorMessage) const;
     
     
 private:

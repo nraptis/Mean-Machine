@@ -121,15 +121,6 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kParamDomainSBoxF=35,
     kParamDomainSBoxG=36,
     kParamDomainSBoxH=37,
-
-    kDerivedSBoxA=40, // try to remove
-    kDerivedSBoxB=41, // try to remove
-    kDerivedSBoxC=42, // try to remove
-    kDerivedSBoxD=43, // try to remove
-    kDerivedSBoxE=44, // try to remove
-    kDerivedSBoxF=45, // try to remove
-    kDerivedSBoxG=46, // try to remove
-    kDerivedSBoxH=47, // try to remove
     
     kExpansionLaneA=80,
     kExpansionLaneB=81,
@@ -206,16 +197,6 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kIndexList256B=191,
     kIndexList256C=192,
     kIndexList256D=193,
-
-    kDerivedSaltOrbiterA=194, // try to remove
-    kDerivedSaltOrbiterB=195, // try to remove
-    kDerivedSaltOrbiterC=196, // try to remove
-    kDerivedSaltOrbiterD=197, // try to remove
-
-    kDerivedSaltWandererA=198, // try to remove
-    kDerivedSaltWandererB=199, // try to remove
-    kDerivedSaltWandererC=200, // try to remove
-    kDerivedSaltWandererD=201, // try to remove
     
 };
 
@@ -223,7 +204,7 @@ struct TwistDomainConstants {
 public:
     
     std::uint64_t                           mIngress;
-    std::uint64_t                           mPrevious;
+    std::uint64_t                           mScatter;
     std::uint64_t                           mCross;
 
     std::uint64_t                           mDomainConstantPublicIngress;

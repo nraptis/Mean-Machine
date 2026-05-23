@@ -21,6 +21,9 @@ enum class TwistVariable: std::uint8_t {
 
     kIndex = 10, // aIndex
     kNonce = 11, // aNonce
+    kParamNonce = 12, // pNonce
+    kParamInput = 13, // pInput
+    kParamOutput = 14, // pOutput
 
     kDomainWordIngress = 20, // aDomainWordIngress
     kDomainWordScatter = 21, // aDomainWordScatter
@@ -73,10 +76,9 @@ enum class TwistConstants : std::uint8_t {
     kInvalid = 0,
 
     kPublicIngress = 10,
-    kPrivateIngress = 11,
+    kScatter = 11,
     kCrossIngress = 12,
     kIngress = kPublicIngress,
-    kPrevious = kPrivateIngress,
     kCross = kCrossIngress,
 
     kDomainConstantPublicIngress = 20,

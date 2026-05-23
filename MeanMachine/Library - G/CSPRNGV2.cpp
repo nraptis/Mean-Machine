@@ -176,6 +176,8 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
                          aSlice.mWanderers,
                          aSlice.mHotPack,
                          (aFullNonceIndex == aSliceIndex),
+                         aSlice.mDest,
+                         aSlice.mDestWriteInverted,
                          &aLoop,
                          pErrorMessage)) {
             const char *aErrorText = (pErrorMessage != nullptr) ? pErrorMessage->c_str() : "unknown error";

@@ -108,11 +108,43 @@ TwistExpander::TwistExpander() {
             return;
         }
         pConstants->mIngress = Mix64((0x5055424C4943494EULL ^ pDomainTag) ^ ProcessKDFFreshnessNonce());
-        pConstants->mPrevious = Mix64((0x505249564154494EULL ^ pDomainTag) ^ ProcessKDFFreshnessNonce());
+        pConstants->mScatter = Mix64((0x505249564154494EULL ^ pDomainTag) ^ ProcessKDFFreshnessNonce());
         pConstants->mCross = Mix64((0x43524F5353494E47ULL ^ pDomainTag) ^ ProcessKDFFreshnessNonce());
         pConstants->mDomainConstantPublicIngress = pConstants->mIngress;
-        pConstants->mDomainConstantPrivateIngress = pConstants->mPrevious;
+        pConstants->mDomainConstantPrivateIngress = pConstants->mScatter;
         pConstants->mDomainConstantCrossIngress = pConstants->mCross;
+        
+        auto Next64 = [&](const std::uint64_t pLane) -> std::uint64_t {
+            const std::uint64_t aLaneSeed =
+                pDomainTag ^
+                (0x9E3779B97F4A7C15ULL * (pLane + 1ULL)) ^
+                ProcessKDFFreshnessNonce();
+            std::uint64_t aValue = Mix64(aLaneSeed);
+            if (aValue == 0ULL) {
+                aValue = pLane | 1ULL;
+            }
+            return aValue;
+        };
+        auto NextByte = [&](const std::uint64_t pLane) -> std::uint8_t {
+            std::uint8_t aValue = static_cast<std::uint8_t>(Next64(pLane) & 0xFFU);
+            if (aValue == 0U) {
+                aValue = static_cast<std::uint8_t>((pLane & 0xFFU) | 1U);
+            }
+            return aValue;
+        };
+        
+        pConstants->mMatrixSelectA = Next64(0x10ULL);
+        pConstants->mMatrixSelectB = Next64(0x11ULL);
+        pConstants->mMatrixUnrollA = NextByte(0x12ULL);
+        pConstants->mMatrixUnrollB = NextByte(0x13ULL);
+        pConstants->mMatrixSchemeA = NextByte(0x14ULL);
+        pConstants->mMatrixSchemeB = NextByte(0x15ULL);
+        pConstants->mMatrixArgAA = NextByte(0x16ULL);
+        pConstants->mMatrixArgAB = NextByte(0x17ULL);
+        pConstants->mMatrixArgBA = NextByte(0x18ULL);
+        pConstants->mMatrixArgBB = NextByte(0x19ULL);
+        pConstants->mMaskMutateA = NextByte(0x1AULL);
+        pConstants->mMaskMutateB = NextByte(0x1BULL);
     };
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseAConstants, 0x50484153455F415FULL);
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseBConstants, 0x50484153455F425FULL);

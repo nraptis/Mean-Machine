@@ -155,16 +155,12 @@ std::uint64_t *GetSaltSlot(TwistDomainSaltSet *pSet,
             return GetSaltLane(&pSet->mOrbiterAssign, 5);
 
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA:
             return GetSaltLane(&pSet->mOrbiterUpdate, 0);
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB:
             return GetSaltLane(&pSet->mOrbiterUpdate, 1);
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC:
             return GetSaltLane(&pSet->mOrbiterUpdate, 2);
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD:
             return GetSaltLane(&pSet->mOrbiterUpdate, 3);
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE:
             return GetSaltLane(&pSet->mOrbiterUpdate, 4);
@@ -172,16 +168,12 @@ std::uint64_t *GetSaltSlot(TwistDomainSaltSet *pSet,
             return GetSaltLane(&pSet->mOrbiterUpdate, 5);
 
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererA:
             return GetSaltLane(&pSet->mWandererUpdate, 0);
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererB:
             return GetSaltLane(&pSet->mWandererUpdate, 1);
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererC:
             return GetSaltLane(&pSet->mWandererUpdate, 2);
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererD:
             return GetSaltLane(&pSet->mWandererUpdate, 3);
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE:
             return GetSaltLane(&pSet->mWandererUpdate, 4);
@@ -323,17 +315,6 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource: return pExpander->mSource;
         case TwistWorkSpaceSlot::kDest: return pExpander->mDest;
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererA:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererB:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererC:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererD:
-            return reinterpret_cast<std::uint8_t *>(
-                GetSaltSlot(&pWorkspace->mDomainBundle.mPhaseASalts, pSlot)
-            );
         case TwistWorkSpaceSlot::kParamDomainSBoxA:
             return (pExpander->mActiveSBoxSet != nullptr) ? pExpander->mActiveSBoxSet->mSBoxA : pExpander->mSBoxA;
         case TwistWorkSpaceSlot::kParamDomainSBoxB:
@@ -350,14 +331,6 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
             return (pExpander->mActiveSBoxSet != nullptr) ? pExpander->mActiveSBoxSet->mSBoxG : pExpander->mSBoxG;
         case TwistWorkSpaceSlot::kParamDomainSBoxH:
             return (pExpander->mActiveSBoxSet != nullptr) ? pExpander->mActiveSBoxSet->mSBoxH : pExpander->mSBoxH;
-        case TwistWorkSpaceSlot::kDerivedSBoxA: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxA;
-        case TwistWorkSpaceSlot::kDerivedSBoxB: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxB;
-        case TwistWorkSpaceSlot::kDerivedSBoxC: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxC;
-        case TwistWorkSpaceSlot::kDerivedSBoxD: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxD;
-        case TwistWorkSpaceSlot::kDerivedSBoxE: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxE;
-        case TwistWorkSpaceSlot::kDerivedSBoxF: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxF;
-        case TwistWorkSpaceSlot::kDerivedSBoxG: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxG;
-        case TwistWorkSpaceSlot::kDerivedSBoxH: return pWorkspace->mDomainBundle.mPhaseASBoxes.mSBoxH;
         case TwistWorkSpaceSlot::kExpansionLaneA: return pWorkspace->mListExpansionLaneA;
         case TwistWorkSpaceSlot::kExpansionLaneB: return pWorkspace->mListExpansionLaneB;
         case TwistWorkSpaceSlot::kExpansionLaneC: return pWorkspace->mListExpansionLaneC;
@@ -491,25 +464,7 @@ int TwistWorkSpace::GetBufferLength(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSBoxF:
         case TwistWorkSpaceSlot::kParamDomainSBoxG:
         case TwistWorkSpaceSlot::kParamDomainSBoxH:
-        case TwistWorkSpaceSlot::kDerivedSBoxA:
-        case TwistWorkSpaceSlot::kDerivedSBoxB:
-        case TwistWorkSpaceSlot::kDerivedSBoxC:
-        case TwistWorkSpaceSlot::kDerivedSBoxD:
-        case TwistWorkSpaceSlot::kDerivedSBoxE:
-        case TwistWorkSpaceSlot::kDerivedSBoxF:
-        case TwistWorkSpaceSlot::kDerivedSBoxG:
-        case TwistWorkSpaceSlot::kDerivedSBoxH:
             return S_SBOX;
-
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererA:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererB:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererC:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererD:
-            return S_SALT;
         case TwistWorkSpaceSlot::kIndexList256A:
         case TwistWorkSpaceSlot::kIndexList256B:
         case TwistWorkSpaceSlot::kIndexList256C:
@@ -551,14 +506,6 @@ bool TwistWorkSpace::IsSBox(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSBoxF:
         case TwistWorkSpaceSlot::kParamDomainSBoxG:
         case TwistWorkSpaceSlot::kParamDomainSBoxH:
-        case TwistWorkSpaceSlot::kDerivedSBoxA:
-        case TwistWorkSpaceSlot::kDerivedSBoxB:
-        case TwistWorkSpaceSlot::kDerivedSBoxC:
-        case TwistWorkSpaceSlot::kDerivedSBoxD:
-        case TwistWorkSpaceSlot::kDerivedSBoxE:
-        case TwistWorkSpaceSlot::kDerivedSBoxF:
-        case TwistWorkSpaceSlot::kDerivedSBoxG:
-        case TwistWorkSpaceSlot::kDerivedSBoxH:
             return true;
         default:
             return false;
@@ -577,19 +524,7 @@ bool TwistWorkSpace::IsSalt(TwistWorkSpaceSlot pSlot) {
     if (IsParamSaltSlot(pSlot)) {
         return true;
     }
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC:
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererA:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererB:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererC:
-        case TwistWorkSpaceSlot::kDerivedSaltWandererD:
-            return true;
-        default:
-            return false;
-    }
+    return false;
 }
 
 bool TwistWorkSpace::IsSalt(TwistBufferKey pKey) {

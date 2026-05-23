@@ -483,6 +483,12 @@ bool GAXSK::GetLaneCountForPass(int pPassIndex, int *pResult, std::string *pErro
     return true;
 }
 
+GAXSKStatement GAXSK::MakeCommentStatement() {
+    GAXSKStatement aStatement;
+    aStatement.mKind = GAXSKStatementKind::kComment;
+    return aStatement;
+}
+
 GAXSKInputSlot GAXSK::MakeSourceSlot(GAXSKSourceKind pSource,
                                      int pOffset,
                                      bool pReverse,
@@ -530,6 +536,196 @@ GAXSKStatement GAXSK::MakeContextWordStatement(GAXSKVariable pTarget,
     aStatement.mContextWord.mDiffuse = pDiffuse;
 
     return aStatement;
+}
+
+bool GAXSK::MakeCarryMixStatement(const std::vector<GAXSKVariable> &pWanderers,
+                                  GAXSKStatement *pResult,
+                                  std::string *pErrorMessage) {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXSK::MakeCarryMixStatement received null result");
+        return false;
+    }
+
+    if (pWanderers.empty()) {
+        SetError(pErrorMessage, "GAXSK::MakeCarryMixStatement received no wanderers");
+        return false;
+    }
+
+    for (GAXSKVariable aWanderer : pWanderers) {
+        if (!IsWandererVariable(aWanderer)) {
+            SetError(pErrorMessage, "GAXSK::MakeCarryMixStatement received non-wanderer variable");
+            return false;
+        }
+    }
+
+    GAXSKStatement aStatement;
+    aStatement.mKind = GAXSKStatementKind::kCarryCrush;
+    aStatement.mTarget = GAXSKVariable::kCarry;
+
+    GAXSKCrushPlan &aPlan = aStatement.mCarry;
+    aPlan.mTarget = GAXSKVariable::kCarry;
+    aPlan.mPairs.clear();
+    aPlan.mHasOdd = false;
+    aPlan.mOdd = GAXSKCrushOddPlan();
+
+    aPlan.mHasFinalTerm = true;
+    aPlan.mFinalTerm.mVariable = GAXSKVariable::kIngress;
+    aPlan.mFinalTerm.mRotation = -1;
+
+    aPlan.mOuterOp = GAXSKOpKind::kAdd;
+    aPlan.mHasDiffuse = true;
+
+    std::vector<GAXSKDiffuseKind> aDiffuseList = {
+        GAXSKDiffuseKind::kDiffuseA,
+        GAXSKDiffuseKind::kDiffuseB,
+        GAXSKDiffuseKind::kDiffuseC
+    };
+    aPlan.mDiffuse = Random::Choice(aDiffuseList);
+
+    std::vector<GAXSKVariable> aWanderers = pWanderers;
+    Random::Shuffle(&aWanderers);
+
+    const int aPairCount = static_cast<int>(aWanderers.size()) / 2;
+    const bool aHasOdd = ((aWanderers.size() & 1U) != 0U);
+
+    const int aRotationCount = static_cast<int>(aWanderers.size()) + 1;
+
+    std::vector<int> aRotations;
+    if (!ChooseUpdateRotations(aRotationCount,
+                               8,
+                               true,
+                               &aRotations,
+                               pErrorMessage)) {
+        return false;
+    }
+
+    int aRotationIndex = 0;
+
+    for (int aPairIndex = 0; aPairIndex < aPairCount; ++aPairIndex) {
+        const int aWandererIndexA = aPairIndex * 2;
+        const int aWandererIndexB = aWandererIndexA + 1;
+
+        GAXSKCrushPairPlan aPair;
+        aPair.mA = aWanderers[static_cast<std::size_t>(aWandererIndexA)];
+        aPair.mB = aWanderers[static_cast<std::size_t>(aWandererIndexB)];
+
+        aPair.mRotateA = Random::Bool();
+        aPair.mRotation = aRotations[static_cast<std::size_t>(aRotationIndex)];
+        aRotationIndex++;
+
+        aPair.mOp = GAXSKOpKind::kXor;
+
+        aPlan.mPairs.push_back(aPair);
+    }
+
+    if (aHasOdd) {
+        aPlan.mHasOdd = true;
+        aPlan.mOdd.mVariable = aWanderers.back();
+        aPlan.mOdd.mHasRotation = true;
+        aPlan.mOdd.mRotation = aRotations[static_cast<std::size_t>(aRotationIndex)];
+        aRotationIndex++;
+    }
+
+    aPlan.mFinalTerm.mRotation = aRotations[static_cast<std::size_t>(aRotationIndex)];
+    aRotationIndex++;
+
+    *pResult = aStatement;
+    return true;
+}
+
+bool GAXSK::MakeIngressCrushStatement(GAXSKVariable pTarget,
+                                      const std::vector<GAXSKVariable> &pOrbiters,
+                                      GAXSKStatement *pResult,
+                                      std::string *pErrorMessage) {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXSK::MakeIngressCrushStatement received null result");
+        return false;
+    }
+
+    if (pTarget != GAXSKVariable::kIngress) {
+        SetError(pErrorMessage, "GAXSK::MakeIngressCrushStatement target must be ingress");
+        return false;
+    }
+
+    if (pOrbiters.empty()) {
+        SetError(pErrorMessage, "GAXSK::MakeIngressCrushStatement received no orbiters");
+        return false;
+    }
+
+    for (GAXSKVariable aOrbiter : pOrbiters) {
+        if (!IsOrbiterVariable(aOrbiter)) {
+            SetError(pErrorMessage, "GAXSK::MakeIngressCrushStatement received non-orbiter variable");
+            return false;
+        }
+    }
+
+    GAXSKStatement aStatement;
+    aStatement.mKind = GAXSKStatementKind::kIngressCrush;
+    aStatement.mTarget = pTarget;
+
+    GAXSKCrushPlan &aPlan = aStatement.mCrush;
+    aPlan.mTarget = pTarget;
+    aPlan.mPairs.clear();
+    aPlan.mHasOdd = false;
+    aPlan.mOdd = GAXSKCrushOddPlan();
+
+    aPlan.mHasDiffuse = true;
+
+    std::vector<GAXSKDiffuseKind> aDiffuseList = {
+        GAXSKDiffuseKind::kDiffuseA,
+        GAXSKDiffuseKind::kDiffuseB,
+        GAXSKDiffuseKind::kDiffuseC
+    };
+    aPlan.mDiffuse = Random::Choice(aDiffuseList);
+
+    std::vector<GAXSKVariable> aOrbiters = pOrbiters;
+    Random::Shuffle(&aOrbiters);
+
+    const int aPairCount = static_cast<int>(aOrbiters.size()) / 2;
+    const bool aHasOdd = ((aOrbiters.size() & 1U) != 0U);
+
+    aPlan.mOuterOp = GAXSKOpKind::kAdd;
+
+    const int aRotationCount = static_cast<int>(aOrbiters.size());
+
+    std::vector<int> aRotations;
+    if (!ChooseUpdateRotations(aRotationCount,
+                               8,
+                               true,
+                               &aRotations,
+                               pErrorMessage)) {
+        return false;
+    }
+
+    int aRotationIndex = 0;
+
+    for (int aPairIndex = 0; aPairIndex < aPairCount; ++aPairIndex) {
+        const int aOrbiterIndexA = aPairIndex * 2;
+        const int aOrbiterIndexB = aOrbiterIndexA + 1;
+
+        GAXSKCrushPairPlan aPair;
+        aPair.mA = aOrbiters[static_cast<std::size_t>(aOrbiterIndexA)];
+        aPair.mB = aOrbiters[static_cast<std::size_t>(aOrbiterIndexB)];
+
+        aPair.mRotateA = Random::Bool();
+        aPair.mRotation = aRotations[static_cast<std::size_t>(aRotationIndex)];
+        aRotationIndex++;
+
+        aPair.mOp = GAXSKOpKind::kXor;
+
+        aPlan.mPairs.push_back(aPair);
+    }
+
+    if (aHasOdd) {
+        aPlan.mHasOdd = true;
+        aPlan.mOdd.mVariable = aOrbiters.back();
+        aPlan.mOdd.mHasRotation = true;
+        aPlan.mOdd.mRotation = aRotations[static_cast<std::size_t>(aRotationIndex)];
+        aRotationIndex++;
+    }
+
+    *pResult = aStatement;
+    return true;
 }
 
 bool GAXSK::MakeScatterMixStatement(GAXSKStatement *pResult,
@@ -736,137 +932,19 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
     }
     pSkeleton->mStatements.push_back(aScatter);
     
-    
     GAXSKModel aModel = GAXSKModel::MakeOrbiterPlan4x4();
-
-    std::vector<GAXSKStatement> aUpdateStatements;
-    aUpdateStatements.reserve(aModel.mStatements.size());
-
-    std::vector<GAXSKUpdateRotationSlot> aOrbiterAssignContextSlots;
-    std::vector<GAXSKUpdateRotationSlot> aOrbiterAssignCarrySlots;
-    std::vector<GAXSKUpdateRotationSlot> aOrbiterUpdateContextSlots;
-    std::vector<GAXSKUpdateRotationSlot> aOrbiterHotMulSlots;
-
-    std::vector<GAXSKUpdateRotationSlot> aWandererContextSlots;
-    std::vector<GAXSKUpdateRotationSlot> aWandererOrbiterSlots;
-    std::vector<GAXSKUpdateRotationSlot> aWandererCarrySlots;
-
-    auto AddTermSlot = [](std::vector<GAXSKUpdateRotationSlot> *pSlots,
-                          GAXSKUpdateTerm *pTerm) {
-        if ((pSlots == nullptr) || (pTerm == nullptr)) {
-            return;
-        }
-
-        GAXSKUpdateRotationSlot aSlot;
-        aSlot.mTerm = pTerm;
-        pSlots->push_back(aSlot);
-    };
-
-    auto AddStatementSlot = [](std::vector<GAXSKUpdateRotationSlot> *pSlots,
-                               int *pRotation) {
-        if ((pSlots == nullptr) || (pRotation == nullptr)) {
-            return;
-        }
-
-        GAXSKUpdateRotationSlot aSlot;
-        aSlot.mStatementRotation = pRotation;
-        pSlots->push_back(aSlot);
-    };
-
-    auto IsContextVariable = [](GAXSKVariable pVariable) -> bool {
-        switch (pVariable) {
-            case GAXSKVariable::kIngress:
-            case GAXSKVariable::kScatter:
-            case GAXSKVariable::kPrevious:
-            case GAXSKVariable::kCross:
-                return true;
-
-            default:
-                return false;
-        }
-    };
-
-    for (const GAXSKModelStatement &aModelStatement : aModel.mStatements) {
-        GAXSKStatement aUpdateStatement;
-
-        if (!MakeModelUpdateStatement(aModelStatement,
-                                      &aUpdateStatement,
-                                      pErrorMessage)) {
-            return false;
-        }
-
-        aUpdateStatements.push_back(aUpdateStatement);
-    }
-
-    for (GAXSKStatement &aStatement : aUpdateStatements) {
-        const bool aIsOrbiterAssign = (aStatement.mKind == GAXSKStatementKind::kOrbiterAssign);
-
-        const bool aIsOrbiterUpdate = (aStatement.mKind == GAXSKStatementKind::kOrbiterAdd ||
-                                       aStatement.mKind == GAXSKStatementKind::kOrbiterXor);
-
-        const bool aIsOrbiterMul = (aStatement.mKind == GAXSKStatementKind::kOrbiterMulRotate);
-
-        const bool aIsWandererUpdate = (aStatement.mKind == GAXSKStatementKind::kWandererAdd ||
-                                        aStatement.mKind == GAXSKStatementKind::kWandererXor);
-
-        if (aIsOrbiterMul && aStatement.mUpdate.mHasRotation) {
-            AddStatementSlot(&aOrbiterHotMulSlots, &aStatement.mUpdate.mRotation);
-        }
-
-        for (GAXSKUpdateTerm &aTerm : aStatement.mUpdate.mTerms) {
-            if (!aTerm.mHasRotation) {
-                continue;
-            }
-
-            if (aIsOrbiterAssign && IsContextVariable(aTerm.mVariable)) {
-                AddTermSlot(&aOrbiterAssignContextSlots, &aTerm);
-            } else if (aIsOrbiterAssign && aTerm.mVariable == GAXSKVariable::kCarry) {
-                AddTermSlot(&aOrbiterAssignCarrySlots, &aTerm);
-            } else if (aIsOrbiterUpdate && IsContextVariable(aTerm.mVariable)) {
-                AddTermSlot(&aOrbiterUpdateContextSlots, &aTerm);
-            } else if (aIsWandererUpdate && IsContextVariable(aTerm.mVariable)) {
-                AddTermSlot(&aWandererContextSlots, &aTerm);
-            } else if (aIsWandererUpdate && aTerm.mVariable == GAXSKVariable::kCarry) {
-                AddTermSlot(&aWandererCarrySlots, &aTerm);
-            } else if (aIsWandererUpdate && IsOrbiterVariable(aTerm.mVariable)) {
-                AddTermSlot(&aWandererOrbiterSlots, &aTerm);
-            }
-        }
-    }
-
-    if (!InfuseUpdateRotationSlots(&aOrbiterAssignContextSlots,
-                                   GAXSKUpdateRotationParityMode::kAllowEven,
-                                   pErrorMessage)) { return false; }
-
-    if (!InfuseUpdateRotationSlots(&aOrbiterAssignCarrySlots,
-                                   GAXSKUpdateRotationParityMode::kSuppressEven,
-                                   pErrorMessage)) { return false; }
-
-    if (!InfuseUpdateRotationSlots(&aOrbiterUpdateContextSlots,
-                                   GAXSKUpdateRotationParityMode::kAllowEven,
-                                   pErrorMessage)) { return false; }
-
-    if (!InfuseUpdateRotationSlots(&aOrbiterHotMulSlots,
-                                   GAXSKUpdateRotationParityMode::kSuppressEven,
-                                   pErrorMessage)) { return false; }
-
-    if (!InfuseUpdateRotationSlots(&aWandererContextSlots,
-                                   GAXSKUpdateRotationParityMode::kAllowEven,
-                                   pErrorMessage)) { return false; }
-
-    if (!InfuseUpdateRotationSlots(&aWandererOrbiterSlots,
-                                   GAXSKUpdateRotationParityMode::kAllowEven,
-                                   pErrorMessage)) { return false; }
-
-    if (!InfuseUpdateRotationSlots(&aWandererCarrySlots,
-                                   GAXSKUpdateRotationParityMode::kSuppressEven,
-                                   pErrorMessage)) { return false; }
-
-    for (const GAXSKStatement &aStatement : aUpdateStatements) {
-        pSkeleton->mStatements.push_back(aStatement);
-    }
-
     
+    if (!FinishModelStatements(aModel,
+                               &pSkeleton->mStatements,
+                               pErrorMessage)) {
+        return false;
+    }
+    
+    
+    
+    
+    
+
     return true;
 }
 
@@ -942,6 +1020,214 @@ bool GAXSK::MakeModelUpdateStatement(const GAXSKModelStatement &pModelStatement,
     aStatement.mUpdate.mRotation = -1;
 
     *pResult = aStatement;
+    return true;
+}
+
+bool GAXSK::FinishModelStatements(const GAXSKModel &pModel,
+                                  std::vector<GAXSKStatement> *pStatements,
+                                  std::string *pErrorMessage) {
+    
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXSK::FinishModelStatements received null statements");
+        return false;
+    }
+    
+    std::vector<GAXSKStatement> aUpdateStatements;
+    aUpdateStatements.reserve(pModel.mStatements.size());
+
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterAssignContextSlots;
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterAssignCarrySlots;
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterUpdateContextSlots;
+    std::vector<GAXSKUpdateRotationSlot> aOrbiterHotMulSlots;
+
+    std::vector<GAXSKUpdateRotationSlot> aWandererContextSlots;
+    std::vector<GAXSKUpdateRotationSlot> aWandererOrbiterSlots;
+    std::vector<GAXSKUpdateRotationSlot> aWandererCarrySlots;
+
+    auto AddTermSlot = [](std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                          GAXSKUpdateTerm *pTerm) {
+        if ((pSlots == nullptr) || (pTerm == nullptr)) {
+            return;
+        }
+
+        GAXSKUpdateRotationSlot aSlot;
+        aSlot.mTerm = pTerm;
+        pSlots->push_back(aSlot);
+    };
+
+    auto AddStatementSlot = [](std::vector<GAXSKUpdateRotationSlot> *pSlots,
+                               int *pRotation) {
+        if ((pSlots == nullptr) || (pRotation == nullptr)) {
+            return;
+        }
+
+        GAXSKUpdateRotationSlot aSlot;
+        aSlot.mStatementRotation = pRotation;
+        pSlots->push_back(aSlot);
+    };
+
+    auto IsContextVariable = [](GAXSKVariable pVariable) -> bool {
+        switch (pVariable) {
+            case GAXSKVariable::kIngress:
+            case GAXSKVariable::kScatter:
+            case GAXSKVariable::kPrevious:
+            case GAXSKVariable::kCross:
+                return true;
+
+            default:
+                return false;
+        }
+    };
+
+    for (const GAXSKModelStatement &aModelStatement : pModel.mStatements) {
+        GAXSKStatement aUpdateStatement;
+
+        if (!MakeModelUpdateStatement(aModelStatement,
+                                      &aUpdateStatement,
+                                      pErrorMessage)) {
+            return false;
+        }
+
+        aUpdateStatements.push_back(aUpdateStatement);
+    }
+
+    for (GAXSKStatement &aStatement : aUpdateStatements) {
+        const bool aIsOrbiterAssign = (aStatement.mKind == GAXSKStatementKind::kOrbiterAssign);
+
+        const bool aIsOrbiterUpdate = (aStatement.mKind == GAXSKStatementKind::kOrbiterAdd ||
+                                       aStatement.mKind == GAXSKStatementKind::kOrbiterXor);
+
+        const bool aIsOrbiterMul = (aStatement.mKind == GAXSKStatementKind::kOrbiterMulRotate);
+
+        const bool aIsWandererUpdate = (aStatement.mKind == GAXSKStatementKind::kWandererAdd ||
+                                        aStatement.mKind == GAXSKStatementKind::kWandererXor);
+
+        if (aIsOrbiterMul && aStatement.mUpdate.mHasRotation) {
+            AddStatementSlot(&aOrbiterHotMulSlots, &aStatement.mUpdate.mRotation);
+        }
+
+        for (GAXSKUpdateTerm &aTerm : aStatement.mUpdate.mTerms) {
+            if (!aTerm.mHasRotation) {
+                continue;
+            }
+
+            if (aIsOrbiterAssign && IsContextVariable(aTerm.mVariable)) {
+                AddTermSlot(&aOrbiterAssignContextSlots, &aTerm);
+            } else if (aIsOrbiterAssign && aTerm.mVariable == GAXSKVariable::kCarry) {
+                AddTermSlot(&aOrbiterAssignCarrySlots, &aTerm);
+            } else if (aIsOrbiterUpdate && IsContextVariable(aTerm.mVariable)) {
+                AddTermSlot(&aOrbiterUpdateContextSlots, &aTerm);
+            } else if (aIsWandererUpdate && IsContextVariable(aTerm.mVariable)) {
+                AddTermSlot(&aWandererContextSlots, &aTerm);
+            } else if (aIsWandererUpdate && aTerm.mVariable == GAXSKVariable::kCarry) {
+                AddTermSlot(&aWandererCarrySlots, &aTerm);
+            } else if (aIsWandererUpdate && IsOrbiterVariable(aTerm.mVariable)) {
+                AddTermSlot(&aWandererOrbiterSlots, &aTerm);
+            }
+        }
+    }
+
+    if (!InfuseUpdateRotationSlots(&aOrbiterAssignContextSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aOrbiterAssignCarrySlots,
+                                   GAXSKUpdateRotationParityMode::kSuppressEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aOrbiterUpdateContextSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aOrbiterHotMulSlots,
+                                   GAXSKUpdateRotationParityMode::kSuppressEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aWandererContextSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aWandererOrbiterSlots,
+                                   GAXSKUpdateRotationParityMode::kAllowEven,
+                                   pErrorMessage)) { return false; }
+
+    if (!InfuseUpdateRotationSlots(&aWandererCarrySlots,
+                                   GAXSKUpdateRotationParityMode::kSuppressEven,
+                                   pErrorMessage)) { return false; }
+
+    bool aDidInsertIngressCrush = false;
+    bool aDidCommentWandererUpdate = false;
+
+    for (std::size_t aIndex = 0U; aIndex < aUpdateStatements.size(); ++aIndex) {
+        const GAXSKStatement &aStatement = aUpdateStatements[aIndex];
+
+        const bool aIsOrbiterAssign =
+            aStatement.mKind == GAXSKStatementKind::kOrbiterAssign;
+
+        const bool aIsOrbiterMulRotate =
+            aStatement.mKind == GAXSKStatementKind::kOrbiterMulRotate;
+
+        const bool aIsWandererUpdate =
+            aStatement.mKind == GAXSKStatementKind::kWandererAdd ||
+            aStatement.mKind == GAXSKStatementKind::kWandererXor ||
+            aStatement.mKind == GAXSKStatementKind::kWandererMulRotate;
+
+        if (!aDidInsertIngressCrush && aIsWandererUpdate) {
+            GAXSKStatement aIngressCrush;
+
+            if (!MakeIngressCrushStatement(GAXSKVariable::kIngress,
+                                           pModel.mOrbiters,
+                                           &aIngressCrush,
+                                           pErrorMessage)) {
+                return false;
+            }
+
+            pStatements->push_back(aIngressCrush);
+            aDidInsertIngressCrush = true;
+        }
+
+        if (aIsWandererUpdate && !aDidCommentWandererUpdate) {
+            pStatements->push_back(MakeCommentStatement());
+            aDidCommentWandererUpdate = true;
+        }
+
+        pStatements->push_back(aStatement);
+
+        const bool aHasNext = ((aIndex + 1U) < aUpdateStatements.size());
+
+        bool aNextIsOrbiterAssign = false;
+        if (aHasNext) {
+            const GAXSKStatement &aNextStatement = aUpdateStatements[aIndex + 1U];
+            aNextIsOrbiterAssign =
+                aNextStatement.mKind == GAXSKStatementKind::kOrbiterAssign;
+        }
+
+        // 1.0: after the orbiter-assign block.
+        if (aIsOrbiterAssign && !aNextIsOrbiterAssign) {
+            pStatements->push_back(MakeCommentStatement());
+        }
+
+        // 2.0: after each orbiter update triplet.
+        if (aIsOrbiterMulRotate) {
+            pStatements->push_back(MakeCommentStatement());
+        }
+    }
+
+    if (!aDidInsertIngressCrush) {
+        SetError(pErrorMessage, "GAXSK::FinishModelStatements failed to insert ingress crush");
+        return false;
+    }
+    
+    GAXSKStatement aCarryCrush;
+
+    if (!MakeCarryMixStatement(pModel.mWanderers,
+                               &aCarryCrush,
+                               pErrorMessage)) {
+        return false;
+    }
+
+    pStatements->push_back(aCarryCrush);
+    
     return true;
 }
 

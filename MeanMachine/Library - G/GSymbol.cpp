@@ -73,7 +73,7 @@ bool ParseTokenInt(const std::string &pText,
 const char *ConstantMemberName(TwistConstants pConstant) {
     switch (pConstant) {
         case TwistConstants::kPublicIngress: return "mIngress";
-        case TwistConstants::kPrivateIngress: return "mPrevious";
+        case TwistConstants::kScatter: return "mScatter";
         case TwistConstants::kCrossIngress: return "mCross";
 
         case TwistConstants::kDomainConstantPublicIngress: return "mDomainConstantPublicIngress";
@@ -122,6 +122,9 @@ GSymbol GSymbol::Var(TwistVariable pVariable) {
     switch (pVariable) {
         case TwistVariable::kIndex: return Var("aIndex");
         case TwistVariable::kNonce: return Var("aNonce");
+        case TwistVariable::kParamNonce: return Var("pNonce");
+        case TwistVariable::kParamInput: return Var("pInput");
+        case TwistVariable::kParamOutput: return Var("pOutput");
         case TwistVariable::kDomainWordIngress: return Var("aDomainWordIngress");
         case TwistVariable::kDomainWordScatter: return Var("aDomainWordScatter");
         case TwistVariable::kDomainWordCross: return Var("aDomainWordCross");
@@ -304,15 +307,6 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD: return "domain_Wanderer_d";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE: return "domain_Wanderer_e";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF: return "domain_Wanderer_f";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA: return "derived_salt_orbiter_a";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB: return "derived_salt_orbiter_b";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC: return "derived_salt_orbiter_c";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD: return "derived_salt_orbiter_d";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererA: return "derived_salt_wanderer_a";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererB: return "derived_salt_wanderer_b";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererC: return "derived_salt_wanderer_c";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererD: return "derived_salt_wanderer_d";
-
         case TwistWorkSpaceSlot::kParamDomainSBoxA: return "sbox_a";
         case TwistWorkSpaceSlot::kParamDomainSBoxB: return "sbox_b";
         case TwistWorkSpaceSlot::kParamDomainSBoxC: return "sbox_c";
@@ -321,15 +315,6 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSBoxF: return "sbox_f";
         case TwistWorkSpaceSlot::kParamDomainSBoxG: return "sbox_g";
         case TwistWorkSpaceSlot::kParamDomainSBoxH: return "sbox_h";
-        case TwistWorkSpaceSlot::kDerivedSBoxA: return "derived_sbox_a";
-        case TwistWorkSpaceSlot::kDerivedSBoxB: return "derived_sbox_b";
-        case TwistWorkSpaceSlot::kDerivedSBoxC: return "derived_sbox_c";
-        case TwistWorkSpaceSlot::kDerivedSBoxD: return "derived_sbox_d";
-        case TwistWorkSpaceSlot::kDerivedSBoxE: return "derived_sbox_e";
-        case TwistWorkSpaceSlot::kDerivedSBoxF: return "derived_sbox_f";
-        case TwistWorkSpaceSlot::kDerivedSBoxG: return "derived_sbox_g";
-        case TwistWorkSpaceSlot::kDerivedSBoxH: return "derived_sbox_h";
-
         case TwistWorkSpaceSlot::kExpansionLaneA: return "seed_a";
         case TwistWorkSpaceSlot::kExpansionLaneB: return "seed_b";
         case TwistWorkSpaceSlot::kExpansionLaneC: return "seed_c";
@@ -424,15 +409,6 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD: return "aWandererUpdateSaltD";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE: return "aWandererUpdateSaltE";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF: return "aWandererUpdateSaltF";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterA: return "aDerivedSaltOrbiterA";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterB: return "aDerivedSaltOrbiterB";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterC: return "aDerivedSaltOrbiterC";
-        case TwistWorkSpaceSlot::kDerivedSaltOrbiterD: return "aDerivedSaltOrbiterD";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererA: return "aDerivedSaltWandererA";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererB: return "aDerivedSaltWandererB";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererC: return "aDerivedSaltWandererC";
-        case TwistWorkSpaceSlot::kDerivedSaltWandererD: return "aDerivedSaltWandererD";
-
         case TwistWorkSpaceSlot::kParamDomainSBoxA: return "mSBoxA";
         case TwistWorkSpaceSlot::kParamDomainSBoxB: return "mSBoxB";
         case TwistWorkSpaceSlot::kParamDomainSBoxC: return "mSBoxC";
@@ -441,15 +417,6 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSBoxF: return "mSBoxF";
         case TwistWorkSpaceSlot::kParamDomainSBoxG: return "mSBoxG";
         case TwistWorkSpaceSlot::kParamDomainSBoxH: return "mSBoxH";
-        case TwistWorkSpaceSlot::kDerivedSBoxA: return "aDerivedSBoxA";
-        case TwistWorkSpaceSlot::kDerivedSBoxB: return "aDerivedSBoxB";
-        case TwistWorkSpaceSlot::kDerivedSBoxC: return "aDerivedSBoxC";
-        case TwistWorkSpaceSlot::kDerivedSBoxD: return "aDerivedSBoxD";
-        case TwistWorkSpaceSlot::kDerivedSBoxE: return "aDerivedSBoxE";
-        case TwistWorkSpaceSlot::kDerivedSBoxF: return "aDerivedSBoxF";
-        case TwistWorkSpaceSlot::kDerivedSBoxG: return "aDerivedSBoxG";
-        case TwistWorkSpaceSlot::kDerivedSBoxH: return "aDerivedSBoxH";
-
         case TwistWorkSpaceSlot::kExpansionLaneA: return "aExpandLaneA";
         case TwistWorkSpaceSlot::kExpansionLaneB: return "aExpandLaneB";
         case TwistWorkSpaceSlot::kExpansionLaneC: return "aExpandLaneC";

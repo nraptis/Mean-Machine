@@ -76,8 +76,17 @@ bool IsDeclarableScalarName(const std::string &pName) {
     return true;
 }
 
+bool IsParameterVariableName(const std::string &pName) {
+    return (pName == "pNonce") ||
+           (pName == "pInput") ||
+           (pName == "pOutput");
+}
+
 void AppendUniqueVariableName(std::vector<std::string> *pNames,
                               const std::string &pName) {
+    if (IsParameterVariableName(pName)) {
+        return;
+    }
     if (IsDeclarableScalarName(pName)) {
         AppendUnique(pNames, pName);
     }

@@ -791,14 +791,6 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mMatsWorkLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
         {"mMatsWorkLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
         {"mMatsWorkLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
-        {"mMatsWorkLaneOrbiter.mSaltA", TwistWorkSpaceSlot::kDerivedSaltOrbiterA},
-        {"mMatsWorkLaneOrbiter.mSaltB", TwistWorkSpaceSlot::kDerivedSaltOrbiterB},
-        {"mMatsWorkLaneOrbiter.mSaltC", TwistWorkSpaceSlot::kDerivedSaltOrbiterC},
-        {"mMatsWorkLaneOrbiter.mSaltD", TwistWorkSpaceSlot::kDerivedSaltOrbiterD},
-        {"mMatsWorkLaneWanderer.mSaltA", TwistWorkSpaceSlot::kDerivedSaltWandererA},
-        {"mMatsWorkLaneWanderer.mSaltB", TwistWorkSpaceSlot::kDerivedSaltWandererB},
-        {"mMatsWorkLaneWanderer.mSaltC", TwistWorkSpaceSlot::kDerivedSaltWandererC},
-        {"mMatsWorkLaneWanderer.mSaltD", TwistWorkSpaceSlot::kDerivedSaltWandererD},
         {"mSBoxA", TwistWorkSpaceSlot::kParamDomainSBoxA},
         {"mSBoxB", TwistWorkSpaceSlot::kParamDomainSBoxB},
         {"mSBoxC", TwistWorkSpaceSlot::kParamDomainSBoxC},
@@ -807,22 +799,6 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mSBoxF", TwistWorkSpaceSlot::kParamDomainSBoxF},
         {"mSBoxG", TwistWorkSpaceSlot::kParamDomainSBoxG},
         {"mSBoxH", TwistWorkSpaceSlot::kParamDomainSBoxH},
-        {"mMatsWorkLaneOrbiterInit.mSBoxA", TwistWorkSpaceSlot::kDerivedSBoxA},
-        {"mMatsWorkLaneOrbiterInit.mSBoxB", TwistWorkSpaceSlot::kDerivedSBoxB},
-        {"mMatsWorkLaneOrbiterInit.mSBoxC", TwistWorkSpaceSlot::kDerivedSBoxC},
-        {"mMatsWorkLaneOrbiterInit.mSBoxD", TwistWorkSpaceSlot::kDerivedSBoxD},
-        {"mMatsWorkLaneOrbiterInit.mSBoxE", TwistWorkSpaceSlot::kDerivedSBoxE},
-        {"mMatsWorkLaneOrbiterInit.mSBoxF", TwistWorkSpaceSlot::kDerivedSBoxF},
-        {"mMatsWorkLaneOrbiterInit.mSBoxG", TwistWorkSpaceSlot::kDerivedSBoxG},
-        {"mMatsWorkLaneOrbiterInit.mSBoxH", TwistWorkSpaceSlot::kDerivedSBoxH},
-        {"mDerivedSBoxA", TwistWorkSpaceSlot::kDerivedSBoxA},
-        {"mDerivedSBoxB", TwistWorkSpaceSlot::kDerivedSBoxB},
-        {"mDerivedSBoxC", TwistWorkSpaceSlot::kDerivedSBoxC},
-        {"mDerivedSBoxD", TwistWorkSpaceSlot::kDerivedSBoxD},
-        {"mDerivedSBoxE", TwistWorkSpaceSlot::kDerivedSBoxE},
-        {"mDerivedSBoxF", TwistWorkSpaceSlot::kDerivedSBoxF},
-        {"mDerivedSBoxG", TwistWorkSpaceSlot::kDerivedSBoxG},
-        {"mDerivedSBoxH", TwistWorkSpaceSlot::kDerivedSBoxH},
         {"mListExpansionLaneA", TwistWorkSpaceSlot::kExpansionLaneA},
         {"mListExpansionLaneB", TwistWorkSpaceSlot::kExpansionLaneB},
         {"mListExpansionLaneC", TwistWorkSpaceSlot::kExpansionLaneC},
@@ -1686,8 +1662,9 @@ void GTwistExpander::KDF(std::uint64_t pNonce,
     for (int i = 0; i < 8; ++i) {
         aInitialVariables[aNonceNames[i]] = static_cast<GRuntimeScalar>((pNonce >> (i * 8)) & 0xFFULL);
     }
+    aInitialVariables["pNonce"] = static_cast<GRuntimeScalar>(pNonce);
     aInitialVariables["aDomainWordIngress"] = static_cast<GRuntimeScalar>(pDomainConstants->mIngress);
-    aInitialVariables["aDomainWordScatter"] = static_cast<GRuntimeScalar>(pDomainConstants->mPrevious);
+    aInitialVariables["aDomainWordScatter"] = static_cast<GRuntimeScalar>(pDomainConstants->mScatter);
     aInitialVariables["aDomainWordCross"] = static_cast<GRuntimeScalar>(pDomainConstants->mCross);
 
     if (!ExecuteBranch(mKDF, mWorkspace, this, &aInitialVariables, &aError)) {

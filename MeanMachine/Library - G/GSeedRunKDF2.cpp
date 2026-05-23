@@ -183,7 +183,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     }
     
     pBranch.AddLine("std::uint64_t aDomainWordIngress = pConstants->mIngress;");
-    pBranch.AddLine("std::uint64_t aDomainWordScatter = pConstants->mPrevious;");
+    pBranch.AddLine("std::uint64_t aDomainWordScatter = pConstants->mScatter;");
     pBranch.AddLine("std::uint64_t aDomainWordCross = pConstants->mCross;");
 
     GBatch aBatch;
@@ -224,7 +224,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     aSlice4.mSources.push_back(mWorkLanes[1]);
     aSlice4.mSources.push_back(mWorkLanes[0]);
     aSlice4.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
-    aSlice4.mDest = mWorkLanes[3];
+    aSlice4.mDest = GSymbol::Buf(TwistWorkSpaceSlot::kDest);
     aSlice4.mDestWriteInverted = true;
     aSlice4.mHotPack = mHotPacks[3];
     aSlices.push_back(aSlice4);

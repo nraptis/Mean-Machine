@@ -386,7 +386,7 @@ bool GAXPL::BuildNonceExprMapForRole(GAXSKSaltRole pRole,
         GExpr aNonceExpr;
 
         if (aChoice.mUseFullNonce) {
-            aNonceExpr = GQuick::RotL64(GSymbol::Var("pNonce"), aBehavior.mRotation);
+            aNonceExpr = GQuick::RotL64(GSymbol::Var(TwistVariable::kParamNonce), aBehavior.mRotation);
         } else {
             if (aChoice.mSymbol.IsInvalid()) {
                 SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole found invalid nonce choice");
@@ -810,6 +810,7 @@ void GAXPL::Reset() {
     mUseFullNonce = false;
 }
 
+
 bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
                  const GAXPLSaltBag &pSaltBag,
                  const std::vector<GSymbol> &pNonceBytes,
@@ -818,6 +819,8 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
                  const std::vector<GSymbol> &pWanderers,
                       GHotPack pHotPack,
                       bool pUseFullNonce,
+                      GSymbol pDest,
+                      bool pDestWriteInverted,
                  GLoop *pLoop,
                  std::string *pErrorMessage) {
     
@@ -851,6 +854,9 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
     
     mUseFullNonce = pUseFullNonce;
     
+    mDest = pDest;
+    mDestWriteInverted = pDestWriteInverted;
+    
     if (!BuildSourceMap(pErrorMessage)) { return false; }
     if (!BuildNonceMap(pErrorMessage)) { return false; }
     if (!BuildOrbiterMap(pErrorMessage)) { return false; }
@@ -868,10 +874,12 @@ bool GAXPL::Bake(const GAXSKSkeleton *pSkeleton,
                  const std::vector<GSymbol> &pWanderers,
                  GHotPack pHotPack,
                  bool pUseFullNonce,
+                 GSymbol pDest,
+                 bool pDestWriteInverted,
                  GLoop *pLoop,
                  std::string *pErrorMessage) {
-    if (!Configure(pSkeleton, pSaltBag, pNonceBytes, pSources,
-                   pOrbiters, pWanderers, pHotPack, pUseFullNonce, pLoop, pErrorMessage)) {
+    if (!Configure(pSkeleton, pSaltBag, pNonceBytes, pSources, pOrbiters, pWanderers,
+                   pHotPack, pUseFullNonce, pDest, pDestWriteInverted, pLoop, pErrorMessage)) {
         return false;
     }
     
@@ -1178,6 +1186,240 @@ bool GAXPL::GeneratePreviousAssignStatement(const GAXSKStatement &pStatement,
     return true;
 }
 
+bool GAXPL::MakeCrushPairExpr(const GAXSKCrushPairPlan &pPair,
+                              GExpr *pResult,
+                              std::string *pErrorMessage) const {
+    if (pResult == nullptr) {
+        SetError(pErrorMessage, "GAXPL::MakeCrushPairExpr received null result");
+        return false;
+    }
+
+    *pResult = GExpr();
+
+    if (pPair.mA == GAXSKVariable::kInvalid ||
+        pPair.mB == GAXSKVariable::kInvalid) {
+        SetError(pErrorMessage, "GAXPL::MakeCrushPairExpr received invalid pair variable");
+        return false;
+    }
+
+    if (pPair.mRotation < 0 || pPair.mRotation >= 64) {
+        SetError(pErrorMessage, "GAXPL::MakeCrushPairExpr received invalid rotation");
+        return false;
+    }
+
+    GSymbol aSymbolA;
+    if (!SymbolForVariable(pPair.mA, &aSymbolA, pErrorMessage)) {
+        return false;
+    }
+
+    GSymbol aSymbolB;
+    if (!SymbolForVariable(pPair.mB, &aSymbolB, pErrorMessage)) {
+        return false;
+    }
+
+    GExpr aExprA = GExpr::Symbol(aSymbolA);
+    GExpr aExprB = GExpr::Symbol(aSymbolB);
+
+    if (aExprA.IsInvalid() || aExprB.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::MakeCrushPairExpr failed to build symbol expression");
+        return false;
+    }
+
+    if (pPair.mRotateA) {
+        aExprA = GAXPLQuick::RotateSymbol(aSymbolA, pPair.mRotation);
+    } else {
+        aExprB = GAXPLQuick::RotateSymbol(aSymbolB, pPair.mRotation);
+    }
+
+    if (aExprA.IsInvalid() || aExprB.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::MakeCrushPairExpr failed to rotate pair expression");
+        return false;
+    }
+
+    switch (pPair.mOp) {
+        case GAXSKOpKind::kAdd:
+            *pResult = GExpr::Add(aExprA, aExprB);
+            break;
+
+        case GAXSKOpKind::kXor:
+            *pResult = GExpr::Xor(aExprA, aExprB);
+            break;
+
+        default:
+            SetError(pErrorMessage, "GAXPL::MakeCrushPairExpr received invalid pair op");
+            return false;
+    }
+
+    if (pResult->IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::MakeCrushPairExpr produced invalid expression");
+        return false;
+    }
+
+    return true;
+}
+
+bool GAXPL::GenerateIngressCrushStatement(const GAXSKStatement &pStatement,
+                                          std::vector<GStatement> *pStatements,
+                                          std::string *pErrorMessage) {
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement received null statements");
+        return false;
+    }
+
+    if (pStatement.mKind != GAXSKStatementKind::kIngressCrush) {
+        SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement received wrong statement kind");
+        return false;
+    }
+
+    const GAXSKCrushPlan &aPlan = pStatement.mCrush;
+
+    if (aPlan.mTarget != GAXSKVariable::kIngress) {
+        SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement target must be ingress");
+        return false;
+    }
+
+    GSymbol aTarget;
+    if (!SymbolForVariable(aPlan.mTarget, &aTarget, pErrorMessage)) {
+        return false;
+    }
+
+    std::vector<GExpr> aTerms;
+    aTerms.reserve(aPlan.mPairs.size() + (aPlan.mHasOdd ? 1U : 0U));
+
+    for (const GAXSKCrushPairPlan &aPair : aPlan.mPairs) {
+        GExpr aPairExpr;
+        if (!MakeCrushPairExpr(aPair, &aPairExpr, pErrorMessage)) {
+            return false;
+        }
+
+        if (aPairExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement produced invalid pair expression");
+            return false;
+        }
+
+        aTerms.push_back(aPairExpr);
+    }
+
+    if (aPlan.mHasOdd) {
+        if (aPlan.mOdd.mVariable == GAXSKVariable::kInvalid) {
+            SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement received invalid odd variable");
+            return false;
+        }
+
+        GSymbol aOddSymbol;
+        if (!SymbolForVariable(aPlan.mOdd.mVariable, &aOddSymbol, pErrorMessage)) {
+            return false;
+        }
+
+        GExpr aOddExpr;
+
+        if (aPlan.mOdd.mHasRotation) {
+            if (aPlan.mOdd.mRotation < 0 || aPlan.mOdd.mRotation >= 64) {
+                SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement received invalid odd rotation");
+                return false;
+            }
+
+            aOddExpr = GAXPLQuick::RotateSymbol(aOddSymbol, aPlan.mOdd.mRotation);
+        } else {
+            aOddExpr = GExpr::Symbol(aOddSymbol);
+        }
+
+        if (aOddExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement failed to build odd expression");
+            return false;
+        }
+
+        aTerms.push_back(aOddExpr);
+    }
+
+    if (aTerms.empty()) {
+        SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement received no crush terms");
+        return false;
+    }
+
+    //pStatements->push_back(GStatement::Comment(""));
+
+    // First assignment is directly to the first orbiter-derived crush term.
+    // No need for:
+    //   aIngress = 0U;
+    pStatements->push_back(
+        GStatement::Assign(
+            GTarget::Symbol(aTarget),
+            aTerms[0]
+        )
+    );
+
+    // Remaining pair / odd terms accumulate into ingress.
+    for (std::size_t aTermIndex = 1U; aTermIndex < aTerms.size(); ++aTermIndex) {
+        GExpr aExpr;
+
+        switch (aPlan.mOuterOp) {
+            case GAXSKOpKind::kAdd:
+                aExpr = GExpr::Add(GExpr::Symbol(aTarget), aTerms[aTermIndex]);
+                break;
+
+            case GAXSKOpKind::kXor:
+                aExpr = GExpr::Xor(GExpr::Symbol(aTarget), aTerms[aTermIndex]);
+                break;
+
+            default:
+                SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement received invalid outer op");
+                return false;
+        }
+
+        if (aExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement failed to accumulate crush term");
+            return false;
+        }
+
+        pStatements->push_back(
+            GStatement::Assign(
+                GTarget::Symbol(aTarget),
+                aExpr
+            )
+        );
+    }
+
+    // Old-style finalization:
+    //   ingress = Diffuse(ingress + scatter)
+    GSymbol aScatterSymbol;
+    if (!SymbolForVariable(GAXSKVariable::kScatter, &aScatterSymbol, pErrorMessage)) {
+        return false;
+    }
+
+    GExpr aFinalizeExpr = GExpr::Add(
+        GExpr::Symbol(aTarget),
+        GExpr::Symbol(aScatterSymbol)
+    );
+    
+    
+
+    if (aFinalizeExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement failed to add scatter");
+        return false;
+    }
+
+    if (aPlan.mHasDiffuse) {
+        aFinalizeExpr = GAXPLQuick::Diffuse(aFinalizeExpr, aPlan.mDiffuse);
+
+        if (aFinalizeExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateIngressCrushStatement failed to diffuse ingress crush");
+            return false;
+        }
+    }
+
+    pStatements->push_back(
+        GStatement::Assign(
+            GTarget::Symbol(aTarget),
+            aFinalizeExpr
+        )
+    );
+    
+    
+
+    return true;
+}
+
 bool GAXPL::GenerateContextWordStatement(const GAXSKStatement &pStatement,
                                          std::vector<GStatement> *pStatements,
                                          std::string *pErrorMessage) {
@@ -1418,6 +1660,176 @@ bool GAXPL::GenerateScatterMixStatement(const GAXSKStatement &pStatement,
     }
 
     pStatements->push_back(GStatement::Assign(GTarget::Symbol(aTarget), aFinalizeExpr));
+    
+    pStatements->push_back(GStatement::Comment(""));
+
+    return true;
+}
+
+bool GAXPL::GenerateCarryCrushStatement(const GAXSKStatement &pStatement,
+                                        std::vector<GStatement> *pStatements,
+                                        std::string *pErrorMessage) {
+    if (pStatements == nullptr) {
+        SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement received null statements");
+        return false;
+    }
+
+    if (pStatement.mKind != GAXSKStatementKind::kCarryCrush) {
+        SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement received wrong statement kind");
+        return false;
+    }
+
+    const GAXSKCrushPlan &aPlan = pStatement.mCarry;
+
+    if (aPlan.mTarget != GAXSKVariable::kCarry) {
+        SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement target must be carry");
+        return false;
+    }
+
+    GSymbol aTarget;
+    if (!SymbolForVariable(aPlan.mTarget, &aTarget, pErrorMessage)) {
+        return false;
+    }
+
+    if (aPlan.mOuterOp != GAXSKOpKind::kAdd) {
+        SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement expected add outer op");
+        return false;
+    }
+
+    pStatements->push_back(GStatement::Comment(""));
+
+    for (const GAXSKCrushPairPlan &aPair : aPlan.mPairs) {
+        GExpr aPairExpr;
+        if (!MakeCrushPairExpr(aPair, &aPairExpr, pErrorMessage)) {
+            return false;
+        }
+
+        if (aPairExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement produced invalid pair expression");
+            return false;
+        }
+
+        GExpr aExpr = GExpr::Add(GExpr::Symbol(aTarget), aPairExpr);
+
+        if (aExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement failed to add pair expression");
+            return false;
+        }
+
+        pStatements->push_back(
+            GStatement::Assign(
+                GTarget::Symbol(aTarget),
+                aExpr
+            )
+        );
+    }
+
+    if (aPlan.mHasOdd) {
+        if (aPlan.mOdd.mVariable == GAXSKVariable::kInvalid) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement received invalid odd variable");
+            return false;
+        }
+
+        GSymbol aOddSymbol;
+        if (!SymbolForVariable(aPlan.mOdd.mVariable, &aOddSymbol, pErrorMessage)) {
+            return false;
+        }
+
+        GExpr aOddExpr;
+
+        if (aPlan.mOdd.mHasRotation) {
+            if (aPlan.mOdd.mRotation < 0 || aPlan.mOdd.mRotation >= 64) {
+                SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement received invalid odd rotation");
+                return false;
+            }
+
+            aOddExpr = GAXPLQuick::RotateSymbol(aOddSymbol, aPlan.mOdd.mRotation);
+        } else {
+            aOddExpr = GExpr::Symbol(aOddSymbol);
+        }
+
+        if (aOddExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement failed to build odd expression");
+            return false;
+        }
+
+        GExpr aExpr = GExpr::Add(GExpr::Symbol(aTarget), aOddExpr);
+
+        if (aExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement failed to add odd expression");
+            return false;
+        }
+
+        pStatements->push_back(
+            GStatement::Assign(
+                GTarget::Symbol(aTarget),
+                aExpr
+            )
+        );
+    }
+
+    if (aPlan.mHasFinalTerm) {
+        if (aPlan.mFinalTerm.mVariable == GAXSKVariable::kInvalid) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement received invalid final term");
+            return false;
+        }
+
+        if (aPlan.mFinalTerm.mRotation < 0 ||
+            aPlan.mFinalTerm.mRotation >= 64) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement received invalid final rotation");
+            return false;
+        }
+
+        GSymbol aFinalSymbol;
+        if (!SymbolForVariable(aPlan.mFinalTerm.mVariable, &aFinalSymbol, pErrorMessage)) {
+            return false;
+        }
+
+        GExpr aFinalExpr = GAXPLQuick::RotateSymbol(aFinalSymbol,
+                                                    aPlan.mFinalTerm.mRotation);
+
+        if (aFinalExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement failed to build final expression");
+            return false;
+        }
+
+        GExpr aExpr = GExpr::Add(GExpr::Symbol(aTarget), aFinalExpr);
+
+        if (aExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement failed to add final expression");
+            return false;
+        }
+
+        pStatements->push_back(
+            GStatement::Assign(
+                GTarget::Symbol(aTarget),
+                aExpr
+            )
+        );
+    }
+
+    GExpr aDiffuseExpr = GExpr::Symbol(aTarget);
+
+    if (aDiffuseExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement produced invalid carry expression");
+        return false;
+    }
+
+    if (aPlan.mHasDiffuse) {
+        aDiffuseExpr = GAXPLQuick::Diffuse(aDiffuseExpr, aPlan.mDiffuse);
+
+        if (aDiffuseExpr.IsInvalid()) {
+            SetError(pErrorMessage, "GAXPL::GenerateCarryCrushStatement failed to diffuse carry");
+            return false;
+        }
+    }
+
+    pStatements->push_back(
+        GStatement::Assign(
+            GTarget::Symbol(aTarget),
+            aDiffuseExpr
+        )
+    );
 
     return true;
 }
@@ -1677,6 +2089,11 @@ bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
         const GAXSKStatement &aSkeletonStatement =
             mSkeleton->mStatements[static_cast<std::size_t>(aStatementIndex)];
         
+        if (aSkeletonStatement.mKind == GAXSKStatementKind::kComment) {
+            aStatements.push_back(GStatement::Comment(""));
+            continue;
+        }
+        
         if (aSkeletonStatement.mKind == GAXSKStatementKind::kPreviousAssign) {
             if (!GeneratePreviousAssignStatement(aSkeletonStatement,
                                                  &aStatements,
@@ -1704,6 +2121,24 @@ bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
             continue;
         }
         
+        if (aSkeletonStatement.mKind == GAXSKStatementKind::kIngressCrush) {
+            if (!GenerateIngressCrushStatement(aSkeletonStatement,
+                                               &aStatements,
+                                               pErrorMessage)) {
+                return false;
+            }
+            continue;
+        }
+        
+        if (aSkeletonStatement.mKind == GAXSKStatementKind::kCarryCrush) {
+            if (!GenerateCarryCrushStatement(aSkeletonStatement,
+                                             &aStatements,
+                                             pErrorMessage)) {
+                return false;
+            }
+            continue;
+        }
+        
         if (aSkeletonStatement.mKind == GAXSKStatementKind::kOrbiterAssign ||
             aSkeletonStatement.mKind == GAXSKStatementKind::kOrbiterAdd ||
             aSkeletonStatement.mKind == GAXSKStatementKind::kOrbiterXor ||
@@ -1722,7 +2157,35 @@ bool GAXPL::GenerateStatements(std::string *pErrorMessage) {
                  std::to_string(static_cast<int>(aSkeletonStatement.mKind)));
         return false;
     }
+    
+    if (mDest.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateStatements received invalid dest symbol");
+        return false;
+    }
 
+    GSymbol aIndexSymbol = GSymbol::Var(TwistVariable::kIndex);
+    GSymbol aIngressSymbol = GSymbol::Var(TwistVariable::kIngress);
+
+    aStatements.push_back(GStatement::Comment(""));
+
+    if (mDestWriteInverted) {
+        aStatements.push_back(
+            GQuick::MakeAssignDestStatementInverted(
+                mDest,
+                aIndexSymbol,
+                aIngressSymbol
+            )
+        );
+    } else {
+        aStatements.push_back(
+            GQuick::MakeAssignDestStatement(
+                mDest,
+                aIndexSymbol,
+                aIngressSymbol
+            )
+        );
+    }
+    
     mLoop->AddBody(&aStatements);
     return true;
 }

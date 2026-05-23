@@ -365,7 +365,8 @@ bool IsParamDomainSaltWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
     }
 }
 
-std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
+std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
+                                      const bool pUseKDFParameterAliases) {
     const std::string aAlias = BufAliasName(pSlot);
     if ((pSlot == TwistWorkSpaceSlot::kIndexList256A) ||
         (pSlot == TwistWorkSpaceSlot::kIndexList256B) ||
@@ -378,7 +379,16 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot) {
     const std::string aPrefix = "[[maybe_unused]] std::uint8_t *" + aAlias + " = ";
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource:
+            if (pUseKDFParameterAliases) {
+                return aPrefix + "pInput;";
+            }
+            return aPrefix +
+                   "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
+                   std::to_string(static_cast<int>(pSlot)) + "));";
         case TwistWorkSpaceSlot::kDest:
+            if (pUseKDFParameterAliases) {
+                return aPrefix + "pOutput;";
+            }
             return aPrefix +
                    "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
@@ -575,7 +585,7 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         if (ContainsText(aDeclaredNames, aAliasName)) {
             continue;
         }
-        *pStream << "    " << WorkspaceAliasDeclaration(aSlot) << '\n';
+        *pStream << "    " << WorkspaceAliasDeclaration(aSlot, pIncludeKDFParameterAliases) << '\n';
         AppendUniqueValue(&aDeclaredNames, aAliasName);
         aWroteDeclaration = true;
     }
@@ -787,7 +797,7 @@ void AppendConstantsDefinition(std::ostringstream *pOut,
 
     *pOut << "const TwistDomainConstants " << pClassName << "::" << pMemberName << " = {\n"
           << "    " << UInt64CppLiteral(pConstants.mIngress) << ",\n"
-          << "    " << UInt64CppLiteral(pConstants.mPrevious) << ",\n"
+          << "    " << UInt64CppLiteral(pConstants.mScatter) << ",\n"
           << "    " << UInt64CppLiteral(pConstants.mCross) << ",\n"
           << "    " << UInt64CppLiteral(pConstants.mDomainConstantPublicIngress) << ",\n"
           << "    " << UInt64CppLiteral(pConstants.mDomainConstantPrivateIngress) << ",\n"
