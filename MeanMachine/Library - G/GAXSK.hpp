@@ -38,9 +38,10 @@ enum class GAXSKModelTermKind: std::uint8_t {
 
 enum class GAXSFormat : std::uint8_t {
     kInvalid = 0,
-    kSeven,
-    kNine,
-    kEleven
+    kN5,
+    kN7,
+    kN9,
+    kN11
 };
 
 enum class GAXSKDiffuseKind : std::uint8_t {

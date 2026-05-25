@@ -68,9 +68,6 @@ void TwistFarmConstants::Derive(const std::uint8_t *pSource,
     pConstants->mMatrixUnrollA = ReadU8(pSource, &aIndex);
     pConstants->mMatrixUnrollB = ReadU8(pSource, &aIndex);
 
-    pConstants->mMatrixSchemeA = ReadU8(pSource, &aIndex);
-    pConstants->mMatrixSchemeB = ReadU8(pSource, &aIndex);
-
     pConstants->mMatrixArgA = ReadU8(pSource, &aIndex);
     pConstants->mMatrixArgB = ReadU8(pSource, &aIndex);
     pConstants->mMatrixArgC = ReadU8(pSource, &aIndex);

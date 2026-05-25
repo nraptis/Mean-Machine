@@ -9,13 +9,19 @@
 #define Builder_Seeder_hpp
 
 #include <string>
+#include <vector>
+#include "GSnow.hpp"
+#include "TwistWorkSpace.hpp"
 
 class GTwistExpander;
 
 class Builder_Seeder {
 public:
-    bool Build(GTwistExpander *pExpander,
-               std::string *pErrorMessage);
+    bool                                    Build(GTwistExpander *pExpander,
+                                                  std::string *pErrorMessage);
+    
+    
+    
 };
 
 #endif /* Builder_Seeder_hpp */

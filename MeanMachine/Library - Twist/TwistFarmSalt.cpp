@@ -60,25 +60,6 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
         }
     }
     
-    printf("\n========================================\n");
-    printf("TwistFarmSalt::Derive sorted candidate scores\n");
-    printf("SALT_CANDIDATE_COUNT = %d\n", SALT_CANDIDATE_COUNT);
-    
-    printf("========================================\n");
-    printf("rank,grade,bit_balance,byte_spread,xor_drift,adjacency_penalty\n");
-    
-    for (int i = 0; i < SALT_CANDIDATE_COUNT; i++) {
-        const std::uint64_t *aCandidate = mCandidateSalt[i];
-        
-        const int aScore = mAnalyzer.ComputeCombinedSaltGrade(aCandidate);
-        
-        
-        printf("%d | %d | %d\n",
-               i,
-               mCandidateScore[i],
-               aScore);
-    }
-    
     std::memset(mCandidateClaimed, 0, sizeof(mCandidateClaimed));
 
     std::memcpy(mFillSalt[0], mCandidateSalt[0], S_SALT * sizeof(std::uint64_t));
@@ -125,11 +106,6 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
         
         mCandidateClaimed[aBestIndex] = 1;
         
-        printf("we took salt rank %d grade %d min_hamming %d\n",
-               aBestIndex,
-               mCandidateScore[aBestIndex],
-               aBestMinHammingDistance);
-        
         aFillListCount++;
     }
 }
@@ -146,12 +122,4 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
            pRoundMaterial->mSaltD,
            pRoundMaterial->mSaltE,
            pRoundMaterial->mSaltF);
-}
-
-void TwistFarmSalt::Derive(const std::uint8_t *pSource,
-                           TwistDomainRoundMaterial *pRoundMaterial) {
-    if (pRoundMaterial == nullptr) {
-        return;
-    }
-    Derive(pSource, static_cast<TwistDomainSeedRoundMaterial *>(pRoundMaterial));
 }

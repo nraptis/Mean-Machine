@@ -28,7 +28,7 @@ public:
     void                                AddBatch(const GBatch &pBatch);
     void                                AddLine(const std::string &pLine);
     void                                AddWorkspaceAliasLine(const std::string &pAliasName,
-                                                              const std::string &pWorkspaceFieldName);
+                                                              const std::string &pWorkSpaceFieldName);
     void                                AddAssignByteLine(const std::string &pName,
                                                           std::uint8_t pValue);
     void                                Clear();
@@ -51,27 +51,23 @@ public:
 
     void                                KDF(std::uint64_t pNonce,
                                             TwistDomainConstants *pDomainConstants,
-                                            TwistDomainSaltSet *pDomainSaltSet,
-                                            TwistDomainSBoxSet *pDomainSBoxSet) override;
+                                            TwistDomainSaltSet *pDomainSaltSet) override;
 
     void                                KDF_A(std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet,
-                                              TwistDomainSBoxSet *pDomainSBoxSet) override;
+                                              TwistDomainSaltSet *pDomainSaltSet) override;
 
     void                                KDF_B(std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet,
-                                              TwistDomainSBoxSet *pDomainSBoxSet) override;
+                                              TwistDomainSaltSet *pDomainSaltSet) override;
 
-    void                                Seed(TwistWorkSpace *pWorkspace,
-                                             TwistFarmSBox *pFarmSBox,
+    void                                Seed(TwistWorkSpace *pWorkSpace,
                                              TwistFarmSalt *pFarmSalt,
                                              std::uint64_t pNonce,
                                              std::uint8_t *pSource,
                                              std::uint8_t *pPassword,
                                              unsigned int pPasswordByteLength) override;
-    void                                TwistBlock(TwistWorkSpace *pWorkspace,
+    void                                TwistBlock(TwistWorkSpace *pWorkSpace,
                                                    std::uint64_t pNonce,
                                                    std::uint8_t *pSource,
                                                    std::uint8_t *pDestination) override;
@@ -88,7 +84,6 @@ public:
     std::string                         mNameBase;
     TwistProgramBranch                  mKDF_A; // KDF-A branch
     TwistProgramBranch                  mKDF_B; // KDF-B branch
-    TwistProgramBranch                  mKDF; // Legacy KDF branch
     TwistProgramBranch                  mSeed; // Seed branch
     TwistProgramBranch                  mTwister; // Twist branch
 
@@ -96,22 +91,12 @@ public:
     unsigned char                       mInitialValue_Value;
     unsigned char                       mInitialValue_Permute;
 
-    std::vector<std::uint8_t>           _mSBoxA;
-    std::vector<std::uint8_t>           _mSBoxB;
-    std::vector<std::uint8_t>           _mSBoxC;
-    std::vector<std::uint8_t>           _mSBoxD;
-    std::vector<std::uint8_t>           _mSBoxE;
-    std::vector<std::uint8_t>           _mSBoxF;
-    std::vector<std::uint8_t>           _mSBoxG;
-    std::vector<std::uint8_t>           _mSBoxH;
-
 private:
     void                                ExecuteKDFBranch(const TwistProgramBranch &pBranch,
                                                          const char *pBranchName,
                                                          std::uint64_t pNonce,
                                                          TwistDomainConstants *pDomainConstants,
-                                                         TwistDomainSaltSet *pDomainSaltSet,
-                                                         TwistDomainSBoxSet *pDomainSBoxSet);
+                                                         TwistDomainSaltSet *pDomainSaltSet);
 
 };
 

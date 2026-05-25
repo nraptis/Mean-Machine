@@ -9,14 +9,14 @@
 #include <cstdint>
 #include <vector>
 
-#define S_BLOCK 16384 // 4,096 // 2,048
+#define S_BLOCK 32768 // 4,096 // 2,048
 
 #define S_SBOX 256
 
 #define S_SALT 32
 #define S_SALT_DIVIDE_BITSHIFT 5
 
-#define S_BLOCK1 16383
+#define S_BLOCK1 32767
 #define S_SBOX1 255
 #define S_SALT1 31
 
@@ -94,15 +94,11 @@ struct TwistBufferKey {
     static TwistBufferKey                    Salt(TwistSaltOwner pOwner,
                                                   TwistDomain pDomain,
                                                   TwistWorkSpaceSlot pSlot);
-    static TwistBufferKey                    SBox(TwistSBoxOwner pOwner,
-                                                  TwistDomain pDomain,
-                                                  TwistSBoxLane pLane);
     static TwistBufferKey                    Constants(TwistSaltOwner pOwner,
                                                        TwistDomain pDomain);
 
     bool                                     IsValid() const;
     bool                                     IsSalt() const;
-    bool                                     IsSBox() const;
     bool                                     IsConstants() const;
 };
 
@@ -113,43 +109,27 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kSource=0, // size is N * S_BLOCK. To fetch from here is different, because it includes an offset. So we wrap into [offset...offset+S_BLOCK)
     kDest=1, // size is N * S_BLOCK To write to here is different, because it includes an offset. So we wrap into [offset...offset+S_BLOCK)
     
-    kParamDomainSBoxA=30,
-    kParamDomainSBoxB=31,
-    kParamDomainSBoxC=32,
-    kParamDomainSBoxD=33,
-    kParamDomainSBoxE=34,
-    kParamDomainSBoxF=35,
-    kParamDomainSBoxG=36,
-    kParamDomainSBoxH=37,
-    
     kExpansionLaneA=80,
     kExpansionLaneB=81,
     kExpansionLaneC=82,
     kExpansionLaneD=83,
-    kExpansionLaneE=84,
-    kExpansionLaneF=85,
 
     kWorkLaneA=90,
     kWorkLaneB=91,
     kWorkLaneC=92,
     kWorkLaneD=93,
-    kWorkLaneE=94,
-    kWorkLaneF=95,
 
     kOperationLaneA=100,
     kOperationLaneB=101,
     kOperationLaneC=102,
     kOperationLaneD=103,
-    kOperationLaneE=104,
-    kOperationLaneF=105,
 
     kSnowLaneA=106,
     kSnowLaneB=107,
     kSnowLaneC=108,
     kSnowLaneD=109,
 
-    kMaskLaneA=110,
-    kMaskLaneB=111,
+    kSnow=112,
     
     
     // These are confusing.
@@ -197,8 +177,6 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kIndexList256B=191,
     kIndexList256C=192,
     kIndexList256D=193,
-    kIndexList256E=194,
-    kIndexList256F=195,
     
 };
 
@@ -218,9 +196,6 @@ public:
     
     std::uint8_t                            mMatrixUnrollA;
     std::uint8_t                            mMatrixUnrollB;
-    
-    std::uint8_t                            mMatrixSchemeA;
-    std::uint8_t                            mMatrixSchemeB;
     
     std::uint8_t                            mMatrixArgA;
     std::uint8_t                            mMatrixArgB;
@@ -243,37 +218,11 @@ public:
     
 };
 
-struct TwistDomainRoundMaterial : public TwistDomainSeedRoundMaterial {
-public:
-    std::uint8_t                            mSBoxA[S_SBOX];
-    std::uint8_t                            mSBoxB[S_SBOX];
-    std::uint8_t                            mSBoxC[S_SBOX];
-    std::uint8_t                            mSBoxD[S_SBOX];
-    std::uint8_t                            mSBoxE[S_SBOX];
-    std::uint8_t                            mSBoxF[S_SBOX];
-    std::uint8_t                            mSBoxG[S_SBOX];
-    std::uint8_t                            mSBoxH[S_SBOX];
-    
-};
-
 class TwistDomainSaltSet {
 public:
     TwistDomainSeedRoundMaterial            mOrbiterAssign;
     TwistDomainSeedRoundMaterial            mOrbiterUpdate;
     TwistDomainSeedRoundMaterial            mWandererUpdate;
-    
-};
-
-class TwistDomainSBoxSet {
-public:
-    std::uint8_t                            mSBoxA[S_SBOX];
-    std::uint8_t                            mSBoxB[S_SBOX];
-    std::uint8_t                            mSBoxC[S_SBOX];
-    std::uint8_t                            mSBoxD[S_SBOX];
-    std::uint8_t                            mSBoxE[S_SBOX];
-    std::uint8_t                            mSBoxF[S_SBOX];
-    std::uint8_t                            mSBoxG[S_SBOX];
-    std::uint8_t                            mSBoxH[S_SBOX];
     
 };
 
@@ -287,11 +236,6 @@ public:
 
     TwistDomainSaltSet                      mPhaseCSalts;
     TwistDomainConstants                    mPhaseCConstants;
-
-    TwistDomainSBoxSet                      mPhaseASBoxes;
-    TwistDomainSBoxSet                      mPhaseBSBoxes;
-    TwistDomainSBoxSet                      mPhaseCSBoxes;
-    
 };
 
 
@@ -309,30 +253,21 @@ public:
     std::uint8_t                            mExpansionLaneB[S_BLOCK];
     std::uint8_t                            mExpansionLaneC[S_BLOCK];
     std::uint8_t                            mExpansionLaneD[S_BLOCK];
-    std::uint8_t                            mExpansionLaneE[S_BLOCK];
-    std::uint8_t                            mExpansionLaneF[S_BLOCK];
 
     std::uint8_t                            mWorkLaneA[S_BLOCK];
     std::uint8_t                            mWorkLaneB[S_BLOCK];
     std::uint8_t                            mWorkLaneC[S_BLOCK];
     std::uint8_t                            mWorkLaneD[S_BLOCK];
-    std::uint8_t                            mWorkLaneE[S_BLOCK];
-    std::uint8_t                            mWorkLaneF[S_BLOCK];
     
     std::uint8_t                            mOperationLaneA[S_BLOCK];
     std::uint8_t                            mOperationLaneB[S_BLOCK];
     std::uint8_t                            mOperationLaneC[S_BLOCK];
     std::uint8_t                            mOperationLaneD[S_BLOCK];
-    std::uint8_t                            mOperationLaneE[S_BLOCK];
-    std::uint8_t                            mOperationLaneF[S_BLOCK];
-
+    
     std::uint8_t                            mSnowLaneA[S_BLOCK];
     std::uint8_t                            mSnowLaneB[S_BLOCK];
     std::uint8_t                            mSnowLaneC[S_BLOCK];
     std::uint8_t                            mSnowLaneD[S_BLOCK];
-    
-    std::uint8_t                            mMaskLaneA[S_BLOCK];
-    std::uint8_t                            mMaskLaneB[S_BLOCK];
 
     TwistDomainBundle                       mDomainBundle;
     
@@ -342,15 +277,15 @@ public:
     static void                             ShiftMaskBoxA(std::uint8_t *pBox); //
     static void                             ShiftMaskBoxB(std::uint8_t *pBox); //
     
-    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkspace,
+    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkSpace,
                                                        TwistExpander *pExpander,
                                                        TwistWorkSpaceSlot pSlot);
-    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkspace,
+    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkSpace,
                                                        TwistWorkSpaceSlot pSlot);
-    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkspace,
+    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkSpace,
                                                        TwistExpander *pExpander,
                                                        TwistBufferKey pKey);
-    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkspace,
+    static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkSpace,
                                                        TwistBufferKey pKey);
     static bool                             TryLegacySlotToBufferKey(TwistWorkSpaceSlot pSlot,
                                                                      TwistBufferKey *pKeyOut);
@@ -358,9 +293,7 @@ public:
     static int                              GetBufferLength(TwistWorkSpaceSlot pSlot); //
     static int                              GetBufferLength(TwistBufferKey pKey);
     
-    static bool                             IsSBox(TwistWorkSpaceSlot pSlot);
     static bool                             IsSalt(TwistWorkSpaceSlot pSlot);
-    static bool                             IsSBox(TwistBufferKey pKey);
     static bool                             IsSalt(TwistBufferKey pKey);
     
 };

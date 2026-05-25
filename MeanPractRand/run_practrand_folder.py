@@ -10,7 +10,8 @@ from pathlib import Path
 # ============================================================
 # Editable config (no shell/python args required)
 # ============================================================
-ROOT_DIR = Path('/Users/magneto/Desktop/Codex Playground/MeanPractRand')
+
+ROOT_DIR = Path('/Users/prez/Desktop/mean_matchne/Mean-Machine/MeanPractRand')
 BITSTREAM_FOLDER = ROOT_DIR / 'streams'
 REPORT_PATH = ROOT_DIR / 'generated' / 'practrand_folder_report.txt'
 RUN_OUTPUT_DIR = ROOT_DIR / 'generated' / 'practrand_folder_runs'

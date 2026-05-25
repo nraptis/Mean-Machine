@@ -64,8 +64,7 @@ bool GRunMatrixDiffusion::Bake(const GRunMatrixDiffusionConfig &pConfig,
     if (!EnsureBufferSymbol(pConfig.mOutputB, "output_b", pErrorMessage)) { return false; }
     if (!EnsureBufferSymbol(pConfig.mShuffleEntropyA, "shuffle_entropy_a", pErrorMessage)) { return false; }
     if (!EnsureBufferSymbol(pConfig.mShuffleEntropyB, "shuffle_entropy_b", pErrorMessage)) { return false; }
-    if (!EnsureBufferSymbol(pConfig.mShuffleEntropyC, "shuffle_entropy_c", pErrorMessage)) { return false; }
-    if (!EnsureBufferSymbol(pConfig.mShuffleEntropyD, "shuffle_entropy_d", pErrorMessage)) { return false; }
+    
     if (!EnsureBufferSymbol(pConfig.mOperationSourceA, "operation_source_a", pErrorMessage)) { return false; }
     if (!EnsureBufferSymbol(pConfig.mOperationSourceB, "operation_source_b", pErrorMessage)) { return false; }
     
@@ -113,13 +112,13 @@ bool GRunMatrixDiffusion::Bake(const GRunMatrixDiffusionConfig &pConfig,
     if (!GIndexShuffle::BakeA(aIndexListA, pConfig.mShuffleEntropyA, &aStatements, pErrorMessage)) {
         return false;
     }
-    if (!GIndexShuffle::BakeB(aIndexListB, pConfig.mShuffleEntropyB, &aStatements, pErrorMessage)) {
+    if (!GIndexShuffle::BakeA(aIndexListB, pConfig.mShuffleEntropyB, &aStatements, pErrorMessage)) {
         return false;
     }
-    if (!GIndexShuffle::BakeA(aIndexListC, pConfig.mShuffleEntropyC, &aStatements, pErrorMessage)) {
+    if (!GIndexShuffle::BakeB(aIndexListC, pConfig.mShuffleEntropyA, &aStatements, pErrorMessage)) {
         return false;
     }
-    if (!GIndexShuffle::BakeB(aIndexListD, pConfig.mShuffleEntropyD, &aStatements, pErrorMessage)) {
+    if (!GIndexShuffle::BakeB(aIndexListD, pConfig.mShuffleEntropyB, &aStatements, pErrorMessage)) {
         return false;
     }
     aStatements.push_back(GQuick::MakeAssignVariableStatement(aOperationIndex, GExpr::Const64(0ULL)));

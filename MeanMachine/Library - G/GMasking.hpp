@@ -31,33 +31,37 @@ public:
                    GSymbol pSourceA,
                    GSymbol pSourceB,
                    GSymbol pMask,
+                   GSymbol pMaskDomainWord,
                    std::vector<GStatement> *pStatements,
                    std::string *pErrorMessage) const {
-        return BakeBraidCall(pType, pSourceA, pSourceB, pMask, pStatements, pErrorMessage);
+        return BakeBraidCall(pType, pSourceA, pSourceB, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeBraidA(GSymbol pSourceA,
                     GSymbol pSourceB,
                     GSymbol pMask,
+                    GSymbol pMaskDomainWord,
                     std::vector<GStatement> *pStatements,
                     std::string *pErrorMessage) const {
-        return BakeBraid(TwistMaskBraidType::kA, pSourceA, pSourceB, pMask, pStatements, pErrorMessage);
+        return BakeBraid(TwistMaskBraidType::kA, pSourceA, pSourceB, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeBraidB(GSymbol pSourceA,
                     GSymbol pSourceB,
                     GSymbol pMask,
+                    GSymbol pMaskDomainWord,
                     std::vector<GStatement> *pStatements,
                     std::string *pErrorMessage) const {
-        return BakeBraid(TwistMaskBraidType::kB, pSourceA, pSourceB, pMask, pStatements, pErrorMessage);
+        return BakeBraid(TwistMaskBraidType::kB, pSourceA, pSourceB, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeBraidC(GSymbol pSourceA,
                     GSymbol pSourceB,
                     GSymbol pMask,
+                    GSymbol pMaskDomainWord,
                     std::vector<GStatement> *pStatements,
                     std::string *pErrorMessage) const {
-        return BakeBraid(TwistMaskBraidType::kC, pSourceA, pSourceB, pMask, pStatements, pErrorMessage);
+        return BakeBraid(TwistMaskBraidType::kC, pSourceA, pSourceB, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeWeave(TwistMaskWeaveType pType,
@@ -65,45 +69,50 @@ public:
                    GSymbol pSourceB,
                    GSymbol pDest,
                    GSymbol pMask,
+                   GSymbol pMaskDomainWord,
                    std::vector<GStatement> *pStatements,
                    std::string *pErrorMessage) const {
-        return BakeWeaveCall(pType, pSourceA, pSourceB, pDest, pMask, pStatements, pErrorMessage);
+        return BakeWeaveCall(pType, pSourceA, pSourceB, pDest, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeWeaveA(GSymbol pSourceA,
                     GSymbol pSourceB,
                     GSymbol pDest,
                     GSymbol pMask,
+                    GSymbol pMaskDomainWord,
                     std::vector<GStatement> *pStatements,
                     std::string *pErrorMessage) const {
-        return BakeWeave(TwistMaskWeaveType::kA, pSourceA, pSourceB, pDest, pMask, pStatements, pErrorMessage);
+        return BakeWeave(TwistMaskWeaveType::kA, pSourceA, pSourceB, pDest, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeWeaveB(GSymbol pSourceA,
                     GSymbol pSourceB,
                     GSymbol pDest,
                     GSymbol pMask,
+                    GSymbol pMaskDomainWord,
                     std::vector<GStatement> *pStatements,
                     std::string *pErrorMessage) const {
-        return BakeWeave(TwistMaskWeaveType::kB, pSourceA, pSourceB, pDest, pMask, pStatements, pErrorMessage);
+        return BakeWeave(TwistMaskWeaveType::kB, pSourceA, pSourceB, pDest, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeWeaveC(GSymbol pSourceA,
                     GSymbol pSourceB,
                     GSymbol pDest,
                     GSymbol pMask,
+                    GSymbol pMaskDomainWord,
                     std::vector<GStatement> *pStatements,
                     std::string *pErrorMessage) const {
-        return BakeWeave(TwistMaskWeaveType::kC, pSourceA, pSourceB, pDest, pMask, pStatements, pErrorMessage);
+        return BakeWeave(TwistMaskWeaveType::kC, pSourceA, pSourceB, pDest, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
     bool BakeWeaveD(GSymbol pSourceA,
                     GSymbol pSourceB,
                     GSymbol pDest,
                     GSymbol pMask,
+                    GSymbol pMaskDomainWord,
                     std::vector<GStatement> *pStatements,
                     std::string *pErrorMessage) const {
-        return BakeWeave(TwistMaskWeaveType::kD, pSourceA, pSourceB, pDest, pMask, pStatements, pErrorMessage);
+        return BakeWeave(TwistMaskWeaveType::kD, pSourceA, pSourceB, pDest, pMask, pMaskDomainWord, pStatements, pErrorMessage);
     }
 
 private:
@@ -140,22 +149,14 @@ private:
             case TwistWorkSpaceSlot::kExpansionLaneB:
             case TwistWorkSpaceSlot::kExpansionLaneC:
             case TwistWorkSpaceSlot::kExpansionLaneD:
-            case TwistWorkSpaceSlot::kExpansionLaneE:
-            case TwistWorkSpaceSlot::kExpansionLaneF:
             case TwistWorkSpaceSlot::kWorkLaneA:
             case TwistWorkSpaceSlot::kWorkLaneB:
             case TwistWorkSpaceSlot::kWorkLaneC:
             case TwistWorkSpaceSlot::kWorkLaneD:
-            case TwistWorkSpaceSlot::kWorkLaneE:
-            case TwistWorkSpaceSlot::kWorkLaneF:
             case TwistWorkSpaceSlot::kOperationLaneA:
             case TwistWorkSpaceSlot::kOperationLaneB:
             case TwistWorkSpaceSlot::kOperationLaneC:
             case TwistWorkSpaceSlot::kOperationLaneD:
-            case TwistWorkSpaceSlot::kOperationLaneE:
-            case TwistWorkSpaceSlot::kOperationLaneF:
-            case TwistWorkSpaceSlot::kMaskLaneA:
-            case TwistWorkSpaceSlot::kMaskLaneB:
                 return true;
             default:
                 return false;
@@ -201,6 +202,7 @@ private:
                               GSymbol pSourceA,
                               GSymbol pSourceB,
                               GSymbol pMask,
+                              GSymbol pMaskDomainWord,
                               std::vector<GStatement> *pStatements,
                               std::string *pErrorMessage) {
         if (pStatements == nullptr) {
@@ -209,6 +211,10 @@ private:
         }
         if (!pSourceA.IsBuf() || !pSourceB.IsBuf() || !pMask.IsBuf()) {
             SetError(pErrorMessage, "GMasking braid symbols must be buffer symbols.");
+            return false;
+        }
+        if (!pMaskDomainWord.IsVar()) {
+            SetError(pErrorMessage, "GMasking braid mask domain word must be a scalar variable symbol.");
             return false;
         }
         std::string aMaskLengthToken;
@@ -221,7 +227,8 @@ private:
             BufAliasName(pSourceB) + ", " +
             "S_BLOCK, " +
             BufAliasName(pMask) + ", " +
-            aMaskLengthToken + ");";
+            aMaskLengthToken + ", " +
+            pMaskDomainWord.mName + ");";
         pStatements->push_back(GStatement::RawLine(aLine));
         return true;
     }
@@ -231,6 +238,7 @@ private:
                               GSymbol pSourceB,
                               GSymbol pDest,
                               GSymbol pMask,
+                              GSymbol pMaskDomainWord,
                               std::vector<GStatement> *pStatements,
                               std::string *pErrorMessage) {
         if (pStatements == nullptr) {
@@ -239,6 +247,10 @@ private:
         }
         if (!pSourceA.IsBuf() || !pSourceB.IsBuf() || !pDest.IsBuf() || !pMask.IsBuf()) {
             SetError(pErrorMessage, "GMasking weave symbols must be buffer symbols.");
+            return false;
+        }
+        if (!pMaskDomainWord.IsVar()) {
+            SetError(pErrorMessage, "GMasking weave mask domain word must be a scalar variable symbol.");
             return false;
         }
         std::string aMaskLengthToken;
@@ -252,7 +264,8 @@ private:
             BufAliasName(pDest) + ", " +
             "S_BLOCK, " +
             BufAliasName(pMask) + ", " +
-            aMaskLengthToken + ");";
+            aMaskLengthToken + ", " +
+            pMaskDomainWord.mName + ");";
         pStatements->push_back(GStatement::RawLine(aLine));
         return true;
     }

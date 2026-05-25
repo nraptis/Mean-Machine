@@ -200,10 +200,10 @@ struct GBatch {
     std::string                         BuildCppScopeBlock(std::string *pErrorMessage = nullptr,
                                                            bool pEmitDeclarations = true) const;
 
-    bool                                Execute(TwistWorkSpace *pWorkspace,
+    bool                                Execute(TwistWorkSpace *pWorkSpace,
                                                 TwistExpander *pExpander,
                                                 std::string *pErrorMessage = nullptr) const;
-    bool                                ExecuteWithVariables(TwistWorkSpace *pWorkspace,
+    bool                                ExecuteWithVariables(TwistWorkSpace *pWorkSpace,
                                                              TwistExpander *pExpander,
                                                              std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                                              std::string *pErrorMessage = nullptr) const;

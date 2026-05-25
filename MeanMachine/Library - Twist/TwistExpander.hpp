@@ -13,7 +13,6 @@
 #include <vector>
 #include "TwistFastMatrix.hpp"
 
-class TwistFarmSBox;
 class TwistFarmSalt;
 
 class TwistExpander {
@@ -33,34 +32,30 @@ public:
     
     virtual void                            KDF(std::uint64_t pNonce,
                                                 TwistDomainConstants *pDomainConstants,
-                                                TwistDomainSaltSet *pDomainSaltSet,
-                                                TwistDomainSBoxSet *pDomainSBoxSet);
+                                                TwistDomainSaltSet *pDomainSaltSet);
 
     virtual void                            KDF_A(std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet,
-                                                  TwistDomainSBoxSet *pDomainSBoxSet);
+                                                  TwistDomainSaltSet *pDomainSaltSet);
 
     virtual void                            KDF_B(std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet,
-                                                  TwistDomainSBoxSet *pDomainSBoxSet);
+                                                  TwistDomainSaltSet *pDomainSaltSet);
 
-    virtual void                            Seed(TwistWorkSpace *pWorkspace,
-                                                 TwistFarmSBox *pFarmSBox,
+    virtual void                            Seed(TwistWorkSpace *pWorkSpace,
                                                  TwistFarmSalt *pFarmSalt,
                                                  std::uint64_t pNonce,
                                                  std::uint8_t *pSource,
                                                  std::uint8_t *pPassword,
                                                  unsigned int pPasswordByteLength);
 
-    virtual void                            TwistBlock(TwistWorkSpace *pWorkspace,
+    virtual void                            TwistBlock(TwistWorkSpace *pWorkSpace,
                                                        std::uint64_t pNonce,
                                                        std::uint8_t *pSource,
                                                        std::uint8_t *pDestination);
 
     // this is not virtual, it calls TwistBlock on every block
-    void                                    Twist(TwistWorkSpace *pWorkspace,
+    void                                    Twist(TwistWorkSpace *pWorkSpace,
                                                   std::uint64_t pNonce,
                                                   std::uint8_t *pSource,
                                                   std::uint8_t *pDestination,
@@ -70,42 +65,28 @@ public:
     std::size_t                             mIndexList256B[256];
     std::size_t                             mIndexList256C[256];
     std::size_t                             mIndexList256D[256];
-    std::size_t                             mIndexList256E[256];
-    std::size_t                             mIndexList256F[256];
-    
-    std::uint8_t                            mSBoxA[S_SBOX];
-    std::uint8_t                            mSBoxB[S_SBOX];
-    std::uint8_t                            mSBoxC[S_SBOX];
-    std::uint8_t                            mSBoxD[S_SBOX];
-    std::uint8_t                            mSBoxE[S_SBOX];
-    std::uint8_t                            mSBoxF[S_SBOX];
-    std::uint8_t                            mSBoxG[S_SBOX];
-    std::uint8_t                            mSBoxH[S_SBOX];
-    
+
     TwistDomainConstants                    *mActiveConstants;
     TwistDomainSaltSet                      *mActiveSaltSet;
-    TwistDomainSBoxSet                      *mActiveSBoxSet;
     
     std::uint8_t                            *mSource;
+    std::uint8_t                            *mSnow;
     std::uint8_t                            *mDest;
     
     TwistFastMatrix                         mMatrixA;
     TwistFastMatrix                         mMatrixB;
 
-    TwistFarmSBox                           *GetFarmSBox() const;
     TwistFarmSalt                           *GetFarmSalt() const;
     std::uint64_t                           GetSessionNonce() const;
-
-    void                                    SyncDomainBundleInbuiltFromLegacy();
-    void                                    SyncLegacyFromDomainBundleInbuilt();
 
     TwistDomainBundle                       mDomainBundleInbuilt;
     TwistDomainBundle                       mDomainBundleEphemeral;
     
+    TwistWorkSpace                          *mWorkspace;
+    
 protected:
     
-    TwistWorkSpace                          *mWorkspace;
-    TwistFarmSBox                           *mFarmSBox;
+    
     TwistFarmSalt                           *mFarmSalt;
     std::uint64_t                           mKDFCallCounter;
     std::uint64_t                           mKDFSessionNonce;

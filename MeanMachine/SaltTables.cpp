@@ -277,22 +277,18 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
                                                             pTagCursor + 5ULL);
         pConstants->mMatrixUnrollB = FillDomainConstantByte(pTableCursor + 6U,
                                                             pTagCursor + 6ULL);
-        pConstants->mMatrixSchemeA = FillDomainConstantByte(pTableCursor + 7U,
-                                                            pTagCursor + 7ULL);
-        pConstants->mMatrixSchemeB = FillDomainConstantByte(pTableCursor + 8U,
-                                                            pTagCursor + 8ULL);
-        pConstants->mMatrixArgA = FillDomainConstantByte(pTableCursor + 9U,
+        pConstants->mMatrixArgA = FillDomainConstantByte(pTableCursor + 7U,
+                                                          pTagCursor + 7ULL);
+        pConstants->mMatrixArgB = FillDomainConstantByte(pTableCursor + 8U,
+                                                          pTagCursor + 8ULL);
+        pConstants->mMatrixArgC = FillDomainConstantByte(pTableCursor + 9U,
                                                           pTagCursor + 9ULL);
-        pConstants->mMatrixArgB = FillDomainConstantByte(pTableCursor + 10U,
+        pConstants->mMatrixArgD = FillDomainConstantByte(pTableCursor + 10U,
                                                           pTagCursor + 10ULL);
-        pConstants->mMatrixArgC = FillDomainConstantByte(pTableCursor + 11U,
+        pConstants->mMaskMutateA = FillDomainConstantByte(pTableCursor + 11U,
                                                           pTagCursor + 11ULL);
-        pConstants->mMatrixArgD = FillDomainConstantByte(pTableCursor + 12U,
+        pConstants->mMaskMutateB = FillDomainConstantByte(pTableCursor + 12U,
                                                           pTagCursor + 12ULL);
-        pConstants->mMaskMutateA = FillDomainConstantByte(pTableCursor + 13U,
-                                                          pTagCursor + 13ULL);
-        pConstants->mMaskMutateB = FillDomainConstantByte(pTableCursor + 14U,
-                                                          pTagCursor + 14ULL);
     };
 
     TwistDomainSeedRoundMaterial *aMaterials[] = {

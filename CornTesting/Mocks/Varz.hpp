@@ -29,11 +29,6 @@ public:
     GSymbol         mSelect;
     
     
-    GSymbol         mSBoxA;
-    GSymbol         mSBoxB;
-    GSymbol         mSBoxC;
-    GSymbol         mSBoxD;
-    
     GSymbol         mSaltA;
     GSymbol         mSaltB;
     GSymbol         mSaltC;

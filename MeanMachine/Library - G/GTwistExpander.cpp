@@ -8,11 +8,10 @@
 #include "FileIO.hpp"
 #include "GJson.hpp"
 #include "Random.hpp"
-#include "SBoxTables.hpp"
 #include "SaltTables.hpp"
 #include "TwistFarmConstants.hpp"
-#include "TwistFarmSBox.hpp"
 #include "TwistFarmSalt.hpp"
+#include "TwistSnow.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -262,6 +261,18 @@ bool ParseBranch(const JsonValue &pRoot,
         return true;
     }
 
+    // Legacy seed JSON used separate arrays before branch steps existed. Seed
+    // setup batches must run before the KDF call lines.
+    if (pBranchName == "seed") {
+        for (const GBatch &aBatch : aParsedBatches) {
+            pBranch->AddBatch(aBatch);
+        }
+        for (const std::string &aLine : aParsedLines) {
+            pBranch->AddLine(aLine);
+        }
+        return true;
+    }
+
     // Legacy branch JSON used separate arrays with implicit order: lines, then batches.
     for (const std::string &aLine : aParsedLines) {
         pBranch->AddLine(aLine);
@@ -299,15 +310,6 @@ bool ParseTables(const JsonValue &pRoot,
         }
         return aTables->find(pKey);
     };
-
-    if (!ParseByteArray(aTables->find("sbox_a"), &pExpander->_mSBoxA, pErrorMessage)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_b"), &pExpander->_mSBoxB, pErrorMessage)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_c"), &pExpander->_mSBoxC, pErrorMessage)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_d"), &pExpander->_mSBoxD, pErrorMessage)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_e"), &pExpander->_mSBoxE, pErrorMessage)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_f"), &pExpander->_mSBoxF, pErrorMessage)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_g"), &pExpander->_mSBoxG, pErrorMessage)) { return false; }
-    if (!ParseByteArray(aTables->find("sbox_h"), &pExpander->_mSBoxH, pErrorMessage)) { return false; }
 
     auto ParseSaltWithLegacyFallback = [&](const char *pKey,
                                            std::vector<std::uint64_t> *pSaltOut) -> bool {
@@ -536,8 +538,6 @@ bool ParseTables(const JsonValue &pRoot,
         if (!ParseDomainConstantFromObject(aObject, "matrix_select_b", &pDest->mMatrixSelectB)) { return false; }
         if (!ParseDomainConstantByteFromObject("matrix_unroll_a", &pDest->mMatrixUnrollA)) { return false; }
         if (!ParseDomainConstantByteFromObject("matrix_unroll_b", &pDest->mMatrixUnrollB)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_scheme_a", &pDest->mMatrixSchemeA)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_scheme_b", &pDest->mMatrixSchemeB)) { return false; }
         if (!ParseDomainConstantByteFromObject("matrix_arg_aa", &pDest->mMatrixArgA)) { return false; }
         if (!ParseDomainConstantByteFromObject("matrix_arg_ab", &pDest->mMatrixArgB)) { return false; }
         if (!ParseDomainConstantByteFromObject("matrix_arg_ba", &pDest->mMatrixArgC)) { return false; }
@@ -614,13 +614,11 @@ bool ParseTables(const JsonValue &pRoot,
     if (!ParseDomainSaltOptional("domain_salt_source_e", aDiscardedSalt)) { return false; }
     if (!ParseDomainSaltOptional("domain_salt_source_f", aDiscardedSalt)) { return false; }
 
-    pExpander->SyncDomainBundleInbuiltFromLegacy();
-
     return true;
 }
 
 bool ExecuteBatchJsonText(const std::vector<std::string> &pBatchJsonText,
-                          TwistWorkSpace *pWorkspace,
+                          TwistWorkSpace *pWorkSpace,
                           TwistExpander *pExpander,
                           std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                           std::string *pErrorMessage) {
@@ -638,7 +636,7 @@ bool ExecuteBatchJsonText(const std::vector<std::string> &pBatchJsonText,
             return false;
         }
 
-        if (!aBatch.ExecuteWithVariables(pWorkspace, pExpander, pVariables, pErrorMessage)) {
+        if (!aBatch.ExecuteWithVariables(pWorkSpace, pExpander, pVariables, pErrorMessage)) {
             if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
                 *pErrorMessage = "batch execution failed.";
             }
@@ -831,34 +829,18 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mMatsWorkLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
         {"mMatsWorkLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
         {"mMatsWorkLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
-        {"mSBoxA", TwistWorkSpaceSlot::kParamDomainSBoxA},
-        {"mSBoxB", TwistWorkSpaceSlot::kParamDomainSBoxB},
-        {"mSBoxC", TwistWorkSpaceSlot::kParamDomainSBoxC},
-        {"mSBoxD", TwistWorkSpaceSlot::kParamDomainSBoxD},
-        {"mSBoxE", TwistWorkSpaceSlot::kParamDomainSBoxE},
-        {"mSBoxF", TwistWorkSpaceSlot::kParamDomainSBoxF},
-        {"mSBoxG", TwistWorkSpaceSlot::kParamDomainSBoxG},
-        {"mSBoxH", TwistWorkSpaceSlot::kParamDomainSBoxH},
         {"mExpansionLaneA", TwistWorkSpaceSlot::kExpansionLaneA},
         {"mExpansionLaneB", TwistWorkSpaceSlot::kExpansionLaneB},
         {"mExpansionLaneC", TwistWorkSpaceSlot::kExpansionLaneC},
         {"mExpansionLaneD", TwistWorkSpaceSlot::kExpansionLaneD},
-        {"mExpansionLaneE", TwistWorkSpaceSlot::kExpansionLaneE},
-        {"mExpansionLaneF", TwistWorkSpaceSlot::kExpansionLaneF},
         {"mWorkLaneA", TwistWorkSpaceSlot::kWorkLaneA},
         {"mWorkLaneB", TwistWorkSpaceSlot::kWorkLaneB},
         {"mWorkLaneC", TwistWorkSpaceSlot::kWorkLaneC},
         {"mWorkLaneD", TwistWorkSpaceSlot::kWorkLaneD},
-        {"mWorkLaneE", TwistWorkSpaceSlot::kWorkLaneE},
-        {"mWorkLaneF", TwistWorkSpaceSlot::kWorkLaneF},
         {"mOperationLaneA", TwistWorkSpaceSlot::kOperationLaneA},
         {"mOperationLaneB", TwistWorkSpaceSlot::kOperationLaneB},
         {"mOperationLaneC", TwistWorkSpaceSlot::kOperationLaneC},
         {"mOperationLaneD", TwistWorkSpaceSlot::kOperationLaneD},
-        {"mOperationLaneE", TwistWorkSpaceSlot::kOperationLaneE},
-        {"mOperationLaneF", TwistWorkSpaceSlot::kOperationLaneF},
-        {"mMaskLaneA", TwistWorkSpaceSlot::kMaskLaneA},
-        {"mMaskLaneB", TwistWorkSpaceSlot::kMaskLaneB},
         {"mKeyBoxUnrolledA", TwistWorkSpaceSlot::kKeyBoxUnrolledA},
         {"mKeyBoxUnrolledB", TwistWorkSpaceSlot::kKeyBoxUnrolledB},
         {"mKeyBoxUnrolledC", TwistWorkSpaceSlot::kMaskBoxUnrolledA},
@@ -886,9 +868,7 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mIndexList256A", TwistWorkSpaceSlot::kIndexList256A},
         {"mIndexList256B", TwistWorkSpaceSlot::kIndexList256B},
         {"mIndexList256C", TwistWorkSpaceSlot::kIndexList256C},
-        {"mIndexList256D", TwistWorkSpaceSlot::kIndexList256D},
-        {"mIndexList256E", TwistWorkSpaceSlot::kIndexList256E},
-        {"mIndexList256F", TwistWorkSpaceSlot::kIndexList256F}
+        {"mIndexList256D", TwistWorkSpaceSlot::kIndexList256D}
     };
 
     for (const AliasSlotPair &aPair : kWorkspaceFieldAliases) {
@@ -978,24 +958,18 @@ bool ParseCryptoCallArguments(const std::string &pLine,
 }
 
 bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
-                                    TwistWorkSpace *pWorkspace,
+                                    TwistWorkSpace *pWorkSpace,
                                     TwistExpander *pExpander,
                                     std::string *pErrorMessage) {
     enum class CryptoMethod : std::uint8_t {
-        kStepA_MakeSBoxes = 0,
         kStepB_MakeSalts = 1,
-        kStepC_MakeSBoxes = 2,
         kStepD_MakeSalts = 3
     };
 
     std::vector<std::string> aArgs;
-    CryptoMethod aMethod = CryptoMethod::kStepA_MakeSBoxes;
-    if (ParseCryptoCallArguments(pLine, "StepA_MakeSBoxes", &aArgs)) {
-        aMethod = CryptoMethod::kStepA_MakeSBoxes;
-    } else if (ParseCryptoCallArguments(pLine, "StepB_MakeSalts", &aArgs)) {
+    CryptoMethod aMethod = CryptoMethod::kStepB_MakeSalts;
+    if (ParseCryptoCallArguments(pLine, "StepB_MakeSalts", &aArgs)) {
         aMethod = CryptoMethod::kStepB_MakeSalts;
-    } else if (ParseCryptoCallArguments(pLine, "StepC_MakeSBoxes", &aArgs)) {
-        aMethod = CryptoMethod::kStepC_MakeSBoxes;
     } else if (ParseCryptoCallArguments(pLine, "StepD_MakeSalts", &aArgs)) {
         aMethod = CryptoMethod::kStepD_MakeSalts;
     } else {
@@ -1003,24 +977,18 @@ bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
     }
 
     const bool aValidCount =
-        ((aMethod == CryptoMethod::kStepA_MakeSBoxes) && (aArgs.size() == 13U)) ||
         ((aMethod == CryptoMethod::kStepB_MakeSalts) && (aArgs.size() == 17U)) ||
-        ((aMethod == CryptoMethod::kStepC_MakeSBoxes) && (aArgs.size() == 21U)) ||
         ((aMethod == CryptoMethod::kStepD_MakeSalts) && (aArgs.size() == 25U));
     if (!aValidCount) {
-        if (aMethod == CryptoMethod::kStepA_MakeSBoxes) {
-            SetError(pErrorMessage, "StepA_MakeSBoxes expects 13 arguments.");
-        } else if (aMethod == CryptoMethod::kStepB_MakeSalts) {
+        if (aMethod == CryptoMethod::kStepB_MakeSalts) {
             SetError(pErrorMessage, "StepB_MakeSalts expects 17 arguments.");
-        } else if (aMethod == CryptoMethod::kStepC_MakeSBoxes) {
-            SetError(pErrorMessage, "StepC_MakeSBoxes expects 21 arguments.");
         } else {
             SetError(pErrorMessage, "StepD_MakeSalts expects 25 arguments.");
         }
         return false;
     }
 
-    if ((pWorkspace == nullptr) || (pExpander == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
         SetError(pErrorMessage, "Legacy crypto-step call execution was missing required runtime inputs.");
         return false;
     }
@@ -1037,9 +1005,9 @@ bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
         TwistBufferKey aMappedKey;
         std::uint8_t *aBuffer = nullptr;
         if (TwistWorkSpace::TryLegacySlotToBufferKey(aSlot, &aMappedKey)) {
-            aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aMappedKey);
+            aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aMappedKey);
         } else {
-            aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSlot);
+            aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aSlot);
         }
         if (aBuffer == nullptr) {
             SetError(pErrorMessage, "Resolved null buffer for alias: " + aAlias);
@@ -1048,16 +1016,7 @@ bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
         aBuffers.push_back(aBuffer);
     }
 
-    if (aMethod == CryptoMethod::kStepA_MakeSBoxes) {
-        (void)aBuffers;
-        return true;
-    }
-
     if (aMethod == CryptoMethod::kStepB_MakeSalts) {
-        return true;
-    }
-
-    if (aMethod == CryptoMethod::kStepC_MakeSBoxes) {
         return true;
     }
 
@@ -1069,17 +1028,17 @@ bool ExecuteCryptoGeneratorCallLine(const std::string &pLine,
 }
 
 bool ExecuteCryptoMakeLine(const std::string &pLine,
-                           TwistWorkSpace *pWorkspace,
+                           TwistWorkSpace *pWorkSpace,
                            TwistExpander *pExpander,
                            std::string *pErrorMessage) {
-    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pErrorMessage);
+    return ExecuteCryptoGeneratorCallLine(pLine, pWorkSpace, pExpander, pErrorMessage);
 }
 
 bool ExecuteCryptoSaltLine(const std::string &pLine,
-                           TwistWorkSpace *pWorkspace,
+                           TwistWorkSpace *pWorkSpace,
                            TwistExpander *pExpander,
                            std::string *pErrorMessage) {
-    return ExecuteCryptoGeneratorCallLine(pLine, pWorkspace, pExpander, pErrorMessage);
+    return ExecuteCryptoGeneratorCallLine(pLine, pWorkSpace, pExpander, pErrorMessage);
 }
 
 std::string NormalizeRoundMaterialToken(const std::string &pToken) {
@@ -1093,9 +1052,9 @@ std::string NormalizeRoundMaterialToken(const std::string &pToken) {
     }
 
     const char *kPrefixes[] = {
-        "pWorkspace->",
+        "pWorkSpace->",
         "mWorkspace->",
-        "(*pWorkspace).",
+        "(*pWorkSpace).",
         "(*mWorkspace).",
         "this->",
         "pExpander->",
@@ -1122,9 +1081,9 @@ std::string NormalizeConstantsToken(const std::string &pToken) {
     }
 
     const char *kPrefixes[] = {
-        "pWorkspace->",
+        "pWorkSpace->",
         "mWorkspace->",
-        "(*pWorkspace).",
+        "(*pWorkSpace).",
         "(*mWorkspace).",
         "this->",
         "pExpander->",
@@ -1141,7 +1100,7 @@ std::string NormalizeConstantsToken(const std::string &pToken) {
 }
 
 bool ResolveConstantsToken(const std::string &pToken,
-                           TwistWorkSpace *pWorkspace,
+                           TwistWorkSpace *pWorkSpace,
                            TwistExpander *pExpander,
                            TwistDomainConstants **pConstantsResolved) {
     if (pConstantsResolved == nullptr) {
@@ -1155,23 +1114,23 @@ bool ResolveConstantsToken(const std::string &pToken,
 
     auto TryWorkspaceConstants = [&](const std::string &pName,
                                      TwistDomainConstants *pConstants) -> bool {
-        if ((pWorkspace == nullptr) || (pConstants == nullptr) || (aToken != pName)) {
+        if ((pWorkSpace == nullptr) || (pConstants == nullptr) || (aToken != pName)) {
             return false;
         }
         *pConstantsResolved = pConstants;
         return true;
     };
 
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseAConstants", &pWorkspace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseBConstants", &pWorkspace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseCConstants", &pWorkspace->mDomainBundle.mPhaseCConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mKeyAConstants", &pWorkspace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mKeyBConstants", &pWorkspace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mMaskAConstants", &pWorkspace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mMaskBConstants", &pWorkspace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mWorkLaneConstants", &pWorkspace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mMaskLaneConstants", &pWorkspace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mOperationLaneConstants", &pWorkspace->mDomainBundle.mPhaseCConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mPhaseAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mPhaseBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mPhaseCConstants", &pWorkSpace->mDomainBundle.mPhaseCConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeyAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeyBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mMaskAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mMaskBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mWorkLaneConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mMaskLaneConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mOperationLaneConstants", &pWorkSpace->mDomainBundle.mPhaseCConstants)) { return true; }
 
     if (pExpander == nullptr) {
         return false;
@@ -1223,7 +1182,7 @@ bool ResolveConstantsToken(const std::string &pToken,
 }
 
 bool ResolveSaltSetToken(const std::string &pToken,
-                         TwistWorkSpace *pWorkspace,
+                         TwistWorkSpace *pWorkSpace,
                          TwistExpander *pExpander,
                          TwistDomainSaltSet **pSaltSetResolved) {
     if (pSaltSetResolved == nullptr) {
@@ -1237,7 +1196,7 @@ bool ResolveSaltSetToken(const std::string &pToken,
 
     auto TryWorkspaceSet = [&](const std::string &pName,
                                TwistDomainSaltSet *pSet) -> bool {
-        if ((pWorkspace == nullptr) || (pSet == nullptr)) {
+        if ((pWorkSpace == nullptr) || (pSet == nullptr)) {
             return false;
         }
         if (aToken != pName) {
@@ -1247,39 +1206,39 @@ bool ResolveSaltSetToken(const std::string &pToken,
         return true;
     };
 
-    if (TryWorkspaceSet("mDomainBundle.mPhaseASalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseBSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseCSalts", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSalts", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSalts", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseCSalts", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSalts", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
 
     // Legacy compatibility tokens.
-    if (TryWorkspaceSet("mMatsKeyAOrbiterInit", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyAOrbiter", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyAWanderer", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBOrbiterInit", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBOrbiter", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBWanderer", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAOrbiterInit", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAOrbiter", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAWanderer", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBWanderer", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneOrbiterInit", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneOrbiter", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneWanderer", &pWorkspace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneWanderer", &pWorkspace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneOrbiterInit", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneOrbiter", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneWanderer", &pWorkspace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAOrbiter", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAWanderer", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiter", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBWanderer", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiter", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAWanderer", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBWanderer", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneOrbiter", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsWorkLaneWanderer", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneWanderer", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneOrbiter", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsOperationLaneWanderer", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
 
     if (pExpander != nullptr) {
         auto TryExpanderSet = [&](const std::string &pName,
@@ -1312,78 +1271,11 @@ bool ResolveSaltSetToken(const std::string &pToken,
     return false;
 }
 
-bool ResolveSBoxSetToken(const std::string &pToken,
-                         TwistWorkSpace *pWorkspace,
-                         TwistExpander *pExpander,
-                         TwistDomainSBoxSet **pSBoxSetResolved) {
-    if (pSBoxSetResolved == nullptr) {
-        return false;
-    }
-
-    const std::string aToken = NormalizeRoundMaterialToken(pToken);
-    if (aToken.empty()) {
-        return false;
-    }
-
-    auto TryWorkspaceSet = [&](const std::string &pName,
-                               TwistDomainSBoxSet *pSet) -> bool {
-        if ((pWorkspace == nullptr) || (pSet == nullptr)) {
-            return false;
-        }
-        if (aToken != pName) {
-            return false;
-        }
-        *pSBoxSetResolved = pSet;
-        return true;
-    };
-
-    if (TryWorkspaceSet("mDomainBundle.mPhaseASBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseBSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseCSBoxes", &pWorkspace->mDomainBundle.mPhaseCSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyASBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyBSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskASBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskBSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSBoxes", &pWorkspace->mDomainBundle.mPhaseASBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSBoxes", &pWorkspace->mDomainBundle.mPhaseBSBoxes)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSBoxes", &pWorkspace->mDomainBundle.mPhaseCSBoxes)) { return true; }
-
-    if (pExpander != nullptr) {
-        auto TryExpanderSet = [&](const std::string &pName,
-                                  TwistDomainSBoxSet *pSet) -> bool {
-            if (pSet == nullptr) {
-                return false;
-            }
-            if (aToken != pName) {
-                return false;
-            }
-            *pSBoxSetResolved = pSet;
-            return true;
-        };
-
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseASBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseBSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseCSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseCSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseASBoxes", &pExpander->mDomainBundleEphemeral.mPhaseASBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseBSBoxes", &pExpander->mDomainBundleEphemeral.mPhaseBSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseCSBoxes", &pExpander->mDomainBundleEphemeral.mPhaseCSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseASBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseBSBoxes)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSBoxes", &pExpander->mDomainBundleInbuilt.mPhaseCSBoxes)) { return true; }
-    }
-
-    return false;
-}
-
 bool ResolveBufferPointerToken(const std::string &pToken,
-                               TwistWorkSpace *pWorkspace,
+                               TwistWorkSpace *pWorkSpace,
                                TwistExpander *pExpander,
                                std::uint8_t **pBufferResolved) {
-    if ((pWorkspace == nullptr) || (pExpander == nullptr) || (pBufferResolved == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr) || (pBufferResolved == nullptr)) {
         return false;
     }
 
@@ -1406,6 +1298,10 @@ bool ResolveBufferPointerToken(const std::string &pToken,
         *pBufferResolved = pExpander->mDest;
         return *pBufferResolved != nullptr;
     }
+    if ((aToken == "mSnow") || (aToken == "this->mSnow") || (aToken == "pExpander->mSnow")) {
+        *pBufferResolved = pExpander->mSnow;
+        return *pBufferResolved != nullptr;
+    }
 
     TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
     if (!ResolveAliasSlot(aToken, &aSlot)) {
@@ -1414,15 +1310,15 @@ bool ResolveBufferPointerToken(const std::string &pToken,
 
     TwistBufferKey aKey;
     if (TwistWorkSpace::TryLegacySlotToBufferKey(aSlot, &aKey)) {
-        *pBufferResolved = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aKey);
+        *pBufferResolved = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aKey);
     } else {
-        *pBufferResolved = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSlot);
+        *pBufferResolved = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aSlot);
     }
     return *pBufferResolved != nullptr;
 }
 
 bool ResolveSeedRoundMaterialToken(const std::string &pToken,
-                                   TwistWorkSpace *pWorkspace,
+                                   TwistWorkSpace *pWorkSpace,
                                    TwistExpander *pExpander,
                                    TwistDomainSeedRoundMaterial **pMaterialResolved) {
     if (pMaterialResolved == nullptr) {
@@ -1438,7 +1334,7 @@ bool ResolveSeedRoundMaterialToken(const std::string &pToken,
     const std::string aSetToken = aToken.substr(0U, aRoundPos);
     const std::string aRoundToken = aToken.substr(aRoundPos + 1U);
     TwistDomainSaltSet *aSaltSet = nullptr;
-    if (!ResolveSaltSetToken(aSetToken, pWorkspace, pExpander, &aSaltSet) || (aSaltSet == nullptr)) {
+    if (!ResolveSaltSetToken(aSetToken, pWorkSpace, pExpander, &aSaltSet) || (aSaltSet == nullptr)) {
         return false;
     }
 
@@ -1458,7 +1354,7 @@ bool ResolveSeedRoundMaterialToken(const std::string &pToken,
 }
 
 bool ResolveSaltLaneToken(const std::string &pToken,
-                          TwistWorkSpace *pWorkspace,
+                          TwistWorkSpace *pWorkSpace,
                           TwistExpander *pExpander,
                           std::uint64_t **pSaltResolved) {
     if (pSaltResolved == nullptr) {
@@ -1484,7 +1380,7 @@ bool ResolveSaltLaneToken(const std::string &pToken,
 
         TwistDomainSeedRoundMaterial *aMaterial = nullptr;
         if (!ResolveSeedRoundMaterialToken(aToken.substr(0U, aToken.size() - aSuffix.size()),
-                                           pWorkspace,
+                                           pWorkSpace,
                                            pExpander,
                                            &aMaterial) ||
             (aMaterial == nullptr)) {
@@ -1505,60 +1401,8 @@ bool ResolveSaltLaneToken(const std::string &pToken,
     return false;
 }
 
-bool ResolveSBoxLaneToken(const std::string &pToken,
-                          TwistWorkSpace *pWorkspace,
-                          TwistExpander *pExpander,
-                          std::uint8_t **pSBoxResolved) {
-    if (pSBoxResolved == nullptr) {
-        return false;
-    }
-
-    const std::string aToken = NormalizeRoundMaterialToken(pToken);
-    static const char *kSBoxNames[] = {
-        ".mSBoxA",
-        ".mSBoxB",
-        ".mSBoxC",
-        ".mSBoxD",
-        ".mSBoxE",
-        ".mSBoxF",
-        ".mSBoxG",
-        ".mSBoxH"
-    };
-
-    for (int i = 0; i < 8; ++i) {
-        const std::string aSuffix(kSBoxNames[i]);
-        if ((aToken.size() <= aSuffix.size()) ||
-            (aToken.compare(aToken.size() - aSuffix.size(), aSuffix.size(), aSuffix) != 0)) {
-            continue;
-        }
-
-        TwistDomainSBoxSet *aSBoxSet = nullptr;
-        if (!ResolveSBoxSetToken(aToken.substr(0U, aToken.size() - aSuffix.size()),
-                                 pWorkspace,
-                                 pExpander,
-                                 &aSBoxSet) ||
-            (aSBoxSet == nullptr)) {
-            return false;
-        }
-
-        switch (i) {
-            case 0: *pSBoxResolved = aSBoxSet->mSBoxA; return true;
-            case 1: *pSBoxResolved = aSBoxSet->mSBoxB; return true;
-            case 2: *pSBoxResolved = aSBoxSet->mSBoxC; return true;
-            case 3: *pSBoxResolved = aSBoxSet->mSBoxD; return true;
-            case 4: *pSBoxResolved = aSBoxSet->mSBoxE; return true;
-            case 5: *pSBoxResolved = aSBoxSet->mSBoxF; return true;
-            case 6: *pSBoxResolved = aSBoxSet->mSBoxG; return true;
-            case 7: *pSBoxResolved = aSBoxSet->mSBoxH; return true;
-            default: break;
-        }
-    }
-
-    return false;
-}
-
 bool ExecuteKDFBufferAssignmentLine(const std::string &pLine,
-                                    TwistWorkSpace *pWorkspace,
+                                    TwistWorkSpace *pWorkSpace,
                                     TwistExpander *pExpander,
                                     std::string *pErrorMessage) {
     std::string aLine = pLine;
@@ -1578,26 +1422,94 @@ bool ExecuteKDFBufferAssignmentLine(const std::string &pLine,
 
     const std::string aLeft = NormalizeRoundMaterialToken(aLine.substr(0U, aEqual));
     const std::string aRight = TrimCopy(aLine.substr(aEqual + 1U));
-    if ((aLeft != "mSource") && (aLeft != "mDest")) {
+    if ((aLeft != "mSource") && (aLeft != "mDest") && (aLeft != "mSnow")) {
         return false;
     }
 
     std::uint8_t *aBuffer = nullptr;
-    if (!ResolveBufferPointerToken(aRight, pWorkspace, pExpander, &aBuffer)) {
+    if (!ResolveBufferPointerToken(aRight, pWorkSpace, pExpander, &aBuffer)) {
         SetError(pErrorMessage, "KDF buffer assignment resolved null or unknown source: " + aRight);
         return false;
     }
 
     if (aLeft == "mSource") {
         pExpander->mSource = aBuffer;
-    } else {
+    } else if (aLeft == "mDest") {
         pExpander->mDest = aBuffer;
+    } else {
+        pExpander->mSnow = aBuffer;
     }
     return true;
 }
 
+bool ExecuteSnowLine(const std::string &pLine,
+                     TwistWorkSpace *pWorkSpace,
+                     TwistExpander *pExpander,
+                     std::string *pErrorMessage) {
+    enum class SnowMethod : std::uint8_t {
+        kAES256 = 0,
+        kChaCha20 = 1,
+        kSha256 = 2,
+        kAria256 = 3
+    };
+
+    std::vector<std::string> aArgs;
+    SnowMethod aMethod = SnowMethod::kAES256;
+    if (ParseCryptoCallArguments(pLine, "AES256Counter", &aArgs)) {
+        aMethod = SnowMethod::kAES256;
+    } else if (ParseCryptoCallArguments(pLine, "ChaCha20Counter", &aArgs)) {
+        aMethod = SnowMethod::kChaCha20;
+    } else if (ParseCryptoCallArguments(pLine, "Sha256Counter", &aArgs)) {
+        aMethod = SnowMethod::kSha256;
+    } else if (ParseCryptoCallArguments(pLine, "Aria256Counter", &aArgs)) {
+        aMethod = SnowMethod::kAria256;
+    } else {
+        return false;
+    }
+
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
+        SetError(pErrorMessage, "Snow call execution was missing required runtime inputs.");
+        return false;
+    }
+    if (aArgs.size() != 2U) {
+        SetError(pErrorMessage, "Snow counter call expects exactly 2 arguments.");
+        return false;
+    }
+
+    std::uint8_t *aSource = nullptr;
+    std::uint8_t *aDest = nullptr;
+    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, &aSource)) {
+        SetError(pErrorMessage, "Snow source alias resolved to null or unknown: " + aArgs[0]);
+        return false;
+    }
+    if (!ResolveBufferPointerToken(aArgs[1], pWorkSpace, pExpander, &aDest)) {
+        SetError(pErrorMessage, "Snow destination alias resolved to null or unknown: " + aArgs[1]);
+        return false;
+    }
+
+    switch (aMethod) {
+        case SnowMethod::kAES256:
+            TwistSnow::AES256Counter(aSource, aDest);
+            break;
+        case SnowMethod::kChaCha20:
+            TwistSnow::ChaCha20Counter(aSource, aDest);
+            break;
+        case SnowMethod::kSha256:
+            TwistSnow::Sha256Counter(aSource, aDest);
+            break;
+        case SnowMethod::kAria256:
+            TwistSnow::Aria256Counter(aSource, aDest);
+            break;
+        default:
+            SetError(pErrorMessage, "Snow call method was unsupported.");
+            return false;
+    }
+
+    return true;
+}
+
 bool ExecuteFarmSaltLine(const std::string &pLine,
-                         TwistWorkSpace *pWorkspace,
+                         TwistWorkSpace *pWorkSpace,
                          TwistExpander *pExpander,
                          std::string *pErrorMessage) {
     if (pLine.find("pFarmSalt") == std::string::npos) {
@@ -1620,7 +1532,7 @@ bool ExecuteFarmSaltLine(const std::string &pLine,
     }
 
     std::uint8_t *aSource = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkspace, pExpander, &aSource)) {
+    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, &aSource)) {
         SetError(pErrorMessage, "pFarmSalt->Derive source alias was invalid: " + aArgs[0]);
         return false;
     }
@@ -1628,7 +1540,7 @@ bool ExecuteFarmSaltLine(const std::string &pLine,
     std::uint64_t *aSalt[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
     for (int i = 0; i < 6; ++i) {
         if (!ResolveSaltLaneToken(aArgs[static_cast<std::size_t>(i + 1)],
-                                  pWorkspace,
+                                  pWorkSpace,
                                   pExpander,
                                   &aSalt[i])) {
             SetError(pErrorMessage,
@@ -1641,61 +1553,8 @@ bool ExecuteFarmSaltLine(const std::string &pLine,
     return true;
 }
 
-bool ExecuteFarmSBoxLine(const std::string &pLine,
-                         TwistWorkSpace *pWorkspace,
-                         TwistExpander *pExpander,
-                         std::string *pErrorMessage) {
-    if (pLine.find("pFarmSBox") == std::string::npos) {
-        return false;
-    }
-
-    std::vector<std::string> aArgs;
-    if (!ParseCryptoCallArguments(pLine, "Derive", &aArgs)) {
-        return false;
-    }
-    if (aArgs.size() != 9U) {
-        SetError(pErrorMessage, "pFarmSBox->Derive expects exactly 9 arguments.");
-        return false;
-    }
-
-    TwistFarmSBox *aFarmSBox = (pExpander != nullptr) ? pExpander->GetFarmSBox() : nullptr;
-    if (aFarmSBox == nullptr) {
-        SetError(pErrorMessage, "pFarmSBox->Derive execution had no active farm.");
-        return false;
-    }
-
-    std::uint8_t *aSource = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkspace, pExpander, &aSource)) {
-        SetError(pErrorMessage, "pFarmSBox->Derive source alias was invalid: " + aArgs[0]);
-        return false;
-    }
-
-    std::uint8_t *aSBox[8] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
-    for (int i = 0; i < 8; ++i) {
-        if (!ResolveSBoxLaneToken(aArgs[static_cast<std::size_t>(i + 1)],
-                                  pWorkspace,
-                                  pExpander,
-                                  &aSBox[i])) {
-            SetError(pErrorMessage,
-                     "pFarmSBox->Derive sbox token was invalid: " + aArgs[static_cast<std::size_t>(i + 1)]);
-            return false;
-        }
-    }
-
-    aFarmSBox->Derive(aSource,
-                      aSBox[0],
-                      aSBox[1],
-                      aSBox[2],
-                      aSBox[3],
-                      aSBox[4],
-                      aSBox[5],
-                      aSBox[6],
-                      aSBox[7]);
-    return true;
-}
-
 bool ExecuteFarmConstantsLine(const std::string &pLine,
-                              TwistWorkSpace *pWorkspace,
+                              TwistWorkSpace *pWorkSpace,
                               TwistExpander *pExpander,
                               std::string *pErrorMessage) {
     if (pLine.find("TwistFarmConstants") == std::string::npos) {
@@ -1712,13 +1571,13 @@ bool ExecuteFarmConstantsLine(const std::string &pLine,
     }
 
     std::uint8_t *aSource = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkspace, pExpander, &aSource)) {
+    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, &aSource)) {
         SetError(pErrorMessage, "TwistFarmConstants::Derive source alias was invalid: " + aArgs[0]);
         return false;
     }
 
     TwistDomainConstants *aConstants = nullptr;
-    if (!ResolveConstantsToken(aArgs[1], pWorkspace, pExpander, &aConstants)) {
+    if (!ResolveConstantsToken(aArgs[1], pWorkSpace, pExpander, &aConstants)) {
         SetError(pErrorMessage, "TwistFarmConstants::Derive constants token was invalid: " + aArgs[1]);
         return false;
     }
@@ -1728,7 +1587,7 @@ bool ExecuteFarmConstantsLine(const std::string &pLine,
 }
 
 bool ExecuteKDFLine(const std::string &pLine,
-                    TwistWorkSpace *pWorkspace,
+                    TwistWorkSpace *pWorkSpace,
                     TwistExpander *pExpander,
                     const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                     std::string *pErrorMessage) {
@@ -1744,19 +1603,19 @@ bool ExecuteKDFLine(const std::string &pLine,
         return false;
     }
 
-    if ((pWorkspace == nullptr) || (pExpander == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
         SetError(pErrorMessage, "KDF call execution was missing required runtime inputs.");
         return false;
     }
 
-    if ((aArgs.size() != 3U) && (aArgs.size() != 4U) &&
-        (aArgs.size() != 5U) && (aArgs.size() != 6U)) {
-        SetError(pErrorMessage, "KDF call expects exactly 3, 4, 5, or 6 arguments.");
+    if ((aArgs.size() != 2U) && (aArgs.size() != 3U) &&
+        (aArgs.size() != 4U) && (aArgs.size() != 5U)) {
+        SetError(pErrorMessage, "KDF call expects exactly 2, 3, 4, or 5 arguments.");
         return false;
     }
 
-    const bool aUsesExplicitBuffers = ((aArgs.size() == 5U) || (aArgs.size() == 6U));
-    const bool aHasExplicitNonce = ((aArgs.size() == 4U) || (aArgs.size() == 6U));
+    const bool aUsesExplicitBuffers = ((aArgs.size() == 4U) || (aArgs.size() == 5U));
+    const bool aHasExplicitNonce = ((aArgs.size() == 3U) || (aArgs.size() == 5U));
     std::uint64_t aNonce = pExpander->GetSessionNonce();
     std::size_t aOffset = 0U;
     if (aHasExplicitNonce) {
@@ -1799,12 +1658,12 @@ bool ExecuteKDFLine(const std::string &pLine,
 
     if (aUsesExplicitBuffers) {
         std::uint8_t *aSource = nullptr;
-        if (!ResolveBufferPointerToken(aArgs[aOffset + 0U], pWorkspace, pExpander, &aSource)) {
+        if (!ResolveBufferPointerToken(aArgs[aOffset + 0U], pWorkSpace, pExpander, &aSource)) {
             SetError(pErrorMessage, "KDF source alias resolved to null or unknown: " + aArgs[aOffset + 0U]);
             return false;
         }
         std::uint8_t *aDest = nullptr;
-        if (!ResolveBufferPointerToken(aArgs[aOffset + 1U], pWorkspace, pExpander, &aDest)) {
+        if (!ResolveBufferPointerToken(aArgs[aOffset + 1U], pWorkSpace, pExpander, &aDest)) {
             SetError(pErrorMessage, "KDF destination alias resolved to null or unknown: " + aArgs[aOffset + 1U]);
             return false;
         }
@@ -1814,52 +1673,44 @@ bool ExecuteKDFLine(const std::string &pLine,
     }
 
     TwistDomainConstants *aConstants = nullptr;
-    if (!ResolveConstantsToken(aArgs[aOffset + 0U], pWorkspace, pExpander, &aConstants)) {
+    if (!ResolveConstantsToken(aArgs[aOffset + 0U], pWorkSpace, pExpander, &aConstants)) {
         SetError(pErrorMessage, "KDF constants token was invalid: " + aArgs[aOffset + 0U]);
         return false;
     }
     TwistDomainSaltSet *aSaltSet = nullptr;
-    if (!ResolveSaltSetToken(aArgs[aOffset + 1U], pWorkspace, pExpander, &aSaltSet)) {
+    if (!ResolveSaltSetToken(aArgs[aOffset + 1U], pWorkSpace, pExpander, &aSaltSet)) {
         SetError(pErrorMessage, "KDF salt-set token was invalid: " + aArgs[aOffset + 1U]);
-        return false;
-    }
-    TwistDomainSBoxSet *aSBoxSet = nullptr;
-    if (!ResolveSBoxSetToken(aArgs[aOffset + 2U], pWorkspace, pExpander, &aSBoxSet)) {
-        SetError(pErrorMessage, "KDF sbox-set token was invalid: " + aArgs[aOffset + 2U]);
         return false;
     }
 
     if (aFunctionName == "KDF_A") {
         pExpander->KDF_A(aNonce,
                          aConstants,
-                         aSaltSet,
-                         aSBoxSet);
+                         aSaltSet);
     } else if (aFunctionName == "KDF_B") {
         pExpander->KDF_B(aNonce,
                          aConstants,
-                         aSaltSet,
-                         aSBoxSet);
+                         aSaltSet);
     } else {
         pExpander->KDF(aNonce,
                        aConstants,
-                       aSaltSet,
-                       aSBoxSet);
+                       aSaltSet);
     }
     return true;
 }
 
 bool ApplyBranchStringLine(const std::string &pRawLine,
-                           TwistWorkSpace *pWorkspace,
+                           TwistWorkSpace *pWorkSpace,
                            TwistExpander *pExpander,
                            std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                            std::string *pErrorMessage) {
-    if ((pWorkspace == nullptr) || (pVariables == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pVariables == nullptr)) {
         SetError(pErrorMessage, "Branch string-line execution had null inputs.");
         return false;
     }
 
     std::string aLineError;
-    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkspace, pExpander, &aLineError);
+    const bool aExecutedCrypto = ExecuteCryptoMakeLine(pRawLine, pWorkSpace, pExpander, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -1868,7 +1719,7 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedCryptoSalt = ExecuteCryptoSaltLine(pRawLine, pWorkspace, pExpander, &aLineError);
+    const bool aExecutedCryptoSalt = ExecuteCryptoSaltLine(pRawLine, pWorkSpace, pExpander, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -1877,7 +1728,7 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedKDFBufferAssignment = ExecuteKDFBufferAssignmentLine(pRawLine, pWorkspace, pExpander, &aLineError);
+    const bool aExecutedKDFBufferAssignment = ExecuteKDFBufferAssignmentLine(pRawLine, pWorkSpace, pExpander, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -1886,7 +1737,16 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedKDF = ExecuteKDFLine(pRawLine, pWorkspace, pExpander, pVariables, &aLineError);
+    const bool aExecutedSnow = ExecuteSnowLine(pRawLine, pWorkSpace, pExpander, &aLineError);
+    if (!aLineError.empty()) {
+        SetError(pErrorMessage, aLineError);
+        return false;
+    }
+    if (aExecutedSnow) {
+        return true;
+    }
+
+    const bool aExecutedKDF = ExecuteKDFLine(pRawLine, pWorkSpace, pExpander, pVariables, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -1895,7 +1755,7 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedFarmSalt = ExecuteFarmSaltLine(pRawLine, pWorkspace, pExpander, &aLineError);
+    const bool aExecutedFarmSalt = ExecuteFarmSaltLine(pRawLine, pWorkSpace, pExpander, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -1904,21 +1764,41 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedFarmSBox = ExecuteFarmSBoxLine(pRawLine, pWorkspace, pExpander, &aLineError);
-    if (!aLineError.empty()) {
-        SetError(pErrorMessage, aLineError);
-        return false;
-    }
-    if (aExecutedFarmSBox) {
-        return true;
-    }
-
-    const bool aExecutedFarmConstants = ExecuteFarmConstantsLine(pRawLine, pWorkspace, pExpander, &aLineError);
+    const bool aExecutedFarmConstants = ExecuteFarmConstantsLine(pRawLine, pWorkSpace, pExpander, &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
     }
     if (aExecutedFarmConstants) {
+        return true;
+    }
+
+    std::string aRuntimeRawLine = pRawLine;
+    const std::size_t aRuntimeComment = aRuntimeRawLine.find("//");
+    if (aRuntimeComment != std::string::npos) {
+        aRuntimeRawLine = aRuntimeRawLine.substr(0U, aRuntimeComment);
+    }
+    aRuntimeRawLine = TrimCopy(aRuntimeRawLine);
+    if (!aRuntimeRawLine.empty() && aRuntimeRawLine.back() == ';') {
+        aRuntimeRawLine.pop_back();
+        aRuntimeRawLine = TrimCopy(aRuntimeRawLine);
+    }
+    if ((aRuntimeRawLine.rfind("TwistInvest::", 0U) == 0U) ||
+        (aRuntimeRawLine.rfind("TwistMemory::", 0U) == 0U) ||
+        (aRuntimeRawLine.rfind("TwistShiftBox::", 0U) == 0U) ||
+        (aRuntimeRawLine.rfind("TwistMasking::", 0U) == 0U) ||
+        (aRuntimeRawLine.rfind("TwistIndexShuffle::", 0U) == 0U) ||
+        (aRuntimeRawLine.rfind("TwistFastMatrix::", 0U) == 0U)) {
+        std::vector<GStatement> aRuntimeStatements;
+        aRuntimeStatements.push_back(GStatement::RawLine(pRawLine));
+        GBatch aRuntimeBatch;
+        aRuntimeBatch.CommitStatements(&aRuntimeStatements);
+        if (!aRuntimeBatch.ExecuteWithVariables(pWorkSpace, pExpander, pVariables, &aLineError)) {
+            if (!aLineError.empty()) {
+                SetError(pErrorMessage, aLineError);
+            }
+            return false;
+        }
         return true;
     }
 
@@ -1976,12 +1856,12 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
 }
 
 bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
-                            TwistWorkSpace *pWorkspace,
+                            TwistWorkSpace *pWorkSpace,
                             TwistExpander *pExpander,
                             std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                             std::string *pErrorMessage) {
     for (const std::string &aRawLine : pLines) {
-        if (!ApplyBranchStringLine(aRawLine, pWorkspace, pExpander, pVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLine(aRawLine, pWorkSpace, pExpander, pVariables, pErrorMessage)) {
             return false;
         }
     }
@@ -1990,7 +1870,7 @@ bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
 
 bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
                              std::size_t pBatchIndex,
-                             TwistWorkSpace *pWorkspace,
+                             TwistWorkSpace *pWorkSpace,
                              TwistExpander *pExpander,
                              std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                              std::string *pErrorMessage) {
@@ -2007,7 +1887,7 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
         return false;
     }
 
-    if (!aBatch.ExecuteWithVariables(pWorkspace, pExpander, pVariables, pErrorMessage)) {
+    if (!aBatch.ExecuteWithVariables(pWorkSpace, pExpander, pVariables, pErrorMessage)) {
         if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
             *pErrorMessage = "Branch batch execution failed.";
         }
@@ -2018,11 +1898,11 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
 }
 
 bool ExecuteBranch(const TwistProgramBranch &pBranch,
-                   TwistWorkSpace *pWorkspace,
+                   TwistWorkSpace *pWorkSpace,
                    TwistExpander *pExpander,
                    const std::unordered_map<std::string, GRuntimeScalar> *pInitialVariables,
                    std::string *pErrorMessage) {
-    if (pWorkspace == nullptr) {
+    if (pWorkSpace == nullptr) {
         SetError(pErrorMessage, "Branch execution received a null workspace.");
         return false;
     }
@@ -2033,10 +1913,10 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
     }
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
-        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkspace, pExpander, &aVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkSpace, pExpander, &aVariables, pErrorMessage)) {
             return false;
         }
-        return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkspace, pExpander, &aVariables, pErrorMessage);
+        return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkSpace, pExpander, &aVariables, pErrorMessage);
     }
 
     for (const TwistProgramBranchStep &aStep : aSteps) {
@@ -2046,7 +1926,7 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
                 return false;
             }
             if (!ApplyBranchStringLine(pBranch.GetStringLines()[aStep.mIndex],
-                                       pWorkspace,
+                                       pWorkSpace,
                                        pExpander,
                                        &aVariables,
                                        pErrorMessage)) {
@@ -2058,7 +1938,7 @@ bool ExecuteBranch(const TwistProgramBranch &pBranch,
         if (aStep.mType == TwistProgramBranchStepType::kBatch) {
             if (!ExecuteBatchJsonByIndex(pBranch,
                                          aStep.mIndex,
-                                         pWorkspace,
+                                         pWorkSpace,
                                          pExpander,
                                          &aVariables,
                                          pErrorMessage)) {
@@ -2084,7 +1964,6 @@ GTwistExpander::GTwistExpander()
     mInitialValue_Value = static_cast<unsigned char>(Random::Get(256));
     mInitialValue_Permute = static_cast<unsigned char>(Random::Get(256));
 
-    SBoxTables::InjectRandomEight(this);
     SaltTables::InjectRandomEight(this);
     RefreshTablePointers();
 }
@@ -2094,86 +1973,52 @@ GTwistExpander::~GTwistExpander() {
 }
 
 void GTwistExpander::RefreshTablePointers() {
-    EnsureTableSize(&_mSBoxA, S_SBOX, true);
-    EnsureTableSize(&_mSBoxB, S_SBOX, true);
-    EnsureTableSize(&_mSBoxC, S_SBOX, true);
-    EnsureTableSize(&_mSBoxD, S_SBOX, true);
-    EnsureTableSize(&_mSBoxE, S_SBOX, true);
-    EnsureTableSize(&_mSBoxF, S_SBOX, true);
-    EnsureTableSize(&_mSBoxG, S_SBOX, true);
-    EnsureTableSize(&_mSBoxH, S_SBOX, true);
-
-    memcpy(mSBoxA, _mSBoxA.data(), S_SBOX);
-    memcpy(mSBoxB, _mSBoxB.data(), S_SBOX);
-    memcpy(mSBoxC, _mSBoxC.data(), S_SBOX);
-    memcpy(mSBoxD, _mSBoxD.data(), S_SBOX);
-    memcpy(mSBoxE, _mSBoxE.data(), S_SBOX);
-    memcpy(mSBoxF, _mSBoxF.data(), S_SBOX);
-    memcpy(mSBoxG, _mSBoxG.data(), S_SBOX);
-    memcpy(mSBoxH, _mSBoxH.data(), S_SBOX);
-
-    SyncDomainBundleInbuiltFromLegacy();
 }
 
 void GTwistExpander::KDF(std::uint64_t pNonce,
                          TwistDomainConstants *pDomainConstants,
-                         TwistDomainSaltSet *pDomainSaltSet,
-                         TwistDomainSBoxSet *pDomainSBoxSet) {
+                         TwistDomainSaltSet *pDomainSaltSet) {
     KDF_A(pNonce,
           pDomainConstants,
-          pDomainSaltSet,
-          pDomainSBoxSet);
+          pDomainSaltSet);
 }
 
 void GTwistExpander::KDF_A(std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
-                           TwistDomainSaltSet *pDomainSaltSet,
-                           TwistDomainSBoxSet *pDomainSBoxSet) {
+                           TwistDomainSaltSet *pDomainSaltSet) {
     TwistExpander::KDF_A(pNonce,
                          pDomainConstants,
-                         pDomainSaltSet,
-                         pDomainSBoxSet);
+                         pDomainSaltSet);
 
-    const TwistProgramBranch &aBranch = mKDF_A.GetSteps().empty() &&
-                                        mKDF_A.GetBatchJsonText().empty() &&
-                                        mKDF_A.GetStringLines().empty()
-        ? mKDF
-        : mKDF_A;
-    ExecuteKDFBranch(aBranch,
+    ExecuteKDFBranch(mKDF_A,
                      "KDF_A",
                      pNonce,
                      pDomainConstants,
-                     pDomainSaltSet,
-                     pDomainSBoxSet);
+                     pDomainSaltSet);
 }
 
 void GTwistExpander::KDF_B(std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
-                           TwistDomainSaltSet *pDomainSaltSet,
-                           TwistDomainSBoxSet *pDomainSBoxSet) {
+                           TwistDomainSaltSet *pDomainSaltSet) {
     TwistExpander::KDF_B(pNonce,
                          pDomainConstants,
-                         pDomainSaltSet,
-                         pDomainSBoxSet);
+                         pDomainSaltSet);
 
     ExecuteKDFBranch(mKDF_B,
                      "KDF_B",
                      pNonce,
                      pDomainConstants,
-                     pDomainSaltSet,
-                     pDomainSBoxSet);
+                     pDomainSaltSet);
 }
 
 void GTwistExpander::ExecuteKDFBranch(const TwistProgramBranch &pBranch,
                                       const char *pBranchName,
                                       std::uint64_t pNonce,
                                       TwistDomainConstants *pDomainConstants,
-                                      TwistDomainSaltSet *pDomainSaltSet,
-                                      TwistDomainSBoxSet *pDomainSBoxSet) {
-    if ((mWorkspace == nullptr) || (mSource == nullptr) || (mDest == nullptr) ||
+                                      TwistDomainSaltSet *pDomainSaltSet) {
+    if ((mWorkspace == nullptr) || (mSource == nullptr) ||
         (pDomainConstants == nullptr) ||
-        (pDomainSaltSet == nullptr) ||
-        (pDomainSBoxSet == nullptr)) {
+        (pDomainSaltSet == nullptr)) {
         return;
     }
 
@@ -2196,12 +2041,12 @@ void GTwistExpander::ExecuteKDFBranch(const TwistProgramBranch &pBranch,
     aInitialVariables["aDomainWordIngress"] = static_cast<GRuntimeScalar>(pDomainConstants->mIngress);
     aInitialVariables["aDomainWordScatter"] = static_cast<GRuntimeScalar>(pDomainConstants->mScatter);
     aInitialVariables["aDomainWordCross"] = static_cast<GRuntimeScalar>(pDomainConstants->mCross);
+    aInitialVariables["aDomainWordMaskMutateA"] = static_cast<GRuntimeScalar>(pDomainConstants->mMaskMutateA);
+    aInitialVariables["aDomainWordMaskMutateB"] = static_cast<GRuntimeScalar>(pDomainConstants->mMaskMutateB);
     aInitialVariables["aDomainWordMatrixSelectA"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixSelectA);
     aInitialVariables["aDomainWordMatrixSelectB"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixSelectB);
     aInitialVariables["aDomainWordMatrixUnrollA"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixUnrollA);
     aInitialVariables["aDomainWordMatrixUnrollB"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixUnrollB);
-    aInitialVariables["aDomainWordMatrixSchemeA"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixSchemeA);
-    aInitialVariables["aDomainWordMatrixSchemeB"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixSchemeB);
     aInitialVariables["aDomainWordMatrixArgA"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixArgA);
     aInitialVariables["aDomainWordMatrixArgB"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixArgB);
     aInitialVariables["aDomainWordMatrixArgC"] = static_cast<GRuntimeScalar>(pDomainConstants->mMatrixArgC);
@@ -2212,40 +2057,37 @@ void GTwistExpander::ExecuteKDFBranch(const TwistProgramBranch &pBranch,
     }
 }
 
-void GTwistExpander::Seed(TwistWorkSpace *pWorkspace,
-                          TwistFarmSBox *pFarmSBox,
+void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                           TwistFarmSalt *pFarmSalt,
                           std::uint64_t pNonce,
                           std::uint8_t *pSource,
                           std::uint8_t *pPassword,
                           unsigned int pPasswordByteLength) {
     RefreshTablePointers();
-    TwistExpander::Seed(pWorkspace,
-                        pFarmSBox,
+    TwistExpander::Seed(pWorkSpace,
                         pFarmSalt,
                         pNonce,
                         pSource,
                         pPassword,
                         pPasswordByteLength);
 
-    if ((pWorkspace == nullptr) || (pFarmSBox == nullptr) ||
-        (pFarmSalt == nullptr) || (pSource == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pFarmSalt == nullptr) || (pSource == nullptr)) {
         return;
     }
 
     std::string aError;
     std::unordered_map<std::string, GRuntimeScalar> aInitialVariables;
     aInitialVariables["pNonce"] = static_cast<GRuntimeScalar>(pNonce);
-    if (!ExecuteBranch(mSeed, pWorkspace, this, &aInitialVariables, &aError)) {
+    if (!ExecuteBranch(mSeed, pWorkSpace, this, &aInitialVariables, &aError)) {
         std::printf("fatal: GTwistExpander::Seed failed: %s\n", aError.c_str());
     }
 }
 
-void GTwistExpander::TwistBlock(TwistWorkSpace *pWorkspace,
+void GTwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
                                 std::uint64_t pNonce,
                                 std::uint8_t *pSource,
                                 std::uint8_t *pDestination) {
-    TwistExpander::TwistBlock(pWorkspace, pNonce, pSource, pDestination);
+    TwistExpander::TwistBlock(pWorkSpace, pNonce, pSource, pDestination);
 }
 
 bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,
@@ -2275,15 +2117,8 @@ bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,
 
     mKDF_A.Clear();
     mKDF_B.Clear();
-    mKDF.Clear();
-    const bool aParsedKDF_A = ParseBranch(*aRoot, "kdf_a", &mKDF_A, pErrorMessage);
+    (void)ParseBranch(*aRoot, "kdf_a", &mKDF_A, pErrorMessage);
     (void)ParseBranch(*aRoot, "kdf_b", &mKDF_B, pErrorMessage);
-    if (!aParsedKDF_A) {
-        (void)ParseBranch(*aRoot, "kdf", &mKDF_A, pErrorMessage);
-        mKDF = mKDF_A;
-    } else {
-        mKDF = mKDF_A;
-    }
     (void)ParseBranch(*aRoot, "seed", &mSeed, pErrorMessage);
     (void)ParseBranch(*aRoot, "twist", &mTwister, pErrorMessage);
     

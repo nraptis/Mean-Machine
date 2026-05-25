@@ -49,12 +49,10 @@ private:
             (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256A) ||
             (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256B) ||
             (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256C) ||
-            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256D) ||
-            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256E) ||
-            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256F);
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256D);
         if (!aIndexListValid) {
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GIndexShuffle::Bake index-list key must be one of index_list_256_a/b/c/d/e/f.";
+                *pErrorMessage = "GIndexShuffle::Bake index-list key must be one of index_list_256_a/b/c/d.";
             }
             return false;
         }

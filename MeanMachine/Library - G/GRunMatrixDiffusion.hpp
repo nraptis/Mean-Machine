@@ -20,8 +20,6 @@ struct GRunMatrixDiffusionConfig {
 
     GSymbol                                 mShuffleEntropyA;
     GSymbol                                 mShuffleEntropyB;
-    GSymbol                                 mShuffleEntropyC;
-    GSymbol                                 mShuffleEntropyD;
     
     GSymbol                                 mOperationSourceA;
     GSymbol                                 mOperationSourceB;

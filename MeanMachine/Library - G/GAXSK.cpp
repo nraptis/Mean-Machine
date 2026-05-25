@@ -16,6 +16,74 @@
 
 namespace {
 
+
+// N=5, family=RingForward, score=1024
+// rotation=0, reflected=true, stride=1, source_phase=2, feedback_phase=4, order_phase=0
+// warning: adjacent_edges=5
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N5_P0 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+};
+
+// N=5, family=RingForwardRotated, score=1024
+// rotation=0, reflected=false, stride=1, source_phase=1, feedback_phase=3, order_phase=4
+// warning: adjacent_edges=5
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N5_P1 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitE },
+};
+
+// N=5, family=ReverseRing, score=976
+// rotation=0, reflected=false, stride=1, source_phase=4, feedback_phase=3, order_phase=1
+// warning: adjacent_edges=5
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N5_P2 = {
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC },
+};
+
+// N=5, family=RingForward, score=1024
+// rotation=0, reflected=true, stride=0, source_phase=2, feedback_phase=4, order_phase=0
+// warning: adjacent_edges=5
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N5_P3 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC },
+};
+
+// N=5, family=RingForwardRotated, score=1024
+// rotation=0, reflected=true, stride=1, source_phase=1, feedback_phase=3, order_phase=3
+// warning: adjacent_edges=5
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N5_P4 = {
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+};
+
+// N=5, family=ReverseRing, score=976
+// rotation=0, reflected=true, stride=0, source_phase=4, feedback_phase=3, order_phase=4
+// warning: adjacent_edges=5
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N5_P5 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
+};
+
+
 // N=7, family=StrideForward, score=1180
 // rotation=0, reflected=false, stride=0, source_phase=2, feedback_phase=3, order_phase=0
 static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P0 = {
@@ -270,6 +338,15 @@ static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P5 = {
     { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
 };
 
+static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds5 = {{
+    kOrbiterRounds_N5_P0,
+    kOrbiterRounds_N5_P1,
+    kOrbiterRounds_N5_P2,
+    kOrbiterRounds_N5_P3,
+    kOrbiterRounds_N5_P4,
+    kOrbiterRounds_N5_P5
+}};
+
 static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds7 = {{
     kOrbiterRounds_N7_P0,
     kOrbiterRounds_N7_P1,
@@ -383,32 +460,36 @@ bool IsWandererVariable(GAXSKVariable pVariable) {
 
 static int PassCountForFormat(GAXSFormat pFormat) {
     switch (pFormat) {
-        case GAXSFormat::kSeven: return 6;
-        case GAXSFormat::kNine: return 6;
-        case GAXSFormat::kEleven: return 6;
+        case GAXSFormat::kN5: return 6;
+        case GAXSFormat::kN7: return 6;
+        case GAXSFormat::kN9: return 6;
+        case GAXSFormat::kN11: return 6;
         default: return 0;
     }
 }
 
 static int SizeForFormat(GAXSFormat pFormat) {
     switch (pFormat) {
-        case GAXSFormat::kSeven: return 7;
-        case GAXSFormat::kNine: return 9;
-        case GAXSFormat::kEleven: return 11;
+        case GAXSFormat::kN5: return 5;
+        case GAXSFormat::kN7: return 7;
+        case GAXSFormat::kN9: return 9;
+        case GAXSFormat::kN11: return 11;
         default: return 0;
     }
 }
 
-static std::span<const GAXSKModelOrbiterRound>
-RoundsForFormatPass(GAXSFormat pFormat, int pPassIndex) {
+static std::span<const GAXSKModelOrbiterRound> RoundsForFormatPass(GAXSFormat pFormat, int pPassIndex) {
     switch (pFormat) {
-        case GAXSFormat::kSeven:
+        case GAXSFormat::kN5:
+            return kOrbiterRounds5[pPassIndex % 6];
+
+        case GAXSFormat::kN7:
             return kOrbiterRounds7[pPassIndex % 6];
 
-        case GAXSFormat::kNine:
+        case GAXSFormat::kN9:
             return kOrbiterRounds9[pPassIndex % 6];
 
-        case GAXSFormat::kEleven:
+        case GAXSFormat::kN11:
             return kOrbiterRounds11[pPassIndex % 6];
 
         default:
@@ -1161,13 +1242,16 @@ static int MinimumRotationDistanceForFormat(GAXSFormat pFormat,
     }
 
     switch (pFormat) {
-        case GAXSFormat::kSeven:
+        case GAXSFormat::kN5:
+            return pRotationCount >= 4 ? 8 : 12;
+
+        case GAXSFormat::kN7:
             return pRotationCount >= 6 ? 6 : 12;
 
-        case GAXSFormat::kNine:
+        case GAXSFormat::kN9:
             return pRotationCount >= 8 ? 4 : 8;
 
-        case GAXSFormat::kEleven:
+        case GAXSFormat::kN11:
             return pRotationCount >= 10 ? 2 : 4;
 
         default:

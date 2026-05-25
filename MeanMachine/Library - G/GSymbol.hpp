@@ -35,14 +35,14 @@ enum class TwistVariable: std::uint8_t {
     kDomainWordMatrixUnrollA,
     kDomainWordMatrixUnrollB,
     
-    kDomainWordMatrixSchemeA,
-    kDomainWordMatrixSchemeB,
-    
     kDomainWordMatrixArgA,
     kDomainWordMatrixArgB,
     
     kDomainWordMatrixArgC,
     kDomainWordMatrixArgD,
+    
+    kDomainWordMaskMutateA,
+    kDomainWordMaskMutateB,
 
     kIngress = 40, // aIngress
     kPrevious = 41, // aPrevious
@@ -77,8 +77,6 @@ enum class TwistVariable: std::uint8_t {
     kSelect = 210, // aSelect
     kMatrixUnrollA = 211, // mMatrixUnrollA
     kMatrixUnrollB = 212, // mMatrixUnrollB
-    kMatrixSchemeA = 213, // mMatrixSchemeA
-    kMatrixSchemeB = 214, // mMatrixSchemeB
     kMatrixArgA = 215, // mMatrixArgA
     kMatrixArgB = 216, // mMatrixArgB
     kMatrixArgC = 217, // mMatrixArgC
@@ -105,9 +103,6 @@ enum class TwistConstants : std::uint8_t {
 
     kMatrixUnrollA = 40,
     kMatrixUnrollB = 41,
-
-    kMatrixSchemeA = 50,
-    kMatrixSchemeB = 51,
 
     kMatrixArgA = 60,
     kMatrixArgB = 61,
@@ -162,6 +157,5 @@ GSymbol                                 VarSymbol(const std::string &pName);
 GSymbol                                 BufSymbol(const TwistWorkSpaceSlot pSlot);
 GSymbol                                 BufSymbol(const TwistBufferKey pKey);
 GSymbol                                 BufParamSymbolDomainSalt(TwistWorkSpaceSlot pSlot);
-GSymbol                                 BufParamSymbolDomainSBox(TwistSBoxLane pLane);
 
 #endif

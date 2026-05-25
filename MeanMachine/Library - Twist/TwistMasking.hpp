@@ -62,16 +62,17 @@ public:
                           std::uint8_t *pSourceB,
                           std::size_t pBufferLength,
                           std::uint8_t *pMask,
-                          std::size_t pMaskLength) {
+                          std::size_t pMaskLength,
+                          std::uint8_t pMaskDomainWord) {
         switch (pType) {
             case TwistMaskBraidType::kA:
-                MaskBraidA(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength);
+                MaskBraidA(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord);
                 return;
             case TwistMaskBraidType::kB:
-                MaskBraidB(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength);
+                MaskBraidB(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord);
                 return;
             case TwistMaskBraidType::kC:
-                MaskBraidC(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength);
+                MaskBraidC(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord);
                 return;
             default:
                 return;
@@ -84,19 +85,20 @@ public:
                           std::uint8_t *pDest,
                           std::size_t pBufferLength,
                           std::uint8_t *pMask,
-                          std::size_t pMaskLength) {
+                          std::size_t pMaskLength,
+                          std::uint8_t pMaskDomainWord) {
         switch (pType) {
             case TwistMaskWeaveType::kA:
-                MaskWeaveA(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength);
+                MaskWeaveA(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord);
                 return;
             case TwistMaskWeaveType::kB:
-                MaskWeaveB(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength);
+                MaskWeaveB(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord);
                 return;
             case TwistMaskWeaveType::kC:
-                MaskWeaveC(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength);
+                MaskWeaveC(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord);
                 return;
             case TwistMaskWeaveType::kD:
-                MaskWeaveD(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength);
+                MaskWeaveD(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord);
                 return;
             default:
                 return;
@@ -112,8 +114,9 @@ public:
                            std::uint8_t *pSourceB, // with bits in B matching the mask
                            std::size_t pBufferLength,
                            std::uint8_t *pMask,
-                           std::size_t pMaskLength) {
-        MaskBraidImpl(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, false, false);
+                           std::size_t pMaskLength,
+                           std::uint8_t pMaskDomainWord) {
+        MaskBraidImpl(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord, false, false);
     }
 
     // A starts at 0
@@ -125,8 +128,9 @@ public:
                            std::uint8_t *pSourceB, // with bits in B matching the mask
                            std::size_t pBufferLength,
                            std::uint8_t *pMask,
-                           std::size_t pMaskLength) {
-        MaskBraidImpl(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, false, true);
+                           std::size_t pMaskLength,
+                           std::uint8_t pMaskDomainWord) {
+        MaskBraidImpl(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord, false, true);
     }
 
     // A starts at pBufferLength - 1
@@ -138,8 +142,9 @@ public:
                            std::uint8_t *pSourceB, // with bits in B matching the mask
                            std::size_t pBufferLength,
                            std::uint8_t *pMask,
-                           std::size_t pMaskLength) {
-        MaskBraidImpl(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, true, false);
+                           std::size_t pMaskLength,
+                           std::uint8_t pMaskDomainWord) {
+        MaskBraidImpl(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord, true, false);
     }
 
     // A starts at 0
@@ -153,8 +158,9 @@ public:
                            std::uint8_t *pDest,
                            std::size_t pBufferLength,
                            std::uint8_t *pMask,
-                           std::size_t pMaskLength) {
-        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, false, false);
+                           std::size_t pMaskLength,
+                           std::uint8_t pMaskDomainWord) {
+        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord, false, false);
     }
 
     // A starts at pBufferLength - 1
@@ -168,8 +174,9 @@ public:
                            std::uint8_t *pDest,
                            std::size_t pBufferLength,
                            std::uint8_t *pMask,
-                           std::size_t pMaskLength) {
-        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, true, false);
+                           std::size_t pMaskLength,
+                           std::uint8_t pMaskDomainWord) {
+        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord, true, false);
     }
 
     // A starts at 0
@@ -183,8 +190,9 @@ public:
                            std::uint8_t *pDest,
                            std::size_t pBufferLength,
                            std::uint8_t *pMask,
-                           std::size_t pMaskLength) {
-        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, false, true);
+                           std::size_t pMaskLength,
+                           std::uint8_t pMaskDomainWord) {
+        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord, false, true);
     }
 
     // A starts at pBufferLength - 1
@@ -198,8 +206,9 @@ public:
                            std::uint8_t *pDest,
                            std::size_t pBufferLength,
                            std::uint8_t *pMask,
-                           std::size_t pMaskLength) {
-        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, true, true);
+                           std::size_t pMaskLength,
+                           std::uint8_t pMaskDomainWord) {
+        MaskWeaveImpl(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord, true, true);
     }
 
 private:
@@ -215,11 +224,17 @@ private:
                (pMaskLength > 0U);
     }
 
+    static std::uint8_t MaskByte(const std::uint8_t pMask,
+                                 const std::uint8_t pMaskDomainWord) {
+        return static_cast<std::uint8_t>(pMask ^ pMaskDomainWord);
+    }
+
     static void MaskBraidSoft(std::uint8_t *pSourceA,
                               std::uint8_t *pSourceB,
                               std::size_t pBufferLength,
                               const std::uint8_t *pMask,
                               std::size_t pMaskLength,
+                              std::uint8_t pMaskDomainWord,
                               const bool pReverseA,
                               const bool pReverseB) {
         std::uint8_t *aPtrA = pReverseA ? (pSourceA + (pBufferLength - 1U)) : pSourceA;
@@ -231,7 +246,7 @@ private:
         const std::uint8_t *aMaskPtr = pMask;
 
         for (std::size_t aIndex = 0U; aIndex < pBufferLength; ++aIndex) {
-            const std::uint8_t aMask = *aMaskPtr;
+            const std::uint8_t aMask = MaskByte(*aMaskPtr, pMaskDomainWord);
             const std::uint8_t aA = *aPtrA;
             const std::uint8_t aB = *aPtrB;
 
@@ -257,6 +272,7 @@ private:
                               std::size_t pBufferLength,
                               const std::uint8_t *pMask,
                               std::size_t pMaskLength,
+                              std::uint8_t pMaskDomainWord,
                               const bool pReverseA,
                               const bool pReverseB) {
         const std::uint8_t *aPtrA = pReverseA ? (pSourceA + (pBufferLength - 1U)) : pSourceA;
@@ -268,7 +284,7 @@ private:
         const std::uint8_t *aMaskPtr = pMask;
 
         for (std::size_t aIndex = 0U; aIndex < pBufferLength; ++aIndex) {
-            const std::uint8_t aMask = *aMaskPtr;
+            const std::uint8_t aMask = MaskByte(*aMaskPtr, pMaskDomainWord);
             const std::uint8_t aA = *aPtrA;
             const std::uint8_t aB = *aPtrB;
             pDest[aIndex] = static_cast<std::uint8_t>((aA & aMask) | (aB & static_cast<std::uint8_t>(~aMask)));
@@ -292,6 +308,7 @@ private:
                               std::size_t pBufferLength,
                               const std::uint8_t *pMask,
                               std::size_t pMaskLength,
+                              std::uint8_t pMaskDomainWord,
                               const bool pReverseA,
                               const bool pReverseB) {
         std::uint8_t *aBlockPtrA = pReverseA ? (pSourceA + (pBufferLength - 16U)) : pSourceA;
@@ -299,12 +316,13 @@ private:
         const std::ptrdiff_t aBlockStepA = pReverseA ? -16 : 16;
         const std::ptrdiff_t aBlockStepB = pReverseB ? -16 : 16;
         std::size_t aMaskIndex = 0U;
+        const uint8x16_t vMaskDomain = vdupq_n_u8(pMaskDomainWord);
 
         const std::size_t aBlockCount = pBufferLength / 16U;
         for (std::size_t aBlock = 0U; aBlock < aBlockCount; ++aBlock) {
             const uint8x16_t vA = vld1q_u8(aBlockPtrA);
             const uint8x16_t vB = vld1q_u8(aBlockPtrB);
-            const uint8x16_t vMask = vld1q_u8(pMask + aMaskIndex);
+            const uint8x16_t vMask = veorq_u8(vld1q_u8(pMask + aMaskIndex), vMaskDomain);
 
             const uint8x16_t vOutA = vbslq_u8(vMask, vB, vA);
             const uint8x16_t vOutB = vbslq_u8(vMask, vA, vB);
@@ -328,6 +346,7 @@ private:
                               std::size_t pBufferLength,
                               const std::uint8_t *pMask,
                               std::size_t pMaskLength,
+                              std::uint8_t pMaskDomainWord,
                               const bool pReverseA,
                               const bool pReverseB) {
         const std::uint8_t *aBlockPtrA = pReverseA ? (pSourceA + (pBufferLength - 16U)) : pSourceA;
@@ -335,12 +354,13 @@ private:
         const std::ptrdiff_t aBlockStepA = pReverseA ? -16 : 16;
         const std::ptrdiff_t aBlockStepB = pReverseB ? -16 : 16;
         std::size_t aMaskIndex = 0U;
+        const uint8x16_t vMaskDomain = vdupq_n_u8(pMaskDomainWord);
 
         const std::size_t aBlockCount = pBufferLength / 16U;
         for (std::size_t aBlock = 0U; aBlock < aBlockCount; ++aBlock) {
             const uint8x16_t vA = vld1q_u8(aBlockPtrA);
             const uint8x16_t vB = vld1q_u8(aBlockPtrB);
-            const uint8x16_t vMask = vld1q_u8(pMask + aMaskIndex);
+            const uint8x16_t vMask = veorq_u8(vld1q_u8(pMask + aMaskIndex), vMaskDomain);
             const uint8x16_t vOut = vbslq_u8(vMask, vA, vB);
             vst1q_u8(pDest, vOut);
 
@@ -361,15 +381,16 @@ private:
                               std::size_t pBufferLength,
                               std::uint8_t *pMask,
                               std::size_t pMaskLength,
+                              std::uint8_t pMaskDomainWord,
                               const bool pReverseA,
                               const bool pReverseB) {
         if (!IsValidArgs(pSourceA, pSourceB, pMask, pBufferLength, pMaskLength)) {
             return;
         }
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
-        MaskBraidNeon(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pReverseA, pReverseB);
+        MaskBraidNeon(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord, pReverseA, pReverseB);
 #else
-        MaskBraidSoft(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pReverseA, pReverseB);
+        MaskBraidSoft(pSourceA, pSourceB, pBufferLength, pMask, pMaskLength, pMaskDomainWord, pReverseA, pReverseB);
 #endif
     }
 
@@ -379,15 +400,16 @@ private:
                               std::size_t pBufferLength,
                               std::uint8_t *pMask,
                               std::size_t pMaskLength,
+                              std::uint8_t pMaskDomainWord,
                               const bool pReverseA,
                               const bool pReverseB) {
         if ((pDest == nullptr) || !IsValidArgs(pSourceA, pSourceB, pMask, pBufferLength, pMaskLength)) {
             return;
         }
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
-        MaskWeaveNeon(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pReverseA, pReverseB);
+        MaskWeaveNeon(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord, pReverseA, pReverseB);
 #else
-        MaskWeaveSoft(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pReverseA, pReverseB);
+        MaskWeaveSoft(pSourceA, pSourceB, pDest, pBufferLength, pMask, pMaskLength, pMaskDomainWord, pReverseA, pReverseB);
 #endif
     }
 };

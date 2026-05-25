@@ -25,6 +25,7 @@ public:
     static int                          Get(int pMax);
     static int                          Get(int pMin, int pMax);
     
+    static std::uint64_t                Get64High();
     static std::uint64_t                Get64();
     static std::uint64_t                Get64(std::uint64_t pMax);
     static std::uint64_t                Get64(std::uint64_t pMin, std::uint64_t pMax);

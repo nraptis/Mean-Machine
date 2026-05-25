@@ -7,7 +7,6 @@
 
 #include "CSPRNGV2.hpp"
 #include "TwistArray.hpp"
-
 #include <cstdio>
 
 bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
@@ -114,7 +113,7 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         Random::Shuffle(&pSlices[aSliceIndex].mWanderers);
     }
     
-    bool NO_SHUFFLE = true;
+    bool NO_SHUFFLE = false;
     
     if (NO_SHUFFLE == true) {
         for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {

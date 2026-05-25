@@ -29,11 +29,6 @@ Varz::Varz() {
     e = VarSymbol("e");
     f = VarSymbol("f");
     
-    mSBoxA = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxA);
-    mSBoxB = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxB);
-    mSBoxC = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxC);
-    mSBoxD = BufSymbol(TwistWorkSpaceSlot::kParamDomainSBoxD);
-    
     mSaltA = BufSymbol(TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA);
     mSaltB = BufSymbol(TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB);
     mSaltC = BufSymbol(TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC);

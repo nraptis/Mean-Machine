@@ -4,7 +4,6 @@
 //
 
 #include "TwistExpander.hpp"
-#include "TwistFarmSBox.hpp"
 #include "TwistFarmSalt.hpp"
 
 #include <chrono>
@@ -43,63 +42,18 @@ inline std::uint64_t ProcessKDFFreshnessNonce() {
     return kProcessNonce;
 }
 
-inline void CopyGlobalSBoxesToSet(TwistDomainSBoxSet *pDest,
-                                  const std::uint8_t *pSBoxA,
-                                  const std::uint8_t *pSBoxB,
-                                  const std::uint8_t *pSBoxC,
-                                  const std::uint8_t *pSBoxD,
-                                  const std::uint8_t *pSBoxE,
-                                  const std::uint8_t *pSBoxF,
-                                  const std::uint8_t *pSBoxG,
-                                  const std::uint8_t *pSBoxH) {
-    if (pDest == nullptr) {
-        return;
-    }
-    std::memcpy(pDest->mSBoxA, pSBoxA, sizeof(pDest->mSBoxA));
-    std::memcpy(pDest->mSBoxB, pSBoxB, sizeof(pDest->mSBoxB));
-    std::memcpy(pDest->mSBoxC, pSBoxC, sizeof(pDest->mSBoxC));
-    std::memcpy(pDest->mSBoxD, pSBoxD, sizeof(pDest->mSBoxD));
-    std::memcpy(pDest->mSBoxE, pSBoxE, sizeof(pDest->mSBoxE));
-    std::memcpy(pDest->mSBoxF, pSBoxF, sizeof(pDest->mSBoxF));
-    std::memcpy(pDest->mSBoxG, pSBoxG, sizeof(pDest->mSBoxG));
-    std::memcpy(pDest->mSBoxH, pSBoxH, sizeof(pDest->mSBoxH));
-}
-
-inline void CopySetToGlobalSBoxes(const TwistDomainSBoxSet *pSource,
-                                  std::uint8_t *pSBoxA,
-                                  std::uint8_t *pSBoxB,
-                                  std::uint8_t *pSBoxC,
-                                  std::uint8_t *pSBoxD,
-                                  std::uint8_t *pSBoxE,
-                                  std::uint8_t *pSBoxF,
-                                  std::uint8_t *pSBoxG,
-                                  std::uint8_t *pSBoxH) {
-    if (pSource == nullptr) {
-        return;
-    }
-    std::memcpy(pSBoxA, pSource->mSBoxA, S_SBOX);
-    std::memcpy(pSBoxB, pSource->mSBoxB, S_SBOX);
-    std::memcpy(pSBoxC, pSource->mSBoxC, S_SBOX);
-    std::memcpy(pSBoxD, pSource->mSBoxD, S_SBOX);
-    std::memcpy(pSBoxE, pSource->mSBoxE, S_SBOX);
-    std::memcpy(pSBoxF, pSource->mSBoxF, S_SBOX);
-    std::memcpy(pSBoxG, pSource->mSBoxG, S_SBOX);
-    std::memcpy(pSBoxH, pSource->mSBoxH, S_SBOX);
-}
-
 } // namespace
 
 TwistExpander::TwistExpander() {
     mWorkspace = nullptr;
-    mFarmSBox = nullptr;
     mFarmSalt = nullptr;
     mSource = nullptr;
+    mSnow = nullptr;
     mDest = nullptr;
     mKDFCallCounter = 0ULL;
     mKDFSessionNonce = 0ULL;
     mActiveConstants = nullptr;
     mActiveSaltSet = nullptr;
-    mActiveSBoxSet = nullptr;
     std::memset(&mDomainBundleInbuilt, 0, sizeof(mDomainBundleInbuilt));
     std::memset(&mDomainBundleEphemeral, 0, sizeof(mDomainBundleEphemeral));
     auto SeedDomainConstants = [&](TwistDomainConstants *pConstants,
@@ -137,14 +91,12 @@ TwistExpander::TwistExpander() {
         pConstants->mMatrixSelectB = Next64(0x11ULL);
         pConstants->mMatrixUnrollA = NextByte(0x12ULL);
         pConstants->mMatrixUnrollB = NextByte(0x13ULL);
-        pConstants->mMatrixSchemeA = NextByte(0x14ULL);
-        pConstants->mMatrixSchemeB = NextByte(0x15ULL);
-        pConstants->mMatrixArgA = NextByte(0x16ULL);
-        pConstants->mMatrixArgB = NextByte(0x17ULL);
-        pConstants->mMatrixArgC = NextByte(0x18ULL);
-        pConstants->mMatrixArgD = NextByte(0x19ULL);
-        pConstants->mMaskMutateA = NextByte(0x1AULL);
-        pConstants->mMaskMutateB = NextByte(0x1BULL);
+        pConstants->mMatrixArgA = NextByte(0x14ULL);
+        pConstants->mMatrixArgB = NextByte(0x15ULL);
+        pConstants->mMatrixArgC = NextByte(0x16ULL);
+        pConstants->mMatrixArgD = NextByte(0x17ULL);
+        pConstants->mMaskMutateA = NextByte(0x18ULL);
+        pConstants->mMaskMutateB = NextByte(0x19ULL);
     };
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseAConstants, 0x50484153455F415FULL);
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseBConstants, 0x50484153455F425FULL);
@@ -153,17 +105,6 @@ TwistExpander::TwistExpander() {
     std::memset(mIndexList256B, 0, sizeof(mIndexList256B));
     std::memset(mIndexList256C, 0, sizeof(mIndexList256C));
     std::memset(mIndexList256D, 0, sizeof(mIndexList256D));
-    std::memset(mIndexList256E, 0, sizeof(mIndexList256E));
-    std::memset(mIndexList256F, 0, sizeof(mIndexList256F));
-    std::memset(mSBoxA, 0, sizeof(mSBoxA));
-    std::memset(mSBoxB, 0, sizeof(mSBoxB));
-    std::memset(mSBoxC, 0, sizeof(mSBoxC));
-    std::memset(mSBoxD, 0, sizeof(mSBoxD));
-    std::memset(mSBoxE, 0, sizeof(mSBoxE));
-    std::memset(mSBoxF, 0, sizeof(mSBoxF));
-    std::memset(mSBoxG, 0, sizeof(mSBoxG));
-    std::memset(mSBoxH, 0, sizeof(mSBoxH));
-    SyncDomainBundleInbuiltFromLegacy();
     std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));
 }
 
@@ -171,69 +112,43 @@ TwistExpander::~TwistExpander() {
     
 }
 
-void TwistExpander::SyncDomainBundleInbuiltFromLegacy() {
-    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mPhaseASBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
-    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mPhaseBSBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
-    CopyGlobalSBoxesToSet(&mDomainBundleInbuilt.mPhaseCSBoxes, mSBoxA, mSBoxB, mSBoxC, mSBoxD, mSBoxE, mSBoxF, mSBoxG, mSBoxH);
-}
-
-void TwistExpander::SyncLegacyFromDomainBundleInbuilt() {
-    CopySetToGlobalSBoxes(&mDomainBundleInbuilt.mPhaseASBoxes,
-                          mSBoxA,
-                          mSBoxB,
-                          mSBoxC,
-                          mSBoxD,
-                          mSBoxE,
-                          mSBoxF,
-                          mSBoxG,
-                          mSBoxH);
-}
-
 void TwistExpander::KDF(std::uint64_t pNonce,
                         TwistDomainConstants *pDomainConstants,
-                        TwistDomainSaltSet *pDomainSaltSet,
-                        TwistDomainSBoxSet *pDomainSBoxSet) {
-    if ((mSource == nullptr) || (mDest == nullptr) ||
+                        TwistDomainSaltSet *pDomainSaltSet) {
+    if ((mSource == nullptr) ||
         (pDomainConstants == nullptr) ||
-        (pDomainSaltSet == nullptr) ||
-        (pDomainSBoxSet == nullptr)) {
+        (pDomainSaltSet == nullptr)) {
         return;
     }
 
     mKDFSessionNonce = pNonce;
     mActiveConstants = pDomainConstants;
     mActiveSaltSet = pDomainSaltSet;
-    mActiveSBoxSet = pDomainSBoxSet;
 }
 
 void TwistExpander::KDF_A(std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
-                          TwistDomainSaltSet *pDomainSaltSet,
-                          TwistDomainSBoxSet *pDomainSBoxSet) {
+                          TwistDomainSaltSet *pDomainSaltSet) {
     TwistExpander::KDF(pNonce,
                        pDomainConstants,
-                       pDomainSaltSet,
-                       pDomainSBoxSet);
+                       pDomainSaltSet);
 }
 
 void TwistExpander::KDF_B(std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
-                          TwistDomainSaltSet *pDomainSaltSet,
-                          TwistDomainSBoxSet *pDomainSBoxSet) {
+                          TwistDomainSaltSet *pDomainSaltSet) {
     TwistExpander::KDF(pNonce,
                        pDomainConstants,
-                       pDomainSaltSet,
-                       pDomainSBoxSet);
+                       pDomainSaltSet);
 }
 
-void TwistExpander::Seed(TwistWorkSpace *pWorkspace,
-                         TwistFarmSBox *pFarmSBox,
+void TwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                          TwistFarmSalt *pFarmSalt,
                          std::uint64_t pNonce,
                          std::uint8_t *pSource,
                          std::uint8_t *pPassword,
                          unsigned int pPasswordByteLength) {
-    if (pWorkspace == nullptr) {
+    if (pWorkSpace == nullptr) {
         std::printf("fatal: TwistExpander::Seed requires workspace\n");
         return;
     }
@@ -241,44 +156,34 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkspace,
         std::printf("fatal: TwistExpander::Seed requires source buffer\n");
         return;
     }
-    if (pFarmSBox == nullptr) {
-        std::printf("fatal: TwistExpander::Seed requires farm s-box WorkLane\n");
-        return;
-    }
     if (pFarmSalt == nullptr) {
         std::printf("fatal: TwistExpander::Seed requires farm salt WorkLane\n");
         return;
     }
 
-    mWorkspace = pWorkspace;
-    mFarmSBox = pFarmSBox;
+    mWorkspace = pWorkSpace;
     mFarmSalt = pFarmSalt;
     mSource = pSource;
     mDest = nullptr;
     UnrollPasswordToSource(pSource, pPassword, pPasswordByteLength);
     mKDFCallCounter = 0ULL;
     mKDFSessionNonce = Mix64(pNonce ^ ProcessKDFFreshnessNonce());
-    SyncDomainBundleInbuiltFromLegacy();
     std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));
-    pWorkspace->mDomainBundle = mDomainBundleEphemeral;
+    pWorkSpace->mDomainBundle = mDomainBundleEphemeral;
 }
 
-void TwistExpander::TwistBlock(TwistWorkSpace *pWorkspace,
+void TwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
                                std::uint64_t pNonce,
                                std::uint8_t *pSource,
                                std::uint8_t *pDestination) {
-    if ((pWorkspace == nullptr) || (pSource == nullptr) || (pDestination == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pSource == nullptr) || (pDestination == nullptr)) {
         return;
     }
 
-    mWorkspace = pWorkspace;
+    mWorkspace = pWorkSpace;
     mSource = pSource;
     mDest = pDestination;
     mKDFSessionNonce = pNonce;
-}
-
-TwistFarmSBox *TwistExpander::GetFarmSBox() const {
-    return mFarmSBox;
 }
 
 TwistFarmSalt *TwistExpander::GetFarmSalt() const {
@@ -289,12 +194,12 @@ std::uint64_t TwistExpander::GetSessionNonce() const {
     return mKDFSessionNonce;
 }
 
-void TwistExpander::Twist(TwistWorkSpace *pWorkspace,
+void TwistExpander::Twist(TwistWorkSpace *pWorkSpace,
                           std::uint64_t pNonce,
                           std::uint8_t *pSource,
                           std::uint8_t *pDestination,
                           unsigned int pDestinationByteLength) {
-    if ((pWorkspace == nullptr) || (pSource == nullptr) || (pDestination == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pSource == nullptr) || (pDestination == nullptr)) {
         std::printf("fatal: TwistExpander::Twist requires workspace/source/destination\n");
         return;
     }
@@ -303,14 +208,14 @@ void TwistExpander::Twist(TwistWorkSpace *pWorkspace,
         return;
     }
     
-    mWorkspace = pWorkspace;
+    mWorkspace = pWorkSpace;
     mSource = pSource;
     mDest = pDestination;
 
     for (unsigned int aStartByte = 0U;
          aStartByte < pDestinationByteLength;
          aStartByte += S_BLOCK) {
-        TwistBlock(pWorkspace,
+        TwistBlock(pWorkSpace,
                    pNonce,
                    pSource + aStartByte,
                    pDestination + aStartByte);

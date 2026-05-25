@@ -40,31 +40,25 @@ const std::array<TwistWorkSpaceSlot, 6> kWandererUpdateSaltSlots = {
     TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
 };
 
-const std::array<TwistWorkSpaceSlot, 6> kWorkLaneSlots = {
+const std::array<TwistWorkSpaceSlot, 4> kWorkLaneSlots = {
     TwistWorkSpaceSlot::kWorkLaneA,
     TwistWorkSpaceSlot::kWorkLaneB,
     TwistWorkSpaceSlot::kWorkLaneC,
     TwistWorkSpaceSlot::kWorkLaneD,
-    TwistWorkSpaceSlot::kWorkLaneE,
-    TwistWorkSpaceSlot::kWorkLaneF,
 };
 
-const std::array<TwistWorkSpaceSlot, 6> kOperationLaneSlots = {
+const std::array<TwistWorkSpaceSlot, 4> kOperationLaneSlots = {
     TwistWorkSpaceSlot::kOperationLaneA,
     TwistWorkSpaceSlot::kOperationLaneB,
     TwistWorkSpaceSlot::kOperationLaneC,
     TwistWorkSpaceSlot::kOperationLaneD,
-    TwistWorkSpaceSlot::kOperationLaneE,
-    TwistWorkSpaceSlot::kOperationLaneF,
 };
 
-const std::array<TwistWorkSpaceSlot, 6> kExpansionLaneSlots = {
+const std::array<TwistWorkSpaceSlot, 4> kExpansionLaneSlots = {
     TwistWorkSpaceSlot::kExpansionLaneA,
     TwistWorkSpaceSlot::kExpansionLaneB,
     TwistWorkSpaceSlot::kExpansionLaneC,
     TwistWorkSpaceSlot::kExpansionLaneD,
-    TwistWorkSpaceSlot::kExpansionLaneE,
-    TwistWorkSpaceSlot::kExpansionLaneF,
 };
 
 const std::array<const char *, 8> kNonceVariableNames = {
@@ -170,8 +164,8 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
     Reset();
     
     GAXSK *aAXSK = new GAXSK();
-    if (!aAXSK->Bake(GAXSFormat::kEleven,
-                     {1, 2, 3, 4, 4, 4},
+    if (!aAXSK->Bake(GAXSFormat::kN5,
+                     {2, 3, 4, 4},
                      true,
                      &mARXSkeletonsA,
                      pErrorMessage)) {
@@ -185,8 +179,8 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
     
     
     aAXSK = new GAXSK();
-    if (!aAXSK->Bake(GAXSFormat::kNine,
-                     {4, 4, 4, 4, 4, 4},
+    if (!aAXSK->Bake(GAXSFormat::kN5,
+                     {4, 4, 4, 4},
                      true,
                      &mARXSkeletonsB,
                      pErrorMessage)) {
@@ -200,8 +194,8 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
     
     
     aAXSK = new GAXSK();
-    if (!aAXSK->Bake(GAXSFormat::kEleven,
-                     {4, 4, 4, 4, 4, 4},
+    if (!aAXSK->Bake(GAXSFormat::kN5,
+                     {4, 4, 4, 4},
                      true,
                      &mARXSkeletonsC,
                      pErrorMessage)) {
@@ -240,6 +234,8 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     pBranch.AddLine("std::uint64_t aDomainWordIngress = pConstants->mIngress;");
     pBranch.AddLine("std::uint64_t aDomainWordScatter = pConstants->mScatter;");
     pBranch.AddLine("std::uint64_t aDomainWordCross = pConstants->mCross;");
+    pBranch.AddLine("std::uint8_t aDomainWordMaskMutateA = pConstants->mMaskMutateA;");
+    pBranch.AddLine("std::uint8_t aDomainWordMaskMutateB = pConstants->mMaskMutateB;");
 
     pBranch.AddLine("std::uint64_t aDomainWordMatrixSelectA = pConstants->mMatrixSelectA;");
     pBranch.AddLine("std::uint64_t aDomainWordMatrixSelectB = pConstants->mMatrixSelectB;");
@@ -247,23 +243,18 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     pBranch.AddLine("std::uint8_t aDomainWordMatrixUnrollA = pConstants->mMatrixUnrollA;");
     pBranch.AddLine("std::uint8_t aDomainWordMatrixUnrollB = pConstants->mMatrixUnrollB;");
 
-    pBranch.AddLine("std::uint8_t aDomainWordMatrixSchemeA = pConstants->mMatrixSchemeA;");
-    pBranch.AddLine("std::uint8_t aDomainWordMatrixSchemeB = pConstants->mMatrixSchemeB;");
-
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgA = pConstants->mMatrixArgA;");
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgB = pConstants->mMatrixArgB;");
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgC = pConstants->mMatrixArgC;");
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgD = pConstants->mMatrixArgD;");
-
     
-
     GBatch aInitBatch;
     std::vector<GStatement> aInitStatements;
     aInitBatch.mName = "init varz";
     for (TwistVariable aVariable : kInitialRandomVariables) {
         aInitStatements.push_back(
             GQuick::MakeAssignVariableStatement(GSymbol::Var(aVariable),
-                                                GExpr::Const(Random::Int64())));
+                                                GExpr::Const(Random::Get64High())));
     }
 
 
@@ -280,6 +271,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     CSPRNGV2Slice aSliceA1;
     aSliceA1.mARXSkeleton = mARXSkeletonsA[0];
     aSliceA1.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
+    aSliceA1.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnow));
     aSliceA1.mDest = mExpansionLanes[0];
     aSliceA1.mDestWriteInverted = false;
     aSliceA1.mHotPack = mHotPacksA[0];
@@ -289,6 +281,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     aSliceA2.mARXSkeleton = mARXSkeletonsA[1];
     aSliceA2.mSources.push_back(mExpansionLanes[0]);
     aSliceA2.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
+    aSliceA2.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnow));
     aSliceA2.mDest = mExpansionLanes[1];
     aSliceA2.mDestWriteInverted = true;
     aSliceA2.mHotPack = mHotPacksA[1];
@@ -299,6 +292,7 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     aSliceA3.mSources.push_back(mExpansionLanes[1]);
     aSliceA3.mSources.push_back(mExpansionLanes[0]);
     aSliceA3.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
+    aSliceA3.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnow));
     aSliceA3.mDest = mExpansionLanes[2];
     aSliceA3.mDestWriteInverted = false;
     aSliceA3.mHotPack = mHotPacksA[2];
@@ -315,29 +309,6 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     aSliceA4.mHotPack = mHotPacksA[3];
     aSlicesA.push_back(aSliceA4);
     
-    CSPRNGV2Slice aSliceA5;
-    aSliceA5.mARXSkeleton = mARXSkeletonsA[4];
-    aSliceA5.mSources.push_back(mExpansionLanes[3]);
-    aSliceA5.mSources.push_back(mExpansionLanes[2]);
-    aSliceA5.mSources.push_back(mExpansionLanes[1]);
-    aSliceA5.mSources.push_back(mExpansionLanes[0]);
-    aSliceA5.mDest = mExpansionLanes[4];
-    aSliceA5.mDestWriteInverted = false;
-    aSliceA5.mHotPack = mHotPacksA[4];
-    aSlicesA.push_back(aSliceA5);
-
-    CSPRNGV2Slice aSliceA6;
-    aSliceA6.mARXSkeleton = mARXSkeletonsA[5];
-    aSliceA6.mSources.push_back(mExpansionLanes[4]);
-    aSliceA6.mSources.push_back(mExpansionLanes[3]);
-    aSliceA6.mSources.push_back(mExpansionLanes[2]);
-    aSliceA6.mSources.push_back(mExpansionLanes[1]);
-    
-    aSliceA6.mDest = mExpansionLanes[5];
-    aSliceA6.mDestWriteInverted = true;
-    aSliceA6.mHotPack = mHotPacksA[5];
-    aSlicesA.push_back(aSliceA6);
-    
     if (!CSPRNGV2::Bake(aSlicesA,
                         mSaltsOrbiterAssign,
                         mSaltsOrbiterUpdate,
@@ -351,17 +322,16 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     
     
     
-    /*
     std::vector<CSPRNGV2Slice> aSlicesB;
 
     std::vector<GSymbol> aRecentSourcesB = {
+        mExpansionLanes[0],
+        mExpansionLanes[1],
         mExpansionLanes[2],
         mExpansionLanes[3],
-        mExpansionLanes[4],
-        mExpansionLanes[5],
     };
 
-    for (int aIndex = 0; aIndex < 6; aIndex++) {
+    for (int aIndex = 0; aIndex < 4; aIndex++) {
         CSPRNGV2Slice aSlice;
 
         aSlice.mARXSkeleton = mARXSkeletonsB[static_cast<std::size_t>(aIndex)];
@@ -400,10 +370,10 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     std::vector<CSPRNGV2Slice> aSlicesC;
 
     std::vector<GSymbol> aRecentSourcesC = {
+        mOperationLanes[0],
+        mOperationLanes[1],
         mOperationLanes[2],
         mOperationLanes[3],
-        mOperationLanes[4],
-        mOperationLanes[5],
     };
 
     for (int aIndex = 0; aIndex < 4; aIndex++) {
@@ -438,10 +408,10 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
         return false;
     }
 
-    */
     
     
-    //pBranch.AddBatch(aInitBatch);
+    
+    pBranch.AddBatch(aInitBatch);
     
     pBranch.AddBatch(aBatch);
     

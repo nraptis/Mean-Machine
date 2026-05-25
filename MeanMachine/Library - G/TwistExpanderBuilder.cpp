@@ -398,45 +398,30 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
 
-        TwistWorkSpaceSlot::kParamDomainSBoxA,
-        TwistWorkSpaceSlot::kParamDomainSBoxB,
-        TwistWorkSpaceSlot::kParamDomainSBoxC,
-        TwistWorkSpaceSlot::kParamDomainSBoxD,
-        TwistWorkSpaceSlot::kParamDomainSBoxE,
-        TwistWorkSpaceSlot::kParamDomainSBoxF,
-        TwistWorkSpaceSlot::kParamDomainSBoxG,
-        TwistWorkSpaceSlot::kParamDomainSBoxH,
-
         TwistWorkSpaceSlot::kExpansionLaneA,
         TwistWorkSpaceSlot::kExpansionLaneB,
         TwistWorkSpaceSlot::kExpansionLaneC,
         TwistWorkSpaceSlot::kExpansionLaneD,
-        TwistWorkSpaceSlot::kExpansionLaneE,
-        TwistWorkSpaceSlot::kExpansionLaneF,
 
         TwistWorkSpaceSlot::kWorkLaneA,
         TwistWorkSpaceSlot::kWorkLaneB,
         TwistWorkSpaceSlot::kWorkLaneC,
         TwistWorkSpaceSlot::kWorkLaneD,
-        TwistWorkSpaceSlot::kWorkLaneE,
-        TwistWorkSpaceSlot::kWorkLaneF,
 
         TwistWorkSpaceSlot::kOperationLaneA,
         TwistWorkSpaceSlot::kOperationLaneB,
         TwistWorkSpaceSlot::kOperationLaneC,
         TwistWorkSpaceSlot::kOperationLaneD,
-        TwistWorkSpaceSlot::kOperationLaneE,
-        TwistWorkSpaceSlot::kOperationLaneF,
 
-        TwistWorkSpaceSlot::kMaskLaneA,
-        TwistWorkSpaceSlot::kMaskLaneB,
+        TwistWorkSpaceSlot::kSnowLaneA,
+        TwistWorkSpaceSlot::kSnowLaneB,
+        TwistWorkSpaceSlot::kSnowLaneC,
+        TwistWorkSpaceSlot::kSnowLaneD,
 
         TwistWorkSpaceSlot::kIndexList256A,
         TwistWorkSpaceSlot::kIndexList256B,
         TwistWorkSpaceSlot::kIndexList256C,
         TwistWorkSpaceSlot::kIndexList256D,
-        TwistWorkSpaceSlot::kIndexList256E,
-        TwistWorkSpaceSlot::kIndexList256F,
 
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
@@ -480,18 +465,39 @@ bool IsParamDomainSaltWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
     }
 }
 
+bool IsKDFExcludedWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kKeyBoxUnrolledA:
+        case TwistWorkSpaceSlot::kKeyBoxUnrolledB:
+        case TwistWorkSpaceSlot::kKeyRowReadA:
+        case TwistWorkSpaceSlot::kKeyRowReadB:
+        case TwistWorkSpaceSlot::kKeyRowWriteA:
+        case TwistWorkSpaceSlot::kKeyRowWriteB:
+        case TwistWorkSpaceSlot::kMaskBoxUnrolledA:
+        case TwistWorkSpaceSlot::kMaskBoxUnrolledB:
+        case TwistWorkSpaceSlot::kMaskRowReadA:
+        case TwistWorkSpaceSlot::kMaskRowReadB:
+        case TwistWorkSpaceSlot::kMaskRowWriteA:
+        case TwistWorkSpaceSlot::kMaskRowWriteB:
+        case TwistWorkSpaceSlot::kSnowLaneA:
+        case TwistWorkSpaceSlot::kSnowLaneB:
+        case TwistWorkSpaceSlot::kSnowLaneC:
+        case TwistWorkSpaceSlot::kSnowLaneD:
+            return true;
+        default:
+            return false;
+    }
+}
+
 std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
                                       const bool pUseKDFParameterAliases) {
     const std::string aAlias = BufAliasName(pSlot);
     if ((pSlot == TwistWorkSpaceSlot::kIndexList256A) ||
         (pSlot == TwistWorkSpaceSlot::kIndexList256B) ||
         (pSlot == TwistWorkSpaceSlot::kIndexList256C) ||
-        (pSlot == TwistWorkSpaceSlot::kIndexList256D) ||
-        (pSlot == TwistWorkSpaceSlot::kIndexList256E) ||
-        (pSlot == TwistWorkSpaceSlot::kIndexList256F)) {
-        return "[[maybe_unused]] std::size_t *" + aAlias + " = reinterpret_cast<std::size_t *>(" +
-               "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
-               std::to_string(static_cast<int>(pSlot)) + ")));";
+        (pSlot == TwistWorkSpaceSlot::kIndexList256D)) {
+        return "[[maybe_unused]] std::size_t *" + aAlias + " = mIndexList256" +
+               aAlias.substr(aAlias.size() - 1U) + ";";
     }
     const std::string aPrefix = "[[maybe_unused]] std::uint8_t *" + aAlias + " = ";
     switch (pSlot) {
@@ -500,14 +506,14 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
                 return aPrefix + "mSource;";
             }
             return aPrefix +
-                   "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
+                   "TwistWorkSpace::GetBuffer(pWorkSpace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
         case TwistWorkSpaceSlot::kDest:
             if (pUseKDFParameterAliases) {
                 return aPrefix + "mDest;";
             }
             return aPrefix +
-                   "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
+                   "TwistWorkSpace::GetBuffer(pWorkSpace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
 
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA:
@@ -547,59 +553,44 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF:
             return "[[maybe_unused]] std::uint64_t *aWandererUpdateSaltF = pDomainSaltSet->mWandererUpdate.mSaltF;";
 
-        case TwistWorkSpaceSlot::kParamDomainSBoxA:
-        case TwistWorkSpaceSlot::kParamDomainSBoxB:
-        case TwistWorkSpaceSlot::kParamDomainSBoxC:
-        case TwistWorkSpaceSlot::kParamDomainSBoxD:
-        case TwistWorkSpaceSlot::kParamDomainSBoxE:
-        case TwistWorkSpaceSlot::kParamDomainSBoxF:
-        case TwistWorkSpaceSlot::kParamDomainSBoxG:
-        case TwistWorkSpaceSlot::kParamDomainSBoxH:
-            return aPrefix +
-                   "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
-                   std::to_string(static_cast<int>(pSlot)) + "));";
+        case TwistWorkSpaceSlot::kExpansionLaneA: return aPrefix + "pWorkSpace->mExpansionLaneA;";
+        case TwistWorkSpaceSlot::kExpansionLaneB: return aPrefix + "pWorkSpace->mExpansionLaneB;";
+        case TwistWorkSpaceSlot::kExpansionLaneC: return aPrefix + "pWorkSpace->mExpansionLaneC;";
+        case TwistWorkSpaceSlot::kExpansionLaneD: return aPrefix + "pWorkSpace->mExpansionLaneD;";
 
-        case TwistWorkSpaceSlot::kExpansionLaneA: return aPrefix + "pWorkspace->mExpansionLaneA;";
-        case TwistWorkSpaceSlot::kExpansionLaneB: return aPrefix + "pWorkspace->mExpansionLaneB;";
-        case TwistWorkSpaceSlot::kExpansionLaneC: return aPrefix + "pWorkspace->mExpansionLaneC;";
-        case TwistWorkSpaceSlot::kExpansionLaneD: return aPrefix + "pWorkspace->mExpansionLaneD;";
-        case TwistWorkSpaceSlot::kExpansionLaneE: return aPrefix + "pWorkspace->mExpansionLaneE;";
-        case TwistWorkSpaceSlot::kExpansionLaneF: return aPrefix + "pWorkspace->mExpansionLaneF;";
+        case TwistWorkSpaceSlot::kWorkLaneA: return aPrefix + "pWorkSpace->mWorkLaneA;";
+        case TwistWorkSpaceSlot::kWorkLaneB: return aPrefix + "pWorkSpace->mWorkLaneB;";
+        case TwistWorkSpaceSlot::kWorkLaneC: return aPrefix + "pWorkSpace->mWorkLaneC;";
+        case TwistWorkSpaceSlot::kWorkLaneD: return aPrefix + "pWorkSpace->mWorkLaneD;";
 
-        case TwistWorkSpaceSlot::kWorkLaneA: return aPrefix + "pWorkspace->mWorkLaneA;";
-        case TwistWorkSpaceSlot::kWorkLaneB: return aPrefix + "pWorkspace->mWorkLaneB;";
-        case TwistWorkSpaceSlot::kWorkLaneC: return aPrefix + "pWorkspace->mWorkLaneC;";
-        case TwistWorkSpaceSlot::kWorkLaneD: return aPrefix + "pWorkspace->mWorkLaneD;";
-        case TwistWorkSpaceSlot::kWorkLaneE: return aPrefix + "pWorkspace->mWorkLaneE;";
-        case TwistWorkSpaceSlot::kWorkLaneF: return aPrefix + "pWorkspace->mWorkLaneF;";
+        case TwistWorkSpaceSlot::kOperationLaneA: return aPrefix + "pWorkSpace->mOperationLaneA;";
+        case TwistWorkSpaceSlot::kOperationLaneB: return aPrefix + "pWorkSpace->mOperationLaneB;";
+        case TwistWorkSpaceSlot::kOperationLaneC: return aPrefix + "pWorkSpace->mOperationLaneC;";
+        case TwistWorkSpaceSlot::kOperationLaneD: return aPrefix + "pWorkSpace->mOperationLaneD;";
 
-        case TwistWorkSpaceSlot::kOperationLaneA: return aPrefix + "pWorkspace->mOperationLaneA;";
-        case TwistWorkSpaceSlot::kOperationLaneB: return aPrefix + "pWorkspace->mOperationLaneB;";
-        case TwistWorkSpaceSlot::kOperationLaneC: return aPrefix + "pWorkspace->mOperationLaneC;";
-        case TwistWorkSpaceSlot::kOperationLaneD: return aPrefix + "pWorkspace->mOperationLaneD;";
-        case TwistWorkSpaceSlot::kOperationLaneE: return aPrefix + "pWorkspace->mOperationLaneE;";
-        case TwistWorkSpaceSlot::kOperationLaneF: return aPrefix + "pWorkspace->mOperationLaneF;";
+        case TwistWorkSpaceSlot::kSnowLaneA: return aPrefix + "pWorkSpace->mSnowLaneA;";
+        case TwistWorkSpaceSlot::kSnowLaneB: return aPrefix + "pWorkSpace->mSnowLaneB;";
+        case TwistWorkSpaceSlot::kSnowLaneC: return aPrefix + "pWorkSpace->mSnowLaneC;";
+        case TwistWorkSpaceSlot::kSnowLaneD: return aPrefix + "pWorkSpace->mSnowLaneD;";
+        case TwistWorkSpaceSlot::kSnow: return aPrefix + "mSnow;";
 
-        case TwistWorkSpaceSlot::kMaskLaneA: return aPrefix + "pWorkspace->mMaskLaneA;";
-        case TwistWorkSpaceSlot::kMaskLaneB: return aPrefix + "pWorkspace->mMaskLaneB;";
+        case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return aPrefix + "&(pWorkSpace->mKeyBoxA[0][0]);";
+        case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return aPrefix + "&(pWorkSpace->mKeyBoxB[0][0]);";
+        case TwistWorkSpaceSlot::kKeyRowReadA: return aPrefix + "&(pWorkSpace->mKeyBoxA[H_KEY_A - 1][0]);";
+        case TwistWorkSpaceSlot::kKeyRowReadB: return aPrefix + "&(pWorkSpace->mKeyBoxB[H_KEY_B - 1][0]);";
+        case TwistWorkSpaceSlot::kKeyRowWriteA: return aPrefix + "&(pWorkSpace->mKeyBoxA[0][0]);";
+        case TwistWorkSpaceSlot::kKeyRowWriteB: return aPrefix + "&(pWorkSpace->mKeyBoxB[0][0]);";
 
-        case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return aPrefix + "&(pWorkspace->mKeyBoxA[0][0]);";
-        case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return aPrefix + "&(pWorkspace->mKeyBoxB[0][0]);";
-        case TwistWorkSpaceSlot::kKeyRowReadA: return aPrefix + "&(pWorkspace->mKeyBoxA[H_KEY_A - 1][0]);";
-        case TwistWorkSpaceSlot::kKeyRowReadB: return aPrefix + "&(pWorkspace->mKeyBoxB[H_KEY_B - 1][0]);";
-        case TwistWorkSpaceSlot::kKeyRowWriteA: return aPrefix + "&(pWorkspace->mKeyBoxA[0][0]);";
-        case TwistWorkSpaceSlot::kKeyRowWriteB: return aPrefix + "&(pWorkspace->mKeyBoxB[0][0]);";
-
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledA: return aPrefix + "&(pWorkspace->mMaskBoxA[0][0]);";
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledB: return aPrefix + "&(pWorkspace->mMaskBoxB[0][0]);";
-        case TwistWorkSpaceSlot::kMaskRowReadA: return aPrefix + "&(pWorkspace->mMaskBoxA[H_MASK_A - 1][0]);";
-        case TwistWorkSpaceSlot::kMaskRowReadB: return aPrefix + "&(pWorkspace->mMaskBoxB[H_MASK_B - 1][0]);";
-        case TwistWorkSpaceSlot::kMaskRowWriteA: return aPrefix + "&(pWorkspace->mMaskBoxA[0][0]);";
-        case TwistWorkSpaceSlot::kMaskRowWriteB: return aPrefix + "&(pWorkspace->mMaskBoxB[0][0]);";
+        case TwistWorkSpaceSlot::kMaskBoxUnrolledA: return aPrefix + "&(pWorkSpace->mMaskBoxA[0][0]);";
+        case TwistWorkSpaceSlot::kMaskBoxUnrolledB: return aPrefix + "&(pWorkSpace->mMaskBoxB[0][0]);";
+        case TwistWorkSpaceSlot::kMaskRowReadA: return aPrefix + "&(pWorkSpace->mMaskBoxA[H_MASK_A - 1][0]);";
+        case TwistWorkSpaceSlot::kMaskRowReadB: return aPrefix + "&(pWorkSpace->mMaskBoxB[H_MASK_B - 1][0]);";
+        case TwistWorkSpaceSlot::kMaskRowWriteA: return aPrefix + "&(pWorkSpace->mMaskBoxA[0][0]);";
+        case TwistWorkSpaceSlot::kMaskRowWriteB: return aPrefix + "&(pWorkSpace->mMaskBoxB[0][0]);";
 
         default:
             return aPrefix +
-                   "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
+                   "TwistWorkSpace::GetBuffer(pWorkSpace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
     }
 }
@@ -696,6 +687,10 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     bool aWroteDeclaration = false;
     const std::vector<TwistWorkSpaceSlot> aAllSlots = FixedWorkspaceSlotOrder();
     for (TwistWorkSpaceSlot aSlot : aAllSlots) {
+        if (pIncludeKDFParameterAliases &&
+            ((aSlot == TwistWorkSpaceSlot::kDest) || IsKDFExcludedWorkspaceSlot(aSlot))) {
+            continue;
+        }
         if (!pIncludeKDFParameterAliases && IsParamDomainSaltWorkspaceSlot(aSlot)) {
             continue;
         }
@@ -717,18 +712,25 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         *pStream << '\n';
     }
 
-    for (const std::string &aLine : pBranch.GetStringLines()) {
-        *pStream << "    " << NormalizeLegacyByteTypeLine(aLine) << '\n';
-    }
-    if (!pBranch.GetStringLines().empty()) {
-        *pStream << '\n';
-    }
+    auto AppendLineByIndex = [&](const std::size_t pIndex) -> bool {
+        if (pIndex >= pBranch.GetStringLines().size()) {
+            SetError(pError, "Branch line step index was out of range during export.");
+            return false;
+        }
+        *pStream << "    " << NormalizeLegacyByteTypeLine(pBranch.GetStringLines()[pIndex]) << '\n';
+        return true;
+    };
 
-    for (const ParsedBatch &aParsed : aParsedBatches) {
+    auto AppendBatchByIndex = [&](const std::size_t pIndex) -> bool {
+        if (pIndex >= aParsedBatches.size()) {
+            SetError(pError, "Branch batch step index was out of range during export.");
+            return false;
+        }
+        const ParsedBatch &aParsed = aParsedBatches[pIndex];
         if (!aParsed.mValid) {
             *pStream << "    // export warning: skipped batch #" << aParsed.mIndex
                      << " (" << SanitizeSingleLineComment(aParsed.mError) << ")\n";
-            continue;
+            return true;
         }
 
         std::string aScopeError;
@@ -742,10 +744,47 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
                         aScopeError.c_str());
             *pStream << "    // export warning: skipped batch #" << aParsed.mIndex
                      << " (" << SanitizeSingleLineComment(aScopeError) << ")\n";
-            continue;
+            return true;
         }
 
         *pStream << IndentBlock(aScopeBlock, 1) << '\n';
+        return true;
+    };
+
+    const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
+    if (aSteps.empty()) {
+        for (std::size_t aLineIndex = 0U; aLineIndex < pBranch.GetStringLines().size(); ++aLineIndex) {
+            if (!AppendLineByIndex(aLineIndex)) {
+                return false;
+            }
+        }
+        if (!pBranch.GetStringLines().empty()) {
+            *pStream << '\n';
+        }
+
+        for (std::size_t aBatchIndex = 0U; aBatchIndex < aParsedBatches.size(); ++aBatchIndex) {
+            if (!AppendBatchByIndex(aBatchIndex)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    for (const TwistProgramBranchStep &aStep : aSteps) {
+        if (aStep.mType == TwistProgramBranchStepType::kLine) {
+            if (!AppendLineByIndex(aStep.mIndex)) {
+                return false;
+            }
+            continue;
+        }
+        if (aStep.mType == TwistProgramBranchStepType::kBatch) {
+            if (!AppendBatchByIndex(aStep.mIndex)) {
+                return false;
+            }
+            continue;
+        }
+        SetError(pError, "Branch step type was invalid during export.");
+        return false;
     }
 
     return true;
@@ -780,25 +819,29 @@ JsonValue BranchToJsonValue(const TwistProgramBranch &pBranch,
         ++aBatchIndex;
     }
 
+    JsonValue::Array aSequence;
+    for (const TwistProgramBranchStep &aStep : pBranch.GetSteps()) {
+        JsonValue::Object aStepObject;
+        switch (aStep.mType) {
+            case TwistProgramBranchStepType::kLine:
+                aStepObject["type"] = JsonValue::String("line");
+                break;
+            case TwistProgramBranchStepType::kBatch:
+                aStepObject["type"] = JsonValue::String("batch");
+                break;
+            default:
+                SetError(pError, "Branch had invalid sequence step type.");
+                return JsonValue::ObjectValue(JsonValue::Object{});
+        }
+        aStepObject["index"] = JsonValue::Number(static_cast<double>(aStep.mIndex));
+        aSequence.push_back(JsonValue::ObjectValue(std::move(aStepObject)));
+    }
+
     JsonValue::Object aObject;
     aObject["string_lines"] = JsonValue::ArrayValue(std::move(aLines));
     aObject["batches"] = JsonValue::ArrayValue(std::move(aBatches));
+    aObject["sequence"] = JsonValue::ArrayValue(std::move(aSequence));
     return JsonValue::ObjectValue(std::move(aObject));
-}
-
-bool BranchIsEmpty(const TwistProgramBranch &pBranch) {
-    return pBranch.GetSteps().empty() &&
-           pBranch.GetBatchJsonText().empty() &&
-           pBranch.GetStringLines().empty();
-}
-
-JsonValue::Array BytesToJsonArray(const std::vector<std::uint8_t> &pBytes) {
-    JsonValue::Array aOut;
-    aOut.reserve(pBytes.size());
-    for (std::uint8_t aByte : pBytes) {
-        aOut.push_back(JsonValue::Number(static_cast<double>(aByte)));
-    }
-    return aOut;
 }
 
 JsonValue UInt64ToJsonValue(const std::uint64_t pValue) {
@@ -814,19 +857,6 @@ JsonValue::Array UInt64ToJsonArray(const std::uint64_t *pValues,
     aOut.reserve(pCount);
     for (std::size_t i = 0U; i < pCount; ++i) {
         aOut.push_back(UInt64ToJsonValue(pValues[i]));
-    }
-    return aOut;
-}
-
-JsonValue::Array BytesToJsonArray(const std::uint8_t *pValues,
-                                  const std::size_t pCount) {
-    JsonValue::Array aOut;
-    if (pValues == nullptr) {
-        return aOut;
-    }
-    aOut.reserve(pCount);
-    for (std::size_t i = 0U; i < pCount; ++i) {
-        aOut.push_back(JsonValue::Number(static_cast<double>(pValues[i])));
     }
     return aOut;
 }
@@ -854,27 +884,12 @@ JsonValue ConstantsToJsonValue(const TwistDomainConstants &pConstants) {
     aObject["matrix_select_b"] = UInt64ToJsonValue(pConstants.mMatrixSelectB);
     aObject["matrix_unroll_a"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixUnrollA));
     aObject["matrix_unroll_b"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixUnrollB));
-    aObject["matrix_scheme_a"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixSchemeA));
-    aObject["matrix_scheme_b"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixSchemeB));
     aObject["matrix_arg_aa"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgA));
     aObject["matrix_arg_ab"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgB));
     aObject["matrix_arg_ba"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgC));
     aObject["matrix_arg_bb"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgD));
     aObject["mask_mutate_a"] = JsonValue::Number(static_cast<double>(pConstants.mMaskMutateA));
     aObject["mask_mutate_b"] = JsonValue::Number(static_cast<double>(pConstants.mMaskMutateB));
-    return JsonValue::ObjectValue(std::move(aObject));
-}
-
-JsonValue SBoxSetToJsonValue(const TwistDomainSBoxSet &pSBoxSet) {
-    JsonValue::Object aObject;
-    aObject["sbox_a"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxA, S_SBOX));
-    aObject["sbox_b"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxB, S_SBOX));
-    aObject["sbox_c"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxC, S_SBOX));
-    aObject["sbox_d"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxD, S_SBOX));
-    aObject["sbox_e"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxE, S_SBOX));
-    aObject["sbox_f"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxF, S_SBOX));
-    aObject["sbox_g"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxG, S_SBOX));
-    aObject["sbox_h"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxH, S_SBOX));
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
@@ -892,9 +907,6 @@ JsonValue DomainBundleToJsonValue(const TwistDomainBundle &pBundle) {
     aObject["constants_phase_a"] = ConstantsToJsonValue(pBundle.mPhaseAConstants);
     aObject["constants_phase_b"] = ConstantsToJsonValue(pBundle.mPhaseBConstants);
     aObject["constants_phase_c"] = ConstantsToJsonValue(pBundle.mPhaseCConstants);
-    aObject["sboxes_phase_a"] = SBoxSetToJsonValue(pBundle.mPhaseASBoxes);
-    aObject["sboxes_phase_b"] = SBoxSetToJsonValue(pBundle.mPhaseBSBoxes);
-    aObject["sboxes_phase_c"] = SBoxSetToJsonValue(pBundle.mPhaseCSBoxes);
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
@@ -915,32 +927,6 @@ std::string UInt64CppLiteral(const std::uint64_t pValue) {
                   "0x%016llXULL",
                   static_cast<unsigned long long>(pValue));
     return aHex;
-}
-
-void AppendByteArrayInitializer(std::ostringstream *pOut,
-                                const std::uint8_t *pValues,
-                                const std::size_t pCount,
-                                const int pIndentLevel) {
-    if ((pOut == nullptr) || (pValues == nullptr)) {
-        return;
-    }
-
-    *pOut << IndentSpaces(pIndentLevel) << "{\n";
-    for (std::size_t i = 0U; i < pCount; ++i) {
-        if ((i % 16U) == 0U) {
-            *pOut << IndentSpaces(pIndentLevel + 1);
-        }
-
-        *pOut << ByteCppLiteral(pValues[i]);
-        if (i + 1U < pCount) {
-            *pOut << ", ";
-        }
-
-        if (((i % 16U) == 15U) || (i + 1U == pCount)) {
-            *pOut << '\n';
-        }
-    }
-    *pOut << IndentSpaces(pIndentLevel) << "}";
 }
 
 void AppendUInt64ArrayInitializer(std::ostringstream *pOut,
@@ -1027,8 +1013,6 @@ void AppendConstantsDefinition(std::ostringstream *pOut,
           << "    " << UInt64CppLiteral(pConstants.mMatrixSelectB) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMatrixUnrollA) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMatrixUnrollB) << ",\n"
-          << "    " << ByteCppLiteral(pConstants.mMatrixSchemeA) << ",\n"
-          << "    " << ByteCppLiteral(pConstants.mMatrixSchemeB) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMatrixArgA) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMatrixArgB) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMatrixArgC) << ",\n"
@@ -1036,33 +1020,6 @@ void AppendConstantsDefinition(std::ostringstream *pOut,
           << "    " << ByteCppLiteral(pConstants.mMaskMutateA) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMaskMutateB) << "\n"
           << "};\n";
-}
-
-void AppendSBoxSetDefinition(std::ostringstream *pOut,
-                             const std::string &pClassName,
-                             const std::string &pMemberName,
-                             const TwistDomainSBoxSet &pSBoxSet) {
-    if (pOut == nullptr) {
-        return;
-    }
-
-    *pOut << "const TwistDomainSBoxSet " << pClassName << "::" << pMemberName << " = {\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxA, S_SBOX, 1);
-    *pOut << ",\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxB, S_SBOX, 1);
-    *pOut << ",\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxC, S_SBOX, 1);
-    *pOut << ",\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxD, S_SBOX, 1);
-    *pOut << ",\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxE, S_SBOX, 1);
-    *pOut << ",\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxF, S_SBOX, 1);
-    *pOut << ",\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxG, S_SBOX, 1);
-    *pOut << ",\n";
-    AppendByteArrayInitializer(pOut, pSBoxSet.mSBoxH, S_SBOX, 1);
-    *pOut << "\n};\n";
 }
 
 std::string DomainBundleStaticDefinitions(const std::string &pClassName,
@@ -1080,12 +1037,6 @@ std::string DomainBundleStaticDefinitions(const std::string &pClassName,
     AppendSaltSetDefinition(&aOut, pClassName, "kPhaseCSalts", pBundle.mPhaseCSalts);
     aOut << '\n';
     AppendConstantsDefinition(&aOut, pClassName, "kPhaseCConstants", pBundle.mPhaseCConstants);
-    aOut << '\n';
-    AppendSBoxSetDefinition(&aOut, pClassName, "kPhaseASBoxes", pBundle.mPhaseASBoxes);
-    aOut << '\n';
-    AppendSBoxSetDefinition(&aOut, pClassName, "kPhaseBSBoxes", pBundle.mPhaseBSBoxes);
-    aOut << '\n';
-    AppendSBoxSetDefinition(&aOut, pClassName, "kPhaseCSBoxes", pBundle.mPhaseCSBoxes);
 
     return aOut.str();
 }
@@ -1119,12 +1070,12 @@ void TwistProgramBranch::AddLine(const std::string &pLine) {
 }
 
 void TwistProgramBranch::AddWorkspaceAliasLine(const std::string &pAliasName,
-                                               const std::string &pWorkspaceFieldName) {
-    if (pAliasName.empty() || pWorkspaceFieldName.empty()) {
+                                               const std::string &pWorkSpaceFieldName) {
+    if (pAliasName.empty() || pWorkSpaceFieldName.empty()) {
         return;
     }
 
-    AddLine("std::uint8_t *" + pAliasName + " = pWorkspace->" + pWorkspaceFieldName + ";");
+    AddLine("std::uint8_t *" + pAliasName + " = pWorkSpace->" + pWorkSpaceFieldName + ";");
 }
 
 void TwistProgramBranch::AddAssignByteLine(const std::string &pName,
@@ -1161,162 +1112,139 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     const std::string aBaseInput = mNameBase.empty() ? "Generated" : mNameBase;
     const std::string aBaseName = SanitizeIdentifier(aBaseInput, "Generated");
     const std::string aClassName = "TwistExpander_" + aBaseName;
-
+    
     const std::string aRootInput = pRootPath.empty() ? "generated/cpp" : pRootPath;
     const std::string aRoot = ResolveOutputPathFromProjectRoot(aRootInput);
-
+    
     const std::string aHeaderPath = FileIO::Join(aRoot, aClassName + ".hpp");
     const std::string aCppPath = FileIO::Join(aRoot, aClassName + ".cpp");
-
+    
     GTwistExpander aSnapshot = *this;
     aSnapshot.RefreshTablePointers();
-    const TwistProgramBranch &aKDF_ABranch = BranchIsEmpty(aSnapshot.mKDF_A)
-        ? aSnapshot.mKDF
-        : aSnapshot.mKDF_A;
+    const TwistProgramBranch &aKDF_ABranch = aSnapshot.mKDF_A;
     const TwistProgramBranch &aKDF_BBranch = aSnapshot.mKDF_B;
-
+    
     std::ostringstream aHeader;
     aHeader << "#pragma once\n"
-            << "\n"
-            << "#include \"TwistExpander.hpp\"\n"
-            << "\n"
-            << "class " << aClassName << " : public TwistExpander {\n"
-            << "public:\n"
-            << "    " << aClassName << "();\n"
-            << "    ~" << aClassName << "() override = default;\n"
-            << "\n"
-            << "    void KDF(std::uint64_t pNonce,\n"
-            << "             TwistDomainConstants *pConstants,\n"
-            << "             TwistDomainSaltSet *pDomainSaltSet,\n"
-            << "             TwistDomainSBoxSet *pDomainSBoxSet) override;\n"
-            << "    void KDF_A(std::uint64_t pNonce,\n"
-            << "               TwistDomainConstants *pConstants,\n"
-            << "               TwistDomainSaltSet *pDomainSaltSet,\n"
-            << "               TwistDomainSBoxSet *pDomainSBoxSet) override;\n"
-            << "    void KDF_B(std::uint64_t pNonce,\n"
-            << "               TwistDomainConstants *pConstants,\n"
-            << "               TwistDomainSaltSet *pDomainSaltSet,\n"
-            << "               TwistDomainSBoxSet *pDomainSBoxSet) override;\n"
-            << "    void Seed(TwistWorkSpace *pWorkspace,\n"
-            << "              TwistFarmSBox *pFarmSBox,\n"
-            << "              TwistFarmSalt *pFarmSalt,\n"
-            << "              std::uint64_t pNonce,\n"
-            << "              std::uint8_t *pSourceInput,\n"
-            << "              std::uint8_t *pPassword,\n"
-            << "              unsigned int pPasswordByteLength) override;\n"
-            << "    void TwistBlock(TwistWorkSpace *pWorkspace,\n"
-            << "                    std::uint64_t pNonce,\n"
-            << "                    std::uint8_t *pSourceInput,\n"
-            << "                    std::uint8_t *pDestinationOutput) override;\n"
-            << "\n"
-            << "private:\n"
-            << "    static const TwistDomainSaltSet kPhaseASalts;\n"
-            << "    static const TwistDomainConstants kPhaseAConstants;\n"
-            << "    static const TwistDomainSaltSet kPhaseBSalts;\n"
-            << "    static const TwistDomainConstants kPhaseBConstants;\n"
-            << "    static const TwistDomainSaltSet kPhaseCSalts;\n"
-            << "    static const TwistDomainConstants kPhaseCConstants;\n"
-            << "    static const TwistDomainSBoxSet kPhaseASBoxes;\n"
-            << "    static const TwistDomainSBoxSet kPhaseBSBoxes;\n"
-            << "    static const TwistDomainSBoxSet kPhaseCSBoxes;\n"
-            << "};\n";
-
+    << "\n"
+    << "#include \"TwistExpander.hpp\"\n"
+    << "\n"
+    << "class " << aClassName << " : public TwistExpander {\n"
+    << "public:\n"
+    << "    " << aClassName << "();\n"
+    << "    ~" << aClassName << "() override = default;\n"
+    << "\n"
+    << "    void KDF_A(std::uint64_t pNonce,\n"
+    << "               TwistDomainConstants *pConstants,\n"
+    << "               TwistDomainSaltSet *pDomainSaltSet) override;\n"
+    << "    void KDF_B(std::uint64_t pNonce,\n"
+    << "               TwistDomainConstants *pConstants,\n"
+    << "               TwistDomainSaltSet *pDomainSaltSet) override;\n"
+    << "    void Seed(TwistWorkSpace *pWorkSpace,\n"
+    << "              TwistFarmSalt *pFarmSalt,\n"
+    << "              std::uint64_t pNonce,\n"
+    << "              std::uint8_t *pSourceInput,\n"
+    << "              std::uint8_t *pPassword,\n"
+    << "              unsigned int pPasswordByteLength) override;\n"
+    << "    void TwistBlock(TwistWorkSpace *pWorkSpace,\n"
+    << "                    std::uint64_t pNonce,\n"
+    << "                    std::uint8_t *pSourceInput,\n"
+    << "                    std::uint8_t *pDestinationOutput) override;\n"
+    << "\n"
+    << "private:\n"
+    << "    static const TwistDomainSaltSet kPhaseASalts;\n"
+    << "    static const TwistDomainConstants kPhaseAConstants;\n"
+    << "    static const TwistDomainSaltSet kPhaseBSalts;\n"
+    << "    static const TwistDomainConstants kPhaseBConstants;\n"
+    << "    static const TwistDomainSaltSet kPhaseCSalts;\n"
+    << "    static const TwistDomainConstants kPhaseCConstants;\n"
+    << "};\n";
+    
     std::ostringstream aCpp;
     aCpp << "#include \"" << aClassName << ".hpp\"\n"
-         << "#include \"TwistFunctional.hpp\"\n"
-         << "#include \"TwistIndexShuffle.hpp\"\n"
-         << "#include \"TwistMix64.hpp\"\n"
-         << "#include \"TwistFarmSalt.hpp\"\n"
-         << "#include \"TwistFarmSBox.hpp\"\n"
-         << "#include \"TwistFarmConstants.hpp\"\n"
-         << "\n"
-         << "#include <cstring>\n"
-         << "\n"
-         << aClassName << "::" << aClassName << "()\n"
-         << ": TwistExpander() {\n"
-         << "    mDomainBundleInbuilt.mPhaseASalts = kPhaseASalts;\n"
-         << "    mDomainBundleInbuilt.mPhaseAConstants = kPhaseAConstants;\n"
-         << "    mDomainBundleInbuilt.mPhaseBSalts = kPhaseBSalts;\n"
-         << "    mDomainBundleInbuilt.mPhaseBConstants = kPhaseBConstants;\n"
-         << "    mDomainBundleInbuilt.mPhaseCSalts = kPhaseCSalts;\n"
-         << "    mDomainBundleInbuilt.mPhaseCConstants = kPhaseCConstants;\n"
-         << "    mDomainBundleInbuilt.mPhaseASBoxes = kPhaseASBoxes;\n"
-         << "    mDomainBundleInbuilt.mPhaseBSBoxes = kPhaseBSBoxes;\n"
-         << "    mDomainBundleInbuilt.mPhaseCSBoxes = kPhaseCSBoxes;\n"
-         << "    SyncLegacyFromDomainBundleInbuilt();\n"
-         << "    std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));\n"
-         << "}\n"
-         << "\n"
-         << "void " << aClassName << "::KDF(std::uint64_t pNonce,\n"
-         << "                                TwistDomainConstants *pConstants,\n"
-         << "                                TwistDomainSaltSet *pDomainSaltSet,\n"
-         << "                                TwistDomainSBoxSet *pDomainSBoxSet) {\n"
-         << "    KDF_A(pNonce, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
-         << "}\n"
-         << "\n"
-         << "void " << aClassName << "::KDF_A(std::uint64_t pNonce,\n"
-         << "                                  TwistDomainConstants *pConstants,\n"
-         << "                                  TwistDomainSaltSet *pDomainSaltSet,\n"
-         << "                                  TwistDomainSBoxSet *pDomainSBoxSet) {\n"
-         << "    TwistExpander::KDF_A(pNonce, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
-         << "    TwistWorkSpace *pWorkspace = mWorkspace;\n"
-         << "    if ((pWorkspace == nullptr) || (mSource == nullptr) || (mDest == nullptr) ||\n"
-         << "        (pConstants == nullptr) || (pDomainSaltSet == nullptr) || (pDomainSBoxSet == nullptr)) { return; }\n";
+    << "#include \"TwistFunctional.hpp\"\n"
+    << "#include \"TwistIndexShuffle.hpp\"\n"
+    << "#include \"TwistMix64.hpp\"\n"
+    << "#include \"TwistFarmSalt.hpp\"\n"
+    << "#include \"TwistFarmConstants.hpp\"\n"
+    << "#include \"TwistInvest.hpp\"\n"
+    << "#include \"TwistMemory.hpp\"\n"
+    << "#include \"TwistShiftBox.hpp\"\n"
+    << "#include \"TwistSnow.hpp\"\n"
+    << "#include \"TwistMasking.hpp\"\n"
+    << "\n"
+    << "#include <cstring>\n"
+    << "\n"
+    << aClassName << "::" << aClassName << "()\n"
+    << ": TwistExpander() {\n"
+    << "    mDomainBundleInbuilt.mPhaseASalts = kPhaseASalts;\n"
+    << "    mDomainBundleInbuilt.mPhaseAConstants = kPhaseAConstants;\n"
+    << "    mDomainBundleInbuilt.mPhaseBSalts = kPhaseBSalts;\n"
+    << "    mDomainBundleInbuilt.mPhaseBConstants = kPhaseBConstants;\n"
+    << "    mDomainBundleInbuilt.mPhaseCSalts = kPhaseCSalts;\n"
+    << "    mDomainBundleInbuilt.mPhaseCConstants = kPhaseCConstants;\n"
+    << "    std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));\n"
+    << "}\n"
+    << "\n"
+    << "void " << aClassName << "::KDF_A(std::uint64_t pNonce,\n"
+    << "                                  TwistDomainConstants *pConstants,\n"
+    << "                                  TwistDomainSaltSet *pDomainSaltSet) {\n"
+    << "    TwistExpander::KDF_A(pNonce, pConstants, pDomainSaltSet);\n"
+    << "    TwistWorkSpace *pWorkSpace = mWorkspace;\n"
+    << "    if ((pWorkSpace == nullptr) || (mSource == nullptr) ||\n"
+    << "        (pConstants == nullptr) || (pDomainSaltSet == nullptr)) { return; }\n";
     if (!AppendBranchBody(aKDF_ABranch, true, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n"
-         << "\n"
-         << "void " << aClassName << "::KDF_B(std::uint64_t pNonce,\n"
-         << "                                  TwistDomainConstants *pConstants,\n"
-         << "                                  TwistDomainSaltSet *pDomainSaltSet,\n"
-         << "                                  TwistDomainSBoxSet *pDomainSBoxSet) {\n"
-         << "    TwistExpander::KDF_B(pNonce, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
-         << "    TwistWorkSpace *pWorkspace = mWorkspace;\n"
-         << "    if ((pWorkspace == nullptr) || (mSource == nullptr) || (mDest == nullptr) ||\n"
-         << "        (pConstants == nullptr) || (pDomainSaltSet == nullptr) || (pDomainSBoxSet == nullptr)) { return; }\n";
+    << "\n"
+    << "void " << aClassName << "::KDF_B(std::uint64_t pNonce,\n"
+    << "                                  TwistDomainConstants *pConstants,\n"
+    << "                                  TwistDomainSaltSet *pDomainSaltSet) {\n"
+    << "    TwistExpander::KDF_B(pNonce, pConstants, pDomainSaltSet);\n"
+    << "    TwistWorkSpace *pWorkSpace = mWorkspace;\n"
+    << "    if ((pWorkSpace == nullptr) || (mSource == nullptr) ||\n"
+    << "        (pConstants == nullptr) || (pDomainSaltSet == nullptr)) { return; }\n";
     if (!AppendBranchBody(aKDF_BBranch, true, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n"
-         << "\n"
-         << "void " << aClassName << "::Seed(TwistWorkSpace *pWorkspace,\n"
-         << "                                 TwistFarmSBox *pFarmSBox,\n"
-         << "                                 TwistFarmSalt *pFarmSalt,\n"
-         << "                                 std::uint64_t pNonce,\n"
-         << "                                 std::uint8_t *pSourceInput,\n"
-         << "                                 std::uint8_t *pPassword,\n"
-         << "                                 unsigned int pPasswordByteLength) {\n"
-         << "    TwistExpander::Seed(pWorkspace, pFarmSBox, pFarmSalt, pNonce, pSourceInput, pPassword, pPasswordByteLength);\n"
-         << "    if ((pWorkspace == nullptr) || (pFarmSBox == nullptr) ||\n"
-         << "        (pFarmSalt == nullptr) || (pSourceInput == nullptr)) { return; }\n";
+    << "\n"
+    << "void " << aClassName << "::Seed(TwistWorkSpace *pWorkSpace,\n"
+    << "                                 TwistFarmSalt *pFarmSalt,\n"
+    << "                                 std::uint64_t pNonce,\n"
+    << "                                 std::uint8_t *pSourceInput,\n"
+    << "                                 std::uint8_t *pPassword,\n"
+    << "                                 unsigned int pPasswordByteLength) {\n"
+    << "    TwistExpander::Seed(pWorkSpace, pFarmSalt, pNonce, pSourceInput, pPassword, pPasswordByteLength);\n"
+    << "    if ((pWorkSpace == nullptr) || (pFarmSalt == nullptr) || (pSourceInput == nullptr)) { return; }\n";
     if (!AppendBranchBody(aSnapshot.mSeed, false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n"
-         << "\n"
-         << "void " << aClassName << "::TwistBlock(TwistWorkSpace *pWorkspace,\n"
-         << "                                       std::uint64_t pNonce,\n"
-         << "                                       std::uint8_t *pSourceInput,\n"
-         << "                                       std::uint8_t *pDestinationOutput) {\n"
-         << "    TwistExpander::TwistBlock(pWorkspace, pNonce, pSourceInput, pDestinationOutput);\n"
-         << "    if ((pWorkspace == nullptr) || (pDestinationOutput == nullptr)) { return; }\n";
+    << "\n"
+    << "void " << aClassName << "::TwistBlock(TwistWorkSpace *pWorkSpace,\n"
+    << "                                       std::uint64_t pNonce,\n"
+    << "                                       std::uint8_t *pSourceInput,\n"
+    << "                                       std::uint8_t *pDestinationOutput) {\n"
+    << "    TwistExpander::TwistBlock(pWorkSpace, pNonce, pSourceInput, pDestinationOutput);\n"
+    << "    if ((pWorkSpace == nullptr) || (pDestinationOutput == nullptr)) { return; }\n";
     if (!AppendBranchBody(aSnapshot.mTwister, false, &aCpp, pError)) {
         return false;
     }
-    aCpp << "    std::memcpy(pDestinationOutput, pWorkspace->mWorkLaneD, S_BLOCK);\n"
-         << "}\n"
-         << "\n"
-         << DomainBundleStaticDefinitions(aClassName, aSnapshot.mDomainBundleInbuilt)
-         << "\n";
-
+    aCpp << "    std::memcpy(pDestinationOutput, pWorkSpace->mWorkLaneD, S_BLOCK);\n"
+    << "}\n"
+    << "\n"
+    << DomainBundleStaticDefinitions(aClassName, aSnapshot.mDomainBundleInbuilt)
+    << "\n";
+    
     if (!SaveTextFile(aHeaderPath, aHeader.str(), pError)) {
         return false;
     }
     if (!SaveTextFile(aCppPath, aCpp.str(), pError)) {
         return false;
     }
-
+    
     return true;
 }
 
@@ -1324,55 +1252,40 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
                                            std::string *pError) const {
     GTwistExpander aSnapshot = *this;
     aSnapshot.RefreshTablePointers();
-
+    
     const std::string aBaseInput = aSnapshot.mNameBase.empty() ? "Generated" : aSnapshot.mNameBase;
     const std::string aBaseName = SanitizeIdentifier(aBaseInput, "Generated");
-
+    
     JsonValue::Object aRootObject;
     aRootObject["name_base"] = JsonValue::String(aBaseInput);
-    const TwistProgramBranch &aKDF_ABranch = BranchIsEmpty(aSnapshot.mKDF_A)
-        ? aSnapshot.mKDF
-        : aSnapshot.mKDF_A;
+    const TwistProgramBranch &aKDF_ABranch = aSnapshot.mKDF_A;
     aRootObject["kdf_a"] = BranchToJsonValue(aKDF_ABranch, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-
+    
     aRootObject["kdf_b"] = BranchToJsonValue(aSnapshot.mKDF_B, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-
-    aRootObject["kdf"] = BranchToJsonValue(aKDF_ABranch, pError);
-    if ((pError != nullptr) && !pError->empty()) {
-        return false;
-    }
-
+    
     aRootObject["seed"] = BranchToJsonValue(aSnapshot.mSeed, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-
+    
     aRootObject["twist"] = BranchToJsonValue(aSnapshot.mTwister, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-
+    
     JsonValue::Object aTables;
-    aTables["sbox_a"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxA));
-    aTables["sbox_b"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxB));
-    aTables["sbox_c"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxC));
-    aTables["sbox_d"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxD));
-    aTables["sbox_e"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxE));
-    aTables["sbox_f"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxF));
-    aTables["sbox_g"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxG));
-    aTables["sbox_h"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxH));
     aTables["domain_bundle_inbuilt"] = DomainBundleToJsonValue(aSnapshot.mDomainBundleInbuilt);
     aRootObject["tables"] = JsonValue::ObjectValue(std::move(aTables));
-
+    
     const std::string aJsonText = JsonValue::ObjectValue(std::move(aRootObject)).Serialize();
     const std::string aRoot = pRootPath.empty() ? "generated/json" : pRootPath;
     const std::string aOutputPath = ResolveJsonOutputPath(aRoot, aBaseName);
-
+    
     return SaveTextFile(aOutputPath, aJsonText, pError);
 }

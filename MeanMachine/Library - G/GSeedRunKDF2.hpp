@@ -8,7 +8,6 @@
 #ifndef GSeedRunKDF2_hpp
 #define GSeedRunKDF2_hpp
 
-//#include "TwistWorkSpace.hpp"
 #include "GTwistExpander.hpp"
 #include "CSPRNGV2.hpp"
 #include "GQuick.hpp"
@@ -40,6 +39,8 @@ private:
     std::vector<GHotPack>                   mHotPacksA;
     std::vector<GHotPack>                   mHotPacksB;
     std::vector<GHotPack>                   mHotPacksC;
+    
+    GSymbol                                 mSnowLane;
     
 };
 

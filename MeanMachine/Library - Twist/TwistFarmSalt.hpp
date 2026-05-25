@@ -52,8 +52,6 @@ public:
                                    std::uint64_t *pSaltF);
     void                    Derive(const std::uint8_t *pSource,
                                    TwistDomainSeedRoundMaterial *pRoundMaterial);
-    void                    Derive(const std::uint8_t *pSource,
-                                   TwistDomainRoundMaterial *pRoundMaterial);
 
     std::uint64_t           *mCandidateSalt[SALT_CANDIDATE_COUNT];
     std::uint64_t           mCandidateSaltFlat[SALT_CANDIDATE_COUNT * S_SALT];

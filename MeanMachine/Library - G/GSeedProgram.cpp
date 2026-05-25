@@ -10,6 +10,11 @@
 #include "TwistFunctional.hpp"
 #include "TwistFastMatrix.hpp"
 #include "TwistIndexShuffle.hpp"
+#include "TwistInvest.hpp"
+#include "TwistMasking.hpp"
+#include "TwistMemory.hpp"
+#include "TwistShiftBox.hpp"
+#include "TwistSnow.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -137,44 +142,27 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD: return "param_domain_salt_Wanderer_d";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE: return "param_domain_salt_Wanderer_e";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF: return "param_domain_salt_Wanderer_f";
-        case TwistWorkSpaceSlot::kParamDomainSBoxA: return "sbox_a";
-        case TwistWorkSpaceSlot::kParamDomainSBoxB: return "sbox_b";
-        case TwistWorkSpaceSlot::kParamDomainSBoxC: return "sbox_c";
-        case TwistWorkSpaceSlot::kParamDomainSBoxD: return "sbox_d";
-        case TwistWorkSpaceSlot::kParamDomainSBoxE: return "sbox_e";
-        case TwistWorkSpaceSlot::kParamDomainSBoxF: return "sbox_f";
-        case TwistWorkSpaceSlot::kParamDomainSBoxG: return "sbox_g";
-        case TwistWorkSpaceSlot::kParamDomainSBoxH: return "sbox_h";
         case TwistWorkSpaceSlot::kExpansionLaneA: return "seed_lane_a";
         case TwistWorkSpaceSlot::kExpansionLaneB: return "seed_lane_b";
         case TwistWorkSpaceSlot::kExpansionLaneC: return "seed_lane_c";
         case TwistWorkSpaceSlot::kExpansionLaneD: return "seed_lane_d";
-        case TwistWorkSpaceSlot::kExpansionLaneE: return "seed_lane_e";
-        case TwistWorkSpaceSlot::kExpansionLaneF: return "seed_lane_f";
         case TwistWorkSpaceSlot::kWorkLaneA: return "work_lane_a";
         case TwistWorkSpaceSlot::kWorkLaneB: return "work_lane_b";
         case TwistWorkSpaceSlot::kWorkLaneC: return "work_lane_c";
         case TwistWorkSpaceSlot::kWorkLaneD: return "work_lane_d";
-        case TwistWorkSpaceSlot::kWorkLaneE: return "work_lane_e";
-        case TwistWorkSpaceSlot::kWorkLaneF: return "work_lane_f";
         case TwistWorkSpaceSlot::kOperationLaneA: return "operation_lane_a";
         case TwistWorkSpaceSlot::kOperationLaneB: return "operation_lane_b";
         case TwistWorkSpaceSlot::kOperationLaneC: return "operation_lane_c";
         case TwistWorkSpaceSlot::kOperationLaneD: return "operation_lane_d";
-        case TwistWorkSpaceSlot::kOperationLaneE: return "operation_lane_e";
-        case TwistWorkSpaceSlot::kOperationLaneF: return "operation_lane_f";
         case TwistWorkSpaceSlot::kSnowLaneA: return "snow_lane_a";
         case TwistWorkSpaceSlot::kSnowLaneB: return "snow_lane_b";
         case TwistWorkSpaceSlot::kSnowLaneC: return "snow_lane_c";
         case TwistWorkSpaceSlot::kSnowLaneD: return "snow_lane_d";
-        case TwistWorkSpaceSlot::kMaskLaneA: return "mask_lane_a";
-        case TwistWorkSpaceSlot::kMaskLaneB: return "mask_lane_b";
+        case TwistWorkSpaceSlot::kSnow: return "snow";
         case TwistWorkSpaceSlot::kIndexList256A: return "index_list_256_a";
         case TwistWorkSpaceSlot::kIndexList256B: return "index_list_256_b";
         case TwistWorkSpaceSlot::kIndexList256C: return "index_list_256_c";
         case TwistWorkSpaceSlot::kIndexList256D: return "index_list_256_d";
-        case TwistWorkSpaceSlot::kIndexList256E: return "index_list_256_e";
-        case TwistWorkSpaceSlot::kIndexList256F: return "index_list_256_f";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return "key_box_unrolled_a";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return "key_box_unrolled_b";
         case TwistWorkSpaceSlot::kKeyRowReadA: return "key_row_read_a";
@@ -219,44 +207,27 @@ bool SlotFromToken(const std::string &pToken,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
-        TwistWorkSpaceSlot::kParamDomainSBoxA,
-        TwistWorkSpaceSlot::kParamDomainSBoxB,
-        TwistWorkSpaceSlot::kParamDomainSBoxC,
-        TwistWorkSpaceSlot::kParamDomainSBoxD,
-        TwistWorkSpaceSlot::kParamDomainSBoxE,
-        TwistWorkSpaceSlot::kParamDomainSBoxF,
-        TwistWorkSpaceSlot::kParamDomainSBoxG,
-        TwistWorkSpaceSlot::kParamDomainSBoxH,
         TwistWorkSpaceSlot::kExpansionLaneA,
         TwistWorkSpaceSlot::kExpansionLaneB,
         TwistWorkSpaceSlot::kExpansionLaneC,
         TwistWorkSpaceSlot::kExpansionLaneD,
-        TwistWorkSpaceSlot::kExpansionLaneE,
-        TwistWorkSpaceSlot::kExpansionLaneF,
         TwistWorkSpaceSlot::kWorkLaneA,
         TwistWorkSpaceSlot::kWorkLaneB,
         TwistWorkSpaceSlot::kWorkLaneC,
         TwistWorkSpaceSlot::kWorkLaneD,
-        TwistWorkSpaceSlot::kWorkLaneE,
-        TwistWorkSpaceSlot::kWorkLaneF,
         TwistWorkSpaceSlot::kOperationLaneA,
         TwistWorkSpaceSlot::kOperationLaneB,
         TwistWorkSpaceSlot::kOperationLaneC,
         TwistWorkSpaceSlot::kOperationLaneD,
-        TwistWorkSpaceSlot::kOperationLaneE,
-        TwistWorkSpaceSlot::kOperationLaneF,
         TwistWorkSpaceSlot::kSnowLaneA,
         TwistWorkSpaceSlot::kSnowLaneB,
         TwistWorkSpaceSlot::kSnowLaneC,
         TwistWorkSpaceSlot::kSnowLaneD,
-        TwistWorkSpaceSlot::kMaskLaneA,
-        TwistWorkSpaceSlot::kMaskLaneB,
+        TwistWorkSpaceSlot::kSnow,
         TwistWorkSpaceSlot::kIndexList256A,
         TwistWorkSpaceSlot::kIndexList256B,
         TwistWorkSpaceSlot::kIndexList256C,
         TwistWorkSpaceSlot::kIndexList256D,
-        TwistWorkSpaceSlot::kIndexList256E,
-        TwistWorkSpaceSlot::kIndexList256F,
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
         TwistWorkSpaceSlot::kKeyRowReadA,
@@ -552,6 +523,28 @@ bool ParseRuntimeIntToken(std::string pToken,
     return true;
 }
 
+bool ParseRuntimeSizeToken(const std::string &pToken,
+                           const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                           std::size_t *pValueOut) {
+    if (pValueOut == nullptr) {
+        return false;
+    }
+
+    const std::string aToken = TrimRuntimeLine(pToken);
+    if (aToken == "S_BLOCK") { *pValueOut = S_BLOCK; return true; }
+    if (aToken == "W_KEY_A") { *pValueOut = W_KEY_A; return true; }
+    if (aToken == "W_KEY_B") { *pValueOut = W_KEY_B; return true; }
+    if (aToken == "W_MASK_A") { *pValueOut = W_MASK_A; return true; }
+    if (aToken == "W_MASK_B") { *pValueOut = W_MASK_B; return true; }
+
+    int aValue = 0;
+    if (!ParseRuntimeIntToken(aToken, pVariables, &aValue) || (aValue < 0)) {
+        return false;
+    }
+    *pValueOut = static_cast<std::size_t>(aValue);
+    return true;
+}
+
 bool ResolveRuntimeAliasSlot(const std::string &pAlias,
                              TwistWorkSpaceSlot *pSlotOut) {
     if (pSlotOut == nullptr) {
@@ -579,22 +572,22 @@ bool ResolveRuntimeAliasSlot(const std::string &pAlias,
     return false;
 }
 
-std::uint8_t *ResolveRuntimeBufferSlot(TwistWorkSpace *pWorkspace,
+std::uint8_t *ResolveRuntimeBufferSlot(TwistWorkSpace *pWorkSpace,
                                        TwistExpander *pExpander,
                                        const TwistWorkSpaceSlot pSlot) {
-    if ((pWorkspace == nullptr) || (pExpander == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
         return nullptr;
     }
 
     TwistBufferKey aKey;
     if (TwistWorkSpace::TryLegacySlotToBufferKey(pSlot, &aKey)) {
-        return TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aKey);
+        return TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aKey);
     }
-    return TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pSlot);
+    return TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pSlot);
 }
 
 bool ResolveRuntimeBufferPointerExpression(const std::string &pExpression,
-                                           TwistWorkSpace *pWorkspace,
+                                           TwistWorkSpace *pWorkSpace,
                                            TwistExpander *pExpander,
                                            const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                            std::uint8_t **pPointerOut) {
@@ -616,7 +609,7 @@ bool ResolveRuntimeBufferPointerExpression(const std::string &pExpression,
         return false;
     }
 
-    std::uint8_t *aBase = ResolveRuntimeBufferSlot(pWorkspace, pExpander, aSlot);
+    std::uint8_t *aBase = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSlot);
     if (aBase == nullptr) {
         return false;
     }
@@ -722,7 +715,7 @@ bool RuntimeUnrollSchemeFromToken(const std::string &pToken,
 }
 
 bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
-                                 TwistWorkSpace *pWorkspace,
+                                 TwistWorkSpace *pWorkSpace,
                                  TwistExpander *pExpander,
                                  const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                  bool *pExecuted,
@@ -730,7 +723,7 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
     if (pExecuted != nullptr) {
         *pExecuted = false;
     }
-    if ((pWorkspace == nullptr) || (pExpander == nullptr) || (pVariables == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr) || (pVariables == nullptr)) {
         return true;
     }
 
@@ -750,7 +743,7 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
             return false;
         }
         std::uint8_t *aSource = nullptr;
-        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkspace, pExpander, pVariables, &aSource)) {
+        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkSpace, pExpander, pVariables, &aSource)) {
             SetError(pError, "Matrix LoadAndReset source was invalid: " + aArgs[0]);
             return false;
         }
@@ -764,7 +757,7 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
             return false;
         }
         std::uint8_t *aDest = nullptr;
-        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkspace, pExpander, pVariables, &aDest)) {
+        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkSpace, pExpander, pVariables, &aDest)) {
             SetError(pError, "Matrix Store destination was invalid: " + aArgs[0]);
             return false;
         }
@@ -810,14 +803,14 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
 }
 
 bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
-                                       TwistWorkSpace *pWorkspace,
+                                       TwistWorkSpace *pWorkSpace,
                                        TwistExpander *pExpander,
                                        bool *pExecuted,
                                        std::string *pError) {
     if (pExecuted != nullptr) {
         *pExecuted = false;
     }
-    if ((pWorkspace == nullptr) || (pExpander == nullptr)) {
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
         return true;
     }
 
@@ -868,7 +861,7 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
         SetError(pError, "Index shuffle destination was invalid: " + aArgs[0]);
         return false;
     }
-    std::uint8_t *aDestBytes = ResolveRuntimeBufferSlot(pWorkspace, pExpander, aDestSlot);
+    std::uint8_t *aDestBytes = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aDestSlot);
     if (aDestBytes == nullptr) {
         SetError(pError, "Index shuffle destination resolved to null.");
         return false;
@@ -879,7 +872,7 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
         SetError(pError, "Index shuffle source was invalid: " + aArgs[1]);
         return false;
     }
-    std::uint8_t *aSourceBytes = ResolveRuntimeBufferSlot(pWorkspace, pExpander, aSourceSlot);
+    std::uint8_t *aSourceBytes = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSourceSlot);
     if (aSourceBytes == nullptr) {
         SetError(pError, "Index shuffle source resolved to null.");
         return false;
@@ -892,6 +885,546 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
         TwistIndexShuffle::ExecuteA(aDest, aSourceBytes);
     }
     return true;
+}
+
+bool ExecuteRuntimeRawMemoryLine(const std::string &pRawLine,
+                                 TwistWorkSpace *pWorkSpace,
+                                 TwistExpander *pExpander,
+                                 bool *pExecuted,
+                                 std::string *pError) {
+    if (pExecuted != nullptr) {
+        *pExecuted = false;
+    }
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
+        return true;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimRuntimeLine(aLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+
+    const std::string aPrefix = "TwistMemory::";
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        return true;
+    }
+    if (pExecuted != nullptr) {
+        *pExecuted = true;
+    }
+
+    const std::size_t aOpen = aLine.find('(', aPrefix.size());
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        SetError(pError, "Memory call was malformed.");
+        return false;
+    }
+
+    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
+    std::vector<std::string> aArgs;
+    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs)) {
+        SetError(pError, "Memory call arguments were malformed.");
+        return false;
+    }
+
+    auto ResolveBufferArg = [&](const std::string &pArg, std::uint8_t **pBufferOut) -> bool {
+        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
+        if (!ResolveRuntimeAliasSlot(pArg, &aSlot)) {
+            SetError(pError, "Memory buffer argument was invalid: " + pArg);
+            return false;
+        }
+        *pBufferOut = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSlot);
+        if (*pBufferOut == nullptr) {
+            SetError(pError, "Memory buffer argument resolved to null: " + pArg);
+            return false;
+        }
+        return true;
+    };
+
+    if ((aMethod == "ZeroBlock") ||
+        (aMethod == "ZeroKeyBoxA") ||
+        (aMethod == "ZeroKeyBoxB") ||
+        (aMethod == "ZeroMaskBoxA") ||
+        (aMethod == "ZeroMaskBoxB")) {
+        if (aArgs.size() != 1U) {
+            SetError(pError, "Memory zero call expected 1 argument.");
+            return false;
+        }
+        std::uint8_t *aBuffer = nullptr;
+        if (!ResolveBufferArg(aArgs[0], &aBuffer)) {
+            return false;
+        }
+        if (aMethod == "ZeroBlock") {
+            TwistMemory::ZeroBlock(aBuffer);
+        } else if (aMethod == "ZeroKeyBoxA") {
+            TwistMemory::ZeroKeyBoxA(aBuffer);
+        } else if (aMethod == "ZeroKeyBoxB") {
+            TwistMemory::ZeroKeyBoxB(aBuffer);
+        } else if (aMethod == "ZeroMaskBoxA") {
+            TwistMemory::ZeroMaskBoxA(aBuffer);
+        } else {
+            TwistMemory::ZeroMaskBoxB(aBuffer);
+        }
+        return true;
+    }
+
+    if (aMethod == "Copy") {
+        if (aArgs.size() != 3U) {
+            SetError(pError, "Memory copy call expected 3 arguments.");
+            return false;
+        }
+        std::uint8_t *aDest = nullptr;
+        std::uint8_t *aSource = nullptr;
+        if (!ResolveBufferArg(aArgs[0], &aDest) ||
+            !ResolveBufferArg(aArgs[1], &aSource)) {
+            return false;
+        }
+        std::string aLengthToken = TrimRuntimeLine(aArgs[2]);
+        if (!aLengthToken.empty() && ((aLengthToken.back() == 'U') || (aLengthToken.back() == 'u'))) {
+            aLengthToken.pop_back();
+        }
+        int aLength = 0;
+        if (!ParseRuntimeIntToken(aLengthToken, nullptr, &aLength) || (aLength < 0)) {
+            SetError(pError, "Memory copy length was invalid: " + aArgs[2]);
+            return false;
+        }
+        TwistMemory::Copy(aDest, aSource, static_cast<std::uint32_t>(aLength));
+        return true;
+    }
+
+    if (aMethod == "SwapBlock") {
+        if (aArgs.size() != 3U) {
+            SetError(pError, "Memory swap call expected 3 arguments.");
+            return false;
+        }
+        std::uint8_t *aBufferA = nullptr;
+        std::uint8_t *aBufferB = nullptr;
+        std::uint8_t *aTemp = nullptr;
+        if (!ResolveBufferArg(aArgs[0], &aBufferA) ||
+            !ResolveBufferArg(aArgs[1], &aBufferB) ||
+            !ResolveBufferArg(aArgs[2], &aTemp)) {
+            return false;
+        }
+        TwistMemory::SwapBlock(aBufferA, aBufferB, aTemp);
+        return true;
+    }
+
+    SetError(pError, "Memory call method was unsupported: " + aMethod);
+    return false;
+}
+
+bool ExecuteRuntimeRawInvestLine(const std::string &pRawLine,
+                                 TwistWorkSpace *pWorkSpace,
+                                 TwistExpander *pExpander,
+                                 bool *pExecuted,
+                                 std::string *pError) {
+    if (pExecuted != nullptr) {
+        *pExecuted = false;
+    }
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
+        return true;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimRuntimeLine(aLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+
+    const std::string aPrefix = "TwistInvest::";
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        return true;
+    }
+    if (pExecuted != nullptr) {
+        *pExecuted = true;
+    }
+
+    const std::size_t aOpen = aLine.find('(', aPrefix.size());
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        SetError(pError, "Invest call was malformed.");
+        return false;
+    }
+
+    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
+    std::vector<std::string> aArgs;
+    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs) ||
+        (aArgs.size() != 2U)) {
+        SetError(pError, "Invest call expected 2 arguments.");
+        return false;
+    }
+
+    if (TrimRuntimeLine(aArgs[1]) != "pWorkSpace") {
+        SetError(pError, "Invest workspace argument must be pWorkSpace.");
+        return false;
+    }
+
+    TwistWorkSpaceSlot aSourceSlot = TwistWorkSpaceSlot::kInvalid;
+    if (!ResolveRuntimeAliasSlot(aArgs[0], &aSourceSlot)) {
+        SetError(pError, "Invest source argument was invalid: " + aArgs[0]);
+        return false;
+    }
+
+    std::uint8_t *aSource = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSourceSlot);
+    if (aSource == nullptr) {
+        SetError(pError, "Invest source argument resolved to null: " + aArgs[0]);
+        return false;
+    }
+
+    if (aMethod == "InvestBlockKeyBoxA") {
+        TwistInvest::InvestBlockKeyBoxA(aSource, pWorkSpace);
+    } else if (aMethod == "InvestBlockKeyBoxB") {
+        TwistInvest::InvestBlockKeyBoxB(aSource, pWorkSpace);
+    } else if (aMethod == "InvestBlockMaskBoxA") {
+        TwistInvest::InvestBlockMaskBoxA(aSource, pWorkSpace);
+    } else if (aMethod == "InvestBlockMaskBoxB") {
+        TwistInvest::InvestBlockMaskBoxB(aSource, pWorkSpace);
+    } else {
+        SetError(pError, "Invest call method was unsupported: " + aMethod);
+        return false;
+    }
+
+    return true;
+}
+
+bool ExecuteRuntimeRawShiftBoxLine(const std::string &pRawLine,
+                                   TwistWorkSpace *pWorkSpace,
+                                   bool *pExecuted,
+                                   std::string *pError) {
+    if (pExecuted != nullptr) {
+        *pExecuted = false;
+    }
+    if (pWorkSpace == nullptr) {
+        return true;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimRuntimeLine(aLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+
+    const std::string aPrefix = "TwistShiftBox::";
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        return true;
+    }
+    if (pExecuted != nullptr) {
+        *pExecuted = true;
+    }
+
+    const std::size_t aOpen = aLine.find('(', aPrefix.size());
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        SetError(pError, "ShiftBox call was malformed.");
+        return false;
+    }
+
+    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
+    std::vector<std::string> aArgs;
+    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs) ||
+        (aArgs.size() != 1U) ||
+        (TrimRuntimeLine(aArgs[0]) != "pWorkSpace")) {
+        SetError(pError, "ShiftBox call expected pWorkSpace.");
+        return false;
+    }
+
+    if (aMethod == "ShiftKeyBoxA") {
+        TwistShiftBox::ShiftKeyBoxA(pWorkSpace);
+    } else if (aMethod == "ShiftKeyBoxB") {
+        TwistShiftBox::ShiftKeyBoxB(pWorkSpace);
+    } else if (aMethod == "ShiftMaskBoxA") {
+        TwistShiftBox::ShiftMaskBoxA(pWorkSpace);
+    } else if (aMethod == "ShiftMaskBoxB") {
+        TwistShiftBox::ShiftMaskBoxB(pWorkSpace);
+    } else {
+        SetError(pError, "ShiftBox call method was unsupported: " + aMethod);
+        return false;
+    }
+
+    return true;
+}
+
+bool ExecuteRuntimeRawSnowLine(const std::string &pRawLine,
+                               TwistWorkSpace *pWorkSpace,
+                               TwistExpander *pExpander,
+                               bool *pExecuted,
+                               std::string *pError) {
+    if (pExecuted != nullptr) {
+        *pExecuted = false;
+    }
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
+        return true;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimRuntimeLine(aLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+
+    const std::string aPrefix = "TwistSnow::";
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        return true;
+    }
+    if (pExecuted != nullptr) {
+        *pExecuted = true;
+    }
+
+    const std::size_t aOpen = aLine.find('(', aPrefix.size());
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        SetError(pError, "Snow call was malformed.");
+        return false;
+    }
+
+    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
+    std::vector<std::string> aArgs;
+    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs) ||
+        (aArgs.size() != 2U)) {
+        SetError(pError, "Snow counter call expected 2 arguments.");
+        return false;
+    }
+
+    auto ResolveBufferArg = [&](const std::string &pArg, std::uint8_t **pBufferOut) -> bool {
+        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
+        if (!ResolveRuntimeAliasSlot(pArg, &aSlot)) {
+            SetError(pError, "Snow buffer argument was invalid: " + pArg);
+            return false;
+        }
+        *pBufferOut = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSlot);
+        if (*pBufferOut == nullptr) {
+            SetError(pError, "Snow buffer argument resolved to null: " + pArg);
+            return false;
+        }
+        return true;
+    };
+
+    std::uint8_t *aSource = nullptr;
+    std::uint8_t *aDest = nullptr;
+    if (!ResolveBufferArg(aArgs[0], &aSource) ||
+        !ResolveBufferArg(aArgs[1], &aDest)) {
+        return false;
+    }
+
+    if (aMethod == "AES256Counter") {
+        TwistSnow::AES256Counter(aSource, aDest);
+    } else if (aMethod == "ChaCha20Counter") {
+        TwistSnow::ChaCha20Counter(aSource, aDest);
+    } else if (aMethod == "Sha256Counter") {
+        TwistSnow::Sha256Counter(aSource, aDest);
+    } else if (aMethod == "Aria256Counter") {
+        TwistSnow::Aria256Counter(aSource, aDest);
+    } else {
+        SetError(pError, "Snow call method was unsupported: " + aMethod);
+        return false;
+    }
+
+    return true;
+}
+
+bool RuntimeBraidTypeFromToken(const std::string &pToken,
+                               TwistMaskBraidType *pTypeOut) {
+    if (pTypeOut == nullptr) {
+        return false;
+    }
+
+    const std::string aToken = TrimRuntimeLine(pToken);
+    if ((aToken == "TwistMaskBraidType::kA") || (aToken == "kA")) {
+        *pTypeOut = TwistMaskBraidType::kA;
+        return true;
+    }
+    if ((aToken == "TwistMaskBraidType::kB") || (aToken == "kB")) {
+        *pTypeOut = TwistMaskBraidType::kB;
+        return true;
+    }
+    if ((aToken == "TwistMaskBraidType::kC") || (aToken == "kC")) {
+        *pTypeOut = TwistMaskBraidType::kC;
+        return true;
+    }
+    return false;
+}
+
+bool RuntimeWeaveTypeFromToken(const std::string &pToken,
+                               TwistMaskWeaveType *pTypeOut) {
+    if (pTypeOut == nullptr) {
+        return false;
+    }
+
+    const std::string aToken = TrimRuntimeLine(pToken);
+    if ((aToken == "TwistMaskWeaveType::kA") || (aToken == "kA")) {
+        *pTypeOut = TwistMaskWeaveType::kA;
+        return true;
+    }
+    if ((aToken == "TwistMaskWeaveType::kB") || (aToken == "kB")) {
+        *pTypeOut = TwistMaskWeaveType::kB;
+        return true;
+    }
+    if ((aToken == "TwistMaskWeaveType::kC") || (aToken == "kC")) {
+        *pTypeOut = TwistMaskWeaveType::kC;
+        return true;
+    }
+    if ((aToken == "TwistMaskWeaveType::kD") || (aToken == "kD")) {
+        *pTypeOut = TwistMaskWeaveType::kD;
+        return true;
+    }
+    return false;
+}
+
+bool ExecuteRuntimeRawMaskingLine(const std::string &pRawLine,
+                                  TwistWorkSpace *pWorkSpace,
+                                  TwistExpander *pExpander,
+                                  const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                                  bool *pExecuted,
+                                  std::string *pError) {
+    if (pExecuted != nullptr) {
+        *pExecuted = false;
+    }
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr) || (pVariables == nullptr)) {
+        return true;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimRuntimeLine(aLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+
+    const std::string aPrefix = "TwistMasking::";
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        return true;
+    }
+    if (pExecuted != nullptr) {
+        *pExecuted = true;
+    }
+
+    const std::size_t aOpen = aLine.find('(', aPrefix.size());
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        SetError(pError, "Masking call was malformed.");
+        return false;
+    }
+
+    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
+    std::vector<std::string> aArgs;
+    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs)) {
+        SetError(pError, "Masking call arguments were malformed.");
+        return false;
+    }
+
+    auto ResolveBufferArg = [&](const std::string &pArg, std::uint8_t **pBufferOut) -> bool {
+        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
+        if (!ResolveRuntimeAliasSlot(pArg, &aSlot)) {
+            SetError(pError, "Masking buffer argument was invalid: " + pArg);
+            return false;
+        }
+        *pBufferOut = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSlot);
+        if (*pBufferOut == nullptr) {
+            SetError(pError, "Masking buffer argument resolved to null: " + pArg);
+            return false;
+        }
+        return true;
+    };
+
+    if (aMethod == "MaskBraid") {
+        if (aArgs.size() != 7U) {
+            SetError(pError, "MaskBraid expected 7 arguments.");
+            return false;
+        }
+
+        TwistMaskBraidType aType = TwistMaskBraidType::kInv;
+        std::uint8_t *aSourceA = nullptr;
+        std::uint8_t *aSourceB = nullptr;
+        std::uint8_t *aMask = nullptr;
+        std::size_t aBufferLength = 0U;
+        std::size_t aMaskLength = 0U;
+        int aMaskDomainWord = 0;
+
+        if (!RuntimeBraidTypeFromToken(aArgs[0], &aType) ||
+            !ResolveBufferArg(aArgs[1], &aSourceA) ||
+            !ResolveBufferArg(aArgs[2], &aSourceB) ||
+            !ParseRuntimeSizeToken(aArgs[3], pVariables, &aBufferLength) ||
+            !ResolveBufferArg(aArgs[4], &aMask) ||
+            !ParseRuntimeSizeToken(aArgs[5], pVariables, &aMaskLength) ||
+            !ParseRuntimeIntToken(aArgs[6], pVariables, &aMaskDomainWord)) {
+            SetError(pError, "MaskBraid arguments were invalid.");
+            return false;
+        }
+
+        TwistMasking::MaskBraid(aType,
+                                aSourceA,
+                                aSourceB,
+                                aBufferLength,
+                                aMask,
+                                aMaskLength,
+                                static_cast<std::uint8_t>(aMaskDomainWord));
+        return true;
+    }
+
+    if (aMethod == "MaskWeave") {
+        if (aArgs.size() != 8U) {
+            SetError(pError, "MaskWeave expected 8 arguments.");
+            return false;
+        }
+
+        TwistMaskWeaveType aType = TwistMaskWeaveType::kInv;
+        std::uint8_t *aSourceA = nullptr;
+        std::uint8_t *aSourceB = nullptr;
+        std::uint8_t *aDest = nullptr;
+        std::uint8_t *aMask = nullptr;
+        std::size_t aBufferLength = 0U;
+        std::size_t aMaskLength = 0U;
+        int aMaskDomainWord = 0;
+
+        if (!RuntimeWeaveTypeFromToken(aArgs[0], &aType) ||
+            !ResolveBufferArg(aArgs[1], &aSourceA) ||
+            !ResolveBufferArg(aArgs[2], &aSourceB) ||
+            !ResolveBufferArg(aArgs[3], &aDest) ||
+            !ParseRuntimeSizeToken(aArgs[4], pVariables, &aBufferLength) ||
+            !ResolveBufferArg(aArgs[5], &aMask) ||
+            !ParseRuntimeSizeToken(aArgs[6], pVariables, &aMaskLength) ||
+            !ParseRuntimeIntToken(aArgs[7], pVariables, &aMaskDomainWord)) {
+            SetError(pError, "MaskWeave arguments were invalid.");
+            return false;
+        }
+
+        TwistMasking::MaskWeave(aType,
+                                aSourceA,
+                                aSourceB,
+                                aDest,
+                                aBufferLength,
+                                aMask,
+                                aMaskLength,
+                                static_cast<std::uint8_t>(aMaskDomainWord));
+        return true;
+    }
+
+    SetError(pError, "Masking call method was unsupported: " + aMethod);
+    return false;
 }
 
 bool ParseRuntimeSwitchLine(const std::string &pRawLine,
@@ -1213,22 +1746,6 @@ bool LoopUsesSizeT(const GLoop &pLoop) {
     return (pLoop.mLoopBegin >= 0) && (pLoop.mLoopStep > 0);
 }
 
-bool IsSBoxSlot(const TwistWorkSpaceSlot pSlot) {
-    switch (pSlot) {
-        case TwistWorkSpaceSlot::kParamDomainSBoxA:
-        case TwistWorkSpaceSlot::kParamDomainSBoxB:
-        case TwistWorkSpaceSlot::kParamDomainSBoxC:
-        case TwistWorkSpaceSlot::kParamDomainSBoxD:
-        case TwistWorkSpaceSlot::kParamDomainSBoxE:
-        case TwistWorkSpaceSlot::kParamDomainSBoxF:
-        case TwistWorkSpaceSlot::kParamDomainSBoxG:
-        case TwistWorkSpaceSlot::kParamDomainSBoxH:
-            return true;
-        default:
-            return false;
-    }
-}
-
 bool IsSaltSlot(const TwistWorkSpaceSlot pSlot) {
     switch (pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA:
@@ -1261,8 +1778,6 @@ bool IsIndexListSlot(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kIndexList256B:
         case TwistWorkSpaceSlot::kIndexList256C:
         case TwistWorkSpaceSlot::kIndexList256D:
-        case TwistWorkSpaceSlot::kIndexList256E:
-        case TwistWorkSpaceSlot::kIndexList256F:
             return true;
         default:
             return false;
@@ -1273,9 +1788,6 @@ std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
                                 const GRuntimeScalar pIndexValue) {
     if (IsSaltSlot(pSlot)) {
         return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_SALT1));
-    }
-    if (IsSBoxSlot(pSlot)) {
-        return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_SBOX1));
     }
     if (TwistWorkSpace::GetBufferLength(pSlot) == S_BLOCK) {
         return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_BLOCK1));
@@ -1967,40 +2479,11 @@ void AppendPrettyLoopLines(const GLoop &pLoop,
     pLines->push_back("}");
 }
 
-bool ShouldMaskSBoxIndex(const GExpr *pIndexExpr) {
-    if (pIndexExpr == nullptr) {
-        return true;
-    }
-    if (pIndexExpr->mType != GExprType::kSymbol || !pIndexExpr->mSymbol.IsVar()) {
-        return true;
-    }
-    const std::string &aName = pIndexExpr->mSymbol.mName;
-    if (aName == "i") {
-        return true;
-    }
-    if (aName.find("Index") != std::string::npos) {
-        return true;
-    }
-    if (aName.find("Key") != std::string::npos) {
-        return true;
-    }
-    if (StartsWithText(aName, "aOracle")) {
-        return true;
-    }
-    return false;
-}
-
 std::string CppIndexForSlot(const TwistWorkSpaceSlot pSlot,
                             const GExpr *pIndexExpr,
                             const std::string &pIndexText) {
     if (IsSaltSlot(pSlot)) {
         return "(" + pIndexText + ") & S_SALT1";
-    }
-    if (IsSBoxSlot(pSlot)) {
-        if (!ShouldMaskSBoxIndex(pIndexExpr)) {
-            return pIndexText;
-        }
-        return "(" + pIndexText + ") & S_SBOX1";
     }
 
     // For block-sized buffers, preserve the two canonical direct-index forms and
@@ -2299,7 +2782,7 @@ std::vector<std::string> CppStatementLines(const GStatement &pStatement) {
 }
 
 bool EvaluateExpr(const GExpr &pExpr,
-                  TwistWorkSpace *pWorkspace,
+                  TwistWorkSpace *pWorkSpace,
                   TwistExpander *pExpander,
                   std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                   GRuntimeScalar *pValue,
@@ -2317,11 +2800,11 @@ bool EvaluateExpr(const GExpr &pExpr,
                 return true;
             }
             if (pExpr.mSymbol.IsBuf()) {
-                if (pWorkspace == NULL) {
+                if (pWorkSpace == NULL) {
                     SetError(pError, "Workspace was null during buffer read.");
                     return false;
                 }
-                std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mSymbol.mSlot);
+                std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pExpr.mSymbol.mSlot);
                 if (aBuffer == NULL) {
                     SetError(pError, "Buffer symbol resolved to null.");
                     return false;
@@ -2342,7 +2825,7 @@ bool EvaluateExpr(const GExpr &pExpr,
             return true;
 
         case GExprType::kRead: {
-            if (pWorkspace == NULL) {
+            if (pWorkSpace == NULL) {
                 SetError(pError, "Workspace was null during read.");
                 return false;
             }
@@ -2353,7 +2836,7 @@ bool EvaluateExpr(const GExpr &pExpr,
                     const auto aBaseIterator = pVariables->find(pExpr.mReadWrapIndexSymbol.mName);
                     aBaseIndexValue = (aBaseIterator == pVariables->end()) ? 0ULL : aBaseIterator->second;
                 } else if (pExpr.mReadWrapIndexSymbol.IsBuf()) {
-                    std::uint8_t *aBaseBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mReadWrapIndexSymbol.mSlot);
+                    std::uint8_t *aBaseBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pExpr.mReadWrapIndexSymbol.mSlot);
                     if (aBaseBuffer == NULL) {
                         SetError(pError, "Read wrap index buffer was null.");
                         return false;
@@ -2386,12 +2869,12 @@ bool EvaluateExpr(const GExpr &pExpr,
                 }
             } else {
                 if ((pExpr.mIndex == NULL) ||
-                    !EvaluateExpr(*pExpr.mIndex, pWorkspace, pExpander, pVariables, &aIndexValue, pError)) {
+                    !EvaluateExpr(*pExpr.mIndex, pWorkSpace, pExpander, pVariables, &aIndexValue, pError)) {
                     SetError(pError, "Read expression index was invalid.");
                     return false;
                 }
             }
-            std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mSymbol.mSlot);
+            std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pExpr.mSymbol.mSlot);
             if (aBuffer == NULL) {
                 SetError(pError, "Read expression buffer was null.");
                 return false;
@@ -2421,8 +2904,8 @@ bool EvaluateExpr(const GExpr &pExpr,
             GRuntimeScalar aLeft = 0ULL;
             GRuntimeScalar aRight = 0ULL;
             if ((pExpr.mA == NULL) || (pExpr.mB == NULL) ||
-                !EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aLeft, pError) ||
-                !EvaluateExpr(*pExpr.mB, pWorkspace, pExpander, pVariables, &aRight, pError)) {
+                !EvaluateExpr(*pExpr.mA, pWorkSpace, pExpander, pVariables, &aLeft, pError) ||
+                !EvaluateExpr(*pExpr.mB, pWorkSpace, pExpander, pVariables, &aRight, pError)) {
                 SetError(pError, "Binary expression child was invalid.");
                 return false;
             }
@@ -2448,7 +2931,7 @@ bool EvaluateExpr(const GExpr &pExpr,
         case GExprType::kDiffuseC64: {
             GRuntimeScalar aValue = 0ULL;
             if ((pExpr.mA == NULL) ||
-                !EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aValue, pError)) {
+                !EvaluateExpr(*pExpr.mA, pWorkSpace, pExpander, pVariables, &aValue, pError)) {
                 SetError(pError, "Diffuse expression child was invalid.");
                 return false;
             }
@@ -2468,7 +2951,7 @@ bool EvaluateExpr(const GExpr &pExpr,
             }
 
             GRuntimeScalar aValue = 0ULL;
-            if (!EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aValue, pError)) {
+            if (!EvaluateExpr(*pExpr.mA, pWorkSpace, pExpander, pVariables, &aValue, pError)) {
                 return false;
             }
 
@@ -2488,7 +2971,7 @@ bool EvaluateExpr(const GExpr &pExpr,
                     SetError(pError, "Mix64_8 s-box symbol was invalid.");
                     return false;
                 }
-                aSBoxes[aIndex] = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSBoxSymbols[aIndex].mSlot);
+                aSBoxes[aIndex] = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aSBoxSymbols[aIndex].mSlot);
                 if (aSBoxes[aIndex] == nullptr) {
                     SetError(pError, "Mix64_8 s-box buffer was null.");
                     return false;
@@ -2528,14 +3011,14 @@ bool EvaluateExpr(const GExpr &pExpr,
 }
 
 bool ExecuteStatement(const GStatement &pStatement,
-                      TwistWorkSpace *pWorkspace,
+                      TwistWorkSpace *pWorkSpace,
                       TwistExpander *pExpander,
                       std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                       std::string *pError) {
     if (pStatement.IsRawLine()) {
         bool aExecutedRawLine = false;
         if (!ExecuteRuntimeRawIndexShuffleLine(pStatement.mRawLine,
-                                               pWorkspace,
+                                               pWorkSpace,
                                                pExpander,
                                                &aExecutedRawLine,
                                                pError)) {
@@ -2545,8 +3028,63 @@ bool ExecuteStatement(const GStatement &pStatement,
             return true;
         }
 
+        if (!ExecuteRuntimeRawMemoryLine(pStatement.mRawLine,
+                                         pWorkSpace,
+                                         pExpander,
+                                         &aExecutedRawLine,
+                                         pError)) {
+            return false;
+        }
+        if (aExecutedRawLine) {
+            return true;
+        }
+
+        if (!ExecuteRuntimeRawInvestLine(pStatement.mRawLine,
+                                         pWorkSpace,
+                                         pExpander,
+                                         &aExecutedRawLine,
+                                         pError)) {
+            return false;
+        }
+        if (aExecutedRawLine) {
+            return true;
+        }
+
+        if (!ExecuteRuntimeRawShiftBoxLine(pStatement.mRawLine,
+                                           pWorkSpace,
+                                           &aExecutedRawLine,
+                                           pError)) {
+            return false;
+        }
+        if (aExecutedRawLine) {
+            return true;
+        }
+
+        if (!ExecuteRuntimeRawSnowLine(pStatement.mRawLine,
+                                       pWorkSpace,
+                                       pExpander,
+                                       &aExecutedRawLine,
+                                       pError)) {
+            return false;
+        }
+        if (aExecutedRawLine) {
+            return true;
+        }
+
+        if (!ExecuteRuntimeRawMaskingLine(pStatement.mRawLine,
+                                          pWorkSpace,
+                                          pExpander,
+                                          pVariables,
+                                          &aExecutedRawLine,
+                                          pError)) {
+            return false;
+        }
+        if (aExecutedRawLine) {
+            return true;
+        }
+
         if (!ExecuteRuntimeRawMatrixLine(pStatement.mRawLine,
-                                         pWorkspace,
+                                         pWorkSpace,
                                          pExpander,
                                          pVariables,
                                          &aExecutedRawLine,
@@ -2557,7 +3095,7 @@ bool ExecuteStatement(const GStatement &pStatement,
     }
 
     GRuntimeScalar aExpressionValue = 0ULL;
-    if (!EvaluateExpr(pStatement.mExpression, pWorkspace, pExpander, pVariables, &aExpressionValue, pError)) {
+    if (!EvaluateExpr(pStatement.mExpression, pWorkSpace, pExpander, pVariables, &aExpressionValue, pError)) {
         return false;
     }
 
@@ -2584,18 +3122,18 @@ bool ExecuteStatement(const GStatement &pStatement,
     }
 
     if (pStatement.mTarget.IsBuf()) {
-        if (pWorkspace == NULL) {
+        if (pWorkSpace == NULL) {
             SetError(pError, "Workspace was null during write.");
             return false;
         }
-        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pStatement.mTarget.mSymbol.mSlot);
+        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pStatement.mTarget.mSymbol.mSlot);
         if (aBuffer == NULL) {
             SetError(pError, "Write buffer was null.");
             return false;
         }
         GRuntimeScalar aIndexValue = 0ULL;
         if (pStatement.mTarget.mIndex != nullptr &&
-            !EvaluateExpr(*pStatement.mTarget.mIndex, pWorkspace, pExpander, pVariables, &aIndexValue, pError)) {
+            !EvaluateExpr(*pStatement.mTarget.mIndex, pWorkSpace, pExpander, pVariables, &aIndexValue, pError)) {
             return false;
         }
 
@@ -2657,7 +3195,7 @@ bool ExecuteStatement(const GStatement &pStatement,
 }
 
 bool ExecuteStatementSequence(const std::vector<GStatement> &pStatements,
-                              TwistWorkSpace *pWorkspace,
+                              TwistWorkSpace *pWorkSpace,
                               TwistExpander *pExpander,
                               std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                               std::string *pError) {
@@ -2723,7 +3261,7 @@ bool ExecuteStatementSequence(const std::vector<GStatement> &pStatements,
             continue;
         }
 
-        if (!ExecuteStatement(aStatement, pWorkspace, pExpander, pVariables, pError)) {
+        if (!ExecuteStatement(aStatement, pWorkSpace, pExpander, pVariables, pError)) {
             return false;
         }
     }
@@ -3564,7 +4102,7 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
     }
 
     std::vector<std::string> aLines;
-    aLines.push_back("static void " + pFunctionName + "(TwistWorkSpace *pWorkspace) {");
+    aLines.push_back("static void " + pFunctionName + "(TwistWorkSpace *pWorkSpace) {");
 
     std::vector<std::string> aLoopVariables;
     if (!mChunks.empty()) {
@@ -3599,7 +4137,7 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
         std::vector<TwistWorkSpaceSlot> aSlots = CollectReferencedSlots();
         for (TwistWorkSpaceSlot aSlot : aSlots) {
             aLines.push_back(Indent(1) + "std::uint8_t *" + BufAliasName(aSlot) +
-                             " = TwistWorkSpace::GetBuffer(pWorkspace, static_cast<TwistWorkSpaceSlot>(" +
+                             " = TwistWorkSpace::GetBuffer(pWorkSpace, static_cast<TwistWorkSpaceSlot>(" +
                              std::to_string(static_cast<int>(aSlot)) + "));");
         }
 
@@ -3720,14 +4258,14 @@ std::string GBatch::BuildCppScopeBlock(std::string *pError,
     return aStream.str();
 }
 
-bool GBatch::Execute(TwistWorkSpace *pWorkspace,
+bool GBatch::Execute(TwistWorkSpace *pWorkSpace,
                      TwistExpander *pExpander,
                      std::string *pError) const {
     std::unordered_map<std::string, GRuntimeScalar> aVariables;
-    return ExecuteWithVariables(pWorkspace, pExpander, &aVariables, pError);
+    return ExecuteWithVariables(pWorkSpace, pExpander, &aVariables, pError);
 }
 
-bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkspace,
+bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkSpace,
                                   TwistExpander *pExpander,
                                   std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                   std::string *pError) const {
@@ -3753,7 +4291,7 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkspace,
 
     auto ExecuteLoop = [&](const GLoop &pLoop) -> bool {
         for (const GStatement &aStatement : pLoop.mInitializationStatements) {
-            if (!ExecuteStatement(aStatement, pWorkspace, pExpander, &aLocalVariables, pError)) {
+            if (!ExecuteStatement(aStatement, pWorkSpace, pExpander, &aLocalVariables, pError)) {
                 return false;
             }
         }
@@ -3764,7 +4302,7 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkspace,
              aLoopValue += pLoop.mLoopStep) {
             aLocalVariables[pLoop.mLoopVariableName] = static_cast<GRuntimeScalar>(aLoopValue);
             if (!ExecuteStatementSequence(pLoop.mBodyStatements,
-                                          pWorkspace,
+                                          pWorkSpace,
                                           pExpander,
                                           &aLocalVariables,
                                           pError)) {
@@ -3782,7 +4320,7 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkspace,
                 }
             } else if (aChunk.mType == GBatchChunkType::kStatements) {
                 if (!ExecuteStatementSequence(aChunk.mStatements,
-                                              pWorkspace,
+                                              pWorkSpace,
                                               pExpander,
                                               &aLocalVariables,
                                               pError)) {

@@ -55,6 +55,12 @@ int Random::Get(int pMin, int pMax) {
     return aDist(cRandomGenerator);
 }
 
+
+std::uint64_t Random::Get64High() {
+    std::uniform_int_distribution<std::uint64_t> aDist(std::numeric_limits<std::uint64_t>::max() / 2, std::numeric_limits<std::uint64_t>::max());
+    return aDist(cRandomGenerator);
+}
+
 std::uint64_t Random::Get64() {
     std::uniform_int_distribution<std::uint64_t> aDist(0, std::numeric_limits<std::uint64_t>::max());
     return aDist(cRandomGenerator);

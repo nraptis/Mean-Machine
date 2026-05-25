@@ -23,18 +23,17 @@ enum class GKDFMaterialBundle : std::uint8_t {
 class GKDF_A {
 public:
     bool                                Bake(TwistDomain pDomain,
-                                             const std::string &pSource,
-                                             const std::string &pDest,
                                              GKDFMaterialBundle pBundle,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
+    
+    GSymbol                             mSnow;
+    
 };
 
 class GKDF_B {
 public:
     bool                                Bake(TwistDomain pDomain,
-                                             const std::string &pSource,
-                                             const std::string &pDest,
                                              GKDFMaterialBundle pBundle,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);

@@ -15,19 +15,7 @@ public:
     bool BakeZero(GSymbol pSource,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) const {
-        if (pStatements == nullptr) {
-            SetError(pErrorMessage, "GMemory output statement list was null.");
-            return false;
-        }
-        if (!pSource.IsBuf()) {
-            SetError(pErrorMessage, "GMemory source must be a buffer symbol.");
-            return false;
-        }
-
-        const std::string aLine = "TwistMemory::ZeroBlock(" +
-            BufAliasName(pSource.mSlot) + ");";
-        pStatements->push_back(GStatement::RawLine(aLine));
-        return true;
+        return BakeZeroCall("ZeroBlock", pSource, pStatements, pErrorMessage);
     }
     
     bool BakeZero(GSymbol pSource,
@@ -42,6 +30,30 @@ public:
               std::vector<GStatement> *pStatements,
               std::string *pErrorMessage) const {
         return BakeZero(pSource, pStatements, pErrorMessage);
+    }
+
+    bool BakeZeroKeyBoxA(GSymbol pSource,
+                         std::vector<GStatement> *pStatements,
+                         std::string *pErrorMessage) const {
+        return BakeZeroCall("ZeroKeyBoxA", pSource, pStatements, pErrorMessage);
+    }
+
+    bool BakeZeroKeyBoxB(GSymbol pSource,
+                         std::vector<GStatement> *pStatements,
+                         std::string *pErrorMessage) const {
+        return BakeZeroCall("ZeroKeyBoxB", pSource, pStatements, pErrorMessage);
+    }
+
+    bool BakeZeroMaskBoxA(GSymbol pSource,
+                          std::vector<GStatement> *pStatements,
+                          std::string *pErrorMessage) const {
+        return BakeZeroCall("ZeroMaskBoxA", pSource, pStatements, pErrorMessage);
+    }
+
+    bool BakeZeroMaskBoxB(GSymbol pSource,
+                          std::vector<GStatement> *pStatements,
+                          std::string *pErrorMessage) const {
+        return BakeZeroCall("ZeroMaskBoxB", pSource, pStatements, pErrorMessage);
     }
     
     bool BakeCopy(GSymbol pDest,
@@ -96,6 +108,25 @@ public:
     }
     
 private:
+    bool BakeZeroCall(const char *pMethodName,
+                      GSymbol pSource,
+                      std::vector<GStatement> *pStatements,
+                      std::string *pErrorMessage) const {
+        if (pStatements == nullptr) {
+            SetError(pErrorMessage, "GMemory output statement list was null.");
+            return false;
+        }
+        if (!pSource.IsBuf()) {
+            SetError(pErrorMessage, "GMemory source must be a buffer symbol.");
+            return false;
+        }
+
+        const std::string aLine = std::string("TwistMemory::") + pMethodName + "(" +
+            BufAliasName(pSource.mSlot) + ");";
+        pStatements->push_back(GStatement::RawLine(aLine));
+        return true;
+    }
+
     static void SetError(std::string *pErrorMessage,
                          const std::string &pMessage) {
         if (pErrorMessage != nullptr) {
