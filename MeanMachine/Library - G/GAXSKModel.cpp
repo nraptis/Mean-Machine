@@ -657,41 +657,44 @@ void GAXSKModel::AppendOrbiterRoundStatements(const GAXSKModelOrbiterRound &pRou
     );
 }
 
-GAXSKModel GAXSKModel::MakeOrbiterPlan4x4() {
-    GAXSKModel aModel;
-    
-    aModel.mName = "GAXSKModelOrbiter4x4";
-    
-    aModel.mOrbiters = { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD };
-    aModel.mWanderers = { GAXSKVariable::kWandererA, GAXSKVariable::kWandererB, GAXSKVariable::kWandererC, GAXSKVariable::kWandererD, };
-    
-    int aHotIndex = Random::Get(32);
+GAXSKModel GAXSKModel::MakeOrbiterPlan(std::span<const GAXSKModelOrbiterRound> pRounds) {
+    GAXSKModel aResult;
 
-    AppendOrbiterAssignStatements(aModel.mOrbiters,
-                                  aModel.mWanderers,
-                                  aHotIndex,
-                                  &aModel.mStatements);
+    for (const GAXSKModelOrbiterRound &aRound : pRounds) {
+        auto PushUnique = [&](GAXSKVariable pVariable) {
+            if (std::find(aResult.mOrbiters.begin(),
+                          aResult.mOrbiters.end(),
+                          pVariable) == aResult.mOrbiters.end()) {
+                aResult.mOrbiters.push_back(pVariable);
+            }
+        };
 
-    aHotIndex += static_cast<int>(aModel.mOrbiters.size());
-    
-    const std::vector<GAXSKModelOrbiterRound> aRounds = {
-        { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD },
-        { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA },
-        { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB },
-        { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC }
-    };
-    
-    for (const GAXSKModelOrbiterRound &aRound : aRounds) {
+        PushUnique(aRound.mLead);
+        PushUnique(aRound.mSource);
+        PushUnique(aRound.mFeedback);
+    }
+
+    for (int i = 0; i < static_cast<int>(aResult.mOrbiters.size()); ++i) {
+        aResult.mWanderers.push_back(WandererForIndex(i));
+    }
+
+    AppendOrbiterAssignStatements(aResult.mOrbiters,
+                                  aResult.mWanderers,
+                                  0,
+                                  &aResult.mStatements);
+
+    int aHotIndex = static_cast<int>(aResult.mOrbiters.size());
+
+    for (const GAXSKModelOrbiterRound &aRound : pRounds) {
         AppendOrbiterRoundStatements(aRound,
                                      aHotIndex,
-                                     &aModel.mStatements);
-
+                                     &aResult.mStatements);
         aHotIndex += 2;
     }
-    
-    AppendWandererUpdateStatements(aModel.mOrbiters,
-                                   static_cast<int>(aModel.mWanderers.size()),
-                                   &aModel.mStatements);
-    
-    return aModel;
+
+    AppendWandererUpdateStatements(aResult.mOrbiters,
+                                   static_cast<int>(aResult.mWanderers.size()),
+                                   &aResult.mStatements);
+
+    return aResult;
 }

@@ -6,7 +6,10 @@
 #include "GSeedProgram.hpp"
 
 #include "GJson.hpp"
+#include "TwistExpander.hpp"
 #include "TwistFunctional.hpp"
+#include "TwistFastMatrix.hpp"
+#include "TwistIndexShuffle.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -45,6 +48,8 @@ bool ParseInt32(const JsonValue &pValue,
 bool StartsWithText(const std::string &pText,
                     const std::string &pPrefix);
 
+bool IsIndexListSlot(TwistWorkSpaceSlot pSlot);
+
 template <typename T>
 void AppendUnique(std::vector<T> *pValues,
                   const T &pValue) {
@@ -80,6 +85,24 @@ bool IsParameterVariableName(const std::string &pName) {
     return (pName == "pNonce") ||
            (pName == "pInput") ||
            (pName == "pOutput");
+}
+
+bool IsParameterBufferSymbol(const GSymbol &pSymbol) {
+    return pSymbol.IsVar() &&
+           ((pSymbol.mName == "pInput") || (pSymbol.mName == "pOutput"));
+}
+
+std::string CppBufferAlias(const GSymbol &pSymbol) {
+    if (IsParameterBufferSymbol(pSymbol)) {
+        if (pSymbol.mName == "pInput") {
+            return BufAliasName(TwistWorkSpaceSlot::kSource);
+        }
+        if (pSymbol.mName == "pOutput") {
+            return BufAliasName(TwistWorkSpaceSlot::kDest);
+        }
+        return pSymbol.mName;
+    }
+    return BufAliasName(pSymbol.mSlot);
 }
 
 void AppendUniqueVariableName(std::vector<std::string> *pNames,
@@ -150,6 +173,8 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kIndexList256B: return "index_list_256_b";
         case TwistWorkSpaceSlot::kIndexList256C: return "index_list_256_c";
         case TwistWorkSpaceSlot::kIndexList256D: return "index_list_256_d";
+        case TwistWorkSpaceSlot::kIndexList256E: return "index_list_256_e";
+        case TwistWorkSpaceSlot::kIndexList256F: return "index_list_256_f";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return "key_box_unrolled_a";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return "key_box_unrolled_b";
         case TwistWorkSpaceSlot::kKeyRowReadA: return "key_row_read_a";
@@ -230,6 +255,8 @@ bool SlotFromToken(const std::string &pToken,
         TwistWorkSpaceSlot::kIndexList256B,
         TwistWorkSpaceSlot::kIndexList256C,
         TwistWorkSpaceSlot::kIndexList256D,
+        TwistWorkSpaceSlot::kIndexList256E,
+        TwistWorkSpaceSlot::kIndexList256F,
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
         TwistWorkSpaceSlot::kKeyRowReadA,
@@ -471,6 +498,479 @@ std::string Indent(const std::size_t pCount) {
     return std::string(pCount * 4U, ' ');
 }
 
+std::string TrimRuntimeLine(const std::string &pText) {
+    std::size_t aStart = 0U;
+    while ((aStart < pText.size()) && (std::isspace(static_cast<unsigned char>(pText[aStart])) != 0)) {
+        ++aStart;
+    }
+    std::size_t aEnd = pText.size();
+    while ((aEnd > aStart) && (std::isspace(static_cast<unsigned char>(pText[aEnd - 1U])) != 0)) {
+        --aEnd;
+    }
+    return pText.substr(aStart, aEnd - aStart);
+}
+
+bool ParseRuntimeIntToken(std::string pToken,
+                          const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                          int *pValueOut) {
+    if ((pVariables == nullptr) || (pValueOut == nullptr)) {
+        return false;
+    }
+
+    pToken = TrimRuntimeLine(pToken);
+    if (pToken.empty()) {
+        return false;
+    }
+
+    const auto aVariable = pVariables->find(pToken);
+    if (aVariable != pVariables->end()) {
+        *pValueOut = static_cast<int>(aVariable->second);
+        return true;
+    }
+
+    while (!pToken.empty()) {
+        const char aLast = pToken.back();
+        if ((aLast == 'u') || (aLast == 'U') || (aLast == 'l') || (aLast == 'L')) {
+            pToken.pop_back();
+            pToken = TrimRuntimeLine(pToken);
+            continue;
+        }
+        break;
+    }
+
+    if (pToken.empty()) {
+        return false;
+    }
+
+    char *aEnd = nullptr;
+    const long aValue = std::strtol(pToken.c_str(), &aEnd, 0);
+    if ((aEnd == nullptr) || (*aEnd != '\0')) {
+        return false;
+    }
+
+    *pValueOut = static_cast<int>(aValue);
+    return true;
+}
+
+bool ResolveRuntimeAliasSlot(const std::string &pAlias,
+                             TwistWorkSpaceSlot *pSlotOut) {
+    if (pSlotOut == nullptr) {
+        return false;
+    }
+
+    const std::string aAlias = TrimRuntimeLine(pAlias);
+    if ((aAlias == "pSource") || (aAlias == "aSource") || (aAlias == "pInput")) {
+        *pSlotOut = TwistWorkSpaceSlot::kSource;
+        return true;
+    }
+    if ((aAlias == "pDestination") || (aAlias == "aDestination") || (aAlias == "pOutput")) {
+        *pSlotOut = TwistWorkSpaceSlot::kDest;
+        return true;
+    }
+
+    for (int aValue = 0; aValue <= 255; ++aValue) {
+        const TwistWorkSpaceSlot aSlot = static_cast<TwistWorkSpaceSlot>(aValue);
+        if (BufAliasName(aSlot) == aAlias) {
+            *pSlotOut = aSlot;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::uint8_t *ResolveRuntimeBufferSlot(TwistWorkSpace *pWorkspace,
+                                       TwistExpander *pExpander,
+                                       const TwistWorkSpaceSlot pSlot) {
+    if ((pWorkspace == nullptr) || (pExpander == nullptr)) {
+        return nullptr;
+    }
+
+    TwistBufferKey aKey;
+    if (TwistWorkSpace::TryLegacySlotToBufferKey(pSlot, &aKey)) {
+        return TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aKey);
+    }
+    return TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pSlot);
+}
+
+bool ResolveRuntimeBufferPointerExpression(const std::string &pExpression,
+                                           TwistWorkSpace *pWorkspace,
+                                           TwistExpander *pExpander,
+                                           const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                                           std::uint8_t **pPointerOut) {
+    if (pPointerOut == nullptr) {
+        return false;
+    }
+
+    std::string aExpression = TrimRuntimeLine(pExpression);
+    std::size_t aPlus = aExpression.find('+');
+    std::string aAlias = (aPlus == std::string::npos)
+        ? aExpression
+        : TrimRuntimeLine(aExpression.substr(0U, aPlus));
+    std::string aOffsetText = (aPlus == std::string::npos)
+        ? std::string()
+        : TrimRuntimeLine(aExpression.substr(aPlus + 1U));
+
+    TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
+    if (!ResolveRuntimeAliasSlot(aAlias, &aSlot)) {
+        return false;
+    }
+
+    std::uint8_t *aBase = ResolveRuntimeBufferSlot(pWorkspace, pExpander, aSlot);
+    if (aBase == nullptr) {
+        return false;
+    }
+
+    int aOffset = 0;
+    if (!aOffsetText.empty() && !ParseRuntimeIntToken(aOffsetText, pVariables, &aOffset)) {
+        return false;
+    }
+
+    *pPointerOut = aBase + aOffset;
+    return true;
+}
+
+bool SplitRuntimeCallArguments(const std::string &pArgsText,
+                               std::vector<std::string> *pArgsOut) {
+    if (pArgsOut == nullptr) {
+        return false;
+    }
+
+    std::vector<std::string> aArgs;
+    std::size_t aCursor = 0U;
+    while (aCursor < pArgsText.size()) {
+        const std::size_t aComma = pArgsText.find(',', aCursor);
+        std::string aToken = (aComma == std::string::npos)
+            ? pArgsText.substr(aCursor)
+            : pArgsText.substr(aCursor, aComma - aCursor);
+        aToken = TrimRuntimeLine(aToken);
+        if (!aToken.empty()) {
+            aArgs.push_back(aToken);
+        }
+        if (aComma == std::string::npos) {
+            break;
+        }
+        aCursor = aComma + 1U;
+    }
+
+    *pArgsOut = std::move(aArgs);
+    return true;
+}
+
+bool ParseRuntimeMatrixLine(const std::string &pRawLine,
+                            TwistFastMatrix **pMatrixOut,
+                            std::string *pMethodOut,
+                            std::vector<std::string> *pArgsOut,
+                            TwistExpander *pExpander) {
+    if ((pMatrixOut == nullptr) || (pMethodOut == nullptr) ||
+        (pArgsOut == nullptr) || (pExpander == nullptr)) {
+        return false;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimRuntimeLine(aLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+
+    const bool aMatrixA = (aLine.rfind("mMatrixA.", 0U) == 0U);
+    const bool aMatrixB = (aLine.rfind("mMatrixB.", 0U) == 0U);
+    if (!aMatrixA && !aMatrixB) {
+        return false;
+    }
+
+    const std::size_t aPrefixLength = std::string("mMatrixA.").size();
+    const std::size_t aOpen = aLine.find('(', aPrefixLength);
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        return false;
+    }
+
+    *pMatrixOut = aMatrixA ? &pExpander->mMatrixA : &pExpander->mMatrixB;
+    *pMethodOut = aLine.substr(aPrefixLength, aOpen - aPrefixLength);
+    return SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), pArgsOut);
+}
+
+bool RuntimeUnrollSchemeFromToken(const std::string &pToken,
+                                  TwistFastMatrixUnrollScheme *pSchemeOut) {
+    if (pSchemeOut == nullptr) {
+        return false;
+    }
+    const std::string aToken = TrimRuntimeLine(pToken);
+    if ((aToken == "TwistFastMatrixUnrollScheme::kA") || (aToken == "kA")) {
+        *pSchemeOut = TwistFastMatrixUnrollScheme::kA;
+        return true;
+    }
+    if ((aToken == "TwistFastMatrixUnrollScheme::kB") || (aToken == "kB")) {
+        *pSchemeOut = TwistFastMatrixUnrollScheme::kB;
+        return true;
+    }
+    if ((aToken == "TwistFastMatrixUnrollScheme::kC") || (aToken == "kC")) {
+        *pSchemeOut = TwistFastMatrixUnrollScheme::kC;
+        return true;
+    }
+    if ((aToken == "TwistFastMatrixUnrollScheme::kD") || (aToken == "kD")) {
+        *pSchemeOut = TwistFastMatrixUnrollScheme::kD;
+        return true;
+    }
+    return false;
+}
+
+bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
+                                 TwistWorkSpace *pWorkspace,
+                                 TwistExpander *pExpander,
+                                 const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                                 bool *pExecuted,
+                                 std::string *pError) {
+    if (pExecuted != nullptr) {
+        *pExecuted = false;
+    }
+    if ((pWorkspace == nullptr) || (pExpander == nullptr) || (pVariables == nullptr)) {
+        return true;
+    }
+
+    TwistFastMatrix *aMatrix = nullptr;
+    std::string aMethod;
+    std::vector<std::string> aArgs;
+    if (!ParseRuntimeMatrixLine(pRawLine, &aMatrix, &aMethod, &aArgs, pExpander)) {
+        return true;
+    }
+    if (pExecuted != nullptr) {
+        *pExecuted = true;
+    }
+
+    if (aMethod == "LoadAndReset") {
+        if (aArgs.size() != 1U) {
+            SetError(pError, "Matrix LoadAndReset expected 1 argument.");
+            return false;
+        }
+        std::uint8_t *aSource = nullptr;
+        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkspace, pExpander, pVariables, &aSource)) {
+            SetError(pError, "Matrix LoadAndReset source was invalid: " + aArgs[0]);
+            return false;
+        }
+        aMatrix->LoadAndReset(aSource);
+        return true;
+    }
+
+    if (aMethod == "Store") {
+        if (aArgs.size() != 3U) {
+            SetError(pError, "Matrix Store expected 3 arguments.");
+            return false;
+        }
+        std::uint8_t *aDest = nullptr;
+        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkspace, pExpander, pVariables, &aDest)) {
+            SetError(pError, "Matrix Store destination was invalid: " + aArgs[0]);
+            return false;
+        }
+        TwistFastMatrixUnrollScheme aScheme = TwistFastMatrixUnrollScheme::kA;
+        if (!RuntimeUnrollSchemeFromToken(aArgs[1], &aScheme)) {
+            SetError(pError, "Matrix Store unroll scheme was invalid: " + aArgs[1]);
+            return false;
+        }
+        int aUnrollByte = 0;
+        if (!ParseRuntimeIntToken(aArgs[2], pVariables, &aUnrollByte)) {
+            SetError(pError, "Matrix Store unroll byte was invalid: " + aArgs[2]);
+            return false;
+        }
+        aMatrix->Store(aDest, aScheme, static_cast<std::uint8_t>(aUnrollByte));
+        return true;
+    }
+
+    TwistFastMatrixOp aOp = TwistFastMatrixOp::kInv;
+    if (!TwistFastMatrix::OpFromFunctionName(aMethod, &aOp)) {
+        return true;
+    }
+
+    const bool aUsesArg1 = TwistFastMatrix::OpUsesArg1(aOp);
+    const bool aUsesArg2 = TwistFastMatrix::OpUsesArg2(aOp);
+    const std::size_t aExpectedArgCount = aUsesArg2 ? 2U : (aUsesArg1 ? 1U : 0U);
+    if (aArgs.size() != aExpectedArgCount) {
+        SetError(pError, "Matrix operation argument count did not match op arity.");
+        return false;
+    }
+
+    int aArg1 = 0;
+    int aArg2 = 0;
+    if (aUsesArg1 && !ParseRuntimeIntToken(aArgs[0], pVariables, &aArg1)) {
+        SetError(pError, "Matrix operation argument was invalid.");
+        return false;
+    }
+    if (aUsesArg2 && !ParseRuntimeIntToken(aArgs[1], pVariables, &aArg2)) {
+        SetError(pError, "Matrix operation argument was invalid.");
+        return false;
+    }
+    aMatrix->ExecuteOp(aOp, static_cast<std::uint8_t>(aArg1), static_cast<std::uint8_t>(aArg2));
+    return true;
+}
+
+bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
+                                       TwistWorkSpace *pWorkspace,
+                                       TwistExpander *pExpander,
+                                       bool *pExecuted,
+                                       std::string *pError) {
+    if (pExecuted != nullptr) {
+        *pExecuted = false;
+    }
+    if ((pWorkspace == nullptr) || (pExpander == nullptr)) {
+        return true;
+    }
+
+    std::string aLine = pRawLine;
+    const std::size_t aComment = aLine.find("//");
+    if (aComment != std::string::npos) {
+        aLine = aLine.substr(0U, aComment);
+    }
+    aLine = TrimRuntimeLine(aLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+
+    std::string aPrefix = "TwistIndexShuffle::ExecuteA";
+    bool aUseExecuteB = false;
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        aPrefix = "TwistIndexShuffle::ExecuteB";
+        aUseExecuteB = true;
+    }
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        aPrefix = "TwistIndexShuffle::Execute256";
+        aUseExecuteB = false;
+    }
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
+        return true;
+    }
+    if (pExecuted != nullptr) {
+        *pExecuted = true;
+    }
+
+    const std::size_t aOpen = aLine.find('(', aPrefix.size());
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        SetError(pError, "Index shuffle call was malformed.");
+        return false;
+    }
+
+    std::vector<std::string> aArgs;
+    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs) ||
+        (aArgs.size() != 2U)) {
+        SetError(pError, "Index shuffle expected 2 arguments.");
+        return false;
+    }
+
+    TwistWorkSpaceSlot aDestSlot = TwistWorkSpaceSlot::kInvalid;
+    if (!ResolveRuntimeAliasSlot(aArgs[0], &aDestSlot) || !IsIndexListSlot(aDestSlot)) {
+        SetError(pError, "Index shuffle destination was invalid: " + aArgs[0]);
+        return false;
+    }
+    std::uint8_t *aDestBytes = ResolveRuntimeBufferSlot(pWorkspace, pExpander, aDestSlot);
+    if (aDestBytes == nullptr) {
+        SetError(pError, "Index shuffle destination resolved to null.");
+        return false;
+    }
+
+    TwistWorkSpaceSlot aSourceSlot = TwistWorkSpaceSlot::kInvalid;
+    if (!ResolveRuntimeAliasSlot(aArgs[1], &aSourceSlot)) {
+        SetError(pError, "Index shuffle source was invalid: " + aArgs[1]);
+        return false;
+    }
+    std::uint8_t *aSourceBytes = ResolveRuntimeBufferSlot(pWorkspace, pExpander, aSourceSlot);
+    if (aSourceBytes == nullptr) {
+        SetError(pError, "Index shuffle source resolved to null.");
+        return false;
+    }
+
+    std::size_t *aDest = reinterpret_cast<std::size_t *>(aDestBytes);
+    if (aUseExecuteB) {
+        TwistIndexShuffle::ExecuteB(aDest, aSourceBytes);
+    } else {
+        TwistIndexShuffle::ExecuteA(aDest, aSourceBytes);
+    }
+    return true;
+}
+
+bool ParseRuntimeSwitchLine(const std::string &pRawLine,
+                            const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                            int *pSelectedCase,
+                            int *pCaseCount) {
+    if ((pVariables == nullptr) || (pSelectedCase == nullptr) || (pCaseCount == nullptr)) {
+        return false;
+    }
+
+    std::string aLine = TrimRuntimeLine(pRawLine);
+    if (aLine.rfind("switch (", 0U) != 0U) {
+        return false;
+    }
+
+    const std::size_t aOpen = aLine.find('(');
+    const std::size_t aClose = aLine.rfind(')');
+    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
+        return false;
+    }
+
+    const std::string aExpr = TrimRuntimeLine(aLine.substr(aOpen + 1U, aClose - aOpen - 1U));
+    const std::size_t aPercent = aExpr.find('%');
+    if (aPercent == std::string::npos) {
+        return false;
+    }
+
+    int aSelect = 0;
+    int aModulo = 0;
+    if (!ParseRuntimeIntToken(aExpr.substr(0U, aPercent), pVariables, &aSelect) ||
+        !ParseRuntimeIntToken(aExpr.substr(aPercent + 1U), pVariables, &aModulo) ||
+        (aModulo <= 0)) {
+        return false;
+    }
+
+    *pSelectedCase = aSelect % aModulo;
+    if (*pSelectedCase < 0) {
+        *pSelectedCase += aModulo;
+    }
+    *pCaseCount = aModulo;
+    return true;
+}
+
+bool ParseRuntimeCaseLine(const std::string &pRawLine,
+                          int *pCaseValue) {
+    if (pCaseValue == nullptr) {
+        return false;
+    }
+
+    std::string aLine = TrimRuntimeLine(pRawLine);
+    if (aLine.rfind("case ", 0U) != 0U) {
+        return false;
+    }
+
+    const std::size_t aStart = std::string("case ").size();
+    const std::size_t aColon = aLine.find(':', aStart);
+    if (aColon == std::string::npos) {
+        return false;
+    }
+
+    std::unordered_map<std::string, GRuntimeScalar> aEmptyVariables;
+    return ParseRuntimeIntToken(aLine.substr(aStart, aColon - aStart),
+                                &aEmptyVariables,
+                                pCaseValue);
+}
+
+bool IsRuntimeBreakLine(const std::string &pRawLine) {
+    std::string aLine = TrimRuntimeLine(pRawLine);
+    if (!aLine.empty() && (aLine.back() == ';')) {
+        aLine.pop_back();
+        aLine = TrimRuntimeLine(aLine);
+    }
+    return aLine == "break";
+}
+
+bool IsRuntimeCloseBraceLine(const std::string &pRawLine) {
+    return TrimRuntimeLine(pRawLine) == "}";
+}
+
 void CollectVariablesFromExpr(const GExpr &pExpr,
                               std::vector<std::string> *pNames) {
     if (pExpr.mType == GExprType::kSymbol && pExpr.mSymbol.IsVar()) {
@@ -537,19 +1037,9 @@ int CountExprReads(const GExpr &pExpr,
     return aCount;
 }
 
-bool ExprReadsSlot(const GExpr &pExpr,
-                   const TwistWorkSpaceSlot pSlot) {
-    return CountExprReads(pExpr, pSlot) > 0U;
-}
-
 int CountTargetWrites(const GTarget &pTarget,
                                 const TwistWorkSpaceSlot pSlot) {
     return (pTarget.IsBuf() && pTarget.mSymbol.mSlot == pSlot) ? 1U : 0U;
-}
-
-bool TargetWritesSlot(const GTarget &pTarget,
-                      const TwistWorkSpaceSlot pSlot) {
-    return CountTargetWrites(pTarget, pSlot) > 0U;
 }
 
 std::string ScalarOperatorText(const GExprType pType) {
@@ -595,13 +1085,126 @@ std::string ScalarCppTypeForName(const std::string &pName) {
     return "std::uint64_t";
 }
 
-int NormalizeScalarValueForName(const std::string &pName,
-                                const int pValue) {
+int LetterIndexFromSuffix(const std::string &pName,
+                          const std::string &pPrefix) {
+    if (pName.size() != (pPrefix.size() + 1U)) {
+        return -1;
+    }
+    if (pName.compare(0U, pPrefix.size(), pPrefix) != 0) {
+        return -1;
+    }
+    const char aSuffix = pName[pPrefix.size()];
+    if ((aSuffix < 'A') || (aSuffix > 'K')) {
+        return -1;
+    }
+    return static_cast<int>(aSuffix - 'A');
+}
+
+int CoreScalarOrder(const std::string &pName) {
+    if (pName == "aPrevious") { return 0; }
+    if (pName == "aIngress") { return 1; }
+    if (pName == "aCross") { return 2; }
+    if (pName == "aScatter") { return 3; }
+    if (pName == "aCarry") { return 4; }
+    return -1;
+}
+
+int ScalarDeclarationGroup(const std::string &pName) {
+    if (CoreScalarOrder(pName) >= 0) {
+        return 0;
+    }
+    if (LetterIndexFromSuffix(pName, "aOrbiter") >= 0) {
+        return 1;
+    }
+    if (LetterIndexFromSuffix(pName, "aWanderer") >= 0) {
+        return 2;
+    }
+    return 3;
+}
+
+int ScalarDeclarationOrder(const std::string &pName) {
+    const int aCoreOrder = CoreScalarOrder(pName);
+    if (aCoreOrder >= 0) {
+        return aCoreOrder;
+    }
+    const int aOrbitOrder = LetterIndexFromSuffix(pName, "aOrbiter");
+    if (aOrbitOrder >= 0) {
+        return aOrbitOrder;
+    }
+    const int aWandererOrder = LetterIndexFromSuffix(pName, "aWanderer");
+    if (aWandererOrder >= 0) {
+        return aWandererOrder;
+    }
+    return 0;
+}
+
+void SortScalarDeclarationNames(std::vector<std::string> *pNames) {
+    if (pNames == nullptr) {
+        return;
+    }
+    std::stable_sort(pNames->begin(),
+                     pNames->end(),
+                     [](const std::string &pLHS, const std::string &pRHS) {
+                         const int aGroupLHS = ScalarDeclarationGroup(pLHS);
+                         const int aGroupRHS = ScalarDeclarationGroup(pRHS);
+                         if (aGroupLHS != aGroupRHS) {
+                             return aGroupLHS < aGroupRHS;
+                         }
+                         const int aOrderLHS = ScalarDeclarationOrder(pLHS);
+                         const int aOrderRHS = ScalarDeclarationOrder(pRHS);
+                         if (aOrderLHS != aOrderRHS) {
+                             return aOrderLHS < aOrderRHS;
+                         }
+                         return false;
+                     });
+}
+
+std::vector<std::string> ScalarDeclarationLines(const std::vector<std::string> &pNames,
+                                                const int pIndentLevel) {
+    std::vector<std::string> aLines;
+    if (pNames.empty()) {
+        return aLines;
+    }
+
+    constexpr std::size_t kDeclarationsPerLine = 4U;
+    const std::string aIndent = Indent(pIndentLevel);
+    std::size_t aIndex = 0U;
+    int aPreviousGroup = -1;
+    while (aIndex < pNames.size()) {
+        const int aGroup = ScalarDeclarationGroup(pNames[aIndex]);
+        const std::string aType = ScalarCppTypeForName(pNames[aIndex]);
+        if ((aPreviousGroup >= 0) && (aGroup != aPreviousGroup)) {
+            aLines.push_back("");
+        }
+
+        std::ostringstream aLine;
+        aLine << aIndent;
+        std::size_t aLineCount = 0U;
+        while ((aIndex < pNames.size()) &&
+               (aLineCount < kDeclarationsPerLine) &&
+               (ScalarDeclarationGroup(pNames[aIndex]) == aGroup) &&
+               (ScalarCppTypeForName(pNames[aIndex]) == aType)) {
+            if (aLineCount > 0U) {
+                aLine << ' ';
+            }
+            aLine << ScalarCppTypeForName(pNames[aIndex]) << ' ' << pNames[aIndex] << " = 0;";
+            ++aLineCount;
+            ++aIndex;
+        }
+        aLines.push_back(aLine.str());
+        aPreviousGroup = aGroup;
+    }
+
+    return aLines;
+}
+
+GRuntimeScalar NormalizeScalarValueForName(const std::string &pName,
+                                           const GRuntimeScalar pValue) {
     if (StartsWithText(pName, "aOracle")) {
         return pValue;
     }
     if (IsKeyScalarName(pName)) {
-        return static_cast<int>(static_cast<std::uint32_t>(pValue));
+        return static_cast<GRuntimeScalar>(static_cast<std::uint32_t>(pValue));
     }
     return pValue;
 }
@@ -652,15 +1255,30 @@ bool IsSaltSlot(const TwistWorkSpaceSlot pSlot) {
     }
 }
 
+bool IsIndexListSlot(const TwistWorkSpaceSlot pSlot) {
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kIndexList256A:
+        case TwistWorkSpaceSlot::kIndexList256B:
+        case TwistWorkSpaceSlot::kIndexList256C:
+        case TwistWorkSpaceSlot::kIndexList256D:
+        case TwistWorkSpaceSlot::kIndexList256E:
+        case TwistWorkSpaceSlot::kIndexList256F:
+            return true;
+        default:
+            return false;
+    }
+}
+
 std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
-                                const int pIndexValue) {
+                                const GRuntimeScalar pIndexValue) {
     if (IsSaltSlot(pSlot)) {
-        return static_cast<std::size_t>(static_cast<unsigned int>(pIndexValue) &
-                                        static_cast<unsigned int>(S_SALT1));
+        return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_SALT1));
     }
     if (IsSBoxSlot(pSlot)) {
-        return static_cast<std::size_t>(static_cast<unsigned int>(pIndexValue) &
-                                        static_cast<unsigned int>(S_SBOX1));
+        return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_SBOX1));
+    }
+    if (TwistWorkSpace::GetBufferLength(pSlot) == S_BLOCK) {
+        return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_BLOCK1));
     }
     return static_cast<std::size_t>(pIndexValue);
 }
@@ -747,7 +1365,16 @@ bool SymbolFromJsonValue(const JsonValue &pValue,
 
     const std::string aKindText = aKind->as_string();
     if (aKindText == "var") {
-        *pSymbol = GSymbol::Var(aName->as_string());
+        const std::string aNameText = aName->as_string();
+        if (aNameText == "pInput") {
+            *pSymbol = GSymbol::Buf(TwistWorkSpaceSlot::kSource);
+            return true;
+        }
+        if (aNameText == "pOutput") {
+            *pSymbol = GSymbol::Buf(TwistWorkSpaceSlot::kDest);
+            return true;
+        }
+        *pSymbol = GSymbol::Var(aNameText);
         return true;
     }
     if (aKindText == "buf") {
@@ -1399,7 +2026,7 @@ std::string CppExpr(const GExpr &pExpr) {
             return std::to_string(static_cast<unsigned long long>(pExpr.mConstVal)) + "U";
         case GExprType::kRead: {
             const std::string aIndexText = (pExpr.mIndex != nullptr) ? CppExpr(*pExpr.mIndex) : std::string("0");
-            return BufAliasName(pExpr.mSymbol.mSlot) + "[" +
+            return CppBufferAlias(pExpr.mSymbol) + "[" +
                    CppIndexForSlot(pExpr.mSymbol.mSlot, pExpr.mIndex.get(), aIndexText) + "]";
         }
         case GExprType::kAdd:
@@ -1493,7 +2120,7 @@ std::string CppTarget(const GTarget &pTarget) {
         }
         return pTarget.mSymbol.mName;
     }
-    return BufAliasName(pTarget.mSymbol.mSlot) + "[" +
+    return CppBufferAlias(pTarget.mSymbol) + "[" +
            CppIndexForSlot(pTarget.mSymbol.mSlot, pTarget.mIndex.get(), CppExpr(*pTarget.mIndex)) + "]";
 }
 
@@ -1674,8 +2301,8 @@ std::vector<std::string> CppStatementLines(const GStatement &pStatement) {
 bool EvaluateExpr(const GExpr &pExpr,
                   TwistWorkSpace *pWorkspace,
                   TwistExpander *pExpander,
-                  std::unordered_map<std::string, int> *pVariables,
-                  int *pValue,
+                  std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                  GRuntimeScalar *pValue,
                   std::string *pError) {
     if ((pVariables == NULL) || (pValue == NULL)) {
         SetError(pError, "Expression evaluation output was null.");
@@ -1699,13 +2326,19 @@ bool EvaluateExpr(const GExpr &pExpr,
                     SetError(pError, "Buffer symbol resolved to null.");
                     return false;
                 }
-                *pValue = static_cast<int>(aBuffer[0]);
+                if (IsSaltSlot(pExpr.mSymbol.mSlot)) {
+                    *pValue = reinterpret_cast<std::uint64_t *>(aBuffer)[0];
+                } else if (IsIndexListSlot(pExpr.mSymbol.mSlot)) {
+                    *pValue = static_cast<GRuntimeScalar>(reinterpret_cast<std::size_t *>(aBuffer)[0]);
+                } else {
+                    *pValue = static_cast<GRuntimeScalar>(aBuffer[0]);
+                }
                 return true;
             }
             break;
 
         case GExprType::kConst:
-            *pValue = static_cast<int>(pExpr.mConstVal);
+            *pValue = pExpr.mConstVal;
             return true;
 
         case GExprType::kRead: {
@@ -1713,32 +2346,38 @@ bool EvaluateExpr(const GExpr &pExpr,
                 SetError(pError, "Workspace was null during read.");
                 return false;
             }
-            int aIndexValue = 0ULL;
+            GRuntimeScalar aIndexValue = 0ULL;
             if (pExpr.mReadWrapType != GReadWrapType::kNone) {
-                int aBaseIndexValue = 0;
+                GRuntimeScalar aBaseIndexValue = 0ULL;
                 if (pExpr.mReadWrapIndexSymbol.IsVar()) {
                     const auto aBaseIterator = pVariables->find(pExpr.mReadWrapIndexSymbol.mName);
-                    aBaseIndexValue = (aBaseIterator == pVariables->end()) ? 0 : aBaseIterator->second;
+                    aBaseIndexValue = (aBaseIterator == pVariables->end()) ? 0ULL : aBaseIterator->second;
                 } else if (pExpr.mReadWrapIndexSymbol.IsBuf()) {
                     std::uint8_t *aBaseBuffer = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, pExpr.mReadWrapIndexSymbol.mSlot);
                     if (aBaseBuffer == NULL) {
                         SetError(pError, "Read wrap index buffer was null.");
                         return false;
                     }
-                    aBaseIndexValue = static_cast<int>(aBaseBuffer[0]);
+                    if (IsSaltSlot(pExpr.mReadWrapIndexSymbol.mSlot)) {
+                        aBaseIndexValue = reinterpret_cast<std::uint64_t *>(aBaseBuffer)[0];
+                    } else if (IsIndexListSlot(pExpr.mReadWrapIndexSymbol.mSlot)) {
+                        aBaseIndexValue = static_cast<GRuntimeScalar>(reinterpret_cast<std::size_t *>(aBaseBuffer)[0]);
+                    } else {
+                        aBaseIndexValue = static_cast<GRuntimeScalar>(aBaseBuffer[0]);
+                    }
                 } else {
                     SetError(pError, "Read wrap index symbol was invalid.");
                     return false;
                 }
 
-                int aOracleValue = aBaseIndexValue;
+                GRuntimeScalar aOracleValue = aBaseIndexValue;
                 const int aWrapLimit = ReadWrapLimitForType(pExpr.mReadWrapType);
-                if ((aWrapLimit > 0) && (aOracleValue >= aWrapLimit)) {
-                    aOracleValue -= aWrapLimit;
+                if ((aWrapLimit > 0) && (aOracleValue >= static_cast<GRuntimeScalar>(aWrapLimit))) {
+                    aOracleValue -= static_cast<GRuntimeScalar>(aWrapLimit);
                 }
                 const unsigned int aWrapTrimMask = ReadWrapTrimMaskForType(pExpr.mReadWrapType);
                 if (aWrapTrimMask != 0U) {
-                    aOracleValue = static_cast<int>(static_cast<unsigned int>(aOracleValue) & aWrapTrimMask);
+                    aOracleValue = aOracleValue & static_cast<GRuntimeScalar>(aWrapTrimMask);
                 }
                 aIndexValue = aOracleValue;
 
@@ -1758,7 +2397,13 @@ bool EvaluateExpr(const GExpr &pExpr,
                 return false;
             }
             const std::size_t aIndex = RuntimeIndexForSlot(pExpr.mSymbol.mSlot, aIndexValue);
-            *pValue = static_cast<int>(aBuffer[aIndex]);
+            if (IsSaltSlot(pExpr.mSymbol.mSlot)) {
+                *pValue = reinterpret_cast<std::uint64_t *>(aBuffer)[aIndex];
+            } else if (IsIndexListSlot(pExpr.mSymbol.mSlot)) {
+                *pValue = static_cast<GRuntimeScalar>(reinterpret_cast<std::size_t *>(aBuffer)[aIndex]);
+            } else {
+                *pValue = static_cast<GRuntimeScalar>(aBuffer[aIndex]);
+            }
             return true;
         }
 
@@ -1767,9 +2412,14 @@ bool EvaluateExpr(const GExpr &pExpr,
         case GExprType::kMul:
         case GExprType::kXor:
         case GExprType::kAnd:
-        case GExprType::kRotL8: {
-            int aLeft = 0ULL;
-            int aRight = 0ULL;
+        case GExprType::kOr:
+        case GExprType::kRotL8:
+        case GExprType::kRotL32:
+        case GExprType::kRotL64:
+        case GExprType::kShiftL:
+        case GExprType::kShiftR: {
+            GRuntimeScalar aLeft = 0ULL;
+            GRuntimeScalar aRight = 0ULL;
             if ((pExpr.mA == NULL) || (pExpr.mB == NULL) ||
                 !EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aLeft, pError) ||
                 !EvaluateExpr(*pExpr.mB, pWorkspace, pExpander, pVariables, &aRight, pError)) {
@@ -1782,8 +2432,89 @@ bool EvaluateExpr(const GExpr &pExpr,
                 case GExprType::kMul: *pValue = aLeft * aRight; return true;
                 case GExprType::kXor: *pValue = aLeft ^ aRight; return true;
                 case GExprType::kAnd: *pValue = aLeft & aRight; return true;
-                case GExprType::kRotL8: *pValue = RotL8(aLeft, aRight); return true;
+                case GExprType::kOr: *pValue = aLeft | aRight; return true;
+                case GExprType::kRotL8: *pValue = RotL8(static_cast<std::uint8_t>(aLeft), static_cast<std::uint8_t>(aRight)); return true;
+                case GExprType::kRotL32: *pValue = RotL32(static_cast<std::uint32_t>(aLeft), static_cast<std::uint32_t>(aRight)); return true;
+                case GExprType::kRotL64: *pValue = RotL64(aLeft, aRight); return true;
+                case GExprType::kShiftL: *pValue = ShiftL64(aLeft, aRight); return true;
+                case GExprType::kShiftR: *pValue = ShiftR64(aLeft, aRight); return true;
                 default: break;
+            }
+            break;
+        }
+
+        case GExprType::kDiffuseA64:
+        case GExprType::kDiffuseB64:
+        case GExprType::kDiffuseC64: {
+            GRuntimeScalar aValue = 0ULL;
+            if ((pExpr.mA == NULL) ||
+                !EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aValue, pError)) {
+                SetError(pError, "Diffuse expression child was invalid.");
+                return false;
+            }
+            switch (pExpr.mType) {
+                case GExprType::kDiffuseA64: *pValue = TwistMix64::DiffuseA(aValue); return true;
+                case GExprType::kDiffuseB64: *pValue = TwistMix64::DiffuseB(aValue); return true;
+                case GExprType::kDiffuseC64: *pValue = TwistMix64::DiffuseC(aValue); return true;
+                default: break;
+            }
+            break;
+        }
+
+        case GExprType::kMix64_8: {
+            if (pExpr.mA == NULL) {
+                SetError(pError, "Mix64_8 expression child was invalid.");
+                return false;
+            }
+
+            GRuntimeScalar aValue = 0ULL;
+            if (!EvaluateExpr(*pExpr.mA, pWorkspace, pExpander, pVariables, &aValue, pError)) {
+                return false;
+            }
+
+            const GSymbol aSBoxSymbols[8] = {
+                pExpr.mMix64SBoxA,
+                pExpr.mMix64SBoxB,
+                pExpr.mMix64SBoxC,
+                pExpr.mMix64SBoxD,
+                pExpr.mMix64SBoxE,
+                pExpr.mMix64SBoxF,
+                pExpr.mMix64SBoxG,
+                pExpr.mMix64SBoxH
+            };
+            std::uint8_t *aSBoxes[8] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
+            for (int aIndex = 0; aIndex < 8; ++aIndex) {
+                if (!aSBoxSymbols[aIndex].IsBuf()) {
+                    SetError(pError, "Mix64_8 s-box symbol was invalid.");
+                    return false;
+                }
+                aSBoxes[aIndex] = TwistWorkSpace::GetBuffer(pWorkspace, pExpander, aSBoxSymbols[aIndex].mSlot);
+                if (aSBoxes[aIndex] == nullptr) {
+                    SetError(pError, "Mix64_8 s-box buffer was null.");
+                    return false;
+                }
+            }
+
+            switch (pExpr.mMix64Type8) {
+                case Mix64Type_8::kGatePrism_8_8:
+                    *pValue = TwistMix64::GatePrism_8_8(aValue,
+                                                        aSBoxes[0], aSBoxes[1], aSBoxes[2], aSBoxes[3],
+                                                        aSBoxes[4], aSBoxes[5], aSBoxes[6], aSBoxes[7]);
+                    return true;
+                case Mix64Type_8::kGateRoll_8_8:
+                    *pValue = TwistMix64::GateRoll_8_8(aValue,
+                                                       pExpr.mMix64Amount,
+                                                       aSBoxes[0], aSBoxes[1], aSBoxes[2], aSBoxes[3],
+                                                       aSBoxes[4], aSBoxes[5], aSBoxes[6], aSBoxes[7]);
+                    return true;
+                case Mix64Type_8::kGateTurn_8_8:
+                    *pValue = TwistMix64::GateTurn_8_8(aValue,
+                                                       pExpr.mMix64Amount,
+                                                       aSBoxes[0], aSBoxes[1], aSBoxes[2], aSBoxes[3],
+                                                       aSBoxes[4], aSBoxes[5], aSBoxes[6], aSBoxes[7]);
+                    return true;
+                default:
+                    break;
             }
             break;
         }
@@ -1799,19 +2530,39 @@ bool EvaluateExpr(const GExpr &pExpr,
 bool ExecuteStatement(const GStatement &pStatement,
                       TwistWorkSpace *pWorkspace,
                       TwistExpander *pExpander,
-                      std::unordered_map<std::string, int> *pVariables,
+                      std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                       std::string *pError) {
     if (pStatement.IsRawLine()) {
+        bool aExecutedRawLine = false;
+        if (!ExecuteRuntimeRawIndexShuffleLine(pStatement.mRawLine,
+                                               pWorkspace,
+                                               pExpander,
+                                               &aExecutedRawLine,
+                                               pError)) {
+            return false;
+        }
+        if (aExecutedRawLine) {
+            return true;
+        }
+
+        if (!ExecuteRuntimeRawMatrixLine(pStatement.mRawLine,
+                                         pWorkspace,
+                                         pExpander,
+                                         pVariables,
+                                         &aExecutedRawLine,
+                                         pError)) {
+            return false;
+        }
         return true;
     }
 
-    int aExpressionValue = 0ULL;
+    GRuntimeScalar aExpressionValue = 0ULL;
     if (!EvaluateExpr(pStatement.mExpression, pWorkspace, pExpander, pVariables, &aExpressionValue, pError)) {
         return false;
     }
 
     if (pStatement.mTarget.IsVar()) {
-        int &aTargetValue = (*pVariables)[pStatement.mTarget.mSymbol.mName];
+        GRuntimeScalar &aTargetValue = (*pVariables)[pStatement.mTarget.mSymbol.mName];
         switch (pStatement.mAssignType) {
             case GAssignType::kSet:
                 aTargetValue = NormalizeScalarValueForName(pStatement.mTarget.mSymbol.mName, aExpressionValue);
@@ -1842,23 +2593,58 @@ bool ExecuteStatement(const GStatement &pStatement,
             SetError(pError, "Write buffer was null.");
             return false;
         }
-        int aIndexValue = 0ULL;
+        GRuntimeScalar aIndexValue = 0ULL;
         if (pStatement.mTarget.mIndex != nullptr &&
             !EvaluateExpr(*pStatement.mTarget.mIndex, pWorkspace, pExpander, pVariables, &aIndexValue, pError)) {
             return false;
         }
 
         const std::size_t aIndex = RuntimeIndexForSlot(pStatement.mTarget.mSymbol.mSlot, aIndexValue);
+        if (IsSaltSlot(pStatement.mTarget.mSymbol.mSlot)) {
+            std::uint64_t *aSaltLane = reinterpret_cast<std::uint64_t *>(aBuffer);
+            switch (pStatement.mAssignType) {
+                case GAssignType::kSet:
+                    aSaltLane[aIndex] = aExpressionValue;
+                    return true;
+                case GAssignType::kAddAssign:
+                    aSaltLane[aIndex] = aSaltLane[aIndex] + aExpressionValue;
+                    return true;
+                case GAssignType::kXorAssign:
+                    aSaltLane[aIndex] = aSaltLane[aIndex] ^ aExpressionValue;
+                    return true;
+                default:
+                    SetError(pError, "Buffer assignment type was invalid.");
+                    return false;
+            }
+        }
+        if (IsIndexListSlot(pStatement.mTarget.mSymbol.mSlot)) {
+            std::size_t *aIndexList = reinterpret_cast<std::size_t *>(aBuffer);
+            switch (pStatement.mAssignType) {
+                case GAssignType::kSet:
+                    aIndexList[aIndex] = static_cast<std::size_t>(aExpressionValue);
+                    return true;
+                case GAssignType::kAddAssign:
+                    aIndexList[aIndex] = static_cast<std::size_t>(aIndexList[aIndex] + aExpressionValue);
+                    return true;
+                case GAssignType::kXorAssign:
+                    aIndexList[aIndex] = static_cast<std::size_t>(
+                        static_cast<GRuntimeScalar>(aIndexList[aIndex]) ^ aExpressionValue);
+                    return true;
+                default:
+                    SetError(pError, "Buffer assignment type was invalid.");
+                    return false;
+            }
+        }
 
         switch (pStatement.mAssignType) {
             case GAssignType::kSet:
                 aBuffer[aIndex] = static_cast<std::uint8_t>(aExpressionValue);
                 return true;
             case GAssignType::kAddAssign:
-                aBuffer[aIndex] = static_cast<std::uint8_t>(static_cast<int>(aBuffer[aIndex]) + aExpressionValue);
+                aBuffer[aIndex] = static_cast<std::uint8_t>(static_cast<GRuntimeScalar>(aBuffer[aIndex]) + aExpressionValue);
                 return true;
             case GAssignType::kXorAssign:
-                aBuffer[aIndex] = static_cast<std::uint8_t>(static_cast<int>(aBuffer[aIndex]) ^ aExpressionValue);
+                aBuffer[aIndex] = static_cast<std::uint8_t>(static_cast<GRuntimeScalar>(aBuffer[aIndex]) ^ aExpressionValue);
                 return true;
             default:
                 SetError(pError, "Buffer assignment type was invalid.");
@@ -1868,6 +2654,81 @@ bool ExecuteStatement(const GStatement &pStatement,
 
     SetError(pError, "Statement target was invalid.");
     return false;
+}
+
+bool ExecuteStatementSequence(const std::vector<GStatement> &pStatements,
+                              TwistWorkSpace *pWorkspace,
+                              TwistExpander *pExpander,
+                              std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                              std::string *pError) {
+    bool aInSwitch = false;
+    bool aCaseActive = true;
+    bool aWaitingForSwitchClose = false;
+    int aSelectedCase = 0;
+    int aCaseCount = 0;
+    int aCasesSeen = 0;
+
+    for (const GStatement &aStatement : pStatements) {
+        if (aStatement.IsRawLine()) {
+            int aParsedSelectedCase = 0;
+            int aParsedCaseCount = 0;
+            if (!aInSwitch &&
+                ParseRuntimeSwitchLine(aStatement.mRawLine,
+                                       pVariables,
+                                       &aParsedSelectedCase,
+                                       &aParsedCaseCount)) {
+                aInSwitch = true;
+                aCaseActive = false;
+                aWaitingForSwitchClose = false;
+                aSelectedCase = aParsedSelectedCase;
+                aCaseCount = aParsedCaseCount;
+                aCasesSeen = 0;
+                continue;
+            }
+
+            if (aInSwitch) {
+                int aCaseValue = 0;
+                if (ParseRuntimeCaseLine(aStatement.mRawLine, &aCaseValue)) {
+                    aCasesSeen += 1;
+                    aCaseActive = (aCaseValue == aSelectedCase);
+                    aWaitingForSwitchClose = false;
+                    continue;
+                }
+
+                if (IsRuntimeBreakLine(aStatement.mRawLine)) {
+                    if (aCaseActive) {
+                        aCaseActive = false;
+                    }
+                    continue;
+                }
+
+                if (IsRuntimeCloseBraceLine(aStatement.mRawLine)) {
+                    if (aCasesSeen >= aCaseCount) {
+                        if (aWaitingForSwitchClose) {
+                            aInSwitch = false;
+                            aCaseActive = true;
+                            aWaitingForSwitchClose = false;
+                        } else {
+                            aWaitingForSwitchClose = true;
+                        }
+                    }
+                    continue;
+                }
+
+                if (!aCaseActive) {
+                    continue;
+                }
+            }
+        } else if (aInSwitch && !aCaseActive) {
+            continue;
+        }
+
+        if (!ExecuteStatement(aStatement, pWorkspace, pExpander, pVariables, pError)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 } // namespace
@@ -2195,8 +3056,43 @@ GBatch::GBatch() {
     mName = "twist_seed_batch";
 }
 
+GBatchChunk GBatchChunk::Loop(const GLoop &pLoop) {
+    GBatchChunk aChunk;
+    aChunk.mType = GBatchChunkType::kLoop;
+    aChunk.mLoop = pLoop;
+    return aChunk;
+}
+
+GBatchChunk GBatchChunk::Statements(const std::vector<GStatement> &pStatements) {
+    GBatchChunk aChunk;
+    aChunk.mType = GBatchChunkType::kStatements;
+    aChunk.mStatements = pStatements;
+    return aChunk;
+}
+
+bool GBatchChunk::IsInvalid() const {
+    switch (mType) {
+        case GBatchChunkType::kLoop:
+            return mLoop.IsInvalid();
+        case GBatchChunkType::kStatements:
+            if (mStatements.empty()) {
+                return true;
+            }
+            for (const GStatement &aStatement : mStatements) {
+                if (aStatement.IsInvalid()) {
+                    return true;
+                }
+            }
+            return false;
+        case GBatchChunkType::kInvalid:
+        default:
+            return true;
+    }
+}
+
 void GBatch::CommitLoop(const GLoop &pLoop) {
     mLoops.push_back(pLoop);
+    mChunks.push_back(GBatchChunk::Loop(pLoop));
 }
 
 void GBatch::CommitLoop(GLoop *pLoop) {
@@ -2209,11 +3105,7 @@ void GBatch::CommitStatements(std::vector<GStatement> *pStatements) {
     if ((pStatements == nullptr) || pStatements->empty()) {
         return;
     }
-    GLoop aLoop;
-    for (const GStatement &aStatement : *pStatements) {
-        aLoop.AddBody(aStatement);
-    }
-    CommitLoop(aLoop);
+    mChunks.push_back(GBatchChunk::Statements(*pStatements));
 }
 
 void GBatch::AddComment(std::string pComment) {
@@ -2228,9 +3120,108 @@ void GBatch::AddEmptyLine() {
     CommitStatements(&aStatements);
 }
 
+static int CountStatementReads(const GStatement &pStatement,
+                               TwistWorkSpaceSlot pSlot) {
+    int aCount = CountExprReads(pStatement.mExpression, pSlot);
+    if (pStatement.mTarget.mIndex != nullptr) {
+        aCount += CountExprReads(*pStatement.mTarget.mIndex, pSlot);
+    }
+    return aCount;
+}
+
+static int CountLoopReads(const GLoop &pLoop,
+                          TwistWorkSpaceSlot pSlot) {
+    int aCount = 0;
+    for (const GStatement &aStatement : pLoop.mInitializationStatements) {
+        aCount += CountStatementReads(aStatement, pSlot);
+    }
+    for (const GStatement &aStatement : pLoop.mBodyStatements) {
+        aCount += CountStatementReads(aStatement, pSlot);
+    }
+    return aCount;
+}
+
+static int CountStatementWrites(const GStatement &pStatement,
+                                TwistWorkSpaceSlot pSlot) {
+    return CountTargetWrites(pStatement.mTarget, pSlot);
+}
+
+static int CountLoopWrites(const GLoop &pLoop,
+                           TwistWorkSpaceSlot pSlot) {
+    int aCount = 0;
+    for (const GStatement &aStatement : pLoop.mInitializationStatements) {
+        aCount += CountStatementWrites(aStatement, pSlot);
+    }
+    for (const GStatement &aStatement : pLoop.mBodyStatements) {
+        aCount += CountStatementWrites(aStatement, pSlot);
+    }
+    return aCount;
+}
+
+static bool LoopReadsSlot(const GLoop &pLoop,
+                          TwistWorkSpaceSlot pSlot) {
+    return (CountLoopReads(pLoop, pSlot) > 0);
+}
+
+static bool LoopWritesSlot(const GLoop &pLoop,
+                           TwistWorkSpaceSlot pSlot) {
+    return (CountLoopWrites(pLoop, pSlot) > 0);
+}
+
+static void CollectVariablesFromStatement(const GStatement &pStatement,
+                                          std::vector<std::string> *pNames) {
+    if (pStatement.mTarget.IsVar()) {
+        AppendUniqueVariableName(pNames, pStatement.mTarget.mSymbol.mName);
+    }
+    if (pStatement.mTarget.mIndex != nullptr) {
+        CollectVariablesFromExpr(*pStatement.mTarget.mIndex, pNames);
+    }
+    CollectVariablesFromExpr(pStatement.mExpression, pNames);
+}
+
+static void CollectVariablesFromLoop(const GLoop &pLoop,
+                                     std::vector<std::string> *pNames) {
+    AppendUniqueVariableName(pNames, pLoop.mLoopVariableName);
+    for (const GStatement &aStatement : pLoop.mInitializationStatements) {
+        CollectVariablesFromStatement(aStatement, pNames);
+    }
+    for (const GStatement &aStatement : pLoop.mBodyStatements) {
+        CollectVariablesFromStatement(aStatement, pNames);
+    }
+}
+
+static void CollectSlotsFromStatement(const GStatement &pStatement,
+                                      std::vector<TwistWorkSpaceSlot> *pSlots) {
+    if (pStatement.mTarget.IsBuf()) {
+        AppendUnique(pSlots, pStatement.mTarget.mSymbol.mSlot);
+    }
+    if (pStatement.mTarget.mIndex != nullptr) {
+        CollectSlotsFromExpr(*pStatement.mTarget.mIndex, pSlots);
+    }
+    CollectSlotsFromExpr(pStatement.mExpression, pSlots);
+}
+
+static void CollectSlotsFromLoop(const GLoop &pLoop,
+                                 std::vector<TwistWorkSpaceSlot> *pSlots) {
+    for (const GStatement &aStatement : pLoop.mInitializationStatements) {
+        CollectSlotsFromStatement(aStatement, pSlots);
+    }
+    for (const GStatement &aStatement : pLoop.mBodyStatements) {
+        CollectSlotsFromStatement(aStatement, pSlots);
+    }
+}
+
 bool GBatch::IsInvalid() const {
-    if (mLoops.empty()) {
+    if (mChunks.empty() && mLoops.empty()) {
         return true;
+    }
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.IsInvalid()) {
+                return true;
+            }
+        }
+        return false;
     }
     for (const GLoop &aLoop : mLoops) {
         if (aLoop.IsInvalid()) {
@@ -2242,57 +3233,56 @@ bool GBatch::IsInvalid() const {
 
 int GBatch::CountReads(TwistWorkSpaceSlot pSlot) const {
     int aCount = 0U;
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                aCount += CountLoopReads(aChunk.mLoop, pSlot);
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    aCount += CountStatementReads(aStatement, pSlot);
+                }
+            }
+        }
+        return aCount;
+    }
     for (const GLoop &aLoop : mLoops) {
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-            aCount += CountExprReads(aStatement.mExpression, pSlot);
-            if (aStatement.mTarget.mIndex != nullptr) {
-                aCount += CountExprReads(*aStatement.mTarget.mIndex, pSlot);
-            }
-        }
-        for (const GStatement &aStatement : aLoop.mBodyStatements) {
-            aCount += CountExprReads(aStatement.mExpression, pSlot);
-            if (aStatement.mTarget.mIndex != nullptr) {
-                aCount += CountExprReads(*aStatement.mTarget.mIndex, pSlot);
-            }
-        }
+        aCount += CountLoopReads(aLoop, pSlot);
     }
     return aCount;
 }
 
 int GBatch::CountWrites(TwistWorkSpaceSlot pSlot) const {
     int aCount = 0U;
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                aCount += CountLoopWrites(aChunk.mLoop, pSlot);
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    aCount += CountStatementWrites(aStatement, pSlot);
+                }
+            }
+        }
+        return aCount;
+    }
     for (const GLoop &aLoop : mLoops) {
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-            aCount += CountTargetWrites(aStatement.mTarget, pSlot);
-        }
-        for (const GStatement &aStatement : aLoop.mBodyStatements) {
-            aCount += CountTargetWrites(aStatement.mTarget, pSlot);
-        }
+        aCount += CountLoopWrites(aLoop, pSlot);
     }
     return aCount;
 }
 
 int GBatch::CountLoopsReading(TwistWorkSpaceSlot pSlot) const {
     int aCount = 0U;
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if ((aChunk.mType == GBatchChunkType::kLoop) && LoopReadsSlot(aChunk.mLoop, pSlot)) {
+                ++aCount;
+            }
+        }
+        return aCount;
+    }
     for (const GLoop &aLoop : mLoops) {
-        bool aReads = false;
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-            if (ExprReadsSlot(aStatement.mExpression, pSlot) ||
-                ((aStatement.mTarget.mIndex != nullptr) && ExprReadsSlot(*aStatement.mTarget.mIndex, pSlot))) {
-                aReads = true;
-                break;
-            }
-        }
-        if (!aReads) {
-            for (const GStatement &aStatement : aLoop.mBodyStatements) {
-                if (ExprReadsSlot(aStatement.mExpression, pSlot) ||
-                    ((aStatement.mTarget.mIndex != nullptr) && ExprReadsSlot(*aStatement.mTarget.mIndex, pSlot))) {
-                    aReads = true;
-                    break;
-                }
-            }
-        }
-        if (aReads) {
+        if (LoopReadsSlot(aLoop, pSlot)) {
             ++aCount;
         }
     }
@@ -2301,23 +3291,16 @@ int GBatch::CountLoopsReading(TwistWorkSpaceSlot pSlot) const {
 
 int GBatch::CountLoopsWriting(TwistWorkSpaceSlot pSlot) const {
     int aCount = 0U;
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if ((aChunk.mType == GBatchChunkType::kLoop) && LoopWritesSlot(aChunk.mLoop, pSlot)) {
+                ++aCount;
+            }
+        }
+        return aCount;
+    }
     for (const GLoop &aLoop : mLoops) {
-        bool aWrites = false;
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-            if (TargetWritesSlot(aStatement.mTarget, pSlot)) {
-                aWrites = true;
-                break;
-            }
-        }
-        if (!aWrites) {
-            for (const GStatement &aStatement : aLoop.mBodyStatements) {
-                if (TargetWritesSlot(aStatement.mTarget, pSlot)) {
-                    aWrites = true;
-                    break;
-                }
-            }
-        }
-        if (aWrites) {
+        if (LoopWritesSlot(aLoop, pSlot)) {
             ++aCount;
         }
     }
@@ -2326,57 +3309,69 @@ int GBatch::CountLoopsWriting(TwistWorkSpaceSlot pSlot) const {
 
 std::vector<std::string> GBatch::CollectVariableNames() const {
     std::vector<std::string> aNames;
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                CollectVariablesFromLoop(aChunk.mLoop, &aNames);
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    CollectVariablesFromStatement(aStatement, &aNames);
+                }
+            }
+        }
+        return aNames;
+    }
     for (const GLoop &aLoop : mLoops) {
-        AppendUniqueVariableName(&aNames, aLoop.mLoopVariableName);
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-            if (aStatement.mTarget.IsVar()) {
-                AppendUniqueVariableName(&aNames, aStatement.mTarget.mSymbol.mName);
-            }
-            if (aStatement.mTarget.mIndex != nullptr) {
-                CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
-            }
-            CollectVariablesFromExpr(aStatement.mExpression, &aNames);
-        }
-        for (const GStatement &aStatement : aLoop.mBodyStatements) {
-            if (aStatement.mTarget.IsVar()) {
-                AppendUniqueVariableName(&aNames, aStatement.mTarget.mSymbol.mName);
-            }
-            if (aStatement.mTarget.mIndex != nullptr) {
-                CollectVariablesFromExpr(*aStatement.mTarget.mIndex, &aNames);
-            }
-            CollectVariablesFromExpr(aStatement.mExpression, &aNames);
-        }
+        CollectVariablesFromLoop(aLoop, &aNames);
     }
     return aNames;
 }
 
 std::vector<TwistWorkSpaceSlot> GBatch::CollectReferencedSlots() const {
     std::vector<TwistWorkSpaceSlot> aSlots;
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                CollectSlotsFromLoop(aChunk.mLoop, &aSlots);
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    CollectSlotsFromStatement(aStatement, &aSlots);
+                }
+            }
+        }
+        return aSlots;
+    }
     for (const GLoop &aLoop : mLoops) {
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-            if (aStatement.mTarget.IsBuf()) {
-                AppendUnique(&aSlots, aStatement.mTarget.mSymbol.mSlot);
-            }
-            if (aStatement.mTarget.mIndex != nullptr) {
-                CollectSlotsFromExpr(*aStatement.mTarget.mIndex, &aSlots);
-            }
-            CollectSlotsFromExpr(aStatement.mExpression, &aSlots);
-        }
-        for (const GStatement &aStatement : aLoop.mBodyStatements) {
-            if (aStatement.mTarget.IsBuf()) {
-                AppendUnique(&aSlots, aStatement.mTarget.mSymbol.mSlot);
-            }
-            if (aStatement.mTarget.mIndex != nullptr) {
-                CollectSlotsFromExpr(*aStatement.mTarget.mIndex, &aSlots);
-            }
-            CollectSlotsFromExpr(aStatement.mExpression, &aSlots);
-        }
+        CollectSlotsFromLoop(aLoop, &aSlots);
     }
     return aSlots;
 }
 
 std::string GBatch::ToPrettyString() const {
     std::vector<std::string> aLines;
+    if (!mChunks.empty()) {
+        for (std::size_t aIndex = 0U; aIndex < mChunks.size(); ++aIndex) {
+            if (aIndex > 0U) {
+                aLines.push_back("");
+            }
+            const GBatchChunk &aChunk = mChunks[aIndex];
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                AppendPrettyLoopLines(aChunk.mLoop, &aLines);
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    aLines.push_back(aStatement.ToPretty());
+                }
+            }
+        }
+        std::ostringstream aStream;
+        for (std::size_t aIndex = 0U; aIndex < aLines.size(); ++aIndex) {
+            aStream << aLines[aIndex];
+            if ((aIndex + 1U) < aLines.size()) {
+                aStream << '\n';
+            }
+        }
+        return aStream.str();
+    }
     for (std::size_t aIndex = 0U; aIndex < mLoops.size(); ++aIndex) {
         if (aIndex > 0U) {
             aLines.push_back("");
@@ -2396,6 +3391,41 @@ std::string GBatch::ToPrettyString() const {
 
 std::string GBatch::ToJson(std::string *pError) const {
     JsonValue::Array aLoops;
+    JsonValue::Array aChunks;
+
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.IsInvalid()) {
+                SetError(pError, "Batch could not be serialized because it had an invalid chunk.");
+                return "";
+            }
+
+            JsonValue::Object aChunkObject;
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                aChunkObject["type"] = JsonValue::String("loop");
+                aChunkObject["loop"] = LoopToJsonValue(aChunk.mLoop);
+                aLoops.push_back(LoopToJsonValue(aChunk.mLoop));
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                JsonValue::Array aStatements;
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    aStatements.push_back(StatementToJsonValue(aStatement));
+                }
+                aChunkObject["type"] = JsonValue::String("statements");
+                aChunkObject["statements"] = JsonValue::ArrayValue(std::move(aStatements));
+            } else {
+                SetError(pError, "Batch could not be serialized because it had an unknown chunk type.");
+                return "";
+            }
+            aChunks.push_back(JsonValue::ObjectValue(std::move(aChunkObject)));
+        }
+
+        JsonValue::Object aObject;
+        aObject["name"] = JsonValue::String(mName);
+        aObject["chunks"] = JsonValue::ArrayValue(std::move(aChunks));
+        aObject["loops"] = JsonValue::ArrayValue(std::move(aLoops));
+        return JsonValue::ObjectValue(std::move(aObject)).Serialize();
+    }
+
     std::size_t aSkippedInvalidLoops = 0U;
     for (const GLoop &aLoop : mLoops) {
         // Allow statement-level sanitization in LoopToJsonValue/StatementToJsonValue.
@@ -2451,20 +3481,74 @@ bool GBatch::FromJson(const std::string &pJsonText,
 
     const JsonValue *aName = aRoot->find("name");
     const JsonValue *aLoops = aRoot->find("loops");
-    if ((aName == NULL) || !aName->is_string() ||
-        (aLoops == NULL) || !aLoops->is_array()) {
+    const JsonValue *aChunks = aRoot->find("chunks");
+    if ((aName == NULL) || !aName->is_string()) {
         SetError(pError, "Batch JSON was incomplete.");
         return false;
     }
 
     GBatch aBatch;
     aBatch.mName = aName->as_string();
+    if ((aChunks != NULL) && aChunks->is_array()) {
+        for (const JsonValue &aChunkValue : aChunks->as_array()) {
+            if (!aChunkValue.is_object()) {
+                SetError(pError, "Batch chunk JSON was not an object.");
+                return false;
+            }
+
+            const JsonValue *aType = aChunkValue.find("type");
+            if ((aType == NULL) || !aType->is_string()) {
+                SetError(pError, "Batch chunk JSON was missing a type.");
+                return false;
+            }
+
+            const std::string aTypeText = aType->as_string();
+            if (aTypeText == "loop") {
+                const JsonValue *aLoopValue = aChunkValue.find("loop");
+                if (aLoopValue == NULL) {
+                    SetError(pError, "Batch loop chunk was missing loop data.");
+                    return false;
+                }
+                GLoop aLoop;
+                if (!LoopFromJsonValue(*aLoopValue, &aLoop, pError)) {
+                    return false;
+                }
+                aBatch.CommitLoop(aLoop);
+            } else if (aTypeText == "statements") {
+                const JsonValue *aStatementsValue = aChunkValue.find("statements");
+                if ((aStatementsValue == NULL) || !aStatementsValue->is_array()) {
+                    SetError(pError, "Batch statements chunk was missing statement data.");
+                    return false;
+                }
+                std::vector<GStatement> aStatements;
+                for (const JsonValue &aStatementValue : aStatementsValue->as_array()) {
+                    GStatement aStatement;
+                    if (!StatementFromJsonValue(aStatementValue, &aStatement, pError)) {
+                        return false;
+                    }
+                    aStatements.push_back(aStatement);
+                }
+                aBatch.CommitStatements(&aStatements);
+            } else {
+                SetError(pError, "Batch chunk type was unknown: " + aTypeText);
+                return false;
+            }
+        }
+        *pBatch = aBatch;
+        return true;
+    }
+
+    if ((aLoops == NULL) || !aLoops->is_array()) {
+        SetError(pError, "Batch JSON was incomplete.");
+        return false;
+    }
+
     for (const JsonValue &aLoopValue : aLoops->as_array()) {
         GLoop aLoop;
         if (!LoopFromJsonValue(aLoopValue, &aLoop, pError)) {
             return false;
         }
-        aBatch.mLoops.push_back(aLoop);
+        aBatch.CommitLoop(aLoop);
     }
 
     *pBatch = aBatch;
@@ -2483,8 +3567,16 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
     aLines.push_back("static void " + pFunctionName + "(TwistWorkSpace *pWorkspace) {");
 
     std::vector<std::string> aLoopVariables;
-    for (const GLoop &aLoop : mLoops) {
-        AppendUnique(&aLoopVariables, aLoop.mLoopVariableName);
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if ((aChunk.mType == GBatchChunkType::kLoop) && !aChunk.mLoop.mLoopVariableName.empty()) {
+                AppendUnique(&aLoopVariables, aChunk.mLoop.mLoopVariableName);
+            }
+        }
+    } else {
+        for (const GLoop &aLoop : mLoops) {
+            AppendUnique(&aLoopVariables, aLoop.mLoopVariableName);
+        }
     }
 
     std::vector<std::string> aScalarVariables = CollectVariableNames();
@@ -2501,6 +3593,7 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
                        }),
         aScalarVariables.end()
     );
+    SortScalarDeclarationNames(&aScalarVariables);
 
     if (pEmitDeclarations) {
         std::vector<TwistWorkSpaceSlot> aSlots = CollectReferencedSlots();
@@ -2514,40 +3607,62 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
             aLines.push_back("");
         }
 
-        for (const std::string &aVariable : aScalarVariables) {
-            aLines.push_back(Indent(1) + ScalarCppTypeForName(aVariable) + " " + aVariable + " = 0;");
+        const std::vector<std::string> aDeclarationLines = ScalarDeclarationLines(aScalarVariables, 1);
+        for (const std::string &aLine : aDeclarationLines) {
+            aLines.push_back(aLine);
         }
     }
 
-    for (std::size_t aLoopIndex = 0U; aLoopIndex < mLoops.size(); ++aLoopIndex) {
-        const GLoop &aLoop = mLoops[aLoopIndex];
-        if (pEmitDeclarations || (aLoopIndex > 0U)) {
-            aLines.push_back("");
+    auto AppendStatementLines = [&](const GStatement &pStatement, int pIndentLevel) {
+        const std::vector<std::string> aStatementLines = CppStatementLines(pStatement);
+        for (const std::string &aStatementLine : aStatementLines) {
+            aLines.push_back(Indent(pIndentLevel) + aStatementLine);
         }
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
-            const std::vector<std::string> aStatementLines = CppStatementLines(aStatement);
-            for (const std::string &aStatementLine : aStatementLines) {
-                aLines.push_back(Indent(1) + aStatementLine);
-            }
+    };
+
+    auto AppendLoopLines = [&](const GLoop &pLoop) {
+        for (const GStatement &aStatement : pLoop.mInitializationStatements) {
+            AppendStatementLines(aStatement, 1);
         }
-        if (LoopUsesSizeT(aLoop)) {
-            aLines.push_back(Indent(1) + "for (std::size_t " + aLoop.mLoopVariableName + " = " +
-                             std::to_string(aLoop.mLoopBegin) + "U; " +
-                             aLoop.mLoopVariableName + " < static_cast<std::size_t>(" + aLoop.mLoopEndText + "); " +
-                             aLoop.mLoopVariableName + " += " + std::to_string(aLoop.mLoopStep) + "U) {");
+        if (LoopUsesSizeT(pLoop)) {
+            aLines.push_back(Indent(1) + "for (std::size_t " + pLoop.mLoopVariableName + " = " +
+                             std::to_string(pLoop.mLoopBegin) + "U; " +
+                             pLoop.mLoopVariableName + " < static_cast<std::size_t>(" + pLoop.mLoopEndText + "); " +
+                             pLoop.mLoopVariableName + " += " + std::to_string(pLoop.mLoopStep) + "U) {");
         } else {
-            aLines.push_back(Indent(1) + "for (int " + aLoop.mLoopVariableName + " = " +
-                             std::to_string(aLoop.mLoopBegin) + "; " +
-                             aLoop.mLoopVariableName + " < " + aLoop.mLoopEndText + "; " +
-                             aLoop.mLoopVariableName + " += " + std::to_string(aLoop.mLoopStep) + ") {");
+            aLines.push_back(Indent(1) + "for (int " + pLoop.mLoopVariableName + " = " +
+                             std::to_string(pLoop.mLoopBegin) + "; " +
+                             pLoop.mLoopVariableName + " < " + pLoop.mLoopEndText + "; " +
+                             pLoop.mLoopVariableName + " += " + std::to_string(pLoop.mLoopStep) + ") {");
         }
-        for (const GStatement &aStatement : aLoop.mBodyStatements) {
-            const std::vector<std::string> aStatementLines = CppStatementLines(aStatement);
-            for (const std::string &aStatementLine : aStatementLines) {
-                aLines.push_back(Indent(2) + aStatementLine);
-            }
+        for (const GStatement &aStatement : pLoop.mBodyStatements) {
+            AppendStatementLines(aStatement, 2);
         }
         aLines.push_back(Indent(1) + "}");
+    };
+
+    if (!mChunks.empty()) {
+        for (std::size_t aChunkIndex = 0U; aChunkIndex < mChunks.size(); ++aChunkIndex) {
+            const GBatchChunk &aChunk = mChunks[aChunkIndex];
+            if (pEmitDeclarations || (aChunkIndex > 0U)) {
+                aLines.push_back("");
+            }
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                AppendLoopLines(aChunk.mLoop);
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    AppendStatementLines(aStatement, 1);
+                }
+            }
+        }
+    } else {
+        for (std::size_t aLoopIndex = 0U; aLoopIndex < mLoops.size(); ++aLoopIndex) {
+            const GLoop &aLoop = mLoops[aLoopIndex];
+            if (pEmitDeclarations || (aLoopIndex > 0U)) {
+                aLines.push_back("");
+            }
+            AppendLoopLines(aLoop);
+        }
     }
 
     aLines.push_back("}");
@@ -2597,7 +3712,7 @@ std::string GBatch::BuildCppScopeBlock(std::string *pError,
                 aStream << '\n';
             }
             aIsFirstLine = false;
-            aStream << "    " << aLine;
+            aStream << aLine;
         }
         aStream << '\n';
     }
@@ -2625,39 +3740,71 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkspace,
         return false;
     }
 
-    std::unordered_map<std::string, int> aLocalVariables;
+    std::unordered_map<std::string, GRuntimeScalar> aLocalVariables;
     for (const auto &aPair : *pVariables) {
-        aLocalVariables[aPair.first] = static_cast<int>(aPair.second);
+        aLocalVariables[aPair.first] = aPair.second;
     }
 
     for (const std::string &aName : CollectVariableNames()) {
         if (aLocalVariables.find(aName) == aLocalVariables.end()) {
-            aLocalVariables[aName] = 0;
+            aLocalVariables[aName] = 0ULL;
         }
     }
 
-    for (const GLoop &aLoop : mLoops) {
-        for (const GStatement &aStatement : aLoop.mInitializationStatements) {
+    auto ExecuteLoop = [&](const GLoop &pLoop) -> bool {
+        for (const GStatement &aStatement : pLoop.mInitializationStatements) {
             if (!ExecuteStatement(aStatement, pWorkspace, pExpander, &aLocalVariables, pError)) {
                 return false;
             }
         }
 
-        const int aLoopEnd = ResolveLengthText(aLoop.mLoopEndText);
-        for (int aLoopValue = aLoop.mLoopBegin;
-             (aLoop.mLoopStep > 0) ? (aLoopValue < aLoopEnd) : (aLoopValue > aLoopEnd);
-             aLoopValue += aLoop.mLoopStep) {
-            aLocalVariables[aLoop.mLoopVariableName] = static_cast<int>(aLoopValue);
-            for (const GStatement &aStatement : aLoop.mBodyStatements) {
-                if (!ExecuteStatement(aStatement, pWorkspace, pExpander, &aLocalVariables, pError)) {
+        const int aLoopEnd = ResolveLengthText(pLoop.mLoopEndText);
+        for (int aLoopValue = pLoop.mLoopBegin;
+             (pLoop.mLoopStep > 0) ? (aLoopValue < aLoopEnd) : (aLoopValue > aLoopEnd);
+             aLoopValue += pLoop.mLoopStep) {
+            aLocalVariables[pLoop.mLoopVariableName] = static_cast<GRuntimeScalar>(aLoopValue);
+            if (!ExecuteStatementSequence(pLoop.mBodyStatements,
+                                          pWorkspace,
+                                          pExpander,
+                                          &aLocalVariables,
+                                          pError)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                if (!ExecuteLoop(aChunk.mLoop)) {
+                    return false;
+                }
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                if (!ExecuteStatementSequence(aChunk.mStatements,
+                                              pWorkspace,
+                                              pExpander,
+                                              &aLocalVariables,
+                                              pError)) {
                     return false;
                 }
             }
         }
+
+        for (const auto &aPair : aLocalVariables) {
+            (*pVariables)[aPair.first] = aPair.second;
+        }
+        return true;
+    }
+
+    for (const GLoop &aLoop : mLoops) {
+        if (!ExecuteLoop(aLoop)) {
+            return false;
+        }
     }
 
     for (const auto &aPair : aLocalVariables) {
-        (*pVariables)[aPair.first] = static_cast<GRuntimeScalar>(aPair.second);
+        (*pVariables)[aPair.first] = aPair.second;
     }
 
     return true;

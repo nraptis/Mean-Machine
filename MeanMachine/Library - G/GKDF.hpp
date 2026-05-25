@@ -10,14 +10,32 @@
 
 #include "GSeedProgram.hpp"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
-class GKDF {
+enum class GKDFMaterialBundle : std::uint8_t {
+    kInbuilt = 0,
+    kEphemeral = 1,
+    kWorkspace = 2
+};
+
+class GKDF_A {
 public:
     bool                                Bake(TwistDomain pDomain,
-                                             GSymbol pSourceBuffer,
-                                             GSymbol pKDFBuffer,
+                                             const std::string &pSource,
+                                             const std::string &pDest,
+                                             GKDFMaterialBundle pBundle,
+                                             std::vector<GStatement> *pStatements,
+                                             std::string *pErrorMessage);
+};
+
+class GKDF_B {
+public:
+    bool                                Bake(TwistDomain pDomain,
+                                             const std::string &pSource,
+                                             const std::string &pDest,
+                                             GKDFMaterialBundle pBundle,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
 };

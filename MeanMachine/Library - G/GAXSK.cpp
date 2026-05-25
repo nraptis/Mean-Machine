@@ -11,13 +11,333 @@
 #include "Random.hpp"
 #include "TwistArray.hpp"
 #include "GCache.hpp"
+#include <array>
+#include <span>
 
 namespace {
+
+// N=7, family=StrideForward, score=1180
+// rotation=0, reflected=false, stride=0, source_phase=2, feedback_phase=3, order_phase=0
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P0 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+};
+
+// N=7, family=RingForwardRotated, score=1160
+// rotation=0, reflected=true, stride=1, source_phase=2, feedback_phase=6, order_phase=6
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P1 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
+};
+
+// N=7, family=ReverseRing, score=1068
+// rotation=0, reflected=false, stride=1, source_phase=6, feedback_phase=5, order_phase=5
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P2 = {
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB },
+};
+
+// N=7, family=StrideForward, score=1180
+// rotation=0, reflected=false, stride=0, source_phase=5, feedback_phase=3, order_phase=1
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P3 = {
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD },
+};
+
+// N=7, family=RingForwardRotated, score=1160
+// rotation=0, reflected=true, stride=1, source_phase=2, feedback_phase=6, order_phase=1
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P4 = {
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
+};
+
+// N=7, family=StrideForward, score=1180
+// rotation=0, reflected=false, stride=0, source_phase=2, feedback_phase=3, order_phase=2
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P5 = {
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+};
+
+
+
+// N=9, family=Foldback, score=1180
+// rotation=0, reflected=true, stride=0, source_phase=3, feedback_phase=5, order_phase=0
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P0 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitH },
+};
+
+// N=9, family=StrideForward, score=1180
+// rotation=0, reflected=false, stride=0, source_phase=3, feedback_phase=4, order_phase=2
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P1 = {
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
+};
+
+// N=9, family=RingForwardRotated, score=1160
+// rotation=0, reflected=false, stride=1, source_phase=2, feedback_phase=8, order_phase=2
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P2 = {
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC },
+};
+
+// N=9, family=StrideForward, score=1180
+// rotation=0, reflected=true, stride=2, source_phase=5, feedback_phase=6, order_phase=7
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P3 = {
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG },
+};
+
+// N=9, family=Foldback, score=1180
+// rotation=6, reflected=false, stride=0, source_phase=3, feedback_phase=5, order_phase=1
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P4 = {
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
+};
+
+// N=9, family=Foldback, score=1180
+// rotation=7, reflected=true, stride=0, source_phase=3, feedback_phase=4, order_phase=2
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P5 = {
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB },
+};
+
+// N=11, family=Foldback, score=1180
+// rotation=6, reflected=true, stride=4, source_phase=5, feedback_phase=9, order_phase=1
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P0 = {
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitK },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitJ },
+};
+
+// N=11, family=Foldback, score=1180
+// rotation=2, reflected=false, stride=0, source_phase=7, feedback_phase=6, order_phase=8
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P1 = {
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitK },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitJ },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD },
+};
+
+// N=11, family=StrideForward, score=1180
+// rotation=0, reflected=true, stride=4, source_phase=7, feedback_phase=5, order_phase=7
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P2 = {
+    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitJ },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitK },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
+};
+
+// N=11, family=RingForwardRotated, score=1160
+// rotation=0, reflected=false, stride=4, source_phase=1, feedback_phase=3, order_phase=0
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P3 = {
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitJ },
+    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitK },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
+};
+
+// N=11, family=StrideForward, score=1180
+// rotation=0, reflected=true, stride=4, source_phase=5, feedback_phase=7, order_phase=6
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P4 = {
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitJ },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitK },
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
+};
+
+// N=11, family=RingForwardRotated, score=1160
+// rotation=0, reflected=true, stride=4, source_phase=1, feedback_phase=3, order_phase=2
+static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P5 = {
+    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
+    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitJ },
+    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
+    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitK },
+    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
+    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitA },
+    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
+    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
+    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
+    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
+    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
+};
+
+static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds7 = {{
+    kOrbiterRounds_N7_P0,
+    kOrbiterRounds_N7_P1,
+    kOrbiterRounds_N7_P2,
+    kOrbiterRounds_N7_P3,
+    kOrbiterRounds_N7_P4,
+    kOrbiterRounds_N7_P5
+}};
+
+static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds9 = {{
+    kOrbiterRounds_N9_P0,
+    kOrbiterRounds_N9_P1,
+    kOrbiterRounds_N9_P2,
+    kOrbiterRounds_N9_P3,
+    kOrbiterRounds_N9_P4,
+    kOrbiterRounds_N9_P5
+}};
+
+static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds11 = {{
+    kOrbiterRounds_N11_P0,
+    kOrbiterRounds_N11_P1,
+    kOrbiterRounds_N11_P2,
+    kOrbiterRounds_N11_P3,
+    kOrbiterRounds_N11_P4,
+    kOrbiterRounds_N11_P5
+}};
+
 
 void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
     if (pErrorMessage != nullptr) {
         *pErrorMessage = pMessage;
+    }
+}
+
+static int CrushRotationDistanceForFormat(int pRotationCount) {
+    switch (pRotationCount) {
+        case 0:
+        case 1:
+            return 32;
+            
+        case 2:
+            return 24;
+            
+        case 3:
+            return 16;
+            
+        case 4:
+            return 12;
+            
+        case 5:
+            return 10;
+            
+        case 6:
+            return 8;
+            
+        case 7:
+            return 6;
+            
+        case 8:
+            return 4;
+            
+        case 9:
+        case 10:
+            return 3;
+            
+        default:
+            return 2;
     }
 }
 
@@ -58,6 +378,41 @@ bool IsWandererVariable(GAXSKVariable pVariable) {
 
         default:
             return false;
+    }
+}
+
+static int PassCountForFormat(GAXSFormat pFormat) {
+    switch (pFormat) {
+        case GAXSFormat::kSeven: return 6;
+        case GAXSFormat::kNine: return 6;
+        case GAXSFormat::kEleven: return 6;
+        default: return 0;
+    }
+}
+
+static int SizeForFormat(GAXSFormat pFormat) {
+    switch (pFormat) {
+        case GAXSFormat::kSeven: return 7;
+        case GAXSFormat::kNine: return 9;
+        case GAXSFormat::kEleven: return 11;
+        default: return 0;
+    }
+}
+
+static std::span<const GAXSKModelOrbiterRound>
+RoundsForFormatPass(GAXSFormat pFormat, int pPassIndex) {
+    switch (pFormat) {
+        case GAXSFormat::kSeven:
+            return kOrbiterRounds7[pPassIndex % 6];
+
+        case GAXSFormat::kNine:
+            return kOrbiterRounds9[pPassIndex % 6];
+
+        case GAXSFormat::kEleven:
+            return kOrbiterRounds11[pPassIndex % 6];
+
+        default:
+            return {};
     }
 }
 
@@ -338,6 +693,18 @@ void GAXSK::Reset() {
     mPools.clear();
 }
 
+GAXSKModel GAXSK::MakeModelForFormatPass(GAXSFormat pFormat,
+                                          int pPassIndex) {
+    const auto aRounds = RoundsForFormatPass(pFormat, pPassIndex);
+
+    if (aRounds.empty()) {
+        return GAXSKModel();
+    }
+
+    return GAXSKModel::MakeOrbiterPlan(aRounds);
+}
+
+
 GAXSKSourceKind GAXSK::SourceForIndex(int pIndex) {
     switch (pIndex) {
         case 0: return GAXSKSourceKind::kSourceA;
@@ -361,29 +728,17 @@ GAXSKNonceByteKind GAXSK::NonceForIndex(int pIndex) {
     }
 }
 
-bool GAXSK::GetPassCount(int *pResult, std::string *pErrorMessage) const {
+bool GAXSK::GetPassCount(int *pResult,
+                         std::string *pErrorMessage) const {
     if (pResult == nullptr) {
         SetError(pErrorMessage, "GAXSK::GetPassCount received null result");
         return false;
     }
 
-    *pResult = 0;
-
-    switch (mFormat) {
-        case GAXSFormat::kFourFour:
-            *pResult = 4;
-            break;
-        case GAXSFormat::kSixSix:
-            *pResult = 4;
-            break;
-
-        default:
-            SetError(pErrorMessage, "GAXSK::GetPassCount received unsupported format");
-            return false;
-    }
+    *pResult = PassCountForFormat(mFormat);
 
     if (*pResult <= 0) {
-        SetError(pErrorMessage, "GAXSK::GetPassCount produced invalid pass count");
+        SetError(pErrorMessage, "GAXSK::GetPassCount received unsupported format");
         return false;
     }
 
@@ -397,23 +752,10 @@ bool GAXSK::GetOrbiterCount(int *pResult,
         return false;
     }
 
-    *pResult = 0;
-
-    switch (mFormat) {
-        case GAXSFormat::kFourFour:
-            *pResult = 4;
-            break;
-        case GAXSFormat::kSixSix:
-            *pResult = 6;
-            break;
-
-        default:
-            SetError(pErrorMessage, "GAXSK::GetOrbiterCount received unsupported format");
-            return false;
-    }
+    *pResult = SizeForFormat(mFormat);
 
     if (*pResult <= 0) {
-        SetError(pErrorMessage, "GAXSK::GetOrbiterCount produced invalid orbiter count");
+        SetError(pErrorMessage, "GAXSK::GetOrbiterCount received unsupported format");
         return false;
     }
 
@@ -427,20 +769,7 @@ bool GAXSK::GetWandererCount(int *pResult,
         return false;
     }
 
-    *pResult = 0;
-
-    switch (mFormat) {
-        case GAXSFormat::kFourFour:
-            *pResult = 4;
-            break;
-        case GAXSFormat::kSixSix:
-            *pResult = 6;
-            break;
-
-        default:
-            SetError(pErrorMessage, "GAXSK::GetWandererCount received unsupported format");
-            return false;
-    }
+    *pResult = SizeForFormat(mFormat);
 
     if (*pResult <= 0) {
         SetError(pErrorMessage, "GAXSK::GetWandererCount produced invalid wanderer count");
@@ -589,10 +918,13 @@ bool GAXSK::MakeCarryMixStatement(const std::vector<GAXSKVariable> &pWanderers,
     const bool aHasOdd = ((aWanderers.size() & 1U) != 0U);
 
     const int aRotationCount = static_cast<int>(aWanderers.size()) + 1;
+    
+    const int aMinimumDistance =
+        CrushRotationDistanceForFormat(aRotationCount);
 
     std::vector<int> aRotations;
     if (!ChooseUpdateRotations(aRotationCount,
-                               8,
+                               aMinimumDistance,
                                true,
                                &aRotations,
                                pErrorMessage)) {
@@ -687,10 +1019,13 @@ bool GAXSK::MakeIngressCrushStatement(GAXSKVariable pTarget,
     aPlan.mOuterOp = GAXSKOpKind::kAdd;
 
     const int aRotationCount = static_cast<int>(aOrbiters.size());
+    
+    const int aMinimumDistance =
+        CrushRotationDistanceForFormat(aRotationCount);
 
     std::vector<int> aRotations;
     if (!ChooseUpdateRotations(aRotationCount,
-                               8,
+                               aMinimumDistance,
                                true,
                                &aRotations,
                                pErrorMessage)) {
@@ -819,6 +1154,27 @@ bool GAXSK::MakeScatterMixStatement(GAXSKStatement *pResult,
     return true;
 }
 
+static int MinimumRotationDistanceForFormat(GAXSFormat pFormat,
+                                            int pRotationCount) {
+    if (pRotationCount <= 1) {
+        return 12;
+    }
+
+    switch (pFormat) {
+        case GAXSFormat::kSeven:
+            return pRotationCount >= 6 ? 6 : 12;
+
+        case GAXSFormat::kNine:
+            return pRotationCount >= 8 ? 4 : 8;
+
+        case GAXSFormat::kEleven:
+            return pRotationCount >= 10 ? 2 : 4;
+
+        default:
+            return 8;
+    }
+}
+
 bool GAXSK::InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlots,
                                       GAXSKUpdateRotationParityMode pParityMode,
                                       std::string *pErrorMessage) {
@@ -832,13 +1188,8 @@ bool GAXSK::InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlo
         return true;
     }
 
-    int aMinimumDistance = 12;
-    if (aRotationCount > 10) {
-        aMinimumDistance = 2;
-    } else if (aRotationCount > 6) {
-        aMinimumDistance = 8;
-    }
-
+    const int aMinimumDistance = MinimumRotationDistanceForFormat(mFormat, aRotationCount);
+    
     std::vector<int> aRotations;
     if (!ChooseUpdateRotations(aRotationCount,
                                aMinimumDistance,
@@ -932,7 +1283,7 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
     }
     pSkeleton->mStatements.push_back(aScatter);
     
-    GAXSKModel aModel = GAXSKModel::MakeOrbiterPlan4x4();
+    GAXSKModel aModel = MakeModelForFormatPass(mFormat, pPassIndex);
     
     if (!FinishModelStatements(aModel,
                                &pSkeleton->mStatements,

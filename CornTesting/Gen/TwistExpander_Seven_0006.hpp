@@ -2,17 +2,23 @@
 
 #include "TwistExpander.hpp"
 
-class TwistExpander_Toberman : public TwistExpander {
+class TwistExpander_Seven_0006 : public TwistExpander {
 public:
-    TwistExpander_Toberman();
-    ~TwistExpander_Toberman() override = default;
+    TwistExpander_Seven_0006();
+    ~TwistExpander_Seven_0006() override = default;
 
     void KDF(std::uint64_t pNonce,
-             std::uint8_t *pInput,
-             std::uint8_t *pOutput,
              TwistDomainConstants *pConstants,
              TwistDomainSaltSet *pDomainSaltSet,
              TwistDomainSBoxSet *pDomainSBoxSet) override;
+    void KDF_A(std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               TwistDomainSBoxSet *pDomainSBoxSet) override;
+    void KDF_B(std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               TwistDomainSBoxSet *pDomainSBoxSet) override;
     void Seed(TwistWorkSpace *pWorkspace,
               TwistFarmSBox *pFarmSBox,
               TwistFarmSalt *pFarmSalt,

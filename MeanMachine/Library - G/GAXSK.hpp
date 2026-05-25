@@ -38,8 +38,9 @@ enum class GAXSKModelTermKind: std::uint8_t {
 
 enum class GAXSFormat : std::uint8_t {
     kInvalid = 0,
-    kFourFour,
-    kSixSix
+    kSeven,
+    kNine,
+    kEleven
 };
 
 enum class GAXSKDiffuseKind : std::uint8_t {
@@ -61,7 +62,7 @@ enum class GAXSKSourceKind : std::uint8_t {
     kSourceA,
     kSourceB,
     kSourceC,
-    kSourceD,
+    kSourceD
 };
 
 enum class GAXSKNonceByteKind : std::uint8_t {
@@ -339,14 +340,17 @@ public:
                                                                       std::string *pErrorMessage);
     
     bool                                    MakeCarryMixStatement(const std::vector<GAXSKVariable> &pWanderers,
-                                      GAXSKStatement *pResult,
-                                      std::string *pErrorMessage);
+                                                                  GAXSKStatement *pResult,
+                                                                  std::string *pErrorMessage);
     
     
     
     GAXSKStatement                          MakePreviousAssignStatement();
     
     GAXSKStatement                          MakeCommentStatement();
+    
+    GAXSKModel                              MakeModelForFormatPass(GAXSFormat pFormat,
+                                                                   int pPassIndex);
     
     GAXSKStatement                          MakeContextWordStatement(GAXSKVariable pTarget,
                                                                      GAXSKDiffuseKind pDiffuse,

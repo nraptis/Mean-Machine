@@ -33,9 +33,13 @@ private:
     std::vector<GSymbol>                    mWorkLanes;
     std::vector<GSymbol>                    mOperationLanes;
     std::vector<GSymbol>                    mExpansionLanes;
-    std::vector<GAXSKSkeleton>              mARXSkeletons;
+    std::vector<GAXSKSkeleton>              mARXSkeletonsA;
+    std::vector<GAXSKSkeleton>              mARXSkeletonsB;
+    std::vector<GAXSKSkeleton>              mARXSkeletonsC;
     
-    std::vector<GHotPack>                   mHotPacks;
+    std::vector<GHotPack>                   mHotPacksA;
+    std::vector<GHotPack>                   mHotPacksB;
+    std::vector<GHotPack>                   mHotPacksC;
     
 };
 

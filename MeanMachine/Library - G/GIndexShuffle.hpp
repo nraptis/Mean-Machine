@@ -8,21 +8,39 @@
 
 #include "GSeedProgram.hpp"
 
+#include <string>
+
 class GIndexShuffle {
 public:
-    static bool BakeExecute256(const GSymbol pIndexList,
-                               const GSymbol pEntropySource,
-                               std::vector<GStatement> *pStatements,
-                               std::string *pErrorMessage) {
+    static bool BakeA(const GSymbol pIndexList,
+                      const GSymbol pEntropySource,
+                      std::vector<GStatement> *pStatements,
+                      std::string *pErrorMessage) {
+        return Bake("ExecuteA", pIndexList, pEntropySource, pStatements, pErrorMessage);
+    }
+
+    static bool BakeB(const GSymbol pIndexList,
+                      const GSymbol pEntropySource,
+                      std::vector<GStatement> *pStatements,
+                      std::string *pErrorMessage) {
+        return Bake("ExecuteB", pIndexList, pEntropySource, pStatements, pErrorMessage);
+    }
+
+private:
+    static bool Bake(const char *pMethodName,
+                     const GSymbol pIndexList,
+                     const GSymbol pEntropySource,
+                     std::vector<GStatement> *pStatements,
+                     std::string *pErrorMessage) {
         if (pStatements == nullptr) {
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GIndexShuffle::BakeExecute256 requires statement output.";
+                *pErrorMessage = "GIndexShuffle::Bake requires statement output.";
             }
             return false;
         }
         if (!pIndexList.IsBuf() || !pEntropySource.IsBuf()) {
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GIndexShuffle::BakeExecute256 requires buffer symbols.";
+                *pErrorMessage = "GIndexShuffle::Bake requires buffer symbols.";
             }
             return false;
         }
@@ -31,10 +49,12 @@ public:
             (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256A) ||
             (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256B) ||
             (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256C) ||
-            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256D);
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256D) ||
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256E) ||
+            (aIndexListSlot == TwistWorkSpaceSlot::kIndexList256F);
         if (!aIndexListValid) {
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GIndexShuffle::BakeExecute256 index-list key must be one of index_list_256_a/b/c/d.";
+                *pErrorMessage = "GIndexShuffle::Bake index-list key must be one of index_list_256_a/b/c/d/e/f.";
             }
             return false;
         }
@@ -43,13 +63,13 @@ public:
         const std::string aEntropyAlias = BufAliasName(pEntropySource);
         if (aIndexAlias.empty() || aEntropyAlias.empty()) {
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GIndexShuffle::BakeExecute256 failed to resolve buffer alias.";
+                *pErrorMessage = "GIndexShuffle::Bake failed to resolve buffer alias.";
             }
             return false;
         }
 
         pStatements->push_back(
-            GStatement::RawLine("TwistIndexShuffle::Execute256(" + aIndexAlias + ", " + aEntropyAlias + ");")
+            GStatement::RawLine(std::string("TwistIndexShuffle::") + pMethodName + "(" + aIndexAlias + ", " + aEntropyAlias + ");")
         );
         return true;
     }

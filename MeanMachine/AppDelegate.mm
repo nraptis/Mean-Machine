@@ -36,7 +36,7 @@
 #include "Rig.hpp"
 #include "GRunMatrixDiffusion.hpp"
 #include "GAXSK.hpp"
-
+#include "Builder.hpp"
 
 namespace {
 
@@ -57,8 +57,28 @@ bool IsRunningUnderXCTest() {
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
-
+    
     if (IsRunningUnderXCTest() == false) {
+            std::string aError;
+
+            if (!Builder::Go("CornTesting/Gen",
+                             "EdChan",
+                             6,
+                             4,
+                             &aError)) {
+                printf("Builder::Go failed:\n%s\n", aError.c_str());
+                return;
+            }
+
+            printf("done export...\n");
+        }
+    
+    
+
+    /*
+    if (IsRunningUnderXCTest() == false) {
+        
+        
         GSeedRunKDF2 aKDF;
         std::string aError;
         GTwistExpander aExpander;
@@ -84,21 +104,6 @@ bool IsRunningUnderXCTest() {
         
         aExpander.mSeed.AddLine("// [phase ii]");
      
-        /*
-        GSeedMatrixRollups aMatr;
-        if (!aMatr.Plan(&aError)) {
-            printf("error on GSeedMatrixRollups.Plan\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-        
-        if (!aMatr.Build(aExpander.mSeed, &aError)) {
-            printf("error on GSeedMatrixRollups.Build\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-       
-        
         
         GRunMatrixDiffusionConfig aDiffusionA;
         aDiffusionA.mInputA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
@@ -120,9 +125,7 @@ bool IsRunningUnderXCTest() {
         }
         
         aExpander.mKDF.AddBatch(aBatch);
-        
-        printf("trying export...\n");
-         */
+
         
         if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
             !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError)) {
@@ -133,6 +136,7 @@ bool IsRunningUnderXCTest() {
         
         
     }
+    */
     
     /*
     unsigned char aPassword[3];

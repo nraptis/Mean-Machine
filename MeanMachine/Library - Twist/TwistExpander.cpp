@@ -139,10 +139,10 @@ TwistExpander::TwistExpander() {
         pConstants->mMatrixUnrollB = NextByte(0x13ULL);
         pConstants->mMatrixSchemeA = NextByte(0x14ULL);
         pConstants->mMatrixSchemeB = NextByte(0x15ULL);
-        pConstants->mMatrixArgAA = NextByte(0x16ULL);
-        pConstants->mMatrixArgAB = NextByte(0x17ULL);
-        pConstants->mMatrixArgBA = NextByte(0x18ULL);
-        pConstants->mMatrixArgBB = NextByte(0x19ULL);
+        pConstants->mMatrixArgA = NextByte(0x16ULL);
+        pConstants->mMatrixArgB = NextByte(0x17ULL);
+        pConstants->mMatrixArgC = NextByte(0x18ULL);
+        pConstants->mMatrixArgD = NextByte(0x19ULL);
         pConstants->mMaskMutateA = NextByte(0x1AULL);
         pConstants->mMaskMutateB = NextByte(0x1BULL);
     };
@@ -153,6 +153,8 @@ TwistExpander::TwistExpander() {
     std::memset(mIndexList256B, 0, sizeof(mIndexList256B));
     std::memset(mIndexList256C, 0, sizeof(mIndexList256C));
     std::memset(mIndexList256D, 0, sizeof(mIndexList256D));
+    std::memset(mIndexList256E, 0, sizeof(mIndexList256E));
+    std::memset(mIndexList256F, 0, sizeof(mIndexList256F));
     std::memset(mSBoxA, 0, sizeof(mSBoxA));
     std::memset(mSBoxB, 0, sizeof(mSBoxB));
     std::memset(mSBoxC, 0, sizeof(mSBoxC));
@@ -188,24 +190,40 @@ void TwistExpander::SyncLegacyFromDomainBundleInbuilt() {
 }
 
 void TwistExpander::KDF(std::uint64_t pNonce,
-                        std::uint8_t *pSource,
-                        std::uint8_t *pDest,
                         TwistDomainConstants *pDomainConstants,
                         TwistDomainSaltSet *pDomainSaltSet,
                         TwistDomainSBoxSet *pDomainSBoxSet) {
-    if ((pSource == nullptr) || (pDest == nullptr) ||
+    if ((mSource == nullptr) || (mDest == nullptr) ||
         (pDomainConstants == nullptr) ||
         (pDomainSaltSet == nullptr) ||
         (pDomainSBoxSet == nullptr)) {
         return;
     }
 
-    mSource = pSource;
-    mDest = pDest;
     mKDFSessionNonce = pNonce;
     mActiveConstants = pDomainConstants;
     mActiveSaltSet = pDomainSaltSet;
     mActiveSBoxSet = pDomainSBoxSet;
+}
+
+void TwistExpander::KDF_A(std::uint64_t pNonce,
+                          TwistDomainConstants *pDomainConstants,
+                          TwistDomainSaltSet *pDomainSaltSet,
+                          TwistDomainSBoxSet *pDomainSBoxSet) {
+    TwistExpander::KDF(pNonce,
+                       pDomainConstants,
+                       pDomainSaltSet,
+                       pDomainSBoxSet);
+}
+
+void TwistExpander::KDF_B(std::uint64_t pNonce,
+                          TwistDomainConstants *pDomainConstants,
+                          TwistDomainSaltSet *pDomainSaltSet,
+                          TwistDomainSBoxSet *pDomainSBoxSet) {
+    TwistExpander::KDF(pNonce,
+                       pDomainConstants,
+                       pDomainSaltSet,
+                       pDomainSBoxSet);
 }
 
 void TwistExpander::Seed(TwistWorkSpace *pWorkspace,

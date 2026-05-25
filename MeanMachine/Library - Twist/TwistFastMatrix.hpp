@@ -217,7 +217,7 @@ public:
     void                                        LoadAndReset(const std::uint8_t *pSource);
     void                                        Store(std::uint8_t *pDest,
                                                       TwistFastMatrixUnrollScheme pUnrollScheme,
-                                                      std::uint8_t pUnrollByte) const;
+                                                      std::uint8_t pUnrollWord) const;
     void                                        ExecuteOp(TwistFastMatrixOp pOp,
                                                           std::uint8_t pArg1 = 0U,
                                                           std::uint8_t pArg2 = 0U);
@@ -789,20 +789,20 @@ o o o o o o o o
     
     
     // 6 (12)
-    void                                        PinwheelRight(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelRightQuarterA(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelRightQuarterB(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelRightQuarterC(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelRightQuarterD(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelRightEachQuarter(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
+    void                                        PinwheelRight(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelRightQuarterA(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelRightQuarterB(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelRightQuarterC(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelRightQuarterD(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelRightEachQuarter(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
     
     // 6
-    void                                        PinwheelLeft(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelLeftQuarterA(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelLeftQuarterB(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelLeftQuarterC(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelLeftQuarterD(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
-    void                                        PinwheelLeftEachQuarter(std::uint8_t pEmptyA, std::uint8_t pEmptyB);
+    void                                        PinwheelLeft(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelLeftQuarterA(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelLeftQuarterB(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelLeftQuarterC(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelLeftQuarterD(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
+    void                                        PinwheelLeftEachQuarter(std::uint8_t pEmptyA = 0U, std::uint8_t pEmptyB = 0U);
     
     bool                                        operator==(const TwistFastMatrix& other) const;
     bool                                        operator!=(const TwistFastMatrix& other) const;

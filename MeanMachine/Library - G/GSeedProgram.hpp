@@ -148,9 +148,27 @@ struct GLoop {
     
 };
 
+enum class GBatchChunkType : std::uint8_t {
+    kInvalid = 0,
+    kLoop = 1,
+    kStatements = 2
+};
+
+struct GBatchChunk {
+    GBatchChunkType                    mType = GBatchChunkType::kInvalid;
+    GLoop                              mLoop;
+    std::vector<GStatement>            mStatements;
+
+    static GBatchChunk                 Loop(const GLoop &pLoop);
+    static GBatchChunk                 Statements(const std::vector<GStatement> &pStatements);
+
+    bool                               IsInvalid() const;
+};
+
 struct GBatch {
     std::string                         mName;
     std::vector<GLoop>                  mLoops;
+    std::vector<GBatchChunk>            mChunks;
 
     GBatch();
 

@@ -22,12 +22,27 @@ enum class TwistVariable: std::uint8_t {
     kIndex = 10, // aIndex
     kNonce = 11, // aNonce
     kParamNonce = 12, // pNonce
-    kParamInput = 13, // pInput
-    kParamOutput = 14, // pOutput
+    kParamInput = 13, // aSource
+    kParamOutput = 14, // aDestination
 
     kDomainWordIngress = 20, // aDomainWordIngress
     kDomainWordScatter = 21, // aDomainWordScatter
     kDomainWordCross = 22, // aDomainWordCross
+    
+    kDomainWordMatrixSelectA,
+    kDomainWordMatrixSelectB,
+    
+    kDomainWordMatrixUnrollA,
+    kDomainWordMatrixUnrollB,
+    
+    kDomainWordMatrixSchemeA,
+    kDomainWordMatrixSchemeB,
+    
+    kDomainWordMatrixArgA,
+    kDomainWordMatrixArgB,
+    
+    kDomainWordMatrixArgC,
+    kDomainWordMatrixArgD,
 
     kIngress = 40, // aIngress
     kPrevious = 41, // aPrevious
@@ -64,10 +79,10 @@ enum class TwistVariable: std::uint8_t {
     kMatrixUnrollB = 212, // mMatrixUnrollB
     kMatrixSchemeA = 213, // mMatrixSchemeA
     kMatrixSchemeB = 214, // mMatrixSchemeB
-    kMatrixArgAA = 215, // mMatrixArgAA
-    kMatrixArgAB = 216, // mMatrixArgAB
-    kMatrixArgBA = 217, // mMatrixArgBA
-    kMatrixArgBB = 218, // mMatrixArgBB
+    kMatrixArgA = 215, // mMatrixArgA
+    kMatrixArgB = 216, // mMatrixArgB
+    kMatrixArgC = 217, // mMatrixArgC
+    kMatrixArgD = 218, // mMatrixArgD
     kMaskMutateA = 219, // mMaskMutateA
     kMaskMutateB = 220, // mMaskMutateB
 };
@@ -94,10 +109,10 @@ enum class TwistConstants : std::uint8_t {
     kMatrixSchemeA = 50,
     kMatrixSchemeB = 51,
 
-    kMatrixArgAA = 60,
-    kMatrixArgAB = 61,
-    kMatrixArgBA = 62,
-    kMatrixArgBB = 63,
+    kMatrixArgA = 60,
+    kMatrixArgB = 61,
+    kMatrixArgC = 62,
+    kMatrixArgD = 63,
 
     kMaskMutateA = 70,
     kMaskMutateB = 71,

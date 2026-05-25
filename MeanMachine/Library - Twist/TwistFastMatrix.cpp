@@ -26,6 +26,11 @@ struct TwistFastMatrixOpBinding {
     MatrixOpSpeed                         mSpeed = MatrixOpSpeed::kMedium;
 };
 
+// Fast:   15
+// Medium: 131
+// Slow:   14
+// Total:  160
+
 constexpr TwistFastMatrixOpBinding kTwistFastMatrixOpBindings[] = {
     { TwistFastMatrixOp::kReverseRow, &TwistFastMatrix::ReverseRow, "kReverseRow", MatrixOpSpeed::kFast },
     { TwistFastMatrixOp::kReverseRowEven, &TwistFastMatrix::ReverseRowEven, "kReverseRowEven", MatrixOpSpeed::kFast },
@@ -1301,21 +1306,21 @@ std::vector<TwistFastMatrixOp> TwistFastMatrix::GetConflictingOps(std::vector<Tw
 
 void TwistFastMatrix::Store(std::uint8_t *pDest,
                 TwistFastMatrixUnrollScheme pUnrollScheme,
-                std::uint8_t pUnrollByte) const {
+                std::uint8_t pUnrollWord) const {
 
     const std::uint8_t *aOrder;
     switch (pUnrollScheme) {
         case TwistFastMatrixUnrollScheme::kA:
-            aOrder = TwistFastMatrixUnrollTableA::kUnrollTable[pUnrollByte];
+            aOrder = TwistFastMatrixUnrollTableA::kUnrollTable[pUnrollWord];
             break;
         case TwistFastMatrixUnrollScheme::kB:
-            aOrder = TwistFastMatrixUnrollTableB::kUnrollTable[pUnrollByte];
+            aOrder = TwistFastMatrixUnrollTableB::kUnrollTable[pUnrollWord];
             break;
         case TwistFastMatrixUnrollScheme::kC:
-            aOrder = TwistFastMatrixUnrollTableC::kUnrollTable[pUnrollByte];
+            aOrder = TwistFastMatrixUnrollTableC::kUnrollTable[pUnrollWord];
             break;
         default:
-            aOrder = TwistFastMatrixUnrollTableD::kUnrollTable[pUnrollByte];
+            aOrder = TwistFastMatrixUnrollTableD::kUnrollTable[pUnrollWord];
             break;
     }
     

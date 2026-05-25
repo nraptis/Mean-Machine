@@ -78,6 +78,22 @@ const std::array<const char *, 8> kNonceVariableNames = {
     "aNonceByteH",
 };
 
+const std::array<TwistVariable, 13> kInitialRandomVariables = {
+    TwistVariable::kPrevious,
+    TwistVariable::kCarry,
+    TwistVariable::kWandererA,
+    TwistVariable::kWandererB,
+    TwistVariable::kWandererC,
+    TwistVariable::kWandererD,
+    TwistVariable::kWandererE,
+    TwistVariable::kWandererF,
+    TwistVariable::kWandererG,
+    TwistVariable::kWandererH,
+    TwistVariable::kWandererI,
+    TwistVariable::kWandererJ,
+    TwistVariable::kWandererK,
+};
+
 void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
     if (pErrorMessage != nullptr) {
@@ -135,8 +151,15 @@ void GSeedRunKDF2::Reset() {
         mExpansionLanes.push_back(BufSymbol(aSlot));
     }
 
-    mARXSkeletons.clear();
-    mHotPacks = GMagicNumbers::GetHotPacks(12);
+    mARXSkeletonsA.clear();
+    mARXSkeletonsB.clear();
+    mARXSkeletonsC.clear();
+    
+    
+    mHotPacksA = GMagicNumbers::GetHotPacks(12);
+    mHotPacksB = GMagicNumbers::GetHotPacks(12);
+    mHotPacksC = GMagicNumbers::GetHotPacks(12);
+    
 }
 
 bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
@@ -147,10 +170,10 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
     Reset();
     
     GAXSK *aAXSK = new GAXSK();
-    if (!aAXSK->Bake(GAXSFormat::kFourFour,
-                     {1, 2, 3, 4},
+    if (!aAXSK->Bake(GAXSFormat::kEleven,
+                     {1, 2, 3, 4, 4, 4},
                      true,
-                     &mARXSkeletons,
+                     &mARXSkeletonsA,
                      pErrorMessage)) {
         if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
             *pErrorMessage = "GAXSK::Bake failed while planning GSeedRunKDF2";
@@ -159,6 +182,39 @@ bool GSeedRunKDF2::Plan(std::string *pErrorMessage) {
         return false;
     }
     delete aAXSK;
+    
+    
+    aAXSK = new GAXSK();
+    if (!aAXSK->Bake(GAXSFormat::kNine,
+                     {4, 4, 4, 4, 4, 4},
+                     true,
+                     &mARXSkeletonsB,
+                     pErrorMessage)) {
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "GAXSK::Bake failed while planning GSeedRunKDF2";
+        }
+        delete aAXSK;
+        return false;
+    }
+    delete aAXSK;
+    
+    
+    aAXSK = new GAXSK();
+    if (!aAXSK->Bake(GAXSFormat::kEleven,
+                     {4, 4, 4, 4, 4, 4},
+                     true,
+                     &mARXSkeletonsC,
+                     pErrorMessage)) {
+        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
+            *pErrorMessage = "GAXSK::Bake failed while planning GSeedRunKDF2";
+        }
+        delete aAXSK;
+        return false;
+    }
+    delete aAXSK;
+    
+    
+    
     return true;
 }
 
@@ -167,16 +223,15 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     if (pErrorMessage != nullptr) {
         pErrorMessage->clear();
     }
-
-    if (mARXSkeletons.empty() && !Plan(pErrorMessage)) {
-        return false;
-    }
-    if (mARXSkeletons.empty()) {
-        SetError(pErrorMessage, "GSeedRunKDF2 had no GAXSK skeletons to emit");
+    
+    if (mARXSkeletonsA.size() != 6 ||
+        mARXSkeletonsB.size() != 6 ||
+        mARXSkeletonsC.size() != 6) {
+        SetError(pErrorMessage, "GSeedRunKDF2 had incorrect GAXSK skeleton counts");
         return false;
     }
     
-
+    
     pBranch.AddLine("// [gseed-run-kdf2]");
     for (int i = 0; i < 8; ++i) {
         pBranch.AddLine(NonceLine(GSymbol::Var(kNonceVariableNames[static_cast<std::size_t>(i)]), i));
@@ -186,65 +241,209 @@ bool GSeedRunKDF2::Build(TwistProgramBranch &pBranch,
     pBranch.AddLine("std::uint64_t aDomainWordScatter = pConstants->mScatter;");
     pBranch.AddLine("std::uint64_t aDomainWordCross = pConstants->mCross;");
 
+    pBranch.AddLine("std::uint64_t aDomainWordMatrixSelectA = pConstants->mMatrixSelectA;");
+    pBranch.AddLine("std::uint64_t aDomainWordMatrixSelectB = pConstants->mMatrixSelectB;");
+
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixUnrollA = pConstants->mMatrixUnrollA;");
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixUnrollB = pConstants->mMatrixUnrollB;");
+
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixSchemeA = pConstants->mMatrixSchemeA;");
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixSchemeB = pConstants->mMatrixSchemeB;");
+
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixArgA = pConstants->mMatrixArgA;");
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixArgB = pConstants->mMatrixArgB;");
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixArgC = pConstants->mMatrixArgC;");
+    pBranch.AddLine("std::uint8_t aDomainWordMatrixArgD = pConstants->mMatrixArgD;");
+
+    
+
+    GBatch aInitBatch;
+    std::vector<GStatement> aInitStatements;
+    aInitBatch.mName = "init varz";
+    for (TwistVariable aVariable : kInitialRandomVariables) {
+        aInitStatements.push_back(
+            GQuick::MakeAssignVariableStatement(GSymbol::Var(aVariable),
+                                                GExpr::Const(Random::Int64())));
+    }
+
+
+
+    aInitBatch.CommitStatements(&aInitStatements);
+    
+    
+    
     GBatch aBatch;
     aBatch.mName = "gseed_run_kdf2";
     
-    std::vector<CSPRNGV2Slice> aSlices;
+    std::vector<CSPRNGV2Slice> aSlicesA;
     
-    CSPRNGV2Slice aSlice1;
-    aSlice1.mARXSkeleton = mARXSkeletons[0];
-    aSlice1.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
-    aSlice1.mDest = mWorkLanes[0];
-    aSlice1.mDestWriteInverted = false;
-    aSlice1.mHotPack = mHotPacks[0];
-    aSlices.push_back(aSlice1);
-
-    CSPRNGV2Slice aSlice2;
-    aSlice2.mARXSkeleton = mARXSkeletons[1];
-    aSlice2.mSources.push_back(mWorkLanes[0]);
-    aSlice2.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
-    aSlice2.mDest = mWorkLanes[1];
-    aSlice2.mDestWriteInverted = true;
-    aSlice2.mHotPack = mHotPacks[1];
-    aSlices.push_back(aSlice2);
-
-    CSPRNGV2Slice aSlice3;
-    aSlice3.mARXSkeleton = mARXSkeletons[2];
-    aSlice3.mSources.push_back(mWorkLanes[1]);
-    aSlice3.mSources.push_back(mWorkLanes[0]);
-    aSlice3.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
-    aSlice3.mDest = mWorkLanes[2];
-    aSlice3.mDestWriteInverted = false;
-    aSlice3.mHotPack = mHotPacks[2];
-    aSlices.push_back(aSlice3);
-
-    CSPRNGV2Slice aSlice4;
-    aSlice4.mARXSkeleton = mARXSkeletons[3];
-    aSlice4.mSources.push_back(mWorkLanes[2]);
-    aSlice4.mSources.push_back(mWorkLanes[1]);
-    aSlice4.mSources.push_back(mWorkLanes[0]);
-    aSlice4.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
-    aSlice4.mDest = GSymbol::Buf(TwistWorkSpaceSlot::kDest);
-    aSlice4.mDestWriteInverted = true;
-    aSlice4.mHotPack = mHotPacks[3];
-    aSlices.push_back(aSlice4);
+    CSPRNGV2Slice aSliceA1;
+    aSliceA1.mARXSkeleton = mARXSkeletonsA[0];
+    aSliceA1.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
+    aSliceA1.mDest = mExpansionLanes[0];
+    aSliceA1.mDestWriteInverted = false;
+    aSliceA1.mHotPack = mHotPacksA[0];
+    aSlicesA.push_back(aSliceA1);
     
-    if (!CSPRNGV2::Bake(aSlices,
+    CSPRNGV2Slice aSliceA2;
+    aSliceA2.mARXSkeleton = mARXSkeletonsA[1];
+    aSliceA2.mSources.push_back(mExpansionLanes[0]);
+    aSliceA2.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
+    aSliceA2.mDest = mExpansionLanes[1];
+    aSliceA2.mDestWriteInverted = true;
+    aSliceA2.mHotPack = mHotPacksA[1];
+    aSlicesA.push_back(aSliceA2);
+    
+    CSPRNGV2Slice aSliceA3;
+    aSliceA3.mARXSkeleton = mARXSkeletonsA[2];
+    aSliceA3.mSources.push_back(mExpansionLanes[1]);
+    aSliceA3.mSources.push_back(mExpansionLanes[0]);
+    aSliceA3.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
+    aSliceA3.mDest = mExpansionLanes[2];
+    aSliceA3.mDestWriteInverted = false;
+    aSliceA3.mHotPack = mHotPacksA[2];
+    aSlicesA.push_back(aSliceA3);
+    
+    CSPRNGV2Slice aSliceA4;
+    aSliceA4.mARXSkeleton = mARXSkeletonsA[3];
+    aSliceA4.mSources.push_back(mExpansionLanes[2]);
+    aSliceA4.mSources.push_back(mExpansionLanes[1]);
+    aSliceA4.mSources.push_back(mExpansionLanes[0]);
+    aSliceA4.mSources.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSource));
+    aSliceA4.mDest = mExpansionLanes[3];
+    aSliceA4.mDestWriteInverted = true;
+    aSliceA4.mHotPack = mHotPacksA[3];
+    aSlicesA.push_back(aSliceA4);
+    
+    CSPRNGV2Slice aSliceA5;
+    aSliceA5.mARXSkeleton = mARXSkeletonsA[4];
+    aSliceA5.mSources.push_back(mExpansionLanes[3]);
+    aSliceA5.mSources.push_back(mExpansionLanes[2]);
+    aSliceA5.mSources.push_back(mExpansionLanes[1]);
+    aSliceA5.mSources.push_back(mExpansionLanes[0]);
+    aSliceA5.mDest = mExpansionLanes[4];
+    aSliceA5.mDestWriteInverted = false;
+    aSliceA5.mHotPack = mHotPacksA[4];
+    aSlicesA.push_back(aSliceA5);
+
+    CSPRNGV2Slice aSliceA6;
+    aSliceA6.mARXSkeleton = mARXSkeletonsA[5];
+    aSliceA6.mSources.push_back(mExpansionLanes[4]);
+    aSliceA6.mSources.push_back(mExpansionLanes[3]);
+    aSliceA6.mSources.push_back(mExpansionLanes[2]);
+    aSliceA6.mSources.push_back(mExpansionLanes[1]);
+    
+    aSliceA6.mDest = mExpansionLanes[5];
+    aSliceA6.mDestWriteInverted = true;
+    aSliceA6.mHotPack = mHotPacksA[5];
+    aSlicesA.push_back(aSliceA6);
+    
+    if (!CSPRNGV2::Bake(aSlicesA,
                         mSaltsOrbiterAssign,
                         mSaltsOrbiterUpdate,
                         mSaltsWandererUpdate,
                         &aBatch.mLoops,
                         pErrorMessage)) {
         const char *aErrorText = (pErrorMessage != nullptr) ? pErrorMessage->c_str() : "unknown error";
-        printf("error with CSPRNGV2::Bake => %s\n", aErrorText);
+        printf("error with CSPRNGV2::Bake A => %s\n", aErrorText);
         return false;
     }
-    const std::size_t aBatchCountBefore = pBranch.GetBatchJsonText().size();
-    pBranch.AddBatch(aBatch);
-    if (pBranch.GetBatchJsonText().size() <= aBatchCountBefore) {
-        SetError(pErrorMessage, "TwistProgramBranch::AddBatch failed while appending GSeedRunKDF2 batch");
+    
+    
+    
+    /*
+    std::vector<CSPRNGV2Slice> aSlicesB;
+
+    std::vector<GSymbol> aRecentSourcesB = {
+        mExpansionLanes[2],
+        mExpansionLanes[3],
+        mExpansionLanes[4],
+        mExpansionLanes[5],
+    };
+
+    for (int aIndex = 0; aIndex < 6; aIndex++) {
+        CSPRNGV2Slice aSlice;
+
+        aSlice.mARXSkeleton = mARXSkeletonsB[static_cast<std::size_t>(aIndex)];
+
+        for (auto aIt = aRecentSourcesB.rbegin();
+                 aIt != aRecentSourcesB.rend();
+                 ++aIt) {
+                aSlice.mSources.push_back(*aIt);
+            }
+
+        aSlice.mDest = mOperationLanes[static_cast<std::size_t>(aIndex)];
+        aSlice.mDestWriteInverted = ((aIndex & 1) != 0);
+        aSlice.mHotPack = mHotPacksB[static_cast<std::size_t>(aIndex)];
+
+        aSlicesB.push_back(aSlice);
+
+        aRecentSourcesB.erase(aRecentSourcesB.begin());
+        aRecentSourcesB.push_back(aSlice.mDest);
+    }
+
+    if (!CSPRNGV2::Bake(aSlicesB,
+                        mSaltsOrbiterAssign,
+                        mSaltsOrbiterUpdate,
+                        mSaltsWandererUpdate,
+                        &aBatch.mLoops,
+                        pErrorMessage)) {
+        const char *aErrorText = (pErrorMessage != nullptr) ? pErrorMessage->c_str() : "unknown error";
+        printf("error with CSPRNGV2::Bake B => %s\n", aErrorText);
+        return false;
+    }
+    
+    
+    
+    
+    
+    std::vector<CSPRNGV2Slice> aSlicesC;
+
+    std::vector<GSymbol> aRecentSourcesC = {
+        mOperationLanes[2],
+        mOperationLanes[3],
+        mOperationLanes[4],
+        mOperationLanes[5],
+    };
+
+    for (int aIndex = 0; aIndex < 4; aIndex++) {
+        CSPRNGV2Slice aSlice;
+
+        aSlice.mARXSkeleton = mARXSkeletonsC[static_cast<std::size_t>(aIndex)];
+
+        for (auto aIt = aRecentSourcesC.rbegin();
+             aIt != aRecentSourcesC.rend();
+             ++aIt) {
+            aSlice.mSources.push_back(*aIt);
+        }
+
+        aSlice.mDest = mWorkLanes[static_cast<std::size_t>(aIndex)];
+        aSlice.mDestWriteInverted = ((aIndex & 1) != 0);
+        aSlice.mHotPack = mHotPacksC[static_cast<std::size_t>(aIndex)];
+
+        aSlicesC.push_back(aSlice);
+
+        aRecentSourcesC.erase(aRecentSourcesC.begin());
+        aRecentSourcesC.push_back(aSlice.mDest);
+    }
+
+    if (!CSPRNGV2::Bake(aSlicesC,
+                        mSaltsOrbiterAssign,
+                        mSaltsOrbiterUpdate,
+                        mSaltsWandererUpdate,
+                        &aBatch.mLoops,
+                        pErrorMessage)) {
+        const char *aErrorText = (pErrorMessage != nullptr) ? pErrorMessage->c_str() : "unknown error";
+        printf("error with CSPRNGV2::Bake C => %s\n", aErrorText);
         return false;
     }
 
+    */
+    
+    
+    //pBranch.AddBatch(aInitBatch);
+    
+    pBranch.AddBatch(aBatch);
+    
     return true;
 }

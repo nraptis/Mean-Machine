@@ -306,6 +306,8 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
             case TwistWorkSpaceSlot::kIndexList256B:
             case TwistWorkSpaceSlot::kIndexList256C:
             case TwistWorkSpaceSlot::kIndexList256D:
+            case TwistWorkSpaceSlot::kIndexList256E:
+            case TwistWorkSpaceSlot::kIndexList256F:
                 return nullptr;
             default:
                 break;
@@ -331,12 +333,12 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
             return (pExpander->mActiveSBoxSet != nullptr) ? pExpander->mActiveSBoxSet->mSBoxG : pExpander->mSBoxG;
         case TwistWorkSpaceSlot::kParamDomainSBoxH:
             return (pExpander->mActiveSBoxSet != nullptr) ? pExpander->mActiveSBoxSet->mSBoxH : pExpander->mSBoxH;
-        case TwistWorkSpaceSlot::kExpansionLaneA: return pWorkspace->mListExpansionLaneA;
-        case TwistWorkSpaceSlot::kExpansionLaneB: return pWorkspace->mListExpansionLaneB;
-        case TwistWorkSpaceSlot::kExpansionLaneC: return pWorkspace->mListExpansionLaneC;
-        case TwistWorkSpaceSlot::kExpansionLaneD: return pWorkspace->mListExpansionLaneD;
-        case TwistWorkSpaceSlot::kExpansionLaneE: return pWorkspace->mListExpansionLaneE;
-        case TwistWorkSpaceSlot::kExpansionLaneF: return pWorkspace->mListExpansionLaneF;
+        case TwistWorkSpaceSlot::kExpansionLaneA: return pWorkspace->mExpansionLaneA;
+        case TwistWorkSpaceSlot::kExpansionLaneB: return pWorkspace->mExpansionLaneB;
+        case TwistWorkSpaceSlot::kExpansionLaneC: return pWorkspace->mExpansionLaneC;
+        case TwistWorkSpaceSlot::kExpansionLaneD: return pWorkspace->mExpansionLaneD;
+        case TwistWorkSpaceSlot::kExpansionLaneE: return pWorkspace->mExpansionLaneE;
+        case TwistWorkSpaceSlot::kExpansionLaneF: return pWorkspace->mExpansionLaneF;
         case TwistWorkSpaceSlot::kWorkLaneA: return pWorkspace->mWorkLaneA;
         case TwistWorkSpaceSlot::kWorkLaneB: return pWorkspace->mWorkLaneB;
         case TwistWorkSpaceSlot::kWorkLaneC: return pWorkspace->mWorkLaneC;
@@ -359,6 +361,8 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkspace,
         case TwistWorkSpaceSlot::kIndexList256B: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256B);
         case TwistWorkSpaceSlot::kIndexList256C: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256C);
         case TwistWorkSpaceSlot::kIndexList256D: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256D);
+        case TwistWorkSpaceSlot::kIndexList256E: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256E);
+        case TwistWorkSpaceSlot::kIndexList256F: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256F);
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return &(pWorkspace->mKeyBoxA[0][0]);
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return &(pWorkspace->mKeyBoxB[0][0]);
         case TwistWorkSpaceSlot::kKeyRowReadA: return &(pWorkspace->mKeyBoxA[H_KEY_A - 1][0]);
@@ -469,6 +473,8 @@ int TwistWorkSpace::GetBufferLength(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kIndexList256B:
         case TwistWorkSpaceSlot::kIndexList256C:
         case TwistWorkSpaceSlot::kIndexList256D:
+        case TwistWorkSpaceSlot::kIndexList256E:
+        case TwistWorkSpaceSlot::kIndexList256F:
             return static_cast<int>(256U * sizeof(std::size_t));
 
         default:

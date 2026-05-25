@@ -165,6 +165,119 @@ std::string ScalarCppTypeForName(const std::string &pName) {
     return "std::uint64_t";
 }
 
+int LetterIndexFromSuffix(const std::string &pName,
+                          const std::string &pPrefix) {
+    if (pName.size() != (pPrefix.size() + 1U)) {
+        return -1;
+    }
+    if (pName.compare(0U, pPrefix.size(), pPrefix) != 0) {
+        return -1;
+    }
+    const char aSuffix = pName[pPrefix.size()];
+    if ((aSuffix < 'A') || (aSuffix > 'K')) {
+        return -1;
+    }
+    return static_cast<int>(aSuffix - 'A');
+}
+
+int CoreScalarOrder(const std::string &pName) {
+    if (pName == "aPrevious") { return 0; }
+    if (pName == "aIngress") { return 1; }
+    if (pName == "aCross") { return 2; }
+    if (pName == "aScatter") { return 3; }
+    if (pName == "aCarry") { return 4; }
+    return -1;
+}
+
+int ScalarDeclarationGroup(const std::string &pName) {
+    if (CoreScalarOrder(pName) >= 0) {
+        return 0;
+    }
+    if (LetterIndexFromSuffix(pName, "aOrbiter") >= 0) {
+        return 1;
+    }
+    if (LetterIndexFromSuffix(pName, "aWanderer") >= 0) {
+        return 2;
+    }
+    return 3;
+}
+
+int ScalarDeclarationOrder(const std::string &pName) {
+    const int aCoreOrder = CoreScalarOrder(pName);
+    if (aCoreOrder >= 0) {
+        return aCoreOrder;
+    }
+    const int aOrbitOrder = LetterIndexFromSuffix(pName, "aOrbiter");
+    if (aOrbitOrder >= 0) {
+        return aOrbitOrder;
+    }
+    const int aWandererOrder = LetterIndexFromSuffix(pName, "aWanderer");
+    if (aWandererOrder >= 0) {
+        return aWandererOrder;
+    }
+    return 0;
+}
+
+void SortScalarDeclarationNames(std::vector<std::string> *pNames) {
+    if (pNames == nullptr) {
+        return;
+    }
+    std::stable_sort(pNames->begin(),
+                     pNames->end(),
+                     [](const std::string &pLHS, const std::string &pRHS) {
+                         const int aGroupLHS = ScalarDeclarationGroup(pLHS);
+                         const int aGroupRHS = ScalarDeclarationGroup(pRHS);
+                         if (aGroupLHS != aGroupRHS) {
+                             return aGroupLHS < aGroupRHS;
+                         }
+                         const int aOrderLHS = ScalarDeclarationOrder(pLHS);
+                         const int aOrderRHS = ScalarDeclarationOrder(pRHS);
+                         if (aOrderLHS != aOrderRHS) {
+                             return aOrderLHS < aOrderRHS;
+                         }
+                         return false;
+                     });
+}
+
+std::string ScalarDeclarationText(const std::string &pName) {
+    return ScalarCppTypeForName(pName) + " " + pName + " = 0;";
+}
+
+void AppendScalarDeclarationLines(const std::vector<std::string> &pNames,
+                                  const std::string &pIndent,
+                                  std::ostringstream *pStream) {
+    if ((pStream == nullptr) || pNames.empty()) {
+        return;
+    }
+
+    constexpr std::size_t kDeclarationsPerLine = 4U;
+    std::size_t aIndex = 0U;
+    int aPreviousGroup = -1;
+    while (aIndex < pNames.size()) {
+        const int aGroup = ScalarDeclarationGroup(pNames[aIndex]);
+        const std::string aType = ScalarCppTypeForName(pNames[aIndex]);
+        if ((aPreviousGroup >= 0) && (aGroup != aPreviousGroup)) {
+            *pStream << '\n';
+        }
+
+        *pStream << pIndent;
+        std::size_t aLineCount = 0U;
+        while ((aIndex < pNames.size()) &&
+               (aLineCount < kDeclarationsPerLine) &&
+               (ScalarDeclarationGroup(pNames[aIndex]) == aGroup) &&
+               (ScalarCppTypeForName(pNames[aIndex]) == aType)) {
+            if (aLineCount > 0U) {
+                *pStream << ' ';
+            }
+            *pStream << ScalarDeclarationText(pNames[aIndex]);
+            ++aLineCount;
+            ++aIndex;
+        }
+        *pStream << '\n';
+        aPreviousGroup = aGroup;
+    }
+}
+
 std::string TrimText(const std::string &pText) {
     if (pText.empty()) {
         return "";
@@ -322,6 +435,8 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kIndexList256B,
         TwistWorkSpaceSlot::kIndexList256C,
         TwistWorkSpaceSlot::kIndexList256D,
+        TwistWorkSpaceSlot::kIndexList256E,
+        TwistWorkSpaceSlot::kIndexList256F,
 
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
@@ -371,7 +486,9 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
     if ((pSlot == TwistWorkSpaceSlot::kIndexList256A) ||
         (pSlot == TwistWorkSpaceSlot::kIndexList256B) ||
         (pSlot == TwistWorkSpaceSlot::kIndexList256C) ||
-        (pSlot == TwistWorkSpaceSlot::kIndexList256D)) {
+        (pSlot == TwistWorkSpaceSlot::kIndexList256D) ||
+        (pSlot == TwistWorkSpaceSlot::kIndexList256E) ||
+        (pSlot == TwistWorkSpaceSlot::kIndexList256F)) {
         return "[[maybe_unused]] std::size_t *" + aAlias + " = reinterpret_cast<std::size_t *>(" +
                "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
                std::to_string(static_cast<int>(pSlot)) + ")));";
@@ -380,14 +497,14 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource:
             if (pUseKDFParameterAliases) {
-                return aPrefix + "pInput;";
+                return aPrefix + "mSource;";
             }
             return aPrefix +
                    "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
         case TwistWorkSpaceSlot::kDest:
             if (pUseKDFParameterAliases) {
-                return aPrefix + "pOutput;";
+                return aPrefix + "mDest;";
             }
             return aPrefix +
                    "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
@@ -442,12 +559,12 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
                    "TwistWorkSpace::GetBuffer(pWorkspace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
 
-        case TwistWorkSpaceSlot::kExpansionLaneA: return aPrefix + "pWorkspace->mListExpansionLaneA;";
-        case TwistWorkSpaceSlot::kExpansionLaneB: return aPrefix + "pWorkspace->mListExpansionLaneB;";
-        case TwistWorkSpaceSlot::kExpansionLaneC: return aPrefix + "pWorkspace->mListExpansionLaneC;";
-        case TwistWorkSpaceSlot::kExpansionLaneD: return aPrefix + "pWorkspace->mListExpansionLaneD;";
-        case TwistWorkSpaceSlot::kExpansionLaneE: return aPrefix + "pWorkspace->mListExpansionLaneE;";
-        case TwistWorkSpaceSlot::kExpansionLaneF: return aPrefix + "pWorkspace->mListExpansionLaneF;";
+        case TwistWorkSpaceSlot::kExpansionLaneA: return aPrefix + "pWorkspace->mExpansionLaneA;";
+        case TwistWorkSpaceSlot::kExpansionLaneB: return aPrefix + "pWorkspace->mExpansionLaneB;";
+        case TwistWorkSpaceSlot::kExpansionLaneC: return aPrefix + "pWorkspace->mExpansionLaneC;";
+        case TwistWorkSpaceSlot::kExpansionLaneD: return aPrefix + "pWorkspace->mExpansionLaneD;";
+        case TwistWorkSpaceSlot::kExpansionLaneE: return aPrefix + "pWorkspace->mExpansionLaneE;";
+        case TwistWorkSpaceSlot::kExpansionLaneF: return aPrefix + "pWorkspace->mExpansionLaneF;";
 
         case TwistWorkSpaceSlot::kWorkLaneA: return aPrefix + "pWorkspace->mWorkLaneA;";
         case TwistWorkSpaceSlot::kWorkLaneB: return aPrefix + "pWorkspace->mWorkLaneB;";
@@ -574,6 +691,7 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
                            return ContainsText(aLoopVariables, pName) || ContainsText(aDeclaredNames, pName);
                        }),
         aScalarVariables.end());
+    SortScalarDeclarationNames(&aScalarVariables);
 
     bool aWroteDeclaration = false;
     const std::vector<TwistWorkSpaceSlot> aAllSlots = FixedWorkspaceSlotOrder();
@@ -590,8 +708,8 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         aWroteDeclaration = true;
     }
 
-    for (const std::string &aVariable : aScalarVariables) {
-        *pStream << "    " << ScalarCppTypeForName(aVariable) << " " << aVariable << " = 0;\n";
+    if (!aScalarVariables.empty()) {
+        AppendScalarDeclarationLines(aScalarVariables, "    ", pStream);
         aWroteDeclaration = true;
     }
 
@@ -668,6 +786,12 @@ JsonValue BranchToJsonValue(const TwistProgramBranch &pBranch,
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
+bool BranchIsEmpty(const TwistProgramBranch &pBranch) {
+    return pBranch.GetSteps().empty() &&
+           pBranch.GetBatchJsonText().empty() &&
+           pBranch.GetStringLines().empty();
+}
+
 JsonValue::Array BytesToJsonArray(const std::vector<std::uint8_t> &pBytes) {
     JsonValue::Array aOut;
     aOut.reserve(pBytes.size());
@@ -675,6 +799,103 @@ JsonValue::Array BytesToJsonArray(const std::vector<std::uint8_t> &pBytes) {
         aOut.push_back(JsonValue::Number(static_cast<double>(aByte)));
     }
     return aOut;
+}
+
+JsonValue UInt64ToJsonValue(const std::uint64_t pValue) {
+    return JsonValue::String(std::to_string(static_cast<unsigned long long>(pValue)));
+}
+
+JsonValue::Array UInt64ToJsonArray(const std::uint64_t *pValues,
+                                   const std::size_t pCount) {
+    JsonValue::Array aOut;
+    if (pValues == nullptr) {
+        return aOut;
+    }
+    aOut.reserve(pCount);
+    for (std::size_t i = 0U; i < pCount; ++i) {
+        aOut.push_back(UInt64ToJsonValue(pValues[i]));
+    }
+    return aOut;
+}
+
+JsonValue::Array BytesToJsonArray(const std::uint8_t *pValues,
+                                  const std::size_t pCount) {
+    JsonValue::Array aOut;
+    if (pValues == nullptr) {
+        return aOut;
+    }
+    aOut.reserve(pCount);
+    for (std::size_t i = 0U; i < pCount; ++i) {
+        aOut.push_back(JsonValue::Number(static_cast<double>(pValues[i])));
+    }
+    return aOut;
+}
+
+JsonValue SeedRoundMaterialToJsonValue(const TwistDomainSeedRoundMaterial &pMaterial) {
+    JsonValue::Object aObject;
+    aObject["salt_a"] = JsonValue::ArrayValue(UInt64ToJsonArray(pMaterial.mSaltA, S_SALT));
+    aObject["salt_b"] = JsonValue::ArrayValue(UInt64ToJsonArray(pMaterial.mSaltB, S_SALT));
+    aObject["salt_c"] = JsonValue::ArrayValue(UInt64ToJsonArray(pMaterial.mSaltC, S_SALT));
+    aObject["salt_d"] = JsonValue::ArrayValue(UInt64ToJsonArray(pMaterial.mSaltD, S_SALT));
+    aObject["salt_e"] = JsonValue::ArrayValue(UInt64ToJsonArray(pMaterial.mSaltE, S_SALT));
+    aObject["salt_f"] = JsonValue::ArrayValue(UInt64ToJsonArray(pMaterial.mSaltF, S_SALT));
+    return JsonValue::ObjectValue(std::move(aObject));
+}
+
+JsonValue ConstantsToJsonValue(const TwistDomainConstants &pConstants) {
+    JsonValue::Object aObject;
+    aObject["ingress"] = UInt64ToJsonValue(pConstants.mIngress);
+    aObject["scatter"] = UInt64ToJsonValue(pConstants.mScatter);
+    aObject["cross"] = UInt64ToJsonValue(pConstants.mCross);
+    aObject["public_ingress"] = UInt64ToJsonValue(pConstants.mDomainConstantPublicIngress);
+    aObject["private_ingress"] = UInt64ToJsonValue(pConstants.mDomainConstantPrivateIngress);
+    aObject["cross_ingress"] = UInt64ToJsonValue(pConstants.mDomainConstantCrossIngress);
+    aObject["matrix_select_a"] = UInt64ToJsonValue(pConstants.mMatrixSelectA);
+    aObject["matrix_select_b"] = UInt64ToJsonValue(pConstants.mMatrixSelectB);
+    aObject["matrix_unroll_a"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixUnrollA));
+    aObject["matrix_unroll_b"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixUnrollB));
+    aObject["matrix_scheme_a"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixSchemeA));
+    aObject["matrix_scheme_b"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixSchemeB));
+    aObject["matrix_arg_aa"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgA));
+    aObject["matrix_arg_ab"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgB));
+    aObject["matrix_arg_ba"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgC));
+    aObject["matrix_arg_bb"] = JsonValue::Number(static_cast<double>(pConstants.mMatrixArgD));
+    aObject["mask_mutate_a"] = JsonValue::Number(static_cast<double>(pConstants.mMaskMutateA));
+    aObject["mask_mutate_b"] = JsonValue::Number(static_cast<double>(pConstants.mMaskMutateB));
+    return JsonValue::ObjectValue(std::move(aObject));
+}
+
+JsonValue SBoxSetToJsonValue(const TwistDomainSBoxSet &pSBoxSet) {
+    JsonValue::Object aObject;
+    aObject["sbox_a"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxA, S_SBOX));
+    aObject["sbox_b"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxB, S_SBOX));
+    aObject["sbox_c"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxC, S_SBOX));
+    aObject["sbox_d"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxD, S_SBOX));
+    aObject["sbox_e"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxE, S_SBOX));
+    aObject["sbox_f"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxF, S_SBOX));
+    aObject["sbox_g"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxG, S_SBOX));
+    aObject["sbox_h"] = JsonValue::ArrayValue(BytesToJsonArray(pSBoxSet.mSBoxH, S_SBOX));
+    return JsonValue::ObjectValue(std::move(aObject));
+}
+
+JsonValue DomainBundleToJsonValue(const TwistDomainBundle &pBundle) {
+    JsonValue::Object aObject;
+    aObject["mats_phase_a_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseASalts.mOrbiterAssign);
+    aObject["mats_phase_a_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseASalts.mOrbiterUpdate);
+    aObject["mats_phase_a_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseASalts.mWandererUpdate);
+    aObject["mats_phase_b_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseBSalts.mOrbiterAssign);
+    aObject["mats_phase_b_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseBSalts.mOrbiterUpdate);
+    aObject["mats_phase_b_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseBSalts.mWandererUpdate);
+    aObject["mats_phase_c_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mOrbiterAssign);
+    aObject["mats_phase_c_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mOrbiterUpdate);
+    aObject["mats_phase_c_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mWandererUpdate);
+    aObject["constants_phase_a"] = ConstantsToJsonValue(pBundle.mPhaseAConstants);
+    aObject["constants_phase_b"] = ConstantsToJsonValue(pBundle.mPhaseBConstants);
+    aObject["constants_phase_c"] = ConstantsToJsonValue(pBundle.mPhaseCConstants);
+    aObject["sboxes_phase_a"] = SBoxSetToJsonValue(pBundle.mPhaseASBoxes);
+    aObject["sboxes_phase_b"] = SBoxSetToJsonValue(pBundle.mPhaseBSBoxes);
+    aObject["sboxes_phase_c"] = SBoxSetToJsonValue(pBundle.mPhaseCSBoxes);
+    return JsonValue::ObjectValue(std::move(aObject));
 }
 
 std::string IndentSpaces(const int pIndentLevel) {
@@ -808,10 +1029,10 @@ void AppendConstantsDefinition(std::ostringstream *pOut,
           << "    " << ByteCppLiteral(pConstants.mMatrixUnrollB) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMatrixSchemeA) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMatrixSchemeB) << ",\n"
-          << "    " << ByteCppLiteral(pConstants.mMatrixArgAA) << ",\n"
-          << "    " << ByteCppLiteral(pConstants.mMatrixArgAB) << ",\n"
-          << "    " << ByteCppLiteral(pConstants.mMatrixArgBA) << ",\n"
-          << "    " << ByteCppLiteral(pConstants.mMatrixArgBB) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgA) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgB) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgC) << ",\n"
+          << "    " << ByteCppLiteral(pConstants.mMatrixArgD) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMaskMutateA) << ",\n"
           << "    " << ByteCppLiteral(pConstants.mMaskMutateB) << "\n"
           << "};\n";
@@ -949,6 +1170,10 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
 
     GTwistExpander aSnapshot = *this;
     aSnapshot.RefreshTablePointers();
+    const TwistProgramBranch &aKDF_ABranch = BranchIsEmpty(aSnapshot.mKDF_A)
+        ? aSnapshot.mKDF
+        : aSnapshot.mKDF_A;
+    const TwistProgramBranch &aKDF_BBranch = aSnapshot.mKDF_B;
 
     std::ostringstream aHeader;
     aHeader << "#pragma once\n"
@@ -961,11 +1186,17 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
             << "    ~" << aClassName << "() override = default;\n"
             << "\n"
             << "    void KDF(std::uint64_t pNonce,\n"
-            << "             std::uint8_t *pInput,\n"
-            << "             std::uint8_t *pOutput,\n"
             << "             TwistDomainConstants *pConstants,\n"
             << "             TwistDomainSaltSet *pDomainSaltSet,\n"
             << "             TwistDomainSBoxSet *pDomainSBoxSet) override;\n"
+            << "    void KDF_A(std::uint64_t pNonce,\n"
+            << "               TwistDomainConstants *pConstants,\n"
+            << "               TwistDomainSaltSet *pDomainSaltSet,\n"
+            << "               TwistDomainSBoxSet *pDomainSBoxSet) override;\n"
+            << "    void KDF_B(std::uint64_t pNonce,\n"
+            << "               TwistDomainConstants *pConstants,\n"
+            << "               TwistDomainSaltSet *pDomainSaltSet,\n"
+            << "               TwistDomainSBoxSet *pDomainSBoxSet) override;\n"
             << "    void Seed(TwistWorkSpace *pWorkspace,\n"
             << "              TwistFarmSBox *pFarmSBox,\n"
             << "              TwistFarmSalt *pFarmSalt,\n"
@@ -995,6 +1226,9 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "#include \"TwistFunctional.hpp\"\n"
          << "#include \"TwistIndexShuffle.hpp\"\n"
          << "#include \"TwistMix64.hpp\"\n"
+         << "#include \"TwistFarmSalt.hpp\"\n"
+         << "#include \"TwistFarmSBox.hpp\"\n"
+         << "#include \"TwistFarmConstants.hpp\"\n"
          << "\n"
          << "#include <cstring>\n"
          << "\n"
@@ -1014,16 +1248,34 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "}\n"
          << "\n"
          << "void " << aClassName << "::KDF(std::uint64_t pNonce,\n"
-         << "                                std::uint8_t *pInput,\n"
-         << "                                std::uint8_t *pOutput,\n"
          << "                                TwistDomainConstants *pConstants,\n"
          << "                                TwistDomainSaltSet *pDomainSaltSet,\n"
          << "                                TwistDomainSBoxSet *pDomainSBoxSet) {\n"
-         << "    TwistExpander::KDF(pNonce, pInput, pOutput, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
+         << "    KDF_A(pNonce, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
+         << "}\n"
+         << "\n"
+         << "void " << aClassName << "::KDF_A(std::uint64_t pNonce,\n"
+         << "                                  TwistDomainConstants *pConstants,\n"
+         << "                                  TwistDomainSaltSet *pDomainSaltSet,\n"
+         << "                                  TwistDomainSBoxSet *pDomainSBoxSet) {\n"
+         << "    TwistExpander::KDF_A(pNonce, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
          << "    TwistWorkSpace *pWorkspace = mWorkspace;\n"
-         << "    if ((pWorkspace == nullptr) || (pInput == nullptr) || (pOutput == nullptr) ||\n"
+         << "    if ((pWorkspace == nullptr) || (mSource == nullptr) || (mDest == nullptr) ||\n"
          << "        (pConstants == nullptr) || (pDomainSaltSet == nullptr) || (pDomainSBoxSet == nullptr)) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mKDF, true, &aCpp, pError)) {
+    if (!AppendBranchBody(aKDF_ABranch, true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n"
+         << "\n"
+         << "void " << aClassName << "::KDF_B(std::uint64_t pNonce,\n"
+         << "                                  TwistDomainConstants *pConstants,\n"
+         << "                                  TwistDomainSaltSet *pDomainSaltSet,\n"
+         << "                                  TwistDomainSBoxSet *pDomainSBoxSet) {\n"
+         << "    TwistExpander::KDF_B(pNonce, pConstants, pDomainSaltSet, pDomainSBoxSet);\n"
+         << "    TwistWorkSpace *pWorkspace = mWorkspace;\n"
+         << "    if ((pWorkspace == nullptr) || (mSource == nullptr) || (mDest == nullptr) ||\n"
+         << "        (pConstants == nullptr) || (pDomainSaltSet == nullptr) || (pDomainSBoxSet == nullptr)) { return; }\n";
+    if (!AppendBranchBody(aKDF_BBranch, true, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n"
@@ -1036,7 +1288,8 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
          << "                                 std::uint8_t *pPassword,\n"
          << "                                 unsigned int pPasswordByteLength) {\n"
          << "    TwistExpander::Seed(pWorkspace, pFarmSBox, pFarmSalt, pNonce, pSourceInput, pPassword, pPasswordByteLength);\n"
-         << "    if (pWorkspace == nullptr) { return; }\n";
+         << "    if ((pWorkspace == nullptr) || (pFarmSBox == nullptr) ||\n"
+         << "        (pFarmSalt == nullptr) || (pSourceInput == nullptr)) { return; }\n";
     if (!AppendBranchBody(aSnapshot.mSeed, false, &aCpp, pError)) {
         return false;
     }
@@ -1077,7 +1330,20 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
 
     JsonValue::Object aRootObject;
     aRootObject["name_base"] = JsonValue::String(aBaseInput);
-    aRootObject["kdf"] = BranchToJsonValue(aSnapshot.mKDF, pError);
+    const TwistProgramBranch &aKDF_ABranch = BranchIsEmpty(aSnapshot.mKDF_A)
+        ? aSnapshot.mKDF
+        : aSnapshot.mKDF_A;
+    aRootObject["kdf_a"] = BranchToJsonValue(aKDF_ABranch, pError);
+    if ((pError != nullptr) && !pError->empty()) {
+        return false;
+    }
+
+    aRootObject["kdf_b"] = BranchToJsonValue(aSnapshot.mKDF_B, pError);
+    if ((pError != nullptr) && !pError->empty()) {
+        return false;
+    }
+
+    aRootObject["kdf"] = BranchToJsonValue(aKDF_ABranch, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
@@ -1101,6 +1367,7 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
     aTables["sbox_f"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxF));
     aTables["sbox_g"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxG));
     aTables["sbox_h"] = JsonValue::ArrayValue(BytesToJsonArray(aSnapshot._mSBoxH));
+    aTables["domain_bundle_inbuilt"] = DomainBundleToJsonValue(aSnapshot.mDomainBundleInbuilt);
     aRootObject["tables"] = JsonValue::ObjectValue(std::move(aTables));
 
     const std::string aJsonText = JsonValue::ObjectValue(std::move(aRootObject)).Serialize();

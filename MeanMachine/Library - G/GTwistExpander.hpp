@@ -50,11 +50,19 @@ public:
     ~GTwistExpander() override;
 
     void                                KDF(std::uint64_t pNonce,
-                                            std::uint8_t *pSource,
-                                            std::uint8_t *pDest,
                                             TwistDomainConstants *pDomainConstants,
                                             TwistDomainSaltSet *pDomainSaltSet,
                                             TwistDomainSBoxSet *pDomainSBoxSet) override;
+
+    void                                KDF_A(std::uint64_t pNonce,
+                                              TwistDomainConstants *pDomainConstants,
+                                              TwistDomainSaltSet *pDomainSaltSet,
+                                              TwistDomainSBoxSet *pDomainSBoxSet) override;
+
+    void                                KDF_B(std::uint64_t pNonce,
+                                              TwistDomainConstants *pDomainConstants,
+                                              TwistDomainSaltSet *pDomainSaltSet,
+                                              TwistDomainSBoxSet *pDomainSBoxSet) override;
 
     void                                Seed(TwistWorkSpace *pWorkspace,
                                              TwistFarmSBox *pFarmSBox,
@@ -78,7 +86,9 @@ public:
     void                                RefreshTablePointers();
 
     std::string                         mNameBase;
-    TwistProgramBranch                  mKDF; // KDF branch
+    TwistProgramBranch                  mKDF_A; // KDF-A branch
+    TwistProgramBranch                  mKDF_B; // KDF-B branch
+    TwistProgramBranch                  mKDF; // Legacy KDF branch
     TwistProgramBranch                  mSeed; // Seed branch
     TwistProgramBranch                  mTwister; // Twist branch
 
@@ -94,6 +104,14 @@ public:
     std::vector<std::uint8_t>           _mSBoxF;
     std::vector<std::uint8_t>           _mSBoxG;
     std::vector<std::uint8_t>           _mSBoxH;
+
+private:
+    void                                ExecuteKDFBranch(const TwistProgramBranch &pBranch,
+                                                         const char *pBranchName,
+                                                         std::uint64_t pNonce,
+                                                         TwistDomainConstants *pDomainConstants,
+                                                         TwistDomainSaltSet *pDomainSaltSet,
+                                                         TwistDomainSBoxSet *pDomainSBoxSet);
 
 };
 

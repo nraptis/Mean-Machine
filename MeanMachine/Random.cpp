@@ -55,6 +55,39 @@ int Random::Get(int pMin, int pMax) {
     return aDist(cRandomGenerator);
 }
 
+std::uint64_t Random::Get64() {
+    std::uniform_int_distribution<std::uint64_t> aDist(0, std::numeric_limits<std::uint64_t>::max());
+    return aDist(cRandomGenerator);
+}
+
+std::uint64_t Random::Get64(std::uint64_t pMax) {
+    if (pMax <= 0) {
+        return 0;
+    }
+    std::uniform_int_distribution<std::uint64_t> aDist(0, pMax - 1);
+    return aDist(cRandomGenerator);
+}
+
+std::uint64_t Random::Get64(std::uint64_t pMin, std::uint64_t pMax) {
+    if (pMin >= pMax) {
+        return pMin;
+    }
+    std::uniform_int_distribution<std::uint64_t> aDist(pMin, pMax);
+    return aDist(cRandomGenerator);
+}
+
+std::uint64_t Random::Int64() {
+    return Get64();
+}
+
+std::uint64_t Random::Int64(std::uint64_t pMax) {
+    return Get64(pMax);
+}
+
+std::uint64_t Random::Int64(std::uint64_t pMin, std::uint64_t pMax) {
+    return Get64(pMin, pMax);
+}
+
 float Random::GetFloat() {
     std::uniform_real_distribution<float> aDist(0.0f, 1.0f);
     return aDist(cRandomGenerator);

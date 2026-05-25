@@ -197,6 +197,8 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kIndexList256B=191,
     kIndexList256C=192,
     kIndexList256D=193,
+    kIndexList256E=194,
+    kIndexList256F=195,
     
 };
 
@@ -220,10 +222,10 @@ public:
     std::uint8_t                            mMatrixSchemeA;
     std::uint8_t                            mMatrixSchemeB;
     
-    std::uint8_t                            mMatrixArgAA;
-    std::uint8_t                            mMatrixArgAB;
-    std::uint8_t                            mMatrixArgBA;
-    std::uint8_t                            mMatrixArgBB;
+    std::uint8_t                            mMatrixArgA;
+    std::uint8_t                            mMatrixArgB;
+    std::uint8_t                            mMatrixArgC;
+    std::uint8_t                            mMatrixArgD;
     
     std::uint8_t                            mMaskMutateA;
     std::uint8_t                            mMaskMutateB;
@@ -303,12 +305,12 @@ public:
     uint8_t                                 mMaskBoxA[H_MASK_A][W_MASK_A];
     uint8_t                                 mMaskBoxB[H_MASK_B][W_MASK_B];
 
-    std::uint8_t                            mListExpansionLaneA[S_BLOCK];
-    std::uint8_t                            mListExpansionLaneB[S_BLOCK];
-    std::uint8_t                            mListExpansionLaneC[S_BLOCK];
-    std::uint8_t                            mListExpansionLaneD[S_BLOCK];
-    std::uint8_t                            mListExpansionLaneE[S_BLOCK];
-    std::uint8_t                            mListExpansionLaneF[S_BLOCK];
+    std::uint8_t                            mExpansionLaneA[S_BLOCK];
+    std::uint8_t                            mExpansionLaneB[S_BLOCK];
+    std::uint8_t                            mExpansionLaneC[S_BLOCK];
+    std::uint8_t                            mExpansionLaneD[S_BLOCK];
+    std::uint8_t                            mExpansionLaneE[S_BLOCK];
+    std::uint8_t                            mExpansionLaneF[S_BLOCK];
 
     std::uint8_t                            mWorkLaneA[S_BLOCK];
     std::uint8_t                            mWorkLaneB[S_BLOCK];

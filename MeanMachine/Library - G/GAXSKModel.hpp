@@ -12,6 +12,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <span>
+#include <algorithm>
 
 struct GAXSKModelTerm {
     GAXSKModelTermKind              mKind = GAXSKModelTermKind::kInvalid;
@@ -59,8 +61,8 @@ public:
     static GAXSKVariable            WandererForIndex(int pIndex);
     
     static void                     AppendOrbiterAssignStatements(const std::vector<GAXSKVariable> &pOrbiters,
-                                                                                   const std::vector<GAXSKVariable> &pWanderers,
-                                                                                   int pHotIndexBase,
+                                                                  const std::vector<GAXSKVariable> &pWanderers,
+                                                                  int pHotIndexBase,
                                                                   std::vector<GAXSKModelStatement> *pStatements);
     
     static void                     AppendWandererUpdateStatements(const std::vector<GAXSKVariable> &pOrbiters,
@@ -72,7 +74,10 @@ public:
                                                                  int pHotIndex,
                                                                  std::vector<GAXSKModelStatement> *pStatements);
     
-    static GAXSKModel               MakeOrbiterPlan4x4();
+    
+    static GAXSKModel               MakeOrbiterPlan(std::span<const GAXSKModelOrbiterRound> pRounds);
+    
+    
     
 };
 

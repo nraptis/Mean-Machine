@@ -990,35 +990,65 @@ bool GAXPL::BuildSourceMap(std::string *pErrorMessage) {
         return false;
     }
 
-    for (const GAXSKStatement &aStatement : mSkeleton->mStatements) {
+    for (std::size_t aStatementIndex = 0;
+         aStatementIndex < mSkeleton->mStatements.size();
+         ++aStatementIndex) {
+
+        const GAXSKStatement &aStatement =
+            mSkeleton->mStatements[aStatementIndex];
+
         if (aStatement.mKind != GAXSKStatementKind::kContextWordAssign) {
             continue;
         }
 
         const GAXSKContextWordPlan &aPlan = aStatement.mContextWord;
 
-        for (const GAXSKInputSlot &aSlot : aPlan.mSlots) {
+        for (std::size_t aSlotIndex = 0;
+             aSlotIndex < aPlan.mSlots.size();
+             ++aSlotIndex) {
+
+            const GAXSKInputSlot &aSlot = aPlan.mSlots[aSlotIndex];
+
             if (aSlot.mKind != GAXSKInputSlotKind::kSource) {
                 continue;
             }
 
             const int aSourceIndex = GetSourceIndex(aSlot.mSource);
             if (aSourceIndex < 0) {
-                SetError(pErrorMessage, "GAXPL::BuildSourceMap found invalid source kind");
+                SetError(pErrorMessage,
+                         "GAXPL::BuildSourceMap found invalid source kind at statement=" +
+                         std::to_string(aStatementIndex) +
+                         ", slot=" +
+                         std::to_string(aSlotIndex));
                 return false;
             }
 
             if (static_cast<std::size_t>(aSourceIndex) >= mSources.size()) {
-                SetError(pErrorMessage, "GAXPL::BuildSourceMap could not bind skeleton source");
+                SetError(pErrorMessage,
+                         "GAXPL::BuildSourceMap could not bind skeleton source at statement=" +
+                         std::to_string(aStatementIndex) +
+                         ", slot=" +
+                         std::to_string(aSlotIndex) +
+                         ", source_index=" +
+                         std::to_string(aSourceIndex) +
+                         ", source_count=" +
+                         std::to_string(mSources.size()));
                 return false;
             }
 
             if (mSources[static_cast<std::size_t>(aSourceIndex)].IsInvalid()) {
-                SetError(pErrorMessage, "GAXPL::BuildSourceMap source symbol is invalid");
+                SetError(pErrorMessage,
+                         "GAXPL::BuildSourceMap source symbol is invalid at statement=" +
+                         std::to_string(aStatementIndex) +
+                         ", slot=" +
+                         std::to_string(aSlotIndex) +
+                         ", source_index=" +
+                         std::to_string(aSourceIndex));
                 return false;
             }
 
-            mSourceMap[aSlot.mSource] = mSources[static_cast<std::size_t>(aSourceIndex)];
+            mSourceMap[aSlot.mSource] =
+                mSources[static_cast<std::size_t>(aSourceIndex)];
         }
     }
 

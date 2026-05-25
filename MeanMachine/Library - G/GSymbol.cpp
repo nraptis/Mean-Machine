@@ -72,9 +72,9 @@ bool ParseTokenInt(const std::string &pText,
 
 const char *ConstantMemberName(TwistConstants pConstant) {
     switch (pConstant) {
-        case TwistConstants::kPublicIngress: return "mIngress";
-        case TwistConstants::kScatter: return "mScatter";
-        case TwistConstants::kCrossIngress: return "mCross";
+        case TwistConstants::kPublicIngress: return "aIngress";
+        case TwistConstants::kScatter: return "aScatter";
+        case TwistConstants::kCrossIngress: return "aCross";
 
         case TwistConstants::kDomainConstantPublicIngress: return "mDomainConstantPublicIngress";
         case TwistConstants::kDomainConstantPrivateIngress: return "mDomainConstantPrivateIngress";
@@ -89,10 +89,10 @@ const char *ConstantMemberName(TwistConstants pConstant) {
         case TwistConstants::kMatrixSchemeA: return "mMatrixSchemeA";
         case TwistConstants::kMatrixSchemeB: return "mMatrixSchemeB";
 
-        case TwistConstants::kMatrixArgAA: return "mMatrixArgAA";
-        case TwistConstants::kMatrixArgAB: return "mMatrixArgAB";
-        case TwistConstants::kMatrixArgBA: return "mMatrixArgBA";
-        case TwistConstants::kMatrixArgBB: return "mMatrixArgBB";
+        case TwistConstants::kMatrixArgA: return "mMatrixArgA";
+        case TwistConstants::kMatrixArgB: return "mMatrixArgB";
+        case TwistConstants::kMatrixArgC: return "mMatrixArgC";
+        case TwistConstants::kMatrixArgD: return "mMatrixArgD";
 
         case TwistConstants::kMaskMutateA: return "mMaskMutateA";
         case TwistConstants::kMaskMutateB: return "mMaskMutateB";
@@ -123,11 +123,29 @@ GSymbol GSymbol::Var(TwistVariable pVariable) {
         case TwistVariable::kIndex: return Var("aIndex");
         case TwistVariable::kNonce: return Var("aNonce");
         case TwistVariable::kParamNonce: return Var("pNonce");
-        case TwistVariable::kParamInput: return Var("pInput");
-        case TwistVariable::kParamOutput: return Var("pOutput");
+        case TwistVariable::kParamInput: return Buf(TwistWorkSpaceSlot::kSource);
+        case TwistVariable::kParamOutput: return Buf(TwistWorkSpaceSlot::kDest);
+            
         case TwistVariable::kDomainWordIngress: return Var("aDomainWordIngress");
         case TwistVariable::kDomainWordScatter: return Var("aDomainWordScatter");
         case TwistVariable::kDomainWordCross: return Var("aDomainWordCross");
+            
+        case TwistVariable::kDomainWordMatrixSelectA: return Var("aDomainWordMatrixSelectA");
+        case TwistVariable::kDomainWordMatrixSelectB: return Var("aDomainWordMatrixSelectB");
+            
+        case TwistVariable::kDomainWordMatrixUnrollA: return Var("aDomainWordMatrixUnrollA");
+        case TwistVariable::kDomainWordMatrixUnrollB: return Var("aDomainWordMatrixUnrollB");
+            
+        case TwistVariable::kDomainWordMatrixSchemeA: return Var("aDomainWordMatrixSchemeA");
+        case TwistVariable::kDomainWordMatrixSchemeB: return Var("aDomainWordMatrixSchemeB");
+            
+        case TwistVariable::kDomainWordMatrixArgA: return Var("aDomainWordMatrixArgA");
+        case TwistVariable::kDomainWordMatrixArgB: return Var("aDomainWordMatrixArgB");
+            
+        case TwistVariable::kDomainWordMatrixArgC: return Var("aDomainWordMatrixArgC");
+        case TwistVariable::kDomainWordMatrixArgD: return Var("aDomainWordMatrixArgD");
+
+            
         case TwistVariable::kCarry: return Var("aCarry");
 
         case TwistVariable::kIngress: return Var("aIngress");
@@ -147,29 +165,29 @@ GSymbol GSymbol::Var(TwistVariable pVariable) {
         case TwistVariable::kWandererJ: return Var("aWandererJ");
         case TwistVariable::kWandererK: return Var("aWandererK");
 
-        case TwistVariable::kOrbiterA: return Var("aOrbitA");
-        case TwistVariable::kOrbiterB: return Var("aOrbitB");
-        case TwistVariable::kOrbiterC: return Var("aOrbitC");
-        case TwistVariable::kOrbiterD: return Var("aOrbitD");
-        case TwistVariable::kOrbiterE: return Var("aOrbitE");
-        case TwistVariable::kOrbiterF: return Var("aOrbitF");
-        case TwistVariable::kOrbiterG: return Var("aOrbitG");
-        case TwistVariable::kOrbiterH: return Var("aOrbitH");
-        case TwistVariable::kOrbiterI: return Var("aOrbitI");
-        case TwistVariable::kOrbiterJ: return Var("aOrbitJ");
-        case TwistVariable::kOrbiterK: return Var("aOrbitK");
+        case TwistVariable::kOrbiterA: return Var("aOrbiterA");
+        case TwistVariable::kOrbiterB: return Var("aOrbiterB");
+        case TwistVariable::kOrbiterC: return Var("aOrbiterC");
+        case TwistVariable::kOrbiterD: return Var("aOrbiterD");
+        case TwistVariable::kOrbiterE: return Var("aOrbiterE");
+        case TwistVariable::kOrbiterF: return Var("aOrbiterF");
+        case TwistVariable::kOrbiterG: return Var("aOrbiterG");
+        case TwistVariable::kOrbiterH: return Var("aOrbiterH");
+        case TwistVariable::kOrbiterI: return Var("aOrbiterI");
+        case TwistVariable::kOrbiterJ: return Var("aOrbiterJ");
+        case TwistVariable::kOrbiterK: return Var("aOrbiterK");
 
         case TwistVariable::kSelect: return Var("aSelect");
-        case TwistVariable::kMatrixUnrollA: return Var("mMatrixUnrollA");
-        case TwistVariable::kMatrixUnrollB: return Var("mMatrixUnrollB");
-        case TwistVariable::kMatrixSchemeA: return Var("mMatrixSchemeA");
-        case TwistVariable::kMatrixSchemeB: return Var("mMatrixSchemeB");
-        case TwistVariable::kMatrixArgAA: return Var("mMatrixArgAA");
-        case TwistVariable::kMatrixArgAB: return Var("mMatrixArgAB");
-        case TwistVariable::kMatrixArgBA: return Var("mMatrixArgBA");
-        case TwistVariable::kMatrixArgBB: return Var("mMatrixArgBB");
-        case TwistVariable::kMaskMutateA: return Var("mMaskMutateA");
-        case TwistVariable::kMaskMutateB: return Var("mMaskMutateB");
+        case TwistVariable::kMatrixUnrollA: return Var("aMatrixUnrollA");
+        case TwistVariable::kMatrixUnrollB: return Var("aMatrixUnrollB");
+        case TwistVariable::kMatrixSchemeA: return Var("aMatrixSchemeA");
+        case TwistVariable::kMatrixSchemeB: return Var("aMatrixSchemeB");
+        case TwistVariable::kMatrixArgA: return Var("aMatrixArgA");
+        case TwistVariable::kMatrixArgB: return Var("aMatrixArgB");
+        case TwistVariable::kMatrixArgC: return Var("aMatrixArgC");
+        case TwistVariable::kMatrixArgD: return Var("aMatrixArgD");
+        case TwistVariable::kMaskMutateA: return Var("aMaskMutateA");
+        case TwistVariable::kMaskMutateB: return Var("aMaskMutateB");
 
         case TwistVariable::kInvalid:
         default:
@@ -348,6 +366,8 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kIndexList256B: return "index_list_256_b";
         case TwistWorkSpaceSlot::kIndexList256C: return "index_list_256_c";
         case TwistWorkSpaceSlot::kIndexList256D: return "index_list_256_d";
+        case TwistWorkSpaceSlot::kIndexList256E: return "index_list_256_e";
+        case TwistWorkSpaceSlot::kIndexList256F: return "index_list_256_f";
 
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return "key_u_a";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return "key_u_b";
@@ -388,8 +408,8 @@ std::string BufName(const GSymbol &pSymbol) {
 
 std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource: return "pSource";
-        case TwistWorkSpaceSlot::kDest: return "pDestination";
+        case TwistWorkSpaceSlot::kSource: return "aSource";
+        case TwistWorkSpaceSlot::kDest: return "aDestination";
 
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA: return "aOrbiterAssignSaltA";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB: return "aOrbiterAssignSaltB";
@@ -450,6 +470,8 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kIndexList256B: return "aIndexList256B";
         case TwistWorkSpaceSlot::kIndexList256C: return "aIndexList256C";
         case TwistWorkSpaceSlot::kIndexList256D: return "aIndexList256D";
+        case TwistWorkSpaceSlot::kIndexList256E: return "aIndexList256E";
+        case TwistWorkSpaceSlot::kIndexList256F: return "aIndexList256F";
 
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return "aKeyBoxUnrolledA";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return "aKeyBoxUnrolledB";

@@ -32,11 +32,19 @@ public:
                                                                    const unsigned int pSourceByteLength);
     
     virtual void                            KDF(std::uint64_t pNonce,
-                                                std::uint8_t *pSource,
-                                                std::uint8_t *pDest,
                                                 TwistDomainConstants *pDomainConstants,
                                                 TwistDomainSaltSet *pDomainSaltSet,
                                                 TwistDomainSBoxSet *pDomainSBoxSet);
+
+    virtual void                            KDF_A(std::uint64_t pNonce,
+                                                  TwistDomainConstants *pDomainConstants,
+                                                  TwistDomainSaltSet *pDomainSaltSet,
+                                                  TwistDomainSBoxSet *pDomainSBoxSet);
+
+    virtual void                            KDF_B(std::uint64_t pNonce,
+                                                  TwistDomainConstants *pDomainConstants,
+                                                  TwistDomainSaltSet *pDomainSaltSet,
+                                                  TwistDomainSBoxSet *pDomainSBoxSet);
 
     virtual void                            Seed(TwistWorkSpace *pWorkspace,
                                                  TwistFarmSBox *pFarmSBox,
@@ -62,6 +70,8 @@ public:
     std::size_t                             mIndexList256B[256];
     std::size_t                             mIndexList256C[256];
     std::size_t                             mIndexList256D[256];
+    std::size_t                             mIndexList256E[256];
+    std::size_t                             mIndexList256F[256];
     
     std::uint8_t                            mSBoxA[S_SBOX];
     std::uint8_t                            mSBoxB[S_SBOX];

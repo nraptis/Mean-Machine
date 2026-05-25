@@ -281,13 +281,13 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
                                                             pTagCursor + 7ULL);
         pConstants->mMatrixSchemeB = FillDomainConstantByte(pTableCursor + 8U,
                                                             pTagCursor + 8ULL);
-        pConstants->mMatrixArgAA = FillDomainConstantByte(pTableCursor + 9U,
+        pConstants->mMatrixArgA = FillDomainConstantByte(pTableCursor + 9U,
                                                           pTagCursor + 9ULL);
-        pConstants->mMatrixArgAB = FillDomainConstantByte(pTableCursor + 10U,
+        pConstants->mMatrixArgB = FillDomainConstantByte(pTableCursor + 10U,
                                                           pTagCursor + 10ULL);
-        pConstants->mMatrixArgBA = FillDomainConstantByte(pTableCursor + 11U,
+        pConstants->mMatrixArgC = FillDomainConstantByte(pTableCursor + 11U,
                                                           pTagCursor + 11ULL);
-        pConstants->mMatrixArgBB = FillDomainConstantByte(pTableCursor + 12U,
+        pConstants->mMatrixArgD = FillDomainConstantByte(pTableCursor + 12U,
                                                           pTagCursor + 12ULL);
         pConstants->mMaskMutateA = FillDomainConstantByte(pTableCursor + 13U,
                                                           pTagCursor + 13ULL);

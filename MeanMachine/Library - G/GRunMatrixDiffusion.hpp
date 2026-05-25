@@ -9,12 +9,9 @@
 #define GRunMatrixDiffusion_hpp
 
 #include "GFastMatrix.hpp"
-
 #include <string>
 
 struct GRunMatrixDiffusionConfig {
-    
-    GSymbol                                 mSelect;
     
     GSymbol                                 mInputA;
     GSymbol                                 mInputB;
@@ -25,7 +22,7 @@ struct GRunMatrixDiffusionConfig {
     GSymbol                                 mShuffleEntropyB;
     GSymbol                                 mShuffleEntropyC;
     GSymbol                                 mShuffleEntropyD;
-
+    
     GSymbol                                 mOperationSourceA;
     GSymbol                                 mOperationSourceB;
 };
