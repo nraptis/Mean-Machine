@@ -47,6 +47,7 @@ enum class TwistDomain : std::uint8_t {
     kPhaseA,
     kPhaseB,
     kPhaseC,
+    kPhaseD,
 };
 
 enum class TwistWorkSpaceSlot : std::uint16_t;
@@ -236,6 +237,9 @@ public:
 
     TwistDomainSaltSet                      mPhaseCSalts;
     TwistDomainConstants                    mPhaseCConstants;
+
+    TwistDomainSaltSet                      mPhaseDSalts;
+    TwistDomainConstants                    mPhaseDConstants;
 };
 
 

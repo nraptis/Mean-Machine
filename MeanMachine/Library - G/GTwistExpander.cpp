@@ -410,6 +410,9 @@ bool ParseTables(const JsonValue &pRoot,
     if (!ParseMaterialObject("mats_phase_c_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate)) { return false; }
     if (!ParseMaterialObject("mats_phase_c_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate)) { return false; }
     if (!ParseMaterialObject("mats_phase_c_seeder", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign)) { return false; }
+    if (!ParseMaterialObject("mats_phase_d_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mWandererUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_d_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterUpdate)) { return false; }
+    if (!ParseMaterialObject("mats_phase_d_seeder", &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterAssign)) { return false; }
 
     if (!ParseMaterialObject("mats_key_a_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mWandererUpdate)) { return false; }
     if (!ParseMaterialObject("mats_key_a_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterUpdate)) { return false; }
@@ -550,6 +553,7 @@ bool ParseTables(const JsonValue &pRoot,
     if (!ParseDomainConstantsObject("constants_phase_a", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
     if (!ParseDomainConstantsObject("constants_phase_b", &pExpander->mDomainBundleInbuilt.mPhaseBConstants)) { return false; }
     if (!ParseDomainConstantsObject("constants_phase_c", &pExpander->mDomainBundleInbuilt.mPhaseCConstants)) { return false; }
+    if (!ParseDomainConstantsObject("constants_phase_d", &pExpander->mDomainBundleInbuilt.mPhaseDConstants)) { return false; }
     if (!ParseDomainConstantsObject("constants_key_a", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
     if (!ParseDomainConstantsObject("constants_key_b", &pExpander->mDomainBundleInbuilt.mPhaseBConstants)) { return false; }
     if (!ParseDomainConstantsObject("constants_work_lane", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
@@ -1124,6 +1128,7 @@ bool ResolveConstantsToken(const std::string &pToken,
     if (TryWorkspaceConstants("mDomainBundle.mPhaseAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mPhaseBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mPhaseCConstants", &pWorkSpace->mDomainBundle.mPhaseCConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mPhaseDConstants", &pWorkSpace->mDomainBundle.mPhaseDConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mKeyAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mKeyBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mMaskAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
@@ -1146,6 +1151,10 @@ bool ResolveConstantsToken(const std::string &pToken,
     }
     if (aToken == "mDomainBundleEphemeral.mPhaseCConstants") {
         *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseCConstants);
+        return true;
+    }
+    if (aToken == "mDomainBundleEphemeral.mPhaseDConstants") {
+        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseDConstants);
         return true;
     }
 
@@ -1176,6 +1185,11 @@ bool ResolveConstantsToken(const std::string &pToken,
         (aToken == "mDomainBundleInbuilt.mPhaseCConstants") ||
         (aToken == "mDomainBundleInbuilt.mOperationLaneConstants")) {
         *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseCConstants);
+        return true;
+    }
+    if ((aToken == "mConstantsPhaseD") ||
+        (aToken == "mDomainBundleInbuilt.mPhaseDConstants")) {
+        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseDConstants);
         return true;
     }
     return false;
@@ -1209,6 +1223,7 @@ bool ResolveSaltSetToken(const std::string &pToken,
     if (TryWorkspaceSet("mDomainBundle.mPhaseASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mPhaseBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mPhaseCSalts", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPhaseDSalts", &pWorkSpace->mDomainBundle.mPhaseDSalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
@@ -1256,9 +1271,11 @@ bool ResolveSaltSetToken(const std::string &pToken,
         if (TryExpanderSet("mDomainBundleInbuilt.mPhaseASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mPhaseBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mPhaseCSalts", &pExpander->mDomainBundleInbuilt.mPhaseCSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseDSalts", &pExpander->mDomainBundleInbuilt.mPhaseDSalts)) { return true; }
         if (TryExpanderSet("mDomainBundleEphemeral.mPhaseASalts", &pExpander->mDomainBundleEphemeral.mPhaseASalts)) { return true; }
         if (TryExpanderSet("mDomainBundleEphemeral.mPhaseBSalts", &pExpander->mDomainBundleEphemeral.mPhaseBSalts)) { return true; }
         if (TryExpanderSet("mDomainBundleEphemeral.mPhaseCSalts", &pExpander->mDomainBundleEphemeral.mPhaseCSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseDSalts", &pExpander->mDomainBundleEphemeral.mPhaseDSalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mKeyASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mMaskASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
@@ -1786,9 +1803,8 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
     if ((aRuntimeRawLine.rfind("TwistInvest::", 0U) == 0U) ||
         (aRuntimeRawLine.rfind("TwistMemory::", 0U) == 0U) ||
         (aRuntimeRawLine.rfind("TwistShiftBox::", 0U) == 0U) ||
-        (aRuntimeRawLine.rfind("TwistMasking::", 0U) == 0U) ||
         (aRuntimeRawLine.rfind("TwistIndexShuffle::", 0U) == 0U) ||
-        (aRuntimeRawLine.rfind("TwistFastMatrix::", 0U) == 0U)) {
+        (aRuntimeRawLine.rfind("mMatrix.", 0U) == 0U)) {
         std::vector<GStatement> aRuntimeStatements;
         aRuntimeStatements.push_back(GStatement::RawLine(pRawLine));
         GBatch aRuntimeBatch;

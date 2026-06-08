@@ -11,7 +11,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "TwistFastMatrix.hpp"
+#include "M88/M88.hpp"
+
 
 class TwistFarmSalt;
 
@@ -73,8 +74,7 @@ public:
     std::uint8_t                            *mSnow;
     std::uint8_t                            *mDest;
     
-    TwistFastMatrix                         mMatrixA;
-    TwistFastMatrix                         mMatrixB;
+    M88                                     mMatrix;
 
     TwistFarmSalt                           *GetFarmSalt() const;
     std::uint64_t                           GetSessionNonce() const;

@@ -904,9 +904,13 @@ JsonValue DomainBundleToJsonValue(const TwistDomainBundle &pBundle) {
     aObject["mats_phase_c_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mOrbiterAssign);
     aObject["mats_phase_c_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mOrbiterUpdate);
     aObject["mats_phase_c_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mWandererUpdate);
+    aObject["mats_phase_d_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseDSalts.mOrbiterAssign);
+    aObject["mats_phase_d_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseDSalts.mOrbiterUpdate);
+    aObject["mats_phase_d_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseDSalts.mWandererUpdate);
     aObject["constants_phase_a"] = ConstantsToJsonValue(pBundle.mPhaseAConstants);
     aObject["constants_phase_b"] = ConstantsToJsonValue(pBundle.mPhaseBConstants);
     aObject["constants_phase_c"] = ConstantsToJsonValue(pBundle.mPhaseCConstants);
+    aObject["constants_phase_d"] = ConstantsToJsonValue(pBundle.mPhaseDConstants);
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
@@ -1037,6 +1041,10 @@ std::string DomainBundleStaticDefinitions(const std::string &pClassName,
     AppendSaltSetDefinition(&aOut, pClassName, "kPhaseCSalts", pBundle.mPhaseCSalts);
     aOut << '\n';
     AppendConstantsDefinition(&aOut, pClassName, "kPhaseCConstants", pBundle.mPhaseCConstants);
+    aOut << '\n';
+    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseDSalts", pBundle.mPhaseDSalts);
+    aOut << '\n';
+    AppendConstantsDefinition(&aOut, pClassName, "kPhaseDConstants", pBundle.mPhaseDConstants);
 
     return aOut.str();
 }
@@ -1158,6 +1166,8 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     << "    static const TwistDomainConstants kPhaseBConstants;\n"
     << "    static const TwistDomainSaltSet kPhaseCSalts;\n"
     << "    static const TwistDomainConstants kPhaseCConstants;\n"
+    << "    static const TwistDomainSaltSet kPhaseDSalts;\n"
+    << "    static const TwistDomainConstants kPhaseDConstants;\n"
     << "};\n";
     
     std::ostringstream aCpp;
@@ -1171,7 +1181,6 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     << "#include \"TwistMemory.hpp\"\n"
     << "#include \"TwistShiftBox.hpp\"\n"
     << "#include \"TwistSnow.hpp\"\n"
-    << "#include \"TwistMasking.hpp\"\n"
     << "\n"
     << "#include <cstring>\n"
     << "\n"
@@ -1183,6 +1192,8 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     << "    mDomainBundleInbuilt.mPhaseBConstants = kPhaseBConstants;\n"
     << "    mDomainBundleInbuilt.mPhaseCSalts = kPhaseCSalts;\n"
     << "    mDomainBundleInbuilt.mPhaseCConstants = kPhaseCConstants;\n"
+    << "    mDomainBundleInbuilt.mPhaseDSalts = kPhaseDSalts;\n"
+    << "    mDomainBundleInbuilt.mPhaseDConstants = kPhaseDConstants;\n"
     << "    std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));\n"
     << "}\n"
     << "\n"

@@ -31,4 +31,6 @@ private:
     static const TwistDomainConstants kPhaseBConstants;
     static const TwistDomainSaltSet kPhaseCSalts;
     static const TwistDomainConstants kPhaseCConstants;
+    static const TwistDomainSaltSet kPhaseDSalts;
+    static const TwistDomainConstants kPhaseDConstants;
 };

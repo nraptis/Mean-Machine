@@ -8,7 +8,9 @@
 #ifndef GRunMatrixDiffusion_hpp
 #define GRunMatrixDiffusion_hpp
 
-#include "GFastMatrix.hpp"
+#include "GSymbol.hpp"
+#include "GSeedProgram.hpp"
+
 #include <string>
 
 struct GRunMatrixDiffusionConfig {
@@ -23,6 +25,7 @@ struct GRunMatrixDiffusionConfig {
     
     GSymbol                                 mOperationSourceA;
     GSymbol                                 mOperationSourceB;
+    
 };
 
 class GRunMatrixDiffusion {

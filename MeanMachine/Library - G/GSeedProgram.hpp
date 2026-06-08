@@ -18,16 +18,6 @@ using GRuntimeScalar = std::uint64_t;
 struct GStatement;
 struct GLoop;
 
-struct GScopeRules {
-    std::unordered_map<std::string, int>      mReadPreferredMinimum;
-    std::unordered_map<std::string, int>      mReadPreferredMaximum;
-
-    void                                        SetReadPreferredMinimum(GSymbol pSymbol, int pCount);
-    void                                        SetReadPreferredMaximum(GSymbol pSymbol, int pCount);
-    int                                         GetReadPreferredMinimum(GSymbol pSymbol) const;
-    int                                         GetReadPreferredMaximum(GSymbol pSymbol) const;
-};
-
 struct GTarget {
     GSymbol                                     mSymbol;
     std::shared_ptr<GExpr>                      mIndex;

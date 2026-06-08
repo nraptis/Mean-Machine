@@ -8,10 +8,8 @@
 #include "GJson.hpp"
 #include "TwistExpander.hpp"
 #include "TwistFunctional.hpp"
-#include "TwistFastMatrix.hpp"
 #include "TwistIndexShuffle.hpp"
 #include "TwistInvest.hpp"
-#include "TwistMasking.hpp"
 #include "TwistMemory.hpp"
 #include "TwistShiftBox.hpp"
 #include "TwistSnow.hpp"
@@ -29,16 +27,6 @@
 using MeanMachine_json::JsonValue;
 
 namespace {
-
-std::string ScopeSymbolKey(const GSymbol &pSymbol) {
-    if (pSymbol.IsVar()) {
-        return "var:" + pSymbol.mName;
-    }
-    if (pSymbol.IsBuf()) {
-        return "buf:" + std::to_string(static_cast<int>(pSymbol.mSlot));
-    }
-    return "invalid";
-}
 
 void SetError(std::string *pError,
               const std::string &pMessage) {
@@ -493,6 +481,19 @@ bool ParseRuntimeIntToken(std::string pToken,
         return false;
     }
 
+    const std::string aStaticCastPrefix = "static_cast<";
+    while (pToken.rfind(aStaticCastPrefix, 0U) == 0U) {
+        const std::size_t aCastClose = pToken.find(">(");
+        if ((aCastClose == std::string::npos) || pToken.empty() || (pToken.back() != ')')) {
+            break;
+        }
+        pToken = TrimRuntimeLine(pToken.substr(aCastClose + 2U,
+                                               pToken.size() - aCastClose - 3U));
+        if (pToken.empty()) {
+            return false;
+        }
+    }
+
     const auto aVariable = pVariables->find(pToken);
     if (aVariable != pVariables->end()) {
         *pValueOut = static_cast<int>(aVariable->second);
@@ -650,13 +651,9 @@ bool SplitRuntimeCallArguments(const std::string &pArgsText,
     return true;
 }
 
-bool ParseRuntimeMatrixLine(const std::string &pRawLine,
-                            TwistFastMatrix **pMatrixOut,
-                            std::string *pMethodOut,
-                            std::vector<std::string> *pArgsOut,
-                            TwistExpander *pExpander) {
-    if ((pMatrixOut == nullptr) || (pMethodOut == nullptr) ||
-        (pArgsOut == nullptr) || (pExpander == nullptr)) {
+bool ParseRuntimeM88DispatchLine(const std::string &pRawLine,
+                                 std::vector<std::string> *pArgsOut) {
+    if (pArgsOut == nullptr) {
         return false;
     }
 
@@ -671,47 +668,50 @@ bool ParseRuntimeMatrixLine(const std::string &pRawLine,
         aLine = TrimRuntimeLine(aLine);
     }
 
-    const bool aMatrixA = (aLine.rfind("mMatrixA.", 0U) == 0U);
-    const bool aMatrixB = (aLine.rfind("mMatrixB.", 0U) == 0U);
-    if (!aMatrixA && !aMatrixB) {
+    const std::string aPrefix = "mMatrix.Dispatch";
+    if (aLine.rfind(aPrefix, 0U) != 0U) {
         return false;
     }
 
-    const std::size_t aPrefixLength = std::string("mMatrixA.").size();
-    const std::size_t aOpen = aLine.find('(', aPrefixLength);
+    std::size_t aOpen = aPrefix.size();
+    while ((aOpen < aLine.size()) && (std::isspace(static_cast<unsigned char>(aLine[aOpen])) != 0)) {
+        ++aOpen;
+    }
+    if ((aOpen >= aLine.size()) || (aLine[aOpen] != '(')) {
+        return false;
+    }
     const std::size_t aClose = aLine.rfind(')');
     if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
         return false;
     }
 
-    *pMatrixOut = aMatrixA ? &pExpander->mMatrixA : &pExpander->mMatrixB;
-    *pMethodOut = aLine.substr(aPrefixLength, aOpen - aPrefixLength);
     return SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), pArgsOut);
 }
 
-bool RuntimeUnrollSchemeFromToken(const std::string &pToken,
-                                  TwistFastMatrixUnrollScheme *pSchemeOut) {
-    if (pSchemeOut == nullptr) {
-        return false;
+void CollectRuntimeM88DispatchSlots(const std::string &pRawLine,
+                                    std::vector<TwistWorkSpaceSlot> *pSlots) {
+    if (pSlots == nullptr) {
+        return;
     }
-    const std::string aToken = TrimRuntimeLine(pToken);
-    if ((aToken == "TwistFastMatrixUnrollScheme::kA") || (aToken == "kA")) {
-        *pSchemeOut = TwistFastMatrixUnrollScheme::kA;
-        return true;
+
+    std::vector<std::string> aArgs;
+    if (!ParseRuntimeM88DispatchLine(pRawLine, &aArgs) || (aArgs.size() != 11U)) {
+        return;
     }
-    if ((aToken == "TwistFastMatrixUnrollScheme::kB") || (aToken == "kB")) {
-        *pSchemeOut = TwistFastMatrixUnrollScheme::kB;
-        return true;
+
+    const int aBufferArgIndexes[3] = { 0, 2, 4 };
+    for (const int aArgIndex : aBufferArgIndexes) {
+        std::string aAlias = TrimRuntimeLine(aArgs[static_cast<std::size_t>(aArgIndex)]);
+        const std::size_t aPlus = aAlias.find('+');
+        if (aPlus != std::string::npos) {
+            aAlias = TrimRuntimeLine(aAlias.substr(0U, aPlus));
+        }
+
+        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
+        if (ResolveRuntimeAliasSlot(aAlias, &aSlot)) {
+            AppendUnique(pSlots, aSlot);
+        }
     }
-    if ((aToken == "TwistFastMatrixUnrollScheme::kC") || (aToken == "kC")) {
-        *pSchemeOut = TwistFastMatrixUnrollScheme::kC;
-        return true;
-    }
-    if ((aToken == "TwistFastMatrixUnrollScheme::kD") || (aToken == "kD")) {
-        *pSchemeOut = TwistFastMatrixUnrollScheme::kD;
-        return true;
-    }
-    return false;
 }
 
 bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
@@ -727,78 +727,96 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
         return true;
     }
 
-    TwistFastMatrix *aMatrix = nullptr;
-    std::string aMethod;
     std::vector<std::string> aArgs;
-    if (!ParseRuntimeMatrixLine(pRawLine, &aMatrix, &aMethod, &aArgs, pExpander)) {
+    if (!ParseRuntimeM88DispatchLine(pRawLine, &aArgs)) {
         return true;
     }
     if (pExecuted != nullptr) {
         *pExecuted = true;
     }
 
-    if (aMethod == "LoadAndReset") {
-        if (aArgs.size() != 1U) {
-            SetError(pError, "Matrix LoadAndReset expected 1 argument.");
-            return false;
-        }
-        std::uint8_t *aSource = nullptr;
-        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkSpace, pExpander, pVariables, &aSource)) {
-            SetError(pError, "Matrix LoadAndReset source was invalid: " + aArgs[0]);
-            return false;
-        }
-        aMatrix->LoadAndReset(aSource);
-        return true;
-    }
-
-    if (aMethod == "Store") {
-        if (aArgs.size() != 3U) {
-            SetError(pError, "Matrix Store expected 3 arguments.");
-            return false;
-        }
-        std::uint8_t *aDest = nullptr;
-        if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkSpace, pExpander, pVariables, &aDest)) {
-            SetError(pError, "Matrix Store destination was invalid: " + aArgs[0]);
-            return false;
-        }
-        TwistFastMatrixUnrollScheme aScheme = TwistFastMatrixUnrollScheme::kA;
-        if (!RuntimeUnrollSchemeFromToken(aArgs[1], &aScheme)) {
-            SetError(pError, "Matrix Store unroll scheme was invalid: " + aArgs[1]);
-            return false;
-        }
-        int aUnrollByte = 0;
-        if (!ParseRuntimeIntToken(aArgs[2], pVariables, &aUnrollByte)) {
-            SetError(pError, "Matrix Store unroll byte was invalid: " + aArgs[2]);
-            return false;
-        }
-        aMatrix->Store(aDest, aScheme, static_cast<std::uint8_t>(aUnrollByte));
-        return true;
-    }
-
-    TwistFastMatrixOp aOp = TwistFastMatrixOp::kInv;
-    if (!TwistFastMatrix::OpFromFunctionName(aMethod, &aOp)) {
-        return true;
-    }
-
-    const bool aUsesArg1 = TwistFastMatrix::OpUsesArg1(aOp);
-    const bool aUsesArg2 = TwistFastMatrix::OpUsesArg2(aOp);
-    const std::size_t aExpectedArgCount = aUsesArg2 ? 2U : (aUsesArg1 ? 1U : 0U);
-    if (aArgs.size() != aExpectedArgCount) {
-        SetError(pError, "Matrix operation argument count did not match op arity.");
+    if (aArgs.size() != 11U) {
+        SetError(pError, "M88 Dispatch expected 11 arguments.");
         return false;
     }
 
-    int aArg1 = 0;
-    int aArg2 = 0;
-    if (aUsesArg1 && !ParseRuntimeIntToken(aArgs[0], pVariables, &aArg1)) {
-        SetError(pError, "Matrix operation argument was invalid.");
+    std::uint8_t *aOperationData = nullptr;
+    if (!ResolveRuntimeBufferPointerExpression(aArgs[0], pWorkSpace, pExpander, pVariables, &aOperationData)) {
+        SetError(pError, "M88 Dispatch operation data was invalid: " + aArgs[0]);
         return false;
     }
-    if (aUsesArg2 && !ParseRuntimeIntToken(aArgs[1], pVariables, &aArg2)) {
-        SetError(pError, "Matrix operation argument was invalid.");
+
+    std::size_t aOperationIndex = 0U;
+    if (!ParseRuntimeSizeToken(aArgs[1], pVariables, &aOperationIndex)) {
+        SetError(pError, "M88 Dispatch operation index was invalid: " + aArgs[1]);
         return false;
     }
-    aMatrix->ExecuteOp(aOp, static_cast<std::uint8_t>(aArg1), static_cast<std::uint8_t>(aArg2));
+
+    std::uint8_t *aSource = nullptr;
+    if (!ResolveRuntimeBufferPointerExpression(aArgs[2], pWorkSpace, pExpander, pVariables, &aSource)) {
+        SetError(pError, "M88 Dispatch source was invalid: " + aArgs[2]);
+        return false;
+    }
+
+    std::size_t aSourceIndex = 0U;
+    if (!ParseRuntimeSizeToken(aArgs[3], pVariables, &aSourceIndex)) {
+        SetError(pError, "M88 Dispatch source index was invalid: " + aArgs[3]);
+        return false;
+    }
+
+    std::uint8_t *aDestination = nullptr;
+    if (!ResolveRuntimeBufferPointerExpression(aArgs[4], pWorkSpace, pExpander, pVariables, &aDestination)) {
+        SetError(pError, "M88 Dispatch destination was invalid: " + aArgs[4]);
+        return false;
+    }
+
+    std::size_t aDestinationIndex = 0U;
+    if (!ParseRuntimeSizeToken(aArgs[5], pVariables, &aDestinationIndex)) {
+        SetError(pError, "M88 Dispatch destination index was invalid: " + aArgs[5]);
+        return false;
+    }
+
+    int aUnrollDomainWord = 0;
+    if (!ParseRuntimeIntToken(aArgs[6], pVariables, &aUnrollDomainWord)) {
+        SetError(pError, "M88 Dispatch unroll domain word was invalid: " + aArgs[6]);
+        return false;
+    }
+
+    int aArgADomainWord = 0;
+    if (!ParseRuntimeIntToken(aArgs[7], pVariables, &aArgADomainWord)) {
+        SetError(pError, "M88 Dispatch arg A domain word was invalid: " + aArgs[7]);
+        return false;
+    }
+
+    int aArgBDomainWord = 0;
+    if (!ParseRuntimeIntToken(aArgs[8], pVariables, &aArgBDomainWord)) {
+        SetError(pError, "M88 Dispatch arg B domain word was invalid: " + aArgs[8]);
+        return false;
+    }
+
+    int aArgCDomainWord = 0;
+    if (!ParseRuntimeIntToken(aArgs[9], pVariables, &aArgCDomainWord)) {
+        SetError(pError, "M88 Dispatch arg C domain word was invalid: " + aArgs[9]);
+        return false;
+    }
+
+    int aArgDDomainWord = 0;
+    if (!ParseRuntimeIntToken(aArgs[10], pVariables, &aArgDDomainWord)) {
+        SetError(pError, "M88 Dispatch arg D domain word was invalid: " + aArgs[10]);
+        return false;
+    }
+
+    pExpander->mMatrix.Dispatch(aOperationData,
+                                aOperationIndex,
+                                aSource,
+                                aSourceIndex,
+                                aDestination,
+                                aDestinationIndex,
+                                static_cast<std::uint8_t>(aUnrollDomainWord),
+                                static_cast<std::uint8_t>(aArgADomainWord),
+                                static_cast<std::uint8_t>(aArgBDomainWord),
+                                static_cast<std::uint8_t>(aArgCDomainWord),
+                                static_cast<std::uint8_t>(aArgDDomainWord));
     return true;
 }
 
@@ -1240,191 +1258,6 @@ bool ExecuteRuntimeRawSnowLine(const std::string &pRawLine,
     }
 
     return true;
-}
-
-bool RuntimeBraidTypeFromToken(const std::string &pToken,
-                               TwistMaskBraidType *pTypeOut) {
-    if (pTypeOut == nullptr) {
-        return false;
-    }
-
-    const std::string aToken = TrimRuntimeLine(pToken);
-    if ((aToken == "TwistMaskBraidType::kA") || (aToken == "kA")) {
-        *pTypeOut = TwistMaskBraidType::kA;
-        return true;
-    }
-    if ((aToken == "TwistMaskBraidType::kB") || (aToken == "kB")) {
-        *pTypeOut = TwistMaskBraidType::kB;
-        return true;
-    }
-    if ((aToken == "TwistMaskBraidType::kC") || (aToken == "kC")) {
-        *pTypeOut = TwistMaskBraidType::kC;
-        return true;
-    }
-    return false;
-}
-
-bool RuntimeWeaveTypeFromToken(const std::string &pToken,
-                               TwistMaskWeaveType *pTypeOut) {
-    if (pTypeOut == nullptr) {
-        return false;
-    }
-
-    const std::string aToken = TrimRuntimeLine(pToken);
-    if ((aToken == "TwistMaskWeaveType::kA") || (aToken == "kA")) {
-        *pTypeOut = TwistMaskWeaveType::kA;
-        return true;
-    }
-    if ((aToken == "TwistMaskWeaveType::kB") || (aToken == "kB")) {
-        *pTypeOut = TwistMaskWeaveType::kB;
-        return true;
-    }
-    if ((aToken == "TwistMaskWeaveType::kC") || (aToken == "kC")) {
-        *pTypeOut = TwistMaskWeaveType::kC;
-        return true;
-    }
-    if ((aToken == "TwistMaskWeaveType::kD") || (aToken == "kD")) {
-        *pTypeOut = TwistMaskWeaveType::kD;
-        return true;
-    }
-    return false;
-}
-
-bool ExecuteRuntimeRawMaskingLine(const std::string &pRawLine,
-                                  TwistWorkSpace *pWorkSpace,
-                                  TwistExpander *pExpander,
-                                  const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
-                                  bool *pExecuted,
-                                  std::string *pError) {
-    if (pExecuted != nullptr) {
-        *pExecuted = false;
-    }
-    if ((pWorkSpace == nullptr) || (pExpander == nullptr) || (pVariables == nullptr)) {
-        return true;
-    }
-
-    std::string aLine = pRawLine;
-    const std::size_t aComment = aLine.find("//");
-    if (aComment != std::string::npos) {
-        aLine = aLine.substr(0U, aComment);
-    }
-    aLine = TrimRuntimeLine(aLine);
-    if (!aLine.empty() && (aLine.back() == ';')) {
-        aLine.pop_back();
-        aLine = TrimRuntimeLine(aLine);
-    }
-
-    const std::string aPrefix = "TwistMasking::";
-    if (aLine.rfind(aPrefix, 0U) != 0U) {
-        return true;
-    }
-    if (pExecuted != nullptr) {
-        *pExecuted = true;
-    }
-
-    const std::size_t aOpen = aLine.find('(', aPrefix.size());
-    const std::size_t aClose = aLine.rfind(')');
-    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
-        SetError(pError, "Masking call was malformed.");
-        return false;
-    }
-
-    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
-    std::vector<std::string> aArgs;
-    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs)) {
-        SetError(pError, "Masking call arguments were malformed.");
-        return false;
-    }
-
-    auto ResolveBufferArg = [&](const std::string &pArg, std::uint8_t **pBufferOut) -> bool {
-        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
-        if (!ResolveRuntimeAliasSlot(pArg, &aSlot)) {
-            SetError(pError, "Masking buffer argument was invalid: " + pArg);
-            return false;
-        }
-        *pBufferOut = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSlot);
-        if (*pBufferOut == nullptr) {
-            SetError(pError, "Masking buffer argument resolved to null: " + pArg);
-            return false;
-        }
-        return true;
-    };
-
-    if (aMethod == "MaskBraid") {
-        if (aArgs.size() != 7U) {
-            SetError(pError, "MaskBraid expected 7 arguments.");
-            return false;
-        }
-
-        TwistMaskBraidType aType = TwistMaskBraidType::kInv;
-        std::uint8_t *aSourceA = nullptr;
-        std::uint8_t *aSourceB = nullptr;
-        std::uint8_t *aMask = nullptr;
-        std::size_t aBufferLength = 0U;
-        std::size_t aMaskLength = 0U;
-        int aMaskDomainWord = 0;
-
-        if (!RuntimeBraidTypeFromToken(aArgs[0], &aType) ||
-            !ResolveBufferArg(aArgs[1], &aSourceA) ||
-            !ResolveBufferArg(aArgs[2], &aSourceB) ||
-            !ParseRuntimeSizeToken(aArgs[3], pVariables, &aBufferLength) ||
-            !ResolveBufferArg(aArgs[4], &aMask) ||
-            !ParseRuntimeSizeToken(aArgs[5], pVariables, &aMaskLength) ||
-            !ParseRuntimeIntToken(aArgs[6], pVariables, &aMaskDomainWord)) {
-            SetError(pError, "MaskBraid arguments were invalid.");
-            return false;
-        }
-
-        TwistMasking::MaskBraid(aType,
-                                aSourceA,
-                                aSourceB,
-                                aBufferLength,
-                                aMask,
-                                aMaskLength,
-                                static_cast<std::uint8_t>(aMaskDomainWord));
-        return true;
-    }
-
-    if (aMethod == "MaskWeave") {
-        if (aArgs.size() != 8U) {
-            SetError(pError, "MaskWeave expected 8 arguments.");
-            return false;
-        }
-
-        TwistMaskWeaveType aType = TwistMaskWeaveType::kInv;
-        std::uint8_t *aSourceA = nullptr;
-        std::uint8_t *aSourceB = nullptr;
-        std::uint8_t *aDest = nullptr;
-        std::uint8_t *aMask = nullptr;
-        std::size_t aBufferLength = 0U;
-        std::size_t aMaskLength = 0U;
-        int aMaskDomainWord = 0;
-
-        if (!RuntimeWeaveTypeFromToken(aArgs[0], &aType) ||
-            !ResolveBufferArg(aArgs[1], &aSourceA) ||
-            !ResolveBufferArg(aArgs[2], &aSourceB) ||
-            !ResolveBufferArg(aArgs[3], &aDest) ||
-            !ParseRuntimeSizeToken(aArgs[4], pVariables, &aBufferLength) ||
-            !ResolveBufferArg(aArgs[5], &aMask) ||
-            !ParseRuntimeSizeToken(aArgs[6], pVariables, &aMaskLength) ||
-            !ParseRuntimeIntToken(aArgs[7], pVariables, &aMaskDomainWord)) {
-            SetError(pError, "MaskWeave arguments were invalid.");
-            return false;
-        }
-
-        TwistMasking::MaskWeave(aType,
-                                aSourceA,
-                                aSourceB,
-                                aDest,
-                                aBufferLength,
-                                aMask,
-                                aMaskLength,
-                                static_cast<std::uint8_t>(aMaskDomainWord));
-        return true;
-    }
-
-    SetError(pError, "Masking call method was unsupported: " + aMethod);
-    return false;
 }
 
 bool ParseRuntimeSwitchLine(const std::string &pRawLine,
@@ -3071,18 +2904,6 @@ bool ExecuteStatement(const GStatement &pStatement,
             return true;
         }
 
-        if (!ExecuteRuntimeRawMaskingLine(pStatement.mRawLine,
-                                          pWorkSpace,
-                                          pExpander,
-                                          pVariables,
-                                          &aExecutedRawLine,
-                                          pError)) {
-            return false;
-        }
-        if (aExecutedRawLine) {
-            return true;
-        }
-
         if (!ExecuteRuntimeRawMatrixLine(pStatement.mRawLine,
                                          pWorkSpace,
                                          pExpander,
@@ -3273,28 +3094,6 @@ bool ExecuteStatementSequence(const std::vector<GStatement> &pStatements,
 
 GTarget::GTarget() {
     Invalidate();
-}
-
-void GScopeRules::SetReadPreferredMinimum(GSymbol pSymbol, int pCount) {
-    if (!pSymbol.IsInvalid()) {
-        mReadPreferredMinimum[ScopeSymbolKey(pSymbol)] = pCount;
-    }
-}
-
-void GScopeRules::SetReadPreferredMaximum(GSymbol pSymbol, int pCount) {
-    if (!pSymbol.IsInvalid()) {
-        mReadPreferredMaximum[ScopeSymbolKey(pSymbol)] = pCount;
-    }
-}
-
-int GScopeRules::GetReadPreferredMinimum(GSymbol pSymbol) const {
-    const auto aIterator = mReadPreferredMinimum.find(ScopeSymbolKey(pSymbol));
-    return (aIterator == mReadPreferredMinimum.end()) ? 0 : aIterator->second;
-}
-
-int GScopeRules::GetReadPreferredMaximum(GSymbol pSymbol) const {
-    const auto aIterator = mReadPreferredMaximum.find(ScopeSymbolKey(pSymbol));
-    return (aIterator == mReadPreferredMaximum.end()) ? 0 : aIterator->second;
 }
 
 GTarget GTarget::Symbol(const GSymbol &pSymbol) {
@@ -3730,6 +3529,10 @@ static void CollectVariablesFromLoop(const GLoop &pLoop,
 
 static void CollectSlotsFromStatement(const GStatement &pStatement,
                                       std::vector<TwistWorkSpaceSlot> *pSlots) {
+    if (pStatement.IsRawLine()) {
+        CollectRuntimeM88DispatchSlots(pStatement.mRawLine, pSlots);
+        return;
+    }
     if (pStatement.mTarget.IsBuf()) {
         AppendUnique(pSlots, pStatement.mTarget.mSymbol.mSlot);
     }

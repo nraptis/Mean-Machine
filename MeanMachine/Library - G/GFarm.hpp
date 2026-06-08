@@ -39,7 +39,7 @@ public:
 
         const std::string aPhaseMember = NormalizePhaseSubWord(pPhaseSubWord);
         if (aPhaseMember.empty()) {
-            SetError(pErrorMessage, "GFarm::Bake requires phase sub-word PhaseA, PhaseB, or PhaseC.");
+            SetError(pErrorMessage, "GFarm::Bake requires phase sub-word PhaseA, PhaseB, PhaseC, or PhaseD.");
             return false;
         }
 
@@ -161,7 +161,10 @@ private:
         StripSuffix(&pPhaseSubWord, "Salts");
         pPhaseSubWord = Trim(pPhaseSubWord);
 
-        if ((pPhaseSubWord == "A") || (pPhaseSubWord == "B") || (pPhaseSubWord == "C")) {
+        if ((pPhaseSubWord == "A") ||
+            (pPhaseSubWord == "B") ||
+            (pPhaseSubWord == "C") ||
+            (pPhaseSubWord == "D")) {
             pPhaseSubWord = "Phase" + pPhaseSubWord;
         }
         if (pPhaseSubWord.rfind("m", 0U) != 0U) {
@@ -170,7 +173,8 @@ private:
 
         if ((pPhaseSubWord == "mPhaseA") ||
             (pPhaseSubWord == "mPhaseB") ||
-            (pPhaseSubWord == "mPhaseC")) {
+            (pPhaseSubWord == "mPhaseC") ||
+            (pPhaseSubWord == "mPhaseD")) {
             return pPhaseSubWord;
         }
         return "";

@@ -24,7 +24,6 @@
 #include "TwistWorkSpace.hpp"
 #include "TwistFunctional.hpp"
 #include "GTermExpander.hpp"
-#include "TwistFastMatrix.hpp"
 #include "Random.hpp"
 #include "GTwistExpander.hpp"
 #include "GSeedRunKDF2.hpp"
@@ -197,8 +196,6 @@ bool IsRunningUnderXCTest() {
         aDiffusionA.mOutputB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
         aDiffusionA.mShuffleEntropyA = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
         aDiffusionA.mShuffleEntropyB = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
-        aDiffusionA.mShuffleEntropyC = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
-        aDiffusionA.mShuffleEntropyD = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
         aDiffusionA.mOperationSourceA = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
         aDiffusionA.mOperationSourceB = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
 

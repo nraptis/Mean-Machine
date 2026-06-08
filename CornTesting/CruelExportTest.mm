@@ -17,14 +17,12 @@
 #include "GInvest.hpp"
 #include "GShiftBox.hpp"
 #include "GSeedProgram.hpp"
-#include "GRunMaskBraidDiffusion.hpp"
-#include "GRunMaskWeaveDiffusion.hpp"
+#include "GRunMatrixDiffusion.hpp"
 #include "TwistExpander_Kerpal_0006.hpp"
 #include "GTwistExpander.hpp"
 #include "TwistExpander.hpp"
-#include "TwistFastMatrix.hpp"
+#include "M88.hpp"
 #include "TwistFarmSalt.hpp"
-#include "TwistMasking.hpp"
 #include "TwistShiftBox.hpp"
 #include "TwistSnow.hpp"
 #include <cctype>
@@ -610,65 +608,6 @@ static BOOL CompareWorkspaceBoxes(const char *pLabel,
                   "Top-level batch statements should execute exactly once.");
 }
 
-- (void)testMaskBraidDiffusionEmitsDomainWordAndMaskingUsesIt {
-    std::uint8_t aLaneA[16];
-    std::uint8_t aLaneB[16];
-    std::uint8_t aMask[16];
-    for (int i = 0; i < 16; ++i) {
-        aLaneA[i] = 0x0F;
-        aLaneB[i] = 0xF0;
-        aMask[i] = 0x00;
-    }
-    TwistMasking::MaskBraid(TwistMaskBraidType::kA,
-                            aLaneA,
-                            aLaneB,
-                            16,
-                            aMask,
-                            16,
-                            0xFF);
-    for (int i = 0; i < 16; ++i) {
-        XCTAssertTrue(aLaneA[i] == 0xF0,
-                      "Mask domain word should mutate mask byte before braid.");
-        XCTAssertTrue(aLaneB[i] == 0x0F,
-                      "Mask domain word should mutate mask byte before braid.");
-    }
-
-    GRunMaskBraidDiffusionConfig aConfig;
-    aConfig.mInputA = GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneA);
-    aConfig.mInputB = GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneB);
-    aConfig.mMaskLane = GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneA);
-    aConfig.mMaskDomainWord = GSymbol::Var(TwistVariable::kDomainWordMaskMutateB);
-    aConfig.mBraidType = TwistMaskBraidType::kB;
-
-    GBatch aBatch;
-    std::string aError;
-    XCTAssertTrue(GRunMaskBraidDiffusion::Bake(aConfig, &aBatch, &aError),
-                  "%s", aError.c_str());
-    const std::string aBlock = aBatch.BuildCppScopeBlock(&aError, false);
-    XCTAssertTrue(aError.empty(), "%s", aError.c_str());
-    XCTAssertTrue(aBlock.find("TwistMasking::MaskBraid(TwistMaskBraidType::kB, aWorkLaneA, aWorkLaneB, S_BLOCK, aOperationLaneA, S_BLOCK, aDomainWordMaskMutateB);") != std::string::npos,
-                  "Expected mask braid diffusion to emit the domain word argument.");
-}
-
-- (void)testMaskWeaveDiffusionEmitsDomainWord {
-    GRunMaskWeaveDiffusionConfig aConfig;
-    aConfig.mInputA = GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneA);
-    aConfig.mInputB = GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneB);
-    aConfig.mOutput = GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneC);
-    aConfig.mMaskLane = GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneA);
-    aConfig.mMaskDomainWord = GSymbol::Var(TwistVariable::kDomainWordMaskMutateB);
-    aConfig.mWeaveType = TwistMaskWeaveType::kC;
-
-    GBatch aBatch;
-    std::string aError;
-    XCTAssertTrue(GRunMaskWeaveDiffusion::Bake(aConfig, &aBatch, &aError),
-                  "%s", aError.c_str());
-    const std::string aBlock = aBatch.BuildCppScopeBlock(&aError, false);
-    XCTAssertTrue(aError.empty(), "%s", aError.c_str());
-    XCTAssertTrue(aBlock.find("TwistMasking::MaskWeave(TwistMaskWeaveType::kC, aWorkLaneA, aWorkLaneB, aWorkLaneC, S_BLOCK, aOperationLaneA, S_BLOCK, aDomainWordMaskMutateB);") != std::string::npos,
-                  "Expected mask weave diffusion to emit the domain word argument.");
-}
-
 - (void)testInvestAndShiftBoxEmitAndExecute {
     GInvest aInvest;
     GShiftBox aShiftBox;
@@ -725,6 +664,14 @@ static BOOL CompareWorkspaceBoxes(const char *pLabel,
                                       &aStatements,
                                       &aError),
                   "%s", aError.c_str());
+    XCTAssertTrue(aFarm.BakeInbuilt(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneD),
+                                    GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneC),
+                                    GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneB),
+                                    GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneA),
+                                    "D",
+                                    &aStatements,
+                                    &aError),
+                  "%s", aError.c_str());
 
     GBatch aBatch;
     aBatch.CommitStatements(&aStatements);
@@ -742,6 +689,10 @@ static BOOL CompareWorkspaceBoxes(const char *pLabel,
                   "Expected workspace orbiter-assign salt farm round.");
     XCTAssertTrue(aBlock.find("TwistFarmConstants::Derive(aOperationLaneA, &(pWorkSpace->mDomainBundle.mPhaseBConstants));") != std::string::npos,
                   "Expected workspace constants farm round.");
+    XCTAssertTrue(aBlock.find("pFarmSalt->Derive(aOperationLaneD, mDomainBundleInbuilt.mPhaseDSalts.mOrbiterAssign.mSaltA") != std::string::npos,
+                  "Expected inbuilt phase D orbiter-assign salt farm round.");
+    XCTAssertTrue(aBlock.find("TwistFarmConstants::Derive(aOperationLaneA, &(mDomainBundleInbuilt.mPhaseDConstants));") != std::string::npos,
+                  "Expected inbuilt phase D constants farm round.");
 }
 
 - (void)testKDFBuilderEmitsGroupedDeclarationsAndRandomInitializers {
@@ -902,40 +853,102 @@ static BOOL CompareWorkspaceBoxes(const char *pLabel,
                   "Aria snow runtime line did not match direct counter.");
 }
 
-- (void)testRuntimeMatrixRawLineAcceptsOneArgumentOps {
+- (void)testRuntimeMatrixRawLineDispatchMatchesM88 {
     TwistWorkSpace aWorkSpace;
     std::memset(aWorkSpace.mWorkLaneA, 0, S_BLOCK);
     std::memset(aWorkSpace.mWorkLaneB, 0, S_BLOCK);
+    std::memset(aWorkSpace.mOperationLaneA, 0, S_BLOCK);
     for (int i = 0; i < 64; ++i) {
         aWorkSpace.mWorkLaneA[i] = static_cast<std::uint8_t>(i);
+        aWorkSpace.mOperationLaneA[i] = static_cast<std::uint8_t>((i * 37 + 11) & 0xFF);
     }
 
     GTwistExpander aExpander;
     GBatch aBatch;
     std::vector<GStatement> aStatements;
-    aStatements.push_back(GStatement::RawLine("mMatrixA.LoadAndReset(aWorkLaneA + aMatrixLoadIndexA);"));
-    aStatements.push_back(GStatement::RawLine("mMatrixA.ReverseRow(aMatrixArgA);"));
-    aStatements.push_back(GStatement::RawLine("mMatrixA.Store(aWorkLaneB + aMatrixStoreIndexA, TwistFastMatrixUnrollScheme::kA, aMatrixUnrollWordA);"));
+    aStatements.push_back(GStatement::RawLine("mMatrix.Dispatch(aOperationLaneA, aMatrixOperationIndex, aWorkLaneA, aMatrixLoadIndexA, aWorkLaneB, aMatrixStoreIndexA, static_cast<std::uint8_t>(aDomainWordMatrixUnrollA), static_cast<std::uint8_t>(aDomainWordMatrixArgA), static_cast<std::uint8_t>(aDomainWordMatrixArgB), static_cast<std::uint8_t>(aDomainWordMatrixArgC), static_cast<std::uint8_t>(aDomainWordMatrixArgD));"));
     aBatch.CommitStatements(&aStatements);
 
     std::unordered_map<std::string, GRuntimeScalar> aVariables;
+    aVariables["aMatrixOperationIndex"] = 0ULL;
     aVariables["aMatrixLoadIndexA"] = 0ULL;
     aVariables["aMatrixStoreIndexA"] = 0ULL;
-    aVariables["aMatrixArgA"] = 2ULL;
-    aVariables["aMatrixUnrollWordA"] = 0ULL;
+    aVariables["aDomainWordMatrixUnrollA"] = 0x21ULL;
+    aVariables["aDomainWordMatrixArgA"] = 0x31ULL;
+    aVariables["aDomainWordMatrixArgB"] = 0x41ULL;
+    aVariables["aDomainWordMatrixArgC"] = 0x51ULL;
+    aVariables["aDomainWordMatrixArgD"] = 0x61ULL;
 
     std::string aError;
     XCTAssertTrue(aBatch.ExecuteWithVariables(&aWorkSpace, &aExpander, &aVariables, &aError),
                   "%s", aError.c_str());
 
-    TwistFastMatrix aExpectedMatrix;
+    M88 aExpectedMatrix;
     std::uint8_t aExpected[64];
-    aExpectedMatrix.LoadAndReset(aWorkSpace.mWorkLaneA);
-    aExpectedMatrix.ReverseRow(2U);
-    aExpectedMatrix.Store(aExpected, TwistFastMatrixUnrollScheme::kA, 0U);
+    std::memset(aExpected, 0, sizeof(aExpected));
+    aExpectedMatrix.Dispatch(aWorkSpace.mOperationLaneA,
+                             0U,
+                             aWorkSpace.mWorkLaneA,
+                             0U,
+                             aExpected,
+                             0U,
+                             0x21U,
+                             0x31U,
+                             0x41U,
+                             0x51U,
+                             0x61U);
 
     XCTAssertTrue(std::memcmp(aExpected, aWorkSpace.mWorkLaneB, sizeof(aExpected)) == 0,
-                  "Runtime matrix raw-line execution should match direct C++ execution.");
+                  "Runtime M88 raw-line execution should match direct C++ execution.");
+}
+
+- (void)testRunMatrixDiffusionExportsM88Dispatch {
+    GRunMatrixDiffusionConfig aConfig;
+    aConfig.mInputA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
+    aConfig.mInputB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneB);
+    aConfig.mOutputA = BufSymbol(TwistWorkSpaceSlot::kExpansionLaneA);
+    aConfig.mOutputB = BufSymbol(TwistWorkSpaceSlot::kExpansionLaneB);
+    aConfig.mShuffleEntropyA = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
+    aConfig.mShuffleEntropyB = BufSymbol(TwistWorkSpaceSlot::kOperationLaneB);
+    aConfig.mOperationSourceA = BufSymbol(TwistWorkSpaceSlot::kOperationLaneC);
+    aConfig.mOperationSourceB = BufSymbol(TwistWorkSpaceSlot::kOperationLaneD);
+
+    GBatch aBatch;
+    std::string aError;
+    XCTAssertTrue(GRunMatrixDiffusion::Bake(aConfig, &aBatch, &aError),
+                  "%s", aError.c_str());
+
+    const std::string aJson = aBatch.ToJson(&aError);
+    XCTAssertFalse(aJson.empty(), "%s", aError.c_str());
+
+    GBatch aRoundTrip;
+    XCTAssertTrue(GBatch::FromJson(aJson, &aRoundTrip, &aError),
+                  "%s", aError.c_str());
+
+    const std::string aBlock = aRoundTrip.BuildCppScopeBlock(&aError, false);
+    XCTAssertFalse(aBlock.empty(), "%s", aError.c_str());
+    XCTAssertTrue(aBlock.find("mMatrix.Dispatch(") != std::string::npos,
+                  "Matrix diffusion export should emit M88 dispatch calls.");
+    XCTAssertTrue(aBlock.find("aOperationLaneC") != std::string::npos,
+                  "Matrix diffusion export should reference operation lane C.");
+    XCTAssertTrue(aBlock.find("aOperationLaneD") != std::string::npos,
+                  "Matrix diffusion export should reference operation lane D.");
+    XCTAssertTrue(aBlock.find("aDomainWordMatrixUnrollA") != std::string::npos,
+                  "Matrix diffusion export should pass matrix unroll domain word A.");
+    XCTAssertTrue(aBlock.find("aDomainWordMatrixUnrollB") != std::string::npos,
+                  "Matrix diffusion export should pass matrix unroll domain word B.");
+    XCTAssertTrue(aBlock.find("aDomainWordMatrixArgA") != std::string::npos,
+                  "Matrix diffusion export should pass matrix arg domain word A.");
+    XCTAssertTrue(aBlock.find("aDomainWordMatrixArgB") != std::string::npos,
+                  "Matrix diffusion export should pass matrix arg domain word B.");
+    XCTAssertTrue(aBlock.find("aDomainWordMatrixArgC") != std::string::npos,
+                  "Matrix diffusion export should pass matrix arg domain word C.");
+    XCTAssertTrue(aBlock.find("aDomainWordMatrixArgD") != std::string::npos,
+                  "Matrix diffusion export should pass matrix arg domain word D.");
+    XCTAssertTrue(aBlock.find("aExpandLaneA") != std::string::npos,
+                  "Matrix diffusion export should reference output expansion lane A.");
+    XCTAssertTrue(aBlock.find("aExpandLaneB") != std::string::npos,
+                  "Matrix diffusion export should reference output expansion lane B.");
 }
 
 - (void)testDiffuseAExpressionEmissionUsesTwistMix64 {

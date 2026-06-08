@@ -205,6 +205,9 @@ GSymbol GSymbol::Var(TwistDomain pDomain,
         case TwistDomain::kPhaseC:
             aFamilyPrefix = "mDomainBundleInbuilt.mPhaseCConstants";
             break;
+        case TwistDomain::kPhaseD:
+            aFamilyPrefix = "mDomainBundleInbuilt.mPhaseDConstants";
+            break;
         case TwistDomain::kInvalid:
         case TwistDomain::kPhaseA:
         default:

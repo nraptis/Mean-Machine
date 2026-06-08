@@ -17,7 +17,6 @@
 #include "GSymbol.hpp"
 #include "Random.hpp"
 #include "TwistMix64.hpp"
-#include "TwistFastMatrix.hpp"
 #include "GAXSKModel.hpp"
 
 template <typename T>
@@ -259,9 +258,6 @@ using GMix644Cache = GCache<Mix64Type_4>;
 
 using GMix648CacheHistory = GCacheHistory<Mix64Type_8>;
 using GMix648Cache = GCache<Mix64Type_8>;
-
-using GUnrollCacheHistory = GCacheHistory<TwistFastMatrixUnrollScheme>;
-using GUnrollCache = GCache<TwistFastMatrixUnrollScheme>;
 
 using GAXSKVariableCacheHistory = GCacheHistory<GAXSKVariable>;
 using GAXSKVariableCache = GCache<GAXSKVariable>;

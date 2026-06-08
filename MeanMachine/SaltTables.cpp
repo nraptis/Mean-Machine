@@ -300,13 +300,17 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
         &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterUpdate,
         &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate,
         &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate
+        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterUpdate
     };
 
     TwistDomainConstants *aConstants[] = {
         &pExpander->mDomainBundleInbuilt.mPhaseAConstants,
         &pExpander->mDomainBundleInbuilt.mPhaseBConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseCConstants
+        &pExpander->mDomainBundleInbuilt.mPhaseCConstants,
+        &pExpander->mDomainBundleInbuilt.mPhaseDConstants
     };
 
     std::size_t aDomainTableCursor = 8U;

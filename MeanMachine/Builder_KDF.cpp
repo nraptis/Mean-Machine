@@ -20,7 +20,6 @@
 #include "GSeedRunKDF3.hpp"
 
 #include "GRunMatrixDiffusion.hpp"
-#include "GRunMaskBraidDiffusion.hpp"
 
 #include "GAXSK.hpp"
 
@@ -161,77 +160,6 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
      aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneC));
      aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneD));
      */
-    
-    
-    std::vector<TwistMaskBraidType> aBraidTypes;
-    aBraidTypes.push_back(TwistMaskBraidType::kA);
-    aBraidTypes.push_back(TwistMaskBraidType::kB);
-    aBraidTypes.push_back(TwistMaskBraidType::kC);
-    aBraidTypes.push_back(Random::Choice(aBraidTypes));
-    Random::Shuffle(&aBraidTypes);
-    
-    int aBraidTypeIndex = 0;
-    int aOperationLaneIndex = 0;
-    
-    for (int i=0;i<4;i+=2) {
-        
-        GRunMaskBraidDiffusionConfig aDiffusionA;
-        aDiffusionA.mInputA = aExpansionLanes[i];
-        aDiffusionA.mInputB = aExpansionLanes[i + 1];
-        aDiffusionA.mMaskLane = aOperationLanes[aOperationLaneIndex++];
-        aDiffusionA.mBraidType = aBraidTypes[aBraidTypeIndex++];
-        
-        if (i == 0) {
-            aDiffusionA.mMaskDomainWord = GSymbol::Var(TwistVariable::kDomainWordMaskMutateA);
-        } else {
-            aDiffusionA.mMaskDomainWord = GSymbol::Var(TwistVariable::kDomainWordMaskMutateB);
-        }
-        
-        GBatch aBatchDiffusion;
-        aBatchDiffusion.AddComment(std::string("kdf-a") + "-matrix-diffusion: yeah");
-        
-        if (!GRunMaskBraidDiffusion::Bake(aDiffusionA, &aBatchDiffusion, pErrorMessage)) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = std::string("error on matrix diffusion for ") + std::string("kdf-a") + ": " + *pErrorMessage;
-            }
-            return false;
-        }
-        pExpander->mKDF_B.AddBatch(aBatchDiffusion);
-    }
-    
-    std::swap(aExpansionLanes[1], aExpansionLanes[3]);
-    if (Random::Bool()) {
-        std::swap(aExpansionLanes[0], aExpansionLanes[1]);
-    }
-    if (Random::Bool()) {
-        std::swap(aExpansionLanes[2], aExpansionLanes[3]);
-    }
-    
-    for (int i=0;i<4;i+=2) {
-        
-        GRunMaskBraidDiffusionConfig aDiffusionA;
-        aDiffusionA.mInputA = aExpansionLanes[i];
-        aDiffusionA.mInputB = aExpansionLanes[i + 1];
-        aDiffusionA.mMaskLane = aOperationLanes[aOperationLaneIndex++];
-        aDiffusionA.mBraidType = aBraidTypes[aBraidTypeIndex++];
-        
-        if (i == 0) {
-            aDiffusionA.mMaskDomainWord = GSymbol::Var(TwistVariable::kDomainWordMaskMutateA);
-        } else {
-            aDiffusionA.mMaskDomainWord = GSymbol::Var(TwistVariable::kDomainWordMaskMutateB);
-        }
-        
-        GBatch aBatchDiffusion;
-        aBatchDiffusion.AddComment(std::string("kdf-a") + "-matrix-diffusion: yeah");
-        
-        if (!GRunMaskBraidDiffusion::Bake(aDiffusionA, &aBatchDiffusion, pErrorMessage)) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = std::string("error on matrix diffusion for ") + std::string("kdf-a") + ": " + *pErrorMessage;
-            }
-            return false;
-        }
-        pExpander->mKDF_B.AddBatch(aBatchDiffusion);
-    }
     
     return true;
 }

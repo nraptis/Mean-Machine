@@ -101,6 +101,7 @@ TwistExpander::TwistExpander() {
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseAConstants, 0x50484153455F415FULL);
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseBConstants, 0x50484153455F425FULL);
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseCConstants, 0x50484153455F435FULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mPhaseDConstants, 0x50484153455F445FULL);
     std::memset(mIndexList256A, 0, sizeof(mIndexList256A));
     std::memset(mIndexList256B, 0, sizeof(mIndexList256B));
     std::memset(mIndexList256C, 0, sizeof(mIndexList256C));

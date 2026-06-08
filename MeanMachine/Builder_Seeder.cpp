@@ -82,15 +82,11 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
     aDomains.push_back(TwistDomain::kPhaseA);
     aDomains.push_back(TwistDomain::kPhaseB);
     aDomains.push_back(TwistDomain::kPhaseC);
+    aDomains.push_back(TwistDomain::kPhaseD);
     
     
     GSnowType mSnowType[4];
     GSymbol mSnowLane[4];
-    
-    
-    int aDomainCount = 3;
-    
-    
     
     
     GBatch aMemoryZeroBatch;
@@ -172,8 +168,10 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
             aDomainPartialName = "PhaseA";
         } else if (aDomains[aDomainIndex] == TwistDomain::kPhaseB) {
             aDomainPartialName = "PhaseB";
-        } else {
+        } else if (aDomains[aDomainIndex] == TwistDomain::kPhaseC) {
             aDomainPartialName = "PhaseC";
+        } else {
+            aDomainPartialName = "PhaseD";
         }
         
         
@@ -288,4 +286,3 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
     return true;
     
 }
-

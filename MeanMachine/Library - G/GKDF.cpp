@@ -22,6 +22,8 @@ RoundMaterialSuffixSet DomainRoundMaterialSuffixSet(TwistDomain pDomain) {
             return {"mPhaseBConstants", "mPhaseBSalts"};
         case TwistDomain::kPhaseC:
             return {"mPhaseCConstants", "mPhaseCSalts"};
+        case TwistDomain::kPhaseD:
+            return {"mPhaseDConstants", "mPhaseDSalts"};
         case TwistDomain::kInvalid:
         case TwistDomain::kPhaseA:
         default:

@@ -62,6 +62,7 @@ TwistDomainSaltSet *GetSaltSet(TwistDomainBundle *pBundle,
         case TwistDomain::kPhaseA: return &pBundle->mPhaseASalts;
         case TwistDomain::kPhaseB: return &pBundle->mPhaseBSalts;
         case TwistDomain::kPhaseC: return &pBundle->mPhaseCSalts;
+        case TwistDomain::kPhaseD: return &pBundle->mPhaseDSalts;
         default: return nullptr;
     }
 }
@@ -75,6 +76,7 @@ TwistDomainConstants *GetDomainConstants(TwistDomainBundle *pBundle,
         case TwistDomain::kPhaseA: return &pBundle->mPhaseAConstants;
         case TwistDomain::kPhaseB: return &pBundle->mPhaseBConstants;
         case TwistDomain::kPhaseC: return &pBundle->mPhaseCConstants;
+        case TwistDomain::kPhaseD: return &pBundle->mPhaseDConstants;
         default: return nullptr;
     }
 }
