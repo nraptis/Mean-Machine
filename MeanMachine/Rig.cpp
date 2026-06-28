@@ -6,6 +6,7 @@
 //
 
 #include "Rig.hpp"
+#include "TwistFarmSalt.hpp"
 #include <cctype>
 #include <cstdio>
 
@@ -75,15 +76,14 @@ void Rig::Run(TwistExpander *pExpander,
     }
     
     TwistWorkSpace aWorkSpace;
+    TwistFarmSalt aFarmSalt;
     
-    std::uint8_t aSource[S_BLOCK];
-    memset(aSource, 0, S_BLOCK);
-    pExpander->UnrollPasswordToSource(aSource, pPassword, pPasswordLength);
-    
-    pExpander->TwistBlock(&aWorkSpace,
-                          0ULL,
-                          aSource,
-                          mData);
+    pExpander->Seed(&aWorkSpace,
+                    &aFarmSalt,
+                    0ULL,
+                    pPassword,
+                    static_cast<unsigned int>(pPasswordLength),
+                    mData);
     
     for (int aBlockIndex=1; aBlockIndex<mBlockCount; aBlockIndex++) {
         
@@ -94,6 +94,8 @@ void Rig::Run(TwistExpander *pExpander,
         pExpander->TwistBlock(&aWorkSpace,
                               0ULL,
                               aSource,
+                              static_cast<std::size_t>(aBlockIndex),
+                              static_cast<std::size_t>(mBlockCount),
                               aDest);
         
     }

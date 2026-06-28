@@ -23,16 +23,6 @@ public:
         return BakeShiftCall("ShiftKeyBoxB", pStatements, pErrorMessage);
     }
 
-    bool BakeShiftMaskBoxA(std::vector<GStatement> *pStatements,
-                           std::string *pErrorMessage) const {
-        return BakeShiftCall("ShiftMaskBoxA", pStatements, pErrorMessage);
-    }
-
-    bool BakeShiftMaskBoxB(std::vector<GStatement> *pStatements,
-                           std::string *pErrorMessage) const {
-        return BakeShiftCall("ShiftMaskBoxB", pStatements, pErrorMessage);
-    }
-
 private:
     bool BakeShiftCall(const char *pMethodName,
                        std::vector<GStatement> *pStatements,

@@ -39,7 +39,7 @@ public:
 
         const std::string aPhaseMember = NormalizePhaseSubWord(pPhaseSubWord);
         if (aPhaseMember.empty()) {
-            SetError(pErrorMessage, "GFarm::Bake requires phase sub-word PhaseA, PhaseB, PhaseC, or PhaseD.");
+            SetError(pErrorMessage, "GFarm::Bake requires phase sub-word PhaseA, PhaseB, PhaseC, PhaseD, PhaseE, PhaseF, PhaseG, or PhaseH.");
             return false;
         }
 
@@ -164,7 +164,10 @@ private:
         if ((pPhaseSubWord == "A") ||
             (pPhaseSubWord == "B") ||
             (pPhaseSubWord == "C") ||
-            (pPhaseSubWord == "D")) {
+            (pPhaseSubWord == "D") ||
+            (pPhaseSubWord == "E") ||
+            (pPhaseSubWord == "F") ||
+            (pPhaseSubWord == "G")) {
             pPhaseSubWord = "Phase" + pPhaseSubWord;
         }
         if (pPhaseSubWord.rfind("m", 0U) != 0U) {
@@ -174,7 +177,11 @@ private:
         if ((pPhaseSubWord == "mPhaseA") ||
             (pPhaseSubWord == "mPhaseB") ||
             (pPhaseSubWord == "mPhaseC") ||
-            (pPhaseSubWord == "mPhaseD")) {
+            (pPhaseSubWord == "mPhaseD") ||
+            (pPhaseSubWord == "mPhaseE") ||
+            (pPhaseSubWord == "mPhaseF") ||
+            (pPhaseSubWord == "mPhaseG") ||
+            (pPhaseSubWord == "mPhaseH")) {
             return pPhaseSubWord;
         }
         return "";
@@ -184,13 +191,10 @@ private:
                                                          const std::string &pRound,
                                                          std::vector<GStatement> *pStatements) {
         pStatements->push_back(GStatement::RawLine(
-            "pFarmSalt->Derive(" + pSource + ", " +
-            pRound + ".mSaltA, " +
-            pRound + ".mSaltB, " +
-            pRound + ".mSaltC, " +
-            pRound + ".mSaltD, " +
-            pRound + ".mSaltE, " +
-            pRound + ".mSaltF);"));
+            "pFarmSalt->Derive(" + pSource + ", " + pRound + ".mSaltA,\n"
+            "                  " + pRound + ".mSaltB, " + pRound + ".mSaltC,\n"
+            "                  " + pRound + ".mSaltD, " + pRound + ".mSaltE,\n"
+            "                  " + pRound + ".mSaltF);"));
     }
 
     static std::string                  Trim(const std::string &pText) {

@@ -22,8 +22,9 @@ enum class TwistVariable: std::uint8_t {
     kIndex = 10, // aIndex
     kNonce = 11, // aNonce
     kParamNonce = 12, // pNonce
-    kParamInput = 13, // aSource
-    kParamOutput = 14, // aDestination
+    kParamInput = 13, // pSource
+    kParamOutput = 14, // pDestination
+    kParamSnow = 15, // pSnow
 
     kDomainWordIngress = 20, // aDomainWordIngress
     kDomainWordScatter = 21, // aDomainWordScatter
@@ -124,6 +125,7 @@ struct GSymbol {
     
     static GSymbol                      Var(TwistVariable pVariable);
     static GSymbol                      Var(TwistDomain pDomain, TwistConstants pConstant);
+    static GSymbol                      WorkspaceDomainWord(TwistDomain pDomain, TwistConstants pConstant);
     static GSymbol                      Constant(TwistConstants pConstant);
     static GSymbol                      Buf(const TwistWorkSpaceSlot pSlot);
     static GSymbol                      Buf(const TwistBufferKey pKey);
@@ -152,6 +154,13 @@ bool                                    BufferKeyFromToken(const std::string &to
                                                            TwistBufferKey *keyOut);
 TwistBufferKey                          ResolveBufferKey(const GSymbol &symbol);
 TwistWorkSpaceSlot                      ResolveBufferSlot(const GSymbol &symbol);
+std::string                             WorkspaceDomainWordAliasName(TwistDomain domain,
+                                                                     TwistConstants constant);
+std::string                             WorkspaceDomainWordAccessText(TwistDomain domain,
+                                                                      TwistConstants constant);
+bool                                    WorkspaceDomainWordAliasInfo(const std::string &name,
+                                                                     TwistDomain *domainOut,
+                                                                     TwistConstants *constantOut);
 
 GSymbol                                 VarSymbol(const std::string &pName);
 GSymbol                                 BufSymbol(const TwistWorkSpaceSlot pSlot);

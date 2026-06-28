@@ -55,7 +55,8 @@ public:
 
     void                                KDF_A(std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet) override;
+                                              TwistDomainSaltSet *pDomainSaltSet,
+                                              std::uint8_t *pSnow) override;
 
     void                                KDF_B(std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
@@ -64,13 +65,18 @@ public:
     void                                Seed(TwistWorkSpace *pWorkSpace,
                                              TwistFarmSalt *pFarmSalt,
                                              std::uint64_t pNonce,
-                                             std::uint8_t *pSource,
                                              std::uint8_t *pPassword,
-                                             unsigned int pPasswordByteLength) override;
+                                             unsigned int pPasswordByteLength,
+                                             std::uint8_t *pDestination) override;
     void                                TwistBlock(TwistWorkSpace *pWorkSpace,
                                                    std::uint64_t pNonce,
                                                    std::uint8_t *pSource,
+                                                   std::size_t pBlockIndex,
+                                                   std::size_t pBlockCount,
                                                    std::uint8_t *pDestination) override;
+    void                                SquashInvestToKeyBoxes() override;
+    void                                GrowKeyA(TwistWorkSpace *pWorkSpace) override;
+    void                                GrowKeyB(TwistWorkSpace *pWorkSpace) override;
 
     bool                                ExportCPPProjectRoot(const std::string &pRootPath,
                                                              std::string *pErrorMessage = nullptr) const;
@@ -86,17 +92,12 @@ public:
     TwistProgramBranch                  mKDF_B; // KDF-B branch
     TwistProgramBranch                  mSeed; // Seed branch
     TwistProgramBranch                  mTwister; // Twist branch
+    TwistProgramBranch                  mGrowKeyA; // Grow key A branch
+    TwistProgramBranch                  mGrowKeyB; // Grow key B branch
 
     unsigned char                       mInitialValue_Carry;
     unsigned char                       mInitialValue_Value;
     unsigned char                       mInitialValue_Permute;
-
-private:
-    void                                ExecuteKDFBranch(const TwistProgramBranch &pBranch,
-                                                         const char *pBranchName,
-                                                         std::uint64_t pNonce,
-                                                         TwistDomainConstants *pDomainConstants,
-                                                         TwistDomainSaltSet *pDomainSaltSet);
 
 };
 

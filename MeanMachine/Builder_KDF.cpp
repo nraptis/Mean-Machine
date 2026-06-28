@@ -7,7 +7,6 @@
 
 #include "Builder_KDF.hpp"
 
-
 #include <cstring>
 #include <cstdint>
 #include <string>
@@ -16,20 +15,35 @@
 #include "TwistWorkSpace.hpp"
 #include "Random.hpp"
 #include "GTwistExpander.hpp"
-#include "GSeedRunKDF2.hpp"
-#include "GSeedRunKDF3.hpp"
+#include "GSeedRunKDF_A.hpp"
+#include "GSeedRunKDF_B.hpp"
 
 #include "GRunMatrixDiffusion.hpp"
-
-#include "GAXSK.hpp"
-
 namespace {
 
-bool BuildKDFBranch(TwistProgramBranch &pBranch,
-                    const char *pLabel,
-                    std::string *pErrorMessage) {
-    
-    
+template <typename Runner>
+bool BuildKDFStage(TwistProgramBranch &pBranch,
+                   const char *pStageName,
+                   const char *pBranchName,
+                   std::string *pErrorMessage) {
+    Runner aRunner;
+
+    if (!aRunner.Plan(pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = std::string("error on ") + pStageName + ".Plan for " +
+                pBranchName + "\n" + *pErrorMessage;
+        }
+        return false;
+    }
+
+    if (!aRunner.Build(pBranch, pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = std::string("error on ") + pStageName + ".Build for " +
+                pBranchName + "\n" + *pErrorMessage;
+        }
+        return false;
+    }
+
     return true;
 }
 
@@ -48,22 +62,27 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         return false;
     }
     
-    GSeedRunKDF2 aKDF2;
-    
-    if (!aKDF2.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GSeedRunKDF2.Plan for ") + "kdf-a" + "\n" + *pErrorMessage;
-        }
+    if (!BuildKDFStage<GSeedRunKDF_A_A>(pExpander->mKDF_A,
+                                        "GSeedRunKDF_A_A",
+                                        "kdf-a",
+                                        pErrorMessage)) {
         return false;
     }
-    
-    if (!aKDF2.Build(pExpander->mKDF_A, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GSeedRunKDF2.Build for ") + std::string("kdf-a") + "\n" + *pErrorMessage;
-        }
+
+    if (!BuildKDFStage<GSeedRunKDF_A_B>(pExpander->mKDF_A,
+                                        "GSeedRunKDF_A_B",
+                                        "kdf-a",
+                                        pErrorMessage)) {
         return false;
     }
-    
+
+    if (!BuildKDFStage<GSeedRunKDF_A_C>(pExpander->mKDF_A,
+                                        "GSeedRunKDF_A_C",
+                                        "kdf-a",
+                                        pErrorMessage)) {
+        return false;
+    }
+
     if (pExpander->mKDF_A.GetBatchJsonText().empty() &&
         pExpander->mKDF_A.GetStringLines().empty()) {
         if (pErrorMessage != nullptr) {
@@ -90,6 +109,7 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneC));
     aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneD));
     
+    
     for (int i=0;i<4;i+=2) {
         
         GRunMatrixDiffusionConfig aDiffusionA;
@@ -103,8 +123,10 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         aDiffusionA.mOperationSourceA = aOperationLanes[(i + 2) % 4];
         aDiffusionA.mOperationSourceB = aOperationLanes[(i + 3) % 4];
         
+        aDiffusionA.mUseDomainWords = true;
+        
         GBatch aBatchDiffusion;
-        aBatchDiffusion.AddComment(std::string("kdf-a") + "-matrix-diffusion: yeah");
+        aBatchDiffusion.mName = "kdf-a-matrix-diffusion";
         
         if (!GRunMatrixDiffusion::Bake(aDiffusionA, &aBatchDiffusion, pErrorMessage)) {
             if (pErrorMessage != nullptr) {
@@ -117,49 +139,83 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     
     
     
-    GSeedRunKDF3 aKDF3;
-    
-    if (!aKDF3.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GSeedRunKDF3.Plan for ") + "kdf-a" + "\n" + *pErrorMessage;
-        }
+    if (!BuildKDFStage<GSeedRunKDF_A_D>(pExpander->mKDF_A,
+                                        "GSeedRunKDF_A_D",
+                                        "kdf-a",
+                                        pErrorMessage)) {
         return false;
     }
-    
-    if (!aKDF3.Build(pExpander->mKDF_B, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GSeedRunKDF3.Build for ") + std::string("kdf-a") + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    if (pExpander->mKDF_B.GetBatchJsonText().empty() &&
-        pExpander->mKDF_B.GetStringLines().empty()) {
+
+    if (pExpander->mKDF_A.GetBatchJsonText().empty() &&
+        pExpander->mKDF_A.GetStringLines().empty()) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = std::string("kdf branch export was empty for ") + std::string("kdf-a") + " (no batches and no lines)";
         }
         return false;
     }
     
-    /*
-     std::vector<GSymbol> aWorkLanes;
-     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
-     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
-     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
-     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
-     
-     std::vector<GSymbol> aExpansionLanes;
-     aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneA));
-     aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneB));
-     aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneC));
-     aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneD));
-     
-     std::vector<GSymbol> aOperationLanes;
-     aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneA));
-     aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneB));
-     aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneC));
-     aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneD));
-     */
-    
+    if (!BuildKDFStage<GSeedRunKDF_B_A>(pExpander->mKDF_B,
+                                        "GSeedRunKDF_B_A",
+                                        "kdf-b",
+                                        pErrorMessage)) {
+        return false;
+    }
+
+    if (!BuildKDFStage<GSeedRunKDF_B_B>(pExpander->mKDF_B,
+                                        "GSeedRunKDF_B_B",
+                                        "kdf-b",
+                                        pErrorMessage)) {
+        return false;
+    }
+
+    if (!BuildKDFStage<GSeedRunKDF_B_C>(pExpander->mKDF_B,
+                                        "GSeedRunKDF_B_C",
+                                        "kdf-b",
+                                        pErrorMessage)) {
+        return false;
+    }
+
+    for (int i=0;i<4;i+=2) {
+        
+        GRunMatrixDiffusionConfig aDiffusionB;
+        aDiffusionB.mInputA = aExpansionLanes[i];
+        aDiffusionB.mInputB = aExpansionLanes[i + 1];
+        aDiffusionB.mOutputA = aWorkLanes[i];
+        aDiffusionB.mOutputB = aWorkLanes[i + 1];
+        
+        aDiffusionB.mShuffleEntropyA = aOperationLanes[(i + 0) % 4];
+        aDiffusionB.mShuffleEntropyB = aOperationLanes[(i + 1) % 4];
+        aDiffusionB.mOperationSourceA = aOperationLanes[(i + 2) % 4];
+        aDiffusionB.mOperationSourceB = aOperationLanes[(i + 3) % 4];
+        
+        aDiffusionB.mUseDomainWords = true;
+        
+        GBatch aBatchDiffusion;
+        aBatchDiffusion.mName = "kdf-b-matrix-diffusion";
+        
+        if (!GRunMatrixDiffusion::Bake(aDiffusionB, &aBatchDiffusion, pErrorMessage)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = std::string("error on matrix diffusion for ") + std::string("kdf-b") + ": " + *pErrorMessage;
+            }
+            return false;
+        }
+        pExpander->mKDF_B.AddBatch(aBatchDiffusion);
+    }
+
+    if (!BuildKDFStage<GSeedRunKDF_B_D>(pExpander->mKDF_B,
+                                        "GSeedRunKDF_B_D",
+                                        "kdf-b",
+                                        pErrorMessage)) {
+        return false;
+    }
+
+    if (pExpander->mKDF_B.GetBatchJsonText().empty() &&
+        pExpander->mKDF_B.GetStringLines().empty()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = std::string("kdf branch export was empty for ") + std::string("kdf-b") + " (no batches and no lines)";
+        }
+        return false;
+    }
+
     return true;
 }

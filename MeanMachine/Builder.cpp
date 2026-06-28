@@ -42,9 +42,13 @@ bool Builder::Go(const std::string &pOutputRoot,
     }
 
     GTwistExpander aExpander;
-    aExpander.mNameBase = MakeNameBase(pFilePrefix,
+    aExpander.mNameBase = pFilePrefix;
+    
+    /*
+    MakeNameBase(pFilePrefix,
                                        pTrialNumber,
                                        pLeadingZeros);
+    */
 
     std::string aError;
 
@@ -75,13 +79,6 @@ bool Builder::Go(const std::string &pOutputRoot,
     if (!aExpander.ExportCPPProjectRoot(pOutputRoot, &aError)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "ExportCPPProjectRoot failed:\n" + aError;
-        }
-        return false;
-    }
-
-    if (!aExpander.ExportJSONProjectRoot(pOutputRoot, &aError)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "ExportJSONProjectRoot failed:\n" + aError;
         }
         return false;
     }

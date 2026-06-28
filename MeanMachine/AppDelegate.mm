@@ -26,7 +26,7 @@
 #include "GTermExpander.hpp"
 #include "Random.hpp"
 #include "GTwistExpander.hpp"
-#include "GSeedRunKDF2.hpp"
+#include "GSeedRunKDF_A.hpp"
 #include "TwistFarmSalt.hpp"
 #include "TwistSnow.hpp"
 #include "TwistCryptoScoring.hpp"
@@ -34,8 +34,8 @@
 #include "GRunMatrixDiffusion.hpp"
 #include "GAXSK.hpp"
 #include "Builder.hpp"
-#include "SixELRig.hpp"
-
+//#include "Soccer.hpp"
+#include "Avalancher.hpp"
 
 namespace {
 
@@ -57,8 +57,40 @@ bool IsRunningUnderXCTest() {
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
     
+    
+    printf("App is awake and running...\n");
+    
+    if (IsRunningUnderXCTest() == false) {
+        std::string aError;
+        if (!Builder::Go("CornTesting/Gen",
+                         "Greezy",
+                         26,
+                         8,
+                         &aError)) {
+            printf("Builder::Go failed:\n%s\n", aError.c_str());
+            return;
+        }
+    }
+    printf("Done with export block...\n");
+    
 
-
+    /*
+    if (IsRunningUnderXCTest() == false) {
+        Soccer aCandidate;
+        
+        std::string aPasswordA = "cat";
+        std::string aPasswordB = "eat";
+        
+        Avalancher aAva;
+        aAva.SetExpander(&aCandidate);
+        
+        auto aResult = aAva.DiffAB(aPasswordA, aPasswordB);
+        aResult.PrintExtended("Soccer");
+        aResult.PrintQuick("Soccer");
+        
+    }
+    */
+    
     /*
     unsigned char aPassword[3];
 
@@ -83,28 +115,22 @@ bool IsRunningUnderXCTest() {
                 
                 for (int aRoundIndex=0; aRoundIndex<5; aRoundIndex++) {
                     
-                    SixELRig *aRig = new SixELRig();
-                    aRig->SetRoundCount(aRoundCounts[aRoundIndex]);
+                    Soccer aCandidate;
                     
+                    Rig aRig;
+                    aRig.SetBlockCount(32);
+                    aRig.Run(&aCandidate, aPassword, 3);
                     
-                    TwistExpander_WiseOwl_0006 *aExpander = new TwistExpander_WiseOwl_0006();
-                    
-                    aRig->Run(aExpander,
-                              aPassword,
-                              3);
-                    
-                    aRig->SaveByteStreamProjectRoot("streams", "str_", aNumber++);
-                    
+                    aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
+
                     printf("exported %d\n", aNumber);
-                    
-                    delete aExpander;
-                    delete aRig;
                     
                 }
             }
         }
     }
     */
+    
     
     /*
     std::vector<std::string> aFilePaths =
@@ -140,48 +166,76 @@ bool IsRunningUnderXCTest() {
     }
     */
     
-
     
+    
+    /*
     if (IsRunningUnderXCTest() == false) {
         std::string aError;
         
-        if (!Builder::Go("CornTesting/Gen",
-                         "Kerpal",
-                         6,
-                         4,
-                         &aError)) {
-            printf("Builder::Go failed:\n%s\n", aError.c_str());
-            return;
-        }
+        std::vector<std::string> aNames;
+
+        aNames.push_back("Bowling");
+        aNames.push_back("Archery");
+        aNames.push_back("Karate");
+        aNames.push_back("Cricket");
+        aNames.push_back("Boxing");
+
+        aNames.push_back("Billiards");
+        aNames.push_back("Lacrosse");
+        aNames.push_back("PickleBall");
+        aNames.push_back("WaterPolo");
+        aNames.push_back("PingPong");
+
+        aNames.push_back("Rugby");
+        aNames.push_back("VolleyBall");
+        aNames.push_back("Hockey");
+        aNames.push_back("Soccer");
+        aNames.push_back("BasketBall");
+
+        aNames.push_back("FootBall");
+        aNames.push_back("BaseBall");
+        aNames.push_back("Tennis");
+        aNames.push_back("Golf");
+        aNames.push_back("Fencing");
         
+        for (auto aName: aNames) {
+            if (!Builder::Go("CornTesting/Gen",
+                             aName,
+                             26,
+                             8,
+                             &aError)) {
+                printf("Builder::Go failed:\n%s\n", aError.c_str());
+                return;
+            }
+        }
+
         printf("done export...\n");
     }
-    
-    
+    */
 
     /*
     if (IsRunningUnderXCTest() == false) {
         
         
-        GSeedRunKDF2 aKDF;
+        GSeedRunKDF_A_A aKDF;
         std::string aError;
         GTwistExpander aExpander;
         aExpander.mNameBase = "Toberman";
         
         if (!aKDF.Plan(&aError)) {
-            printf("error on GSeedRunKDF2.Plan\n");
+            printf("error on GSeedRunKDF_A_A.Plan\n");
             printf("%s\n", aError.c_str());
             return;
         }
         
         if (!aKDF.Build(aExpander.mKDF, &aError)) {
-            printf("error on GSeedRunKDF2.Build\n");
+            printf("error on GSeedRunKDF_A_A.Build\n");
             printf("%s\n", aError.c_str());
             return;
         }
         if (aExpander.mKDF.GetBatchJsonText().empty() &&
             aExpander.mKDF.GetStringLines().empty()) {
-            printf("error on GSeedRunKDF2.Build\n");
+            printf("error on GSeedRunKDF_A_A.Build\n");
             printf("kdf branch export was empty (no batches and no lines)\n");
             return;
         }

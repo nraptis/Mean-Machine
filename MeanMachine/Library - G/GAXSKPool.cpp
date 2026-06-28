@@ -5,7 +5,7 @@
 //  Created by Nick Raptis on 5/19/26.
 //
 
-#include "GAXSKPool.hpp"
+#include "GAX.hpp"
 #include "Random.hpp"
 #include "TwistWorkSpace.hpp"
 #include "TwistArray.hpp"
@@ -19,6 +19,53 @@ void SetError(std::string *pErrorMessage,
     }
 }
 
+int SourceKindIndex(const GAXSKSourceKind pSource) {
+    switch (pSource) {
+        case GAXSKSourceKind::kSourceA: return 0;
+        case GAXSKSourceKind::kSourceB: return 1;
+        case GAXSKSourceKind::kSourceC: return 2;
+        case GAXSKSourceKind::kSourceD: return 3;
+        case GAXSKSourceKind::kSourceE: return 4;
+        case GAXSKSourceKind::kSourceF: return 5;
+        case GAXSKSourceKind::kSourceG: return 6;
+        case GAXSKSourceKind::kSourceH: return 7;
+        case GAXSKSourceKind::kSourceI: return 8;
+        case GAXSKSourceKind::kSourceJ: return 9;
+        default: return -1;
+    }
+}
+
+bool ValidateExplicitSourceList(const std::vector<GAXSKSourceKind> &pSources,
+                                const int pSourceCount,
+                                const char *pName,
+                                std::string *pErrorMessage) {
+    if ((pSources.size() < 2U) || (pSources.size() > 5U)) {
+        SetError(pErrorMessage,
+                 std::string("GAXSKPool::FinalizeCounts explicit ") +
+                 pName + " source count must be between 2 and 5");
+        return false;
+    }
+
+    for (GAXSKSourceKind aSource : pSources) {
+        const int aSourceIndex = SourceKindIndex(aSource);
+        if (aSourceIndex < 0) {
+            SetError(pErrorMessage,
+                     std::string("GAXSKPool::FinalizeCounts explicit ") +
+                     pName + " contained invalid source kind");
+            return false;
+        }
+
+        if (aSourceIndex >= pSourceCount) {
+            SetError(pErrorMessage,
+                     std::string("GAXSKPool::FinalizeCounts explicit ") +
+                     pName + " referenced a source outside the bound source list");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }
 
 GAXSKPool::GAXSKPool() {
@@ -29,6 +76,11 @@ void GAXSKPool::SetSourceCount(int pSourceCount) {
     mSourceCount = pSourceCount;
 }
 
+void GAXSKPool::SetSourceLayout(const GAXSKSourceLayout &pSourceLayout) {
+    mHasSourceLayout = true;
+    mSourceLayout = pSourceLayout;
+}
+
 void GAXSKPool::SetOrbiterCount(int pOrbiterCount) {
     mOrbiterCount = pOrbiterCount;
 }
@@ -37,13 +89,12 @@ void GAXSKPool::SetWandererCount(int pWandererCount) {
     mWandererCount = pWandererCount;
 }
 
-bool GAXSKPool::FinalizeCounts(std::string *pErrorMessage) {
+bool GAXSKPool::FinalizeCounts(bool pIgnoreNonces,
+                               std::string *pErrorMessage) {
     mNoncesIngress.clear();
     mSourcesIngress.clear();
     mNoncesCross.clear();
     mSourcesCross.clear();
-    mNoncesOrbiterUpdate.clear();
-    mNoncesWandererUpdate.clear();
     
     if (mOrbiterCount <= 0) {
         SetError(pErrorMessage, "GAXSKPool::FinalizeCounts received invalid orbiter count");
@@ -56,6 +107,7 @@ bool GAXSKPool::FinalizeCounts(std::string *pErrorMessage) {
     }
 
     std::vector<GAXSKNonceByteKind> aNonces;
+    
     aNonces.push_back(GAXSKNonceByteKind::kNonceA);
     aNonces.push_back(GAXSKNonceByteKind::kNonceB);
     aNonces.push_back(GAXSKNonceByteKind::kNonceC);
@@ -64,59 +116,54 @@ bool GAXSKPool::FinalizeCounts(std::string *pErrorMessage) {
     aNonces.push_back(GAXSKNonceByteKind::kNonceF);
     aNonces.push_back(GAXSKNonceByteKind::kNonceG);
     aNonces.push_back(GAXSKNonceByteKind::kNonceH);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceI);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceJ);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceK);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceL);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceM);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceN);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceO);
+    aNonces.push_back(GAXSKNonceByteKind::kNonceP);
+    Random::Shuffle(&aNonces);
 
-    const int aMinNoncesIngress = 2;
-    const int aMaxNoncesIngress = 3;
-    const int aMinNoncesCross = 2;
-    const int aMaxNoncesCross = 3;
-    const int aMinNoncesOrbiterUpdate = 1;
-    int aMaxNoncesOrbiterUpdate = mOrbiterCount;
-    const int aMinNoncesWandererUpdate = 1;
-    int aMaxNoncesWandererUpdate = mWandererCount;
-
-    int aNonceCountIngress = Random::Get(aMinNoncesIngress, aMaxNoncesIngress);
-    int aNonceCountCross = Random::Get(aMinNoncesCross, aMaxNoncesCross);
-    int aNonceCountOrbiterUpdate = aMinNoncesOrbiterUpdate;
-    int aNonceCountWandererUpdate = aMinNoncesWandererUpdate;
-
-    int aRemainingNonces = 8 - aNonceCountIngress - aNonceCountCross - aNonceCountOrbiterUpdate - aNonceCountWandererUpdate;
-    while (aRemainingNonces > 0) {
-        if (aNonceCountOrbiterUpdate < aMaxNoncesOrbiterUpdate) {
-            if (aNonceCountWandererUpdate < aMaxNoncesWandererUpdate) {
-                if (Random::Bool()) {
-                    aNonceCountOrbiterUpdate++;
-                    aRemainingNonces--;
-                } else {
-                    aNonceCountWandererUpdate++;
-                    aRemainingNonces--;
-                }
-            } else {
-                aNonceCountOrbiterUpdate++;
-                aRemainingNonces--;
-            }
-        } else if (aNonceCountWandererUpdate < aMaxNoncesWandererUpdate) {
-            aNonceCountWandererUpdate++;
-            aRemainingNonces--;
-        } else {
-            SetError(pErrorMessage, "GAXSKPool::FinalizeCounts exhausted nonce capacity");
-            return false;
-        }
+    int aNonceCountIngress = 1;
+    int aNonceCountCross = 1;
+    
+    if (pIgnoreNonces == true) {
+        aNonceCountIngress = 0;
+        aNonceCountCross = 0;
     }
     
     int aNonceIndex = 0;
     for (int i=0; i<aNonceCountIngress; i++) { mNoncesIngress.push_back(aNonces[aNonceIndex++]); }
     for (int i=0; i<aNonceCountCross; i++) { mNoncesCross.push_back(aNonces[aNonceIndex++]); }
-    for (int i=0; i<aNonceCountOrbiterUpdate; i++) { mNoncesOrbiterUpdate.push_back(aNonces[aNonceIndex++]); }
-    for (int i=0; i<aNonceCountWandererUpdate; i++) { mNoncesWandererUpdate.push_back(aNonces[aNonceIndex++]); }
 
-    const int aTotalNonceCount = aNonceCountIngress + aNonceCountCross + aNonceCountOrbiterUpdate + aNonceCountWandererUpdate;
+    const int aTotalNonceCount = aNonceCountIngress + aNonceCountCross;
     
-    if (aTotalNonceCount != 8) {
-        SetError(pErrorMessage, "GAXSKPool::FinalizeCounts failed to allocate exactly 8 nonce bytes");
+    const int aExpectedNonceCount = pIgnoreNonces ? 0 : 2;
+    if (aTotalNonceCount != aExpectedNonceCount) {
+        SetError(pErrorMessage, "GAXSKPool::FinalizeCounts failed to allocate context nonce byte count");
         return false;
     }
     
-    if (mSourceCount == 1) {
+    if (mHasSourceLayout) {
+        if (!ValidateExplicitSourceList(mSourceLayout.mIngress,
+                                        mSourceCount,
+                                        "ingress",
+                                        pErrorMessage)) {
+            return false;
+        }
+
+        if (!ValidateExplicitSourceList(mSourceLayout.mCross,
+                                        mSourceCount,
+                                        "cross",
+                                        pErrorMessage)) {
+            return false;
+        }
+
+        mSourcesIngress = mSourceLayout.mIngress;
+        mSourcesCross = mSourceLayout.mCross;
+    } else if (mSourceCount == 1) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
         mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
@@ -124,17 +171,13 @@ bool GAXSKPool::FinalizeCounts(std::string *pErrorMessage) {
     } else if (mSourceCount == 2) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceB);
-        mSourcesCross.push_back(GAXSKSourceKind::kSourceB);
         mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
+        mSourcesCross.push_back(GAXSKSourceKind::kSourceB);
     } else if (mSourceCount == 3) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceB);
         mSourcesCross.push_back(GAXSKSourceKind::kSourceC);
-        if (Random::Bool()) {
-            mSourcesCross.push_back(GAXSKSourceKind::kSourceB);
-        } else {
-            mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
-        }
+        mSourcesCross.push_back(GAXSKSourceKind::kSourceA);
     } else if (mSourceCount == 4) {
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceA);
         mSourcesIngress.push_back(GAXSKSourceKind::kSourceB);
@@ -168,7 +211,6 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
         aSlot.mNonceByte = mNoncesIngress[i];
         aSlot.mRotation = 0;
         aSlot.mReverse = false;
-        aSlot.mOffset = 0;
         aIngress.push_back(aSlot);
     }
 
@@ -179,7 +221,6 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
         aSlot.mNonceByte = GAXSKNonceByteKind::kInvalid;
         aSlot.mRotation = 0;
         aSlot.mReverse = false;
-        aSlot.mOffset = 0;
         aIngress.push_back(aSlot);
     }
 
@@ -190,7 +231,6 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
         aSlot.mNonceByte = mNoncesCross[i];
         aSlot.mRotation = 0;
         aSlot.mReverse = false;
-        aSlot.mOffset = 0;
         aCross.push_back(aSlot);
     }
 
@@ -201,7 +241,6 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
         aSlot.mNonceByte = GAXSKNonceByteKind::kInvalid;
         aSlot.mRotation = 0;
         aSlot.mReverse = true;
-        aSlot.mOffset = 0;
         aCross.push_back(aSlot);
     }
 
@@ -300,6 +339,7 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
         return false;
     }
 
+    /*
     std::vector<int> aOffsets;
     aOffsets.resize(4U);
 
@@ -309,49 +349,77 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
         aOffsets[2] = Random::Get(1, S_BLOCK1);
         aOffsets[3] = Random::Get(1, S_BLOCK1);
     } while (TwistArray::AnyEqual(&aOffsets));
+   
 
     const int aOffsetIngressA = aOffsets[0];
     const int aOffsetIngressB = aOffsets[1];
     const int aOffsetCrossA = aOffsets[2];
     const int aOffsetCrossB = aOffsets[3];
+     */
     
-    const bool aLockDirections = (mSourceCount <= 2);
+    if (mHasSourceLayout) {
+        int aIngressSourceCount = 0;
+        for (std::size_t i = 0U; i < aIngress.size(); i++) {
+            if (aIngress[i].mKind != GAXSKInputSlotKind::kSource) {
+                continue;
+            }
 
-    int aIngressSourceCount = 0;
-    for (std::size_t i = 0U; i < aIngress.size(); i++) {
-        if (aIngress[i].mKind != GAXSKInputSlotKind::kSource) {
-            continue;
+            const bool aIsRandomDirection =
+                (static_cast<std::size_t>(aIngressSourceCount) == (mSourcesIngress.size() - 1U));
+            aIngress[i].mReverse = aIsRandomDirection ? Random::Bool() : false;
+            aIngressSourceCount++;
         }
 
+        int aCrossSourceCount = 0;
+        for (std::size_t i = 0U; i < aCross.size(); i++) {
+            if (aCross[i].mKind != GAXSKInputSlotKind::kSource) {
+                continue;
+            }
 
-        // Ingress source slots.
-        if (aIngressSourceCount == 0) {
-            aIngress[i].mReverse = false;
-            aIngress[i].mOffset = aOffsetIngressA;
-        } else {
-            aIngress[i].mReverse = aLockDirections ? false : Random::Bool();
-            aIngress[i].mOffset = aOffsetIngressB;
+            const bool aIsRandomDirection =
+                (static_cast<std::size_t>(aCrossSourceCount) == (mSourcesCross.size() - 1U));
+            aCross[i].mReverse = aIsRandomDirection ? Random::Bool() : true;
+            aCrossSourceCount++;
+        }
+    } else {
+        const bool aLockDirections = (mSourceCount <= 2);
+
+        int aIngressSourceCount = 0;
+        for (std::size_t i = 0U; i < aIngress.size(); i++) {
+            if (aIngress[i].mKind != GAXSKInputSlotKind::kSource) {
+                continue;
+            }
+
+
+            // Ingress source slots.
+            if (aIngressSourceCount == 0) {
+                aIngress[i].mReverse = false;
+                //aIngress[i].mOffset = aOffsetIngressA;
+            } else {
+                aIngress[i].mReverse = aLockDirections ? false : Random::Bool();
+                //aIngress[i].mOffset = aOffsetIngressB;
+            }
+
+            aIngressSourceCount++;
         }
 
-        aIngressSourceCount++;
-    }
+        int aCrossSourceCount = 0;
+        for (std::size_t i = 0U; i < aCross.size(); i++) {
+            if (aCross[i].mKind != GAXSKInputSlotKind::kSource) {
+                continue;
+            }
 
-    int aCrossSourceCount = 0;
-    for (std::size_t i = 0U; i < aCross.size(); i++) {
-        if (aCross[i].mKind != GAXSKInputSlotKind::kSource) {
-            continue;
+            // Cross source slots.
+            if (aCrossSourceCount == 0) {
+                aCross[i].mReverse = true;
+                //aCross[i].mOffset = aOffsetCrossA;
+            } else {
+                aCross[i].mReverse = aLockDirections ? true : Random::Bool();
+                //aCross[i].mOffset = aOffsetCrossB;
+            }
+
+            aCrossSourceCount++;
         }
-
-        // Cross source slots.
-        if (aCrossSourceCount == 0) {
-            aCross[i].mReverse = true;
-            aCross[i].mOffset = aOffsetCrossA;
-        } else {
-            aCross[i].mReverse = aLockDirections ? true : Random::Bool();
-            aCross[i].mOffset = aOffsetCrossB;
-        }
-
-        aCrossSourceCount++;
     }
 
     pResult->mIngress = aIngress;

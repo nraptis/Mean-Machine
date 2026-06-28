@@ -22,10 +22,7 @@ bool BufferKeysEqual(const TwistBufferKey &pLHS,
 }
 
 TwistBufferKey ResolveBufferKeyFromSlot(const TwistWorkSpaceSlot pSlot) {
-    TwistBufferKey aKey;
-    if (TwistWorkSpace::TryLegacySlotToBufferKey(pSlot, &aKey)) {
-        return aKey;
-    }
+    (void)pSlot;
     return TwistBufferKey();
 }
 
@@ -33,15 +30,9 @@ TwistWorkSpaceSlot ResolveSlotFromBufferKey(const TwistBufferKey pKey) {
     if (!pKey.IsValid()) {
         return TwistWorkSpaceSlot::kInvalid;
     }
-    for (int aValue = 0; aValue <= 255; ++aValue) {
-        const TwistWorkSpaceSlot aCandidate = static_cast<TwistWorkSpaceSlot>(aValue);
-        TwistBufferKey aMapped;
-        if (!TwistWorkSpace::TryLegacySlotToBufferKey(aCandidate, &aMapped)) {
-            continue;
-        }
-        if (BufferKeysEqual(aMapped, pKey)) {
-            return aCandidate;
-        }
+    const TwistWorkSpaceSlot aKeySlot = static_cast<TwistWorkSpaceSlot>(pKey.mSlot);
+    if (pKey.IsSalt() && TwistWorkSpace::IsSalt(aKeySlot)) {
+        return aKeySlot;
     }
     return TwistWorkSpaceSlot::kInvalid;
 }
@@ -68,6 +59,168 @@ bool ParseTokenInt(const std::string &pText,
     }
     *pValueOut = static_cast<int>(aParsed);
     return true;
+}
+
+bool DecodePhaseSaltSlot(const TwistWorkSpaceSlot pSlot,
+                         int *pPhaseOut,
+                         int *pRoleOut,
+                         int *pLaneOut) {
+    const int aValue = static_cast<int>(pSlot);
+    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kPhaseASaltOrbiterAssignA);
+    const int aCountPerPhase = 18;
+    const int aPhaseCount = 8;
+    if ((aValue < aBase) || (aValue >= (aBase + aCountPerPhase * aPhaseCount))) {
+        return false;
+    }
+
+    const int aOffset = aValue - aBase;
+    const int aRoleLaneOffset = aOffset % aCountPerPhase;
+    if (pPhaseOut != nullptr) {
+        *pPhaseOut = aOffset / aCountPerPhase;
+    }
+    if (pRoleOut != nullptr) {
+        *pRoleOut = aRoleLaneOffset / 6;
+    }
+    if (pLaneOut != nullptr) {
+        *pLaneOut = aRoleLaneOffset % 6;
+    }
+    return true;
+}
+
+const char *PhaseNameLower(const int pPhase) {
+    switch (pPhase) {
+        case 0: return "phase_a";
+        case 1: return "phase_b";
+        case 2: return "phase_c";
+        case 3: return "phase_d";
+        case 4: return "phase_e";
+        case 5: return "phase_f";
+        case 6: return "phase_g";
+        case 7: return "phase_h";
+        default: return "phase_invalid";
+    }
+}
+
+const char *PhaseNameUpper(const int pPhase) {
+    switch (pPhase) {
+        case 0: return "PhaseA";
+        case 1: return "PhaseB";
+        case 2: return "PhaseC";
+        case 3: return "PhaseD";
+        case 4: return "PhaseE";
+        case 5: return "PhaseF";
+        case 6: return "PhaseG";
+        case 7: return "PhaseH";
+        default: return "PhaseInvalid";
+    }
+}
+
+const char *SaltRoleNameLower(const int pRole) {
+    switch (pRole) {
+        case 0: return "orbiter_assign";
+        case 1: return "orbiter_update";
+        case 2: return "wanderer_update";
+        default: return "invalid";
+    }
+}
+
+const char *SaltRoleNameUpper(const int pRole) {
+    switch (pRole) {
+        case 0: return "OrbiterAssign";
+        case 1: return "OrbiterUpdate";
+        case 2: return "WandererUpdate";
+        default: return "Invalid";
+    }
+}
+
+char SaltLaneNameLower(const int pLane) {
+    return static_cast<char>('a' + pLane);
+}
+
+char SaltLaneNameUpper(const int pLane) {
+    return static_cast<char>('A' + pLane);
+}
+
+const char *DomainPhaseNameUpper(const TwistDomain pDomain) {
+    switch (pDomain) {
+        case TwistDomain::kPhaseB: return "PhaseB";
+        case TwistDomain::kPhaseC: return "PhaseC";
+        case TwistDomain::kPhaseD: return "PhaseD";
+        case TwistDomain::kPhaseE: return "PhaseE";
+        case TwistDomain::kPhaseF: return "PhaseF";
+        case TwistDomain::kPhaseG: return "PhaseG";
+        case TwistDomain::kPhaseH: return "PhaseH";
+        case TwistDomain::kInvalid:
+        case TwistDomain::kPhaseA:
+        default:
+            return "PhaseA";
+    }
+}
+
+const char *DomainPhaseConstantsMemberName(const TwistDomain pDomain) {
+    switch (pDomain) {
+        case TwistDomain::kPhaseB: return "mPhaseBConstants";
+        case TwistDomain::kPhaseC: return "mPhaseCConstants";
+        case TwistDomain::kPhaseD: return "mPhaseDConstants";
+        case TwistDomain::kPhaseE: return "mPhaseEConstants";
+        case TwistDomain::kPhaseF: return "mPhaseFConstants";
+        case TwistDomain::kPhaseG: return "mPhaseGConstants";
+        case TwistDomain::kPhaseH: return "mPhaseHConstants";
+        case TwistDomain::kInvalid:
+        case TwistDomain::kPhaseA:
+        default:
+            return "mPhaseAConstants";
+    }
+}
+
+const char *DomainWordAliasConstantName(const TwistConstants pConstant) {
+    switch (pConstant) {
+        case TwistConstants::kIngress: return "Ingress";
+        case TwistConstants::kScatter: return "Scatter";
+        case TwistConstants::kCross: return "Cross";
+        default:
+            return nullptr;
+    }
+}
+
+const char *DomainWordMemberName(const TwistConstants pConstant) {
+    switch (pConstant) {
+        case TwistConstants::kIngress: return "mIngress";
+        case TwistConstants::kScatter: return "mScatter";
+        case TwistConstants::kCross: return "mCross";
+        default:
+            return nullptr;
+    }
+}
+
+std::string PhaseSaltBufName(const TwistWorkSpaceSlot pSlot) {
+    int aPhase = 0;
+    int aRole = 0;
+    int aLane = 0;
+    if (!DecodePhaseSaltSlot(pSlot, &aPhase, &aRole, &aLane)) {
+        return "";
+    }
+    std::string aName = PhaseNameLower(aPhase);
+    aName += "_salt_";
+    aName += SaltRoleNameLower(aRole);
+    aName += "_";
+    aName.push_back(SaltLaneNameLower(aLane));
+    return aName;
+}
+
+std::string PhaseSaltAliasName(const TwistWorkSpaceSlot pSlot) {
+    int aPhase = 0;
+    int aRole = 0;
+    int aLane = 0;
+    if (!DecodePhaseSaltSlot(pSlot, &aPhase, &aRole, &aLane)) {
+        return "";
+    }
+    std::string aName = "a";
+    aName += PhaseNameUpper(aPhase);
+    aName += SaltRoleNameUpper(aRole);
+    aName += "Salt";
+    aName.push_back(SaltLaneNameUpper(aLane));
+    return aName;
 }
 
 const char *ConstantMemberName(TwistConstants pConstant) {
@@ -120,8 +273,9 @@ GSymbol GSymbol::Var(TwistVariable pVariable) {
         case TwistVariable::kIndex: return Var("aIndex");
         case TwistVariable::kNonce: return Var("aNonce");
         case TwistVariable::kParamNonce: return Var("pNonce");
-        case TwistVariable::kParamInput: return Buf(TwistWorkSpaceSlot::kSource);
-        case TwistVariable::kParamOutput: return Buf(TwistWorkSpaceSlot::kDest);
+        case TwistVariable::kParamInput: return Buf(TwistWorkSpaceSlot::kParamSource);
+        case TwistVariable::kParamOutput: return Buf(TwistWorkSpaceSlot::kParamDestination);
+        case TwistVariable::kParamSnow: return Var("pSnow");
             
         case TwistVariable::kDomainWordIngress: return Var("aDomainWordIngress");
         case TwistVariable::kDomainWordScatter: return Var("aDomainWordScatter");
@@ -208,6 +362,18 @@ GSymbol GSymbol::Var(TwistDomain pDomain,
         case TwistDomain::kPhaseD:
             aFamilyPrefix = "mDomainBundleInbuilt.mPhaseDConstants";
             break;
+        case TwistDomain::kPhaseE:
+            aFamilyPrefix = "mDomainBundleInbuilt.mPhaseEConstants";
+            break;
+        case TwistDomain::kPhaseF:
+            aFamilyPrefix = "mDomainBundleInbuilt.mPhaseFConstants";
+            break;
+        case TwistDomain::kPhaseG:
+            aFamilyPrefix = "mDomainBundleInbuilt.mPhaseGConstants";
+            break;
+        case TwistDomain::kPhaseH:
+            aFamilyPrefix = "mDomainBundleInbuilt.mPhaseHConstants";
+            break;
         case TwistDomain::kInvalid:
         case TwistDomain::kPhaseA:
         default:
@@ -216,6 +382,15 @@ GSymbol GSymbol::Var(TwistDomain pDomain,
     }
     
     return Var(std::string(aFamilyPrefix) + "." + aMemberName);
+}
+
+GSymbol GSymbol::WorkspaceDomainWord(TwistDomain pDomain,
+                                     TwistConstants pConstant) {
+    const std::string aName = WorkspaceDomainWordAliasName(pDomain, pConstant);
+    if (aName.empty()) {
+        return GSymbol();
+    }
+    return Var(aName);
 }
 
 GSymbol GSymbol::Constant(TwistConstants pConstant) {
@@ -301,9 +476,15 @@ bool operator != (const GSymbol &pSymbolLHS, const GSymbol &pSymbolRHS) {
 
 
 std::string BufName(TwistWorkSpaceSlot pSlot) {
+    const std::string aPhaseSaltName = PhaseSaltBufName(pSlot);
+    if (!aPhaseSaltName.empty()) {
+        return aPhaseSaltName;
+    }
+
     switch (pSlot) {
         case TwistWorkSpaceSlot::kSource: return "src";
-        case TwistWorkSpaceSlot::kDest:   return "dst";
+        case TwistWorkSpaceSlot::kParamSource: return "param_source";
+        case TwistWorkSpaceSlot::kParamDestination: return "param_destination";
 
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA: return "domain_orbiter_init_a";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB: return "domain_orbiter_init_b";
@@ -338,11 +519,23 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kOperationLaneC: return "op_c";
         case TwistWorkSpaceSlot::kOperationLaneD: return "op_d";
 
-        case TwistWorkSpaceSlot::kSnowLaneA: return "snow_a";
-        case TwistWorkSpaceSlot::kSnowLaneB: return "snow_b";
-        case TwistWorkSpaceSlot::kSnowLaneC: return "snow_c";
-        case TwistWorkSpaceSlot::kSnowLaneD: return "snow_d";
-        case TwistWorkSpaceSlot::kSnow: return "snow";
+        case TwistWorkSpaceSlot::kSnowLaneA: return "snow_lane_a";
+        case TwistWorkSpaceSlot::kSnowLaneB: return "snow_lane_b";
+        case TwistWorkSpaceSlot::kSnowLaneC: return "snow_lane_c";
+        case TwistWorkSpaceSlot::kSnowLaneD: return "snow_lane_d";
+        case TwistWorkSpaceSlot::kFireLaneA: return "fire_a";
+        case TwistWorkSpaceSlot::kFireLaneB: return "fire_b";
+        case TwistWorkSpaceSlot::kFireLaneC: return "fire_c";
+        case TwistWorkSpaceSlot::kFireLaneD: return "fire_d";
+        case TwistWorkSpaceSlot::kParamSnow: return "param_snow";
+        case TwistWorkSpaceSlot::kInvestA: return "invest_a";
+        case TwistWorkSpaceSlot::kInvestB: return "invest_b";
+        case TwistWorkSpaceSlot::kInvestC: return "invest_c";
+        case TwistWorkSpaceSlot::kInvestD: return "invest_d";
+        case TwistWorkSpaceSlot::kInvestE: return "invest_e";
+        case TwistWorkSpaceSlot::kInvestF: return "invest_f";
+        case TwistWorkSpaceSlot::kInvestG: return "invest_g";
+        case TwistWorkSpaceSlot::kInvestH: return "invest_h";
 
         case TwistWorkSpaceSlot::kIndexList256A: return "index_list_256_a";
         case TwistWorkSpaceSlot::kIndexList256B: return "index_list_256_b";
@@ -355,13 +548,6 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kKeyRowReadB:     return "key_r_b";
         case TwistWorkSpaceSlot::kKeyRowWriteA:    return "key_w_a";
         case TwistWorkSpaceSlot::kKeyRowWriteB:    return "key_w_b";
-
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledA: return "mask_u_a";
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledB: return "mask_u_b";
-        case TwistWorkSpaceSlot::kMaskRowReadA:     return "mask_r_a";
-        case TwistWorkSpaceSlot::kMaskRowReadB:     return "mask_r_b";
-        case TwistWorkSpaceSlot::kMaskRowWriteA:    return "mask_w_a";
-        case TwistWorkSpaceSlot::kMaskRowWriteB:    return "mask_w_b";
 
         default: return "inv";
     }
@@ -387,9 +573,15 @@ std::string BufName(const GSymbol &pSymbol) {
 }
 
 std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
+    const std::string aPhaseSaltName = PhaseSaltAliasName(pSlot);
+    if (!aPhaseSaltName.empty()) {
+        return aPhaseSaltName;
+    }
+
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource: return "aSource";
-        case TwistWorkSpaceSlot::kDest: return "aDestination";
+        case TwistWorkSpaceSlot::kSource: return "mSource";
+        case TwistWorkSpaceSlot::kParamSource: return "pSource";
+        case TwistWorkSpaceSlot::kParamDestination: return "pDestination";
 
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA: return "aOrbiterAssignSaltA";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB: return "aOrbiterAssignSaltB";
@@ -428,7 +620,19 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kSnowLaneB: return "aSnowLaneB";
         case TwistWorkSpaceSlot::kSnowLaneC: return "aSnowLaneC";
         case TwistWorkSpaceSlot::kSnowLaneD: return "aSnowLaneD";
-        case TwistWorkSpaceSlot::kSnow: return "mSnow";
+        case TwistWorkSpaceSlot::kFireLaneA: return "aFireLaneA";
+        case TwistWorkSpaceSlot::kFireLaneB: return "aFireLaneB";
+        case TwistWorkSpaceSlot::kFireLaneC: return "aFireLaneC";
+        case TwistWorkSpaceSlot::kFireLaneD: return "aFireLaneD";
+        case TwistWorkSpaceSlot::kParamSnow: return "pSnow";
+        case TwistWorkSpaceSlot::kInvestA: return "aInvestLaneA";
+        case TwistWorkSpaceSlot::kInvestB: return "aInvestLaneB";
+        case TwistWorkSpaceSlot::kInvestC: return "aInvestLaneC";
+        case TwistWorkSpaceSlot::kInvestD: return "aInvestLaneD";
+        case TwistWorkSpaceSlot::kInvestE: return "aInvestLaneE";
+        case TwistWorkSpaceSlot::kInvestF: return "aInvestLaneF";
+        case TwistWorkSpaceSlot::kInvestG: return "aInvestLaneG";
+        case TwistWorkSpaceSlot::kInvestH: return "aInvestLaneH";
 
         case TwistWorkSpaceSlot::kIndexList256A: return "aIndexList256A";
         case TwistWorkSpaceSlot::kIndexList256B: return "aIndexList256B";
@@ -441,13 +645,6 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kKeyRowReadB: return "aKeyRowReadB";
         case TwistWorkSpaceSlot::kKeyRowWriteA: return "aKeyRowWriteA";
         case TwistWorkSpaceSlot::kKeyRowWriteB: return "aKeyRowWriteB";
-
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledA: return "aMaskBoxUnrolledA";
-        case TwistWorkSpaceSlot::kMaskBoxUnrolledB: return "aMaskBoxUnrolledB";
-        case TwistWorkSpaceSlot::kMaskRowReadA: return "aMaskRowReadA";
-        case TwistWorkSpaceSlot::kMaskRowReadB: return "aMaskRowReadB";
-        case TwistWorkSpaceSlot::kMaskRowWriteA: return "aMaskRowWriteA";
-        case TwistWorkSpaceSlot::kMaskRowWriteB: return "aMaskRowWriteB";
 
         default: return "aInvalidBuffer";
     }
@@ -550,6 +747,60 @@ TwistWorkSpaceSlot ResolveBufferSlot(const GSymbol &pSymbol) {
     return ResolveSlotFromBufferKey(ResolveBufferKeyFromSymbol(pSymbol));
 }
 
+std::string WorkspaceDomainWordAliasName(const TwistDomain domain,
+                                         const TwistConstants constant) {
+    const char *aConstantName = DomainWordAliasConstantName(constant);
+    if (aConstantName == nullptr) {
+        return "";
+    }
+    return std::string("a") + DomainPhaseNameUpper(domain) + "DomainWord" + aConstantName;
+}
+
+std::string WorkspaceDomainWordAccessText(const TwistDomain domain,
+                                          const TwistConstants constant) {
+    const char *aMemberName = DomainWordMemberName(constant);
+    if (aMemberName == nullptr) {
+        return "";
+    }
+    return std::string("pWorkSpace->mDomainBundle.") +
+           DomainPhaseConstantsMemberName(domain) + "." + aMemberName;
+}
+
+bool WorkspaceDomainWordAliasInfo(const std::string &name,
+                                  TwistDomain *domainOut,
+                                  TwistConstants *constantOut) {
+    const TwistDomain aDomains[] = {
+        TwistDomain::kPhaseA,
+        TwistDomain::kPhaseB,
+        TwistDomain::kPhaseC,
+        TwistDomain::kPhaseD,
+        TwistDomain::kPhaseE,
+        TwistDomain::kPhaseF,
+        TwistDomain::kPhaseG,
+        TwistDomain::kPhaseH
+    };
+    const TwistConstants aConstants[] = {
+        TwistConstants::kIngress,
+        TwistConstants::kScatter,
+        TwistConstants::kCross
+    };
+
+    for (TwistDomain aDomain : aDomains) {
+        for (TwistConstants aConstant : aConstants) {
+            if (name == WorkspaceDomainWordAliasName(aDomain, aConstant)) {
+                if (domainOut != nullptr) {
+                    *domainOut = aDomain;
+                }
+                if (constantOut != nullptr) {
+                    *constantOut = aConstant;
+                }
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 GSymbol VarSymbol(const std::string &pName) {
     return GSymbol::Var(pName);
 }
@@ -563,6 +814,11 @@ GSymbol BufSymbol(const TwistBufferKey pKey) {
 }
 
 GSymbol BufParamSymbolDomainSalt(TwistWorkSpaceSlot pSlot) {
+    const std::string aPhaseSaltName = PhaseSaltAliasName(pSlot);
+    if (!aPhaseSaltName.empty()) {
+        return BufSymbol(pSlot);
+    }
+
     switch (pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA:
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB:

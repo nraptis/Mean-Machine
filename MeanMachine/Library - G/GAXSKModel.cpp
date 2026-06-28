@@ -5,7 +5,7 @@
 //  Created by Nick Raptis on 5/21/26.
 //
 
-#include "GAXSKModel.hpp"
+#include "GAX.hpp"
 #include "Random.hpp"
 #include <unordered_map>
 #include <unordered_set>

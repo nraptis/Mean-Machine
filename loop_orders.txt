@@ -1,0 +1,340 @@
+
+
+
+// GSeedRunKDF_A_A
+
+aInputs = {	Slot::kSource, Slot::kParamSnow};
+
+aOutputs = {	Slot::kFireLaneA, Slot::kFireLaneB,
+		Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+
+
+// GSeedRunKDF_A_B
+
+aInputs = { 	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+aOutputs = {	Slot::kFireLaneC, Slot::kFireLaneD, 
+		Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
+
+
+// GSeedRunKDF_A_C
+
+aInputs = { 	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+               	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+aOutputs = {	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+
+---
+
+DIFFUSE
+Inputs: Work
+Output: Expansion
+
+---
+
+// GSeedRunKDF_A_D
+
+aInputs = { 	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+               	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aOutputs = {	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+
+
+=============================================================
+=============================================================
+=============================================================
+=============================================================
+
+
+// GSeedRunKDF_B_A
+
+aInputs = { 	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+
+aResiduals = { 	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aOutputs = { 	Slot::kFireLaneA, Slot::kFireLaneB,
+             	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+
+// GSeedRunKDF_B_B
+
+aInputs = { 	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+               	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+
+aOutputs = { 	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+
+// GSeedRunKDF_B_C
+
+aInputs = { 	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+               	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+
+aOutputs = { 	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+---
+
+DIFFUSE
+Inputs: Expansion
+Output: Work
+
+---
+
+// GSeedRunKDF_B_D
+
+aInputs = { 	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+               	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aOutputs = { 	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+
+=============================================================
+=============================================================
+=============================================================
+=============================================================
+
+
+// GSeedRunSeed_A
+
+aInputs = {	Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource};
+
+aOutputs = {	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
+    		Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+
+
+// GSeedRunSeed_B
+
+aInputs = { 	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+
+aOutputs = { 	Slot::kInvestA, Slot::kInvestB, 
+		Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+// GSeedRunSeed_C
+
+aInputs = { 	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+
+aOutputs = { 	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+
+---
+
+DIFFUSE
+Inputs: Work
+Output: Expansion
+
+---
+
+// GSeedRunSeed_D
+
+aInputs = { 	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+aResiduals = {	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aOutputs = {	Slot::kWorkLaneA, Slot::kWorkLaneB, 
+		Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD };
+
+
+// GSeedRunSeed_E
+
+aInputs = { 	Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+
+aOutputs = {	Slot::kSnowLaneA, Slot::kSnowLaneB, 
+		Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+
+// GSeedRunSeed_F
+
+aInputs = { 	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aResiduals = { 	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD };
+
+aOutputs = {	Slot::kSnowLaneA, Slot::kSnowLaneB, 
+		Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+---
+
+DIFFUSE
+Inputs: Expansion
+Output: Snow
+
+---
+
+// GSeedRunSeed_G
+
+aInputs = { 	Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kSnowLaneC, Slot::kSnowLaneD };
+    
+aResiduals = {	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+  		Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+
+aOutputs = { 	Slot::kWorkLaneA, Slot::kWorkLaneB, 
+		Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+
+=============================================================
+=============================================================
+=============================================================
+=============================================================
+
+// GTwistRunTwist_A
+
+aInputs = {	Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource};
+
+aOutputs = {	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
+    		Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+
+// GTwistRunTwist_B
+
+aInputs = {	Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+
+aResiduals = {	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+
+aOutputs = {	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
+
+
+// GTwistRunTwist_C
+
+aInputs = {	Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
+
+aResiduals = {	Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    		Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+
+aOutputs = {	Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

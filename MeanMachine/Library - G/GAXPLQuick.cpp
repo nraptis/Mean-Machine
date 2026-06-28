@@ -5,8 +5,8 @@
 //  Created by Nick Raptis on 5/19/26.
 //
 
-#include "GAXPLQuick.hpp"
-
+#include "GAX.hpp"
+#include "Random.hpp"
 
 GExpr GAXPLQuick::Rotate(const GExpr &pExpr, int pRotation) {
     if (pExpr.IsInvalid()) {
@@ -38,13 +38,13 @@ GExpr GAXPLQuick::Diffuse(const GExpr &pExpr, GAXSKDiffuseKind pDiffuse) {
 
     switch (pDiffuse) {
         case GAXSKDiffuseKind::kDiffuseA:
-            return GExpr::DiffuseA(pExpr);
+            return GExpr::Diffuse64A(pExpr);
 
         case GAXSKDiffuseKind::kDiffuseB:
-            return GExpr::DiffuseB(pExpr);
+            return GExpr::Diffuse64B(pExpr);
 
         case GAXSKDiffuseKind::kDiffuseC:
-            return GExpr::DiffuseC(pExpr);
+            return GExpr::Diffuse64C(pExpr);
 
         default:
             return GExpr();
@@ -76,6 +76,8 @@ bool GAXPLQuick::BakeInputSlotWord(const GAXSKInputSlot &pSlot,
                                    const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
                                    const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
                                    GExpr *pExpr,
+                                   int pOffsetRangeLo,
+                                   int pOffsetRangeHi,
                                    std::string *pErrorMessage) {
     
     GSymbol aLoopIndex = GSymbol::Var(TwistVariable::kIndex);
@@ -113,11 +115,11 @@ bool GAXPLQuick::BakeInputSlotWord(const GAXSKInputSlot &pSlot,
             return false;
         }
 
-        *pExpr = Rotate(GExpr::Symbol(aIterator->second), pSlot.mRotation);
+        *pExpr = GExpr::Symbol(aIterator->second);
 
         if (pExpr->IsInvalid()) {
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = "GAXPLQuick::BakeInputSlotWord failed to rotate nonce byte";
+                *pErrorMessage = "GAXPLQuick::BakeInputSlotWord failed to build nonce byte";
             }
             return false;
         }
@@ -142,12 +144,7 @@ bool GAXPLQuick::BakeInputSlotWord(const GAXSKInputSlot &pSlot,
             return false;
         }
 
-        GExpr aRead = GQuick::MakeReadBufferOffsetExpressionDirected(
-            aIterator->second,
-            aLoopIndex,
-            pSlot.mReverse,
-            static_cast<std::uint32_t>(pSlot.mOffset)
-        );
+        GExpr aRead = GQuick::MakeReadBufferOffsetExpressionDirected(aIterator->second, aLoopIndex, pSlot.mReverse, Random::Get(pOffsetRangeLo, pOffsetRangeHi));
 
         if (aRead.IsInvalid()) {
             if (pErrorMessage != nullptr) {
@@ -174,12 +171,12 @@ bool GAXPLQuick::BakeInputSlotWord(const GAXSKInputSlot &pSlot,
     return false;
 }
 
-bool GAXPLQuick::BakeInputSlotWordsXorSources(
-    const std::vector<GAXSKInputSlot> &pInputs,
-    const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
-    const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
-    
-    GExpr *pExpr,
+bool GAXPLQuick::BakeInputSlotWordsXorSources(const std::vector<GAXSKInputSlot> &pInputs,
+                                              const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
+                                              const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
+                                              GExpr *pExpr,
+                                              int pOffsetRangeLo,
+                                              int pOffsetRangeHi,
     std::string *pErrorMessage) {
 
     if (pExpr == nullptr) {
@@ -197,7 +194,7 @@ bool GAXPLQuick::BakeInputSlotWordsXorSources(
         }
 
         GExpr aWord;
-        if (!BakeInputSlotWord(aSlot, pSourceMap, pNonceMap, &aWord, pErrorMessage)) {
+        if (!BakeInputSlotWord(aSlot, pSourceMap, pNonceMap, &aWord, pOffsetRangeLo, pOffsetRangeHi, pErrorMessage)) {
             return false;
         }
 
@@ -230,28 +227,33 @@ bool GAXPLQuick::BakeInputSlotWordsXorNonces(
         return false;
     }
 
-    std::vector<GExpr> aTerms;
+    std::vector<const GAXSKInputSlot *> aNonceSlots;
 
     for (const GAXSKInputSlot &aSlot : pInputs) {
         if (aSlot.mKind != GAXSKInputSlotKind::kNonceByte) {
             continue;
         }
 
-        GExpr aWord;
-        if (!BakeInputSlotWord(aSlot, pSourceMap, pNonceMap, &aWord, pErrorMessage)) {
-            return false;
-        }
-
-        aTerms.push_back(aWord);
+        aNonceSlots.push_back(&aSlot);
     }
 
-    if (aTerms.empty()) {
+    if (aNonceSlots.empty()) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "GAXPLQuick::BakeInputSlotWordsXorNonces found no nonce terms";
         }
         return false;
     }
 
-    *pExpr = GQuick::XorChain(aTerms);
+    const int aNonceIndex = Random::Get(static_cast<int>(aNonceSlots.size()));
+    if (!BakeInputSlotWord(*aNonceSlots[static_cast<std::size_t>(aNonceIndex)],
+                           pSourceMap,
+                           pNonceMap,
+                           pExpr,
+                           0,
+                           0,
+                           pErrorMessage)) {
+        return false;
+    }
+
     return !pExpr->IsInvalid();
 }

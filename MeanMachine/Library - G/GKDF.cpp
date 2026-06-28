@@ -24,6 +24,14 @@ RoundMaterialSuffixSet DomainRoundMaterialSuffixSet(TwistDomain pDomain) {
             return {"mPhaseCConstants", "mPhaseCSalts"};
         case TwistDomain::kPhaseD:
             return {"mPhaseDConstants", "mPhaseDSalts"};
+        case TwistDomain::kPhaseE:
+            return {"mPhaseEConstants", "mPhaseESalts"};
+        case TwistDomain::kPhaseF:
+            return {"mPhaseFConstants", "mPhaseFSalts"};
+        case TwistDomain::kPhaseG:
+            return {"mPhaseGConstants", "mPhaseGSalts"};
+        case TwistDomain::kPhaseH:
+            return {"mPhaseHConstants", "mPhaseHSalts"};
         case TwistDomain::kInvalid:
         case TwistDomain::kPhaseA:
         default:
@@ -62,13 +70,20 @@ bool BakeKDFCall(const char *pFunctionName,
 
     const RoundMaterialSuffixSet aSet = DomainRoundMaterialSuffixSet(pDomain);
     const std::string aBundle = BundlePrefix(pBundle);
-    if ((pSnow != nullptr) && pSnow->IsBuf()) {
-        pStatements->push_back(GStatement::RawLine("mSnow = " + BufAliasName(*pSnow) + ";"));
-    }
-    pStatements->push_back(GStatement::RawLine(
-        std::string(pFunctionName) + "(pNonce, "
+    std::string aCall = std::string(pFunctionName) + "(pNonce, "
         "&(" + aBundle + "." + std::string(aSet.mConstants) + "), "
-        "&(" + aBundle + "." + std::string(aSet.mSalts) + "));"));
+        "&(" + aBundle + "." + std::string(aSet.mSalts) + ")";
+    if (pSnow != nullptr) {
+        if (!pSnow->IsBuf()) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = std::string(pFunctionName) + "::Bake requires a snow buffer.";
+            }
+            return false;
+        }
+        aCall += ", " + BufAliasName(*pSnow);
+    }
+    aCall += ");";
+    pStatements->push_back(GStatement::RawLine(aCall));
     return true;
 }
 
@@ -81,7 +96,7 @@ bool GKDF_A::Bake(TwistDomain pDomain,
     return BakeKDFCall("KDF_A",
                        pDomain,
                        pBundle,
-                       &mSnow,
+                       &mKDFSnow,
                        pStatements,
                        pErrorMessage);
 }

@@ -34,6 +34,11 @@ std::uint8_t Random::GetByte() {
     return aDist(cRandomGenerator);
 }
 
+std::uint32_t Random::Get32() {
+    std::uniform_int_distribution<std::uint32_t> aDist(0, std::numeric_limits<std::uint32_t>::max());
+    return aDist(cRandomGenerator);
+}
+
 int Random::Get() {
     std::uniform_int_distribution<int> aDist(0, std::numeric_limits<int>::max());
     return aDist(cRandomGenerator);
@@ -59,6 +64,10 @@ int Random::Get(int pMin, int pMax) {
 std::uint64_t Random::Get64High() {
     std::uniform_int_distribution<std::uint64_t> aDist(std::numeric_limits<std::uint64_t>::max() / 2, std::numeric_limits<std::uint64_t>::max());
     return aDist(cRandomGenerator);
+}
+
+std::uint64_t Random::Get64HighOdd() {
+    return Get64High() | 1ULL;
 }
 
 std::uint64_t Random::Get64() {

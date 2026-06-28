@@ -250,16 +250,28 @@ GStatement GQuick::MulEqual64(const GSymbol pSymbol, const std::uint64_t pAmount
     
 }
 
-GStatement GQuick::DiffuseAEqual(const GSymbol pSymbol) {
-    return BuildAssignToSymbol(pSymbol, GExpr::DiffuseA(GExpr::Symbol(pSymbol)));
+GStatement GQuick::Diffuse64AEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::Diffuse64A(GExpr::Symbol(pSymbol)));
 }
 
-GStatement GQuick::DiffuseBEqual(const GSymbol pSymbol) {
-    return BuildAssignToSymbol(pSymbol, GExpr::DiffuseB(GExpr::Symbol(pSymbol)));
+GStatement GQuick::Diffuse64BEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::Diffuse64B(GExpr::Symbol(pSymbol)));
 }
 
-GStatement GQuick::DiffuseCEqual(const GSymbol pSymbol) {
-    return BuildAssignToSymbol(pSymbol, GExpr::DiffuseC(GExpr::Symbol(pSymbol)));
+GStatement GQuick::Diffuse64CEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::Diffuse64C(GExpr::Symbol(pSymbol)));
+}
+
+GStatement GQuick::Diffuse32AEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::Diffuse32A(GExpr::Symbol(pSymbol)));
+}
+
+GStatement GQuick::Diffuse32BEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::Diffuse32B(GExpr::Symbol(pSymbol)));
+}
+
+GStatement GQuick::Diffuse32CEqual(const GSymbol pSymbol) {
+    return BuildAssignToSymbol(pSymbol, GExpr::Diffuse32C(GExpr::Symbol(pSymbol)));
 }
 
 GStatement GQuick::AddEqual64(const GSymbol pSymbol, const std::uint64_t pAmount) {
@@ -468,4 +480,3 @@ GExpr GQuick::MakeReadBufferOffsetExpressionDirected(const GSymbol pBuffer,
         return MakeReadBufferOffsetExpression(pBuffer, pIndex, pOffset);
     }
 }
-

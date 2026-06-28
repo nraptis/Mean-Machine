@@ -8,10 +8,12 @@
 
 #include "TwistWorkSpace.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 #include "M88/M88.hpp"
+
 
 
 class TwistFarmSalt;
@@ -37,7 +39,8 @@ public:
 
     virtual void                            KDF_A(std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet);
+                                                  TwistDomainSaltSet *pDomainSaltSet,
+                                                  std::uint8_t *pSnow);
 
     virtual void                            KDF_B(std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
@@ -46,21 +49,31 @@ public:
     virtual void                            Seed(TwistWorkSpace *pWorkSpace,
                                                  TwistFarmSalt *pFarmSalt,
                                                  std::uint64_t pNonce,
-                                                 std::uint8_t *pSource,
                                                  std::uint8_t *pPassword,
-                                                 unsigned int pPasswordByteLength);
+                                                 unsigned int pPasswordByteLength,
+                                                 std::uint8_t *pDestination);
 
     virtual void                            TwistBlock(TwistWorkSpace *pWorkSpace,
                                                        std::uint64_t pNonce,
                                                        std::uint8_t *pSource,
+                                                       std::size_t pBlockIndex,
+                                                       std::size_t pBlockCount,
+                                                       
                                                        std::uint8_t *pDestination);
-
+    
+    virtual void                            SquashInvestToKeyBoxes();
+    
+    virtual void                            GrowKeyA(TwistWorkSpace *pWorkSpace);
+    virtual void                            GrowKeyB(TwistWorkSpace *pWorkSpace);
+    
+    
     // this is not virtual, it calls TwistBlock on every block
     void                                    Twist(TwistWorkSpace *pWorkSpace,
                                                   std::uint64_t pNonce,
                                                   std::uint8_t *pSource,
                                                   std::uint8_t *pDestination,
                                                   unsigned int pDestinationByteLength);
+    
     
     std::size_t                             mIndexList256A[256];
     std::size_t                             mIndexList256B[256];
@@ -71,7 +84,6 @@ public:
     TwistDomainSaltSet                      *mActiveSaltSet;
     
     std::uint8_t                            *mSource;
-    std::uint8_t                            *mSnow;
     std::uint8_t                            *mDest;
     
     M88                                     mMatrix;
@@ -84,6 +96,9 @@ public:
     
     TwistWorkSpace                          *mWorkspace;
     
+    void                                    Zero_PostSeed();
+    void                                    Zero();
+    
 protected:
     
     
@@ -92,5 +107,6 @@ protected:
     std::uint64_t                           mKDFSessionNonce;
     
 };
+
 
 #endif /* TwistExpander_hpp */

@@ -9,11 +9,81 @@
 #include "TwistArray.hpp"
 #include <cstdio>
 
-bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
+namespace {
+
+std::vector<GSymbol> MakeShuffledWanderers() {
+    std::vector<GSymbol> aWanderers = {
+        GSymbol::Var(TwistVariable::kWandererA),
+        GSymbol::Var(TwistVariable::kWandererB),
+        GSymbol::Var(TwistVariable::kWandererC),
+        GSymbol::Var(TwistVariable::kWandererD),
+        GSymbol::Var(TwistVariable::kWandererE),
+        GSymbol::Var(TwistVariable::kWandererF),
+        GSymbol::Var(TwistVariable::kWandererG),
+        GSymbol::Var(TwistVariable::kWandererH),
+        GSymbol::Var(TwistVariable::kWandererI),
+        GSymbol::Var(TwistVariable::kWandererJ),
+        GSymbol::Var(TwistVariable::kWandererK),
+    };
+
+    Random::Shuffle(&aWanderers);
+    return aWanderers;
+}
+
+void AddSymbolsToCache(GSymbolCache *pCache,
+                       const std::vector<GSymbol> &pSymbols) {
+    if (pCache == nullptr) {
+        return;
+    }
+    for (const GSymbol &aSymbol : pSymbols) {
+        pCache->AddItem(&aSymbol);
+    }
+}
+
+void FillSaltBag(const std::vector<GSymbol> &pSaltsOrbiterAssign,
+                 const std::vector<GSymbol> &pSaltsOrbiterUpdate,
+                 const std::vector<GSymbol> &pSaltsWandererUpdate,
+                 GAXPLSaltBag *pSaltBag) {
+    if (pSaltBag == nullptr) {
+        return;
+    }
+
+    GSymbolCache aCacheOrbiterAssign;
+    AddSymbolsToCache(&aCacheOrbiterAssign, pSaltsOrbiterAssign);
+    aCacheOrbiterAssign.SetLimits(2, 2, 2);
+    aCacheOrbiterAssign.Fetch(2);
+    pSaltBag->mOrbiterAssign = {
+        *(aCacheOrbiterAssign.mBus[0]), *(aCacheOrbiterAssign.mBus[1]),
+    };
+
+    GSymbolCache aCacheOrbiterUpdate;
+    AddSymbolsToCache(&aCacheOrbiterUpdate, pSaltsOrbiterUpdate);
+    aCacheOrbiterUpdate.SetLimits(2, 3, 4);
+    aCacheOrbiterUpdate.Fetch(4);
+    pSaltBag->mOrbiterUpdate = {
+        *(aCacheOrbiterUpdate.mBus[0]), *(aCacheOrbiterUpdate.mBus[1]),
+        *(aCacheOrbiterUpdate.mBus[2]), *(aCacheOrbiterUpdate.mBus[3]),
+    };
+
+    GSymbolCache aCacheWandererUpdate;
+    AddSymbolsToCache(&aCacheWandererUpdate, pSaltsWandererUpdate);
+    aCacheWandererUpdate.SetLimits(2, 2, 2);
+    aCacheWandererUpdate.Fetch(2);
+    pSaltBag->mWandererUpdate = {
+        *(aCacheWandererUpdate.mBus[0]), *(aCacheWandererUpdate.mBus[1]),
+    };
+}
+
+} // namespace
+
+bool CSPRNGV2::Bake(bool pIsNonKDF,
+                    TwistDomain pDomain,
+                    std::vector<CSPRNGV2Slice> &pSlices,
                     const std::vector<GSymbol> &pSaltsOrbiterAssign,
                     const std::vector<GSymbol> &pSaltsOrbiterUpdate,
                     const std::vector<GSymbol> &pSaltsWandererUpdate,
                     std::vector<GLoop> *pLoops,
+                    bool pAutoRangeAdjust,
                     std::string *pErrorMessage) {
     
     if (pLoops == nullptr) {
@@ -22,7 +92,7 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         }
         return false;
     }
-
+    
     if (pSaltsOrbiterAssign.size() < 2 ||
         pSaltsOrbiterUpdate.size() < 4 ||
         pSaltsWandererUpdate.size() < 2) {
@@ -33,45 +103,70 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
     }
     
     GSymbol aIndex = GSymbol::Var(TwistVariable::kIndex);
-
-    GSymbol aWandererA = GSymbol::Var(TwistVariable::kWandererA); GSymbol aWandererB = GSymbol::Var(TwistVariable::kWandererB);
-    GSymbol aWandererC = GSymbol::Var(TwistVariable::kWandererC); GSymbol aWandererD = GSymbol::Var(TwistVariable::kWandererD);
-    GSymbol aWandererE = GSymbol::Var(TwistVariable::kWandererE); GSymbol aWandererF = GSymbol::Var(TwistVariable::kWandererF);
-    GSymbol aWandererG = GSymbol::Var(TwistVariable::kWandererG); GSymbol aWandererH = GSymbol::Var(TwistVariable::kWandererH);
-    GSymbol aWandererI = GSymbol::Var(TwistVariable::kWandererI); GSymbol aWandererJ = GSymbol::Var(TwistVariable::kWandererJ);
-    GSymbol aWandererK = GSymbol::Var(TwistVariable::kWandererK);
-
+    
     GSymbol aOrbiterA = GSymbol::Var(TwistVariable::kOrbiterA); GSymbol aOrbiterB = GSymbol::Var(TwistVariable::kOrbiterB);
     GSymbol aOrbiterC = GSymbol::Var(TwistVariable::kOrbiterC); GSymbol aOrbiterD = GSymbol::Var(TwistVariable::kOrbiterD);
     GSymbol aOrbiterE = GSymbol::Var(TwistVariable::kOrbiterE); GSymbol aOrbiterF = GSymbol::Var(TwistVariable::kOrbiterF);
     GSymbol aOrbiterG = GSymbol::Var(TwistVariable::kOrbiterG); GSymbol aOrbiterH = GSymbol::Var(TwistVariable::kOrbiterH);
     GSymbol aOrbiterI = GSymbol::Var(TwistVariable::kOrbiterI); GSymbol aOrbiterJ = GSymbol::Var(TwistVariable::kOrbiterJ);
     GSymbol aOrbiterK = GSymbol::Var(TwistVariable::kOrbiterK);
-
-    GSymbol aNonceByteA = GSymbol::Var("aNonceByteA"); GSymbol aNonceByteB = GSymbol::Var("aNonceByteB");
-    GSymbol aNonceByteC = GSymbol::Var("aNonceByteC"); GSymbol aNonceByteD = GSymbol::Var("aNonceByteD");
-    GSymbol aNonceByteE = GSymbol::Var("aNonceByteE"); GSymbol aNonceByteF = GSymbol::Var("aNonceByteF");
-    GSymbol aNonceByteG = GSymbol::Var("aNonceByteG"); GSymbol aNonceByteH = GSymbol::Var("aNonceByteH");
+    
+    std::vector<GSymbol> aNonceWords = {
+        GSymbol::Var("aNonceWordA"),
+        GSymbol::Var("aNonceWordB"),
+        GSymbol::Var("aNonceWordC"),
+        GSymbol::Var("aNonceWordD"),
+        GSymbol::Var("aNonceWordE"),
+        GSymbol::Var("aNonceWordF"),
+        GSymbol::Var("aNonceWordG"),
+        GSymbol::Var("aNonceWordH"),
+        GSymbol::Var("aNonceWordI"),
+        GSymbol::Var("aNonceWordJ"),
+        GSymbol::Var("aNonceWordK"),
+        GSymbol::Var("aNonceWordL"),
+        GSymbol::Var("aNonceWordM"),
+        GSymbol::Var("aNonceWordN"),
+        GSymbol::Var("aNonceWordO"),
+        GSymbol::Var("aNonceWordP"),
+    };
     
     GSymbolCache aCacheOrbiterAssign;
     for (int aSaltIndex=0; aSaltIndex< pSaltsOrbiterAssign.size(); aSaltIndex++) {
         aCacheOrbiterAssign.AddItem(&(pSaltsOrbiterAssign[aSaltIndex]));
     }
     aCacheOrbiterAssign.SetLimits(2, 2, 2);
-
+    
     GSymbolCache aCacheOrbiterUpdate;
     for (int aSaltIndex=0; aSaltIndex< pSaltsOrbiterUpdate.size(); aSaltIndex++) {
         aCacheOrbiterUpdate.AddItem(&(pSaltsOrbiterUpdate[aSaltIndex]));
     }
     aCacheOrbiterUpdate.SetLimits(2, 3, 4);
-
+    
     GSymbolCache aCacheWandererUpdate;
     for (int aSaltIndex=0; aSaltIndex< pSaltsWandererUpdate.size(); aSaltIndex++) {
         aCacheWandererUpdate.AddItem(&(pSaltsWandererUpdate[aSaltIndex]));
     }
     aCacheWandererUpdate.SetLimits(2, 2, 2);
-
+    
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
+        if (!pSlices[aSliceIndex].mSaltsOrbiterAssign.empty() ||
+            !pSlices[aSliceIndex].mSaltsOrbiterUpdate.empty() ||
+            !pSlices[aSliceIndex].mSaltsWandererUpdate.empty()) {
+            if ((pSlices[aSliceIndex].mSaltsOrbiterAssign.size() < 2U) ||
+                (pSlices[aSliceIndex].mSaltsOrbiterUpdate.size() < 4U) ||
+                (pSlices[aSliceIndex].mSaltsWandererUpdate.size() < 2U)) {
+                if (pErrorMessage != nullptr) {
+                    *pErrorMessage = "CSPRNGV2::Bake received incomplete per-slice salts";
+                }
+                return false;
+            }
+            FillSaltBag(pSlices[aSliceIndex].mSaltsOrbiterAssign,
+                        pSlices[aSliceIndex].mSaltsOrbiterUpdate,
+                        pSlices[aSliceIndex].mSaltsWandererUpdate,
+                        &(pSlices[aSliceIndex].mSaltBag));
+            continue;
+        }
+
         aCacheOrbiterAssign.Fetch(2);
         pSlices[aSliceIndex].mSaltBag.mOrbiterAssign = {
             *(aCacheOrbiterAssign.mBus[0]), *(aCacheOrbiterAssign.mBus[1]),
@@ -90,12 +185,12 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
     }
     
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
-        
-        pSlices[aSliceIndex].mNonceBytes = {
-            aNonceByteA, aNonceByteB, aNonceByteC, aNonceByteD,
-            aNonceByteE, aNonceByteF, aNonceByteG, aNonceByteH,
-        };
-        Random::Shuffle(&pSlices[aSliceIndex].mNonceBytes);
+        if (pSlices[aSliceIndex].mARXSkeleton.HasNonceSlots()) {
+            pSlices[aSliceIndex].mNonceBytes = aNonceWords;
+            Random::Shuffle(&pSlices[aSliceIndex].mNonceBytes);
+        } else {
+            pSlices[aSliceIndex].mNonceBytes.clear();
+        }
         
         
         pSlices[aSliceIndex].mOrbiters = {
@@ -105,12 +200,7 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
         };
         Random::Shuffle(&pSlices[aSliceIndex].mOrbiters);
         
-        pSlices[aSliceIndex].mWanderers = {
-            aWandererA, aWandererB, aWandererC, aWandererD,
-            aWandererE, aWandererF, aWandererG, aWandererH,
-            aWandererI, aWandererJ, aWandererK
-        };
-        Random::Shuffle(&pSlices[aSliceIndex].mWanderers);
+        pSlices[aSliceIndex].mWanderers = MakeShuffledWanderers();
     }
     
     bool NO_SHUFFLE = false;
@@ -134,47 +224,63 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
             };
         }
         for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
-            pSlices[aSliceIndex].mNonceBytes = {
-                aNonceByteA, aNonceByteB, aNonceByteC, aNonceByteD,
-                aNonceByteE, aNonceByteF, aNonceByteG, aNonceByteH,
-            };
+            if (pSlices[aSliceIndex].mARXSkeleton.HasNonceSlots()) {
+                pSlices[aSliceIndex].mNonceBytes = aNonceWords;
+                Random::Shuffle(&pSlices[aSliceIndex].mNonceBytes);
+            } else {
+                pSlices[aSliceIndex].mNonceBytes.clear();
+            }
             pSlices[aSliceIndex].mOrbiters = {
                 aOrbiterA, aOrbiterB, aOrbiterC, aOrbiterD,
                 aOrbiterE, aOrbiterF, aOrbiterG, aOrbiterH,
                 aOrbiterI, aOrbiterJ, aOrbiterK,
             };
-            pSlices[aSliceIndex].mWanderers = {
-                aWandererA, aWandererB, aWandererC, aWandererD,
-                aWandererE, aWandererF, aWandererG, aWandererH,
-                aWandererI, aWandererJ, aWandererK
-            };
+            pSlices[aSliceIndex].mWanderers = MakeShuffledWanderers();
         }
         
     }
     
     GAXPL *aPlan = new GAXPL();
     
-    int aFullNonceIndex = Random::Get((int)(pSlices.size()));
+    aPlan->mIsNonKDF = pIsNonKDF;
+    aPlan->mDomain = pDomain;
+    
+    int aSliceCount = (int)pSlices.size();
     
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
         
-        const CSPRNGV2Slice &aSlice = pSlices[aSliceIndex];
-
+        //const
+        CSPRNGV2Slice &aSlice = pSlices[aSliceIndex];
+        aPlan->mDomain = (aSlice.mDomain == TwistDomain::kInvalid) ? pDomain : aSlice.mDomain;
+        
+        if (pAutoRangeAdjust == true) {
+            int aCeiling = aSlice.mLoopCeiling;
+            
+            int aLo = (aSliceIndex * aCeiling) / aSliceCount;
+            int aHi = ((aSliceIndex + 1) * aCeiling) / aSliceCount;
+            
+            aSlice.mSourceRangesLo = aLo;
+            aSlice.mSourceRangesHi = aHi;
+        }
+        
         GLoop aLoop;
         aLoop.mLoopVariable = aIndex;
         aLoop.mLoopVariableName = aIndex.mName;
-        aLoop.mLoopBegin = 0;
-        aLoop.mLoopEndText = "S_BLOCK";
+        aLoop.mLoopBegin = aSlice.mLoopBegin;
+        aLoop.mLoopBeginText = aSlice.mLoopBeginText;
+        aLoop.mLoopEndText = aSlice.mLoopEndText.empty() ? "S_BLOCK" : aSlice.mLoopEndText;
         aLoop.mLoopStep = 1;
         
-        if (!aPlan->Bake(&aSlice.mARXSkeleton,
+        if (!aPlan->Bake(aSlice.mSourceRangesLo,
+                         aSlice.mSourceRangesHi,
+                         &aSlice.mARXSkeleton,
                          aSlice.mSaltBag,
                          aSlice.mNonceBytes,
                          aSlice.mSources,
                          aSlice.mOrbiters,
                          aSlice.mWanderers,
                          aSlice.mHotPack,
-                         (aFullNonceIndex == aSliceIndex),
+                         false,
                          aSlice.mDest,
                          aSlice.mDestWriteInverted,
                          &aLoop,
@@ -184,10 +290,11 @@ bool CSPRNGV2::Bake(std::vector<CSPRNGV2Slice> &pSlices,
             delete aPlan;
             return false;
         }
-
+        
         pLoops->push_back(aLoop);
     }
     
     delete aPlan;
     return true;
+    
 }

@@ -11,10 +11,12 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include "TwistWorkSpace.hpp"
 
 class GAXSKPool;
 struct GAXSKModelStatement;
 class GAXSKModel;
+enum class GAssignType : std::uint8_t;
 
 enum class GAXSKUpdateRotationParityMode : std::uint8_t {
     kAllowEven = 0,
@@ -63,7 +65,13 @@ enum class GAXSKSourceKind : std::uint8_t {
     kSourceA,
     kSourceB,
     kSourceC,
-    kSourceD
+    kSourceD,
+    kSourceE,
+    kSourceF,
+    kSourceG,
+    kSourceH,
+    kSourceI,
+    kSourceJ
 };
 
 enum class GAXSKNonceByteKind : std::uint8_t {
@@ -76,6 +84,14 @@ enum class GAXSKNonceByteKind : std::uint8_t {
     kNonceF,
     kNonceG,
     kNonceH,
+    kNonceI,
+    kNonceJ,
+    kNonceK,
+    kNonceL,
+    kNonceM,
+    kNonceN,
+    kNonceO,
+    kNonceP,
 };
 
 enum class GAXSKOpKind : std::uint8_t {
@@ -147,7 +163,8 @@ struct GAXSKInputSlot {
     GAXSKInputSlotKind mKind = GAXSKInputSlotKind::kInvalid;
     GAXSKSourceKind mSource = GAXSKSourceKind::kInvalid;
     GAXSKNonceByteKind mNonceByte = GAXSKNonceByteKind::kInvalid;
-    int mOffset = 0;
+    //int mOffset = 0;
+    
     bool mReverse = false;
     int mRotation = -1;
 };
@@ -158,6 +175,9 @@ struct GAXSKContextWordPlan {
     bool mHasDomainMix = true;
     bool mIsIngress = false;
     GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
+    
+    
+    
 };
 
 struct GAXSKVariableTerm {
@@ -269,7 +289,16 @@ struct GAXSKStatement {
 };
 
 struct GAXSKSkeleton {
+    GAXSKSkeleton();
+    bool HasNonceSlots() const;
+
     std::vector<GAXSKStatement>             mStatements;
+    GAssignType                             mAssignType;
+};
+
+struct GAXSKSourceLayout {
+    std::vector<GAXSKSourceKind>             mIngress;
+    std::vector<GAXSKSourceKind>             mCross;
 };
 
 class GAXSK {
@@ -306,8 +335,19 @@ public:
     
     void                                    Reset();
     bool                                    Bake(GAXSFormat pFormat,
+                                                 bool pIgnoreNonces,
+                                                 std::vector<int> pLaneCounts,
+                                                 std::vector<GAXSKSourceLayout> pSourceLayouts,
+                                                 bool pHasDomainMix,
+                                                 GAssignType pAssignType,
+                                                 std::vector<GAXSKSkeleton> *pResult,
+                                                 std::string *pErrorMessage);
+
+    bool                                    Bake(GAXSFormat pFormat,
+                                                 bool pIgnoreNonces,
                                                  std::vector<int> pLaneCounts,
                                                  bool pHasDomainMix,
+                                                 GAssignType pAssignType,
                                                  std::vector<GAXSKSkeleton> *pResult,
                                                  std::string *pErrorMessage);
     
@@ -323,17 +363,6 @@ public:
     bool                                    GetLaneCountForPass(int pPassIndex,
                                                                 int *pResult,
                                                                 std::string *pErrorMessage) const;
-    
-    GAXSKSourceKind                         SourceForIndex(int pIndex);
-    GAXSKNonceByteKind                      NonceForIndex(int pIndex);
-    
-    GAXSKInputSlot                          MakeSourceSlot(GAXSKSourceKind pSource,
-                                                           int pOffset,
-                                                           bool pReverse,
-                                                           int pRotation);
-    
-    GAXSKInputSlot                          MakeNonceSlot(GAXSKNonceByteKind pNonceByte,
-                                                          int pRotation);
     
     bool                                    MakeIngressCrushStatement(GAXSKVariable pTarget,
                                                                       const std::vector<GAXSKVariable> &pOrbiters,

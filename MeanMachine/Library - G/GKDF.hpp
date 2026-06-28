@@ -27,7 +27,7 @@ public:
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
     
-    GSymbol                             mSnow;
+    GSymbol                             mKDFSnow;
     
 };
 

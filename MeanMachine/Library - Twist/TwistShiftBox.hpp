@@ -14,8 +14,6 @@ class TwistShiftBox {
 public:
     static void             ShiftKeyBoxA(TwistWorkSpace *pWorkSpace);
     static void             ShiftKeyBoxB(TwistWorkSpace *pWorkSpace);
-    static void             ShiftMaskBoxA(TwistWorkSpace *pWorkSpace);
-    static void             ShiftMaskBoxB(TwistWorkSpace *pWorkSpace);
 };
 
 #endif /* TwistShiftBox_hpp */

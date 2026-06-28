@@ -29,14 +29,9 @@ struct SaltBehavior {
     int mOffset = -1;
 };
 
-struct NonceBehavior {
-    int mRotation = -1;
-};
-
 struct NonceSymbolChoice {
     GSymbol mSymbol;
     bool mPreferred = false;
-    bool mUseFullNonce = false;
 };
 
 class GAXPL {
@@ -45,14 +40,11 @@ public:
     bool                                                MakeSaltBehaviors(std::vector<SaltBehavior> *pResult,
                                                                           std::string *pErrorMessage) const;
     
-    bool                                                MakeNonceBehaviors(std::vector<NonceBehavior> *pResult,
-                                                                           std::string *pErrorMessage) const;
-    
-    
-    
     void                                                Reset();
     
-    bool                                                Bake(const GAXSKSkeleton *pSkeleton,
+    bool                                                Bake(int pOffsetRangeLo,
+                                                             int pOffsetRangeHi,
+                                                             const GAXSKSkeleton *pSkeleton,
                                                              const GAXPLSaltBag &pSaltBag,
                                                              const std::vector<GSymbol> &pNonceBytes,
                                                              const std::vector<GSymbol> &pSources,
@@ -147,6 +139,7 @@ public:
     
     GSymbol                                             mDest;
     bool                                                mDestWriteInverted;
+    GAssignType                                         mDestAssignType = GAssignType::kSet;
     
     std::unordered_map<GAXSKSourceKind, GSymbol>        mSourceMap;
     std::unordered_map<GAXSKNonceByteKind, GSymbol>     mNonceMap;
@@ -157,14 +150,16 @@ public:
     std::unordered_map<int, GExpr>                      mNonceExprMap;
     
     std::vector<SaltBehavior>                           mSaltBehaviors;
-    std::vector<NonceBehavior>                          mNonceBehaviors;
-    
-    
     std::vector<GSymbol>                                mPreferredNonceSymbols;
     std::vector<GSymbol>                                mFallbackNonceSymbols;
     std::vector<NonceSymbolChoice>                      mNonceChoices;
     
     bool                                                mUseFullNonce = false;
+    
+    
+    bool                                                mIsNonKDF = false;
+    TwistDomain                                         mDomain = TwistDomain::kInvalid;
+    
     
     bool                                                BuildNonceChoices(std::string *pErrorMessage);
     
@@ -180,17 +175,26 @@ public:
     
     bool                                                BuildNonceExprMapForRole(GAXSKSaltRole pRole,
                                                                                  int pNonceCount,
-                                                                                 int *pBehaviorIndex,
+                                                                                 int *pChoiceIndex,
                                                                                  std::string *pErrorMessage);
     
+    bool                                                BuildRandomNonceMixExpr(int pMinCount,
+                                                                                int pMaxCount,
+                                                                                GExpr *pResult,
+                                                                                std::string *pErrorMessage) const;
     
-    bool                                                GenerateStatements(std::string *pErrorMessage);
+    
+    bool                                                GenerateStatements(int pOffsetRangeLo,
+                                                                           int pOffsetRangeHi,
+                                                                           std::string *pErrorMessage);
     
     bool                                                GeneratePreviousAssignStatement(const GAXSKStatement &pStatement,
                                                                                         std::vector<GStatement> *pStatements,
                                                                                         std::string *pErrorMessage);
     
-    bool                                                GenerateContextWordStatement(const GAXSKStatement &pStatement,
+    bool                                                GenerateContextWordStatement(int pOffsetRangeLo,
+                                                                                     int pOffsetRangeHi,
+                                                                                     const GAXSKStatement &pStatement,
                                                                                      std::vector<GStatement> *pStatements,
                                                                                      std::string *pErrorMessage);
     
@@ -223,6 +227,8 @@ private:
     int                                                 GetWandererIndex(GAXSKVariable pVariable) const;
     int                                                 GetNonceByteIndex(GAXSKNonceByteKind pNonce) const;
     int                                                 GetSourceIndex(GAXSKSourceKind pSource) const;
+    
+    GSymbol                                             DomainWordSymbol(TwistConstants pConstant) const;
     
     bool                                                BuildSourceMap(std::string *pErrorMessage);
     bool                                                BuildNonceMap(std::string *pErrorMessage);

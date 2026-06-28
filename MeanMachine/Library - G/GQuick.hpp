@@ -90,9 +90,12 @@ public:
                                                                                   const GSymbol pIndex, const int pOffset);
     
     
-    static GStatement                               DiffuseAEqual(const GSymbol pSymbol);
-    static GStatement                               DiffuseBEqual(const GSymbol pSymbol);
-    static GStatement                               DiffuseCEqual(const GSymbol pSymbol);
+    static GStatement                               Diffuse64AEqual(const GSymbol pSymbol);
+    static GStatement                               Diffuse64BEqual(const GSymbol pSymbol);
+    static GStatement                               Diffuse64CEqual(const GSymbol pSymbol);
+    static GStatement                               Diffuse32AEqual(const GSymbol pSymbol);
+    static GStatement                               Diffuse32BEqual(const GSymbol pSymbol);
+    static GStatement                               Diffuse32CEqual(const GSymbol pSymbol);
     static GStatement                               MulEqual64(const GSymbol pSymbol, const std::uint64_t pAmount);
     static GStatement                               AddEqual64(const GSymbol pSymbol, const std::uint64_t pAmount);
     static GStatement                               XorEqual64(const GSymbol pSymbol, const std::uint64_t pAmount);

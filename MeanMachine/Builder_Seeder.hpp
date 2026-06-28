@@ -20,6 +20,10 @@ public:
     bool                                    Build(GTwistExpander *pExpander,
                                                   std::string *pErrorMessage);
     
+    bool                                    Build_PostKDF(GTwistExpander *pExpander,
+                                                  std::string *pErrorMessage);
+    
+    
     
     
 };

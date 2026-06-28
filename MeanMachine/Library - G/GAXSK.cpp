@@ -5,14 +5,12 @@
 //  Created by Nick Raptis on 5/18/26.
 //
 
-#include "GAXSK.hpp"
-#include "GAXSKModel.hpp"
-#include "GAXSKPool.hpp"
+#include "GAX.hpp"
+#include "GSeedProgram.hpp"
 #include "Random.hpp"
 #include "TwistArray.hpp"
 #include "GCache.hpp"
 #include <array>
-#include <span>
 
 namespace {
 
@@ -478,7 +476,7 @@ static int SizeForFormat(GAXSFormat pFormat) {
     }
 }
 
-static std::span<const GAXSKModelOrbiterRound> RoundsForFormatPass(GAXSFormat pFormat, int pPassIndex) {
+static std::vector<GAXSKModelOrbiterRound> RoundsForFormatPass(GAXSFormat pFormat, int pPassIndex) {
     switch (pFormat) {
         case GAXSFormat::kN5:
             return kOrbiterRounds5[pPassIndex % 6];
@@ -497,6 +495,26 @@ static std::span<const GAXSKModelOrbiterRound> RoundsForFormatPass(GAXSFormat pF
     }
 }
 
+}
+
+GAXSKSkeleton::GAXSKSkeleton()
+: mAssignType(GAssignType::kSet) {
+}
+
+bool GAXSKSkeleton::HasNonceSlots() const {
+    for (const GAXSKStatement &aStatement : mStatements) {
+        if (aStatement.mKind != GAXSKStatementKind::kContextWordAssign) {
+            continue;
+        }
+
+        for (const GAXSKInputSlot &aSlot : aStatement.mContextWord.mSlots) {
+            if (aSlot.mKind == GAXSKInputSlotKind::kNonceByte) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 GAXSK::GAXSK() {
@@ -776,37 +794,15 @@ void GAXSK::Reset() {
 
 GAXSKModel GAXSK::MakeModelForFormatPass(GAXSFormat pFormat,
                                           int pPassIndex) {
-    const auto aRounds = RoundsForFormatPass(pFormat, pPassIndex);
+    auto aRounds = RoundsForFormatPass(pFormat, pPassIndex);
+    
+    Random::Shuffle(&aRounds);
 
     if (aRounds.empty()) {
         return GAXSKModel();
     }
 
     return GAXSKModel::MakeOrbiterPlan(aRounds);
-}
-
-
-GAXSKSourceKind GAXSK::SourceForIndex(int pIndex) {
-    switch (pIndex) {
-        case 0: return GAXSKSourceKind::kSourceA;
-        case 1: return GAXSKSourceKind::kSourceB;
-        case 2: return GAXSKSourceKind::kSourceC;
-        case 3: return GAXSKSourceKind::kSourceD;
-        default: return GAXSKSourceKind::kInvalid;
-    }
-}
-
-GAXSKNonceByteKind GAXSK::NonceForIndex(int pIndex) {
-    switch (pIndex & 7) {
-        case 0: return GAXSKNonceByteKind::kNonceA;
-        case 1: return GAXSKNonceByteKind::kNonceB;
-        case 2: return GAXSKNonceByteKind::kNonceC;
-        case 3: return GAXSKNonceByteKind::kNonceD;
-        case 4: return GAXSKNonceByteKind::kNonceE;
-        case 5: return GAXSKNonceByteKind::kNonceF;
-        case 6: return GAXSKNonceByteKind::kNonceG;
-        default: return GAXSKNonceByteKind::kNonceH;
-    }
 }
 
 bool GAXSK::GetPassCount(int *pResult,
@@ -885,8 +881,8 @@ bool GAXSK::GetLaneCountForPass(int pPassIndex, int *pResult, std::string *pErro
         *pResult = mLaneCounts.back();
     }
 
-    if ((*pResult < 1) || (*pResult > 4)) {
-        SetError(pErrorMessage, "GAXSK::GetLaneCountForPass lane count must be 1, 2, 3, or 4");
+    if ((*pResult < 1) || (*pResult > 10)) {
+        SetError(pErrorMessage, "GAXSK::GetLaneCountForPass lane count must be between 1 and 10");
         return false;
     }
 
@@ -897,32 +893,6 @@ GAXSKStatement GAXSK::MakeCommentStatement() {
     GAXSKStatement aStatement;
     aStatement.mKind = GAXSKStatementKind::kComment;
     return aStatement;
-}
-
-GAXSKInputSlot GAXSK::MakeSourceSlot(GAXSKSourceKind pSource,
-                                     int pOffset,
-                                     bool pReverse,
-                                     int pRotation) {
-    GAXSKInputSlot aSlot;
-    aSlot.mKind = GAXSKInputSlotKind::kSource;
-    aSlot.mSource = pSource;
-    aSlot.mNonceByte = GAXSKNonceByteKind::kInvalid;
-    aSlot.mOffset = pOffset;
-    aSlot.mReverse = pReverse;
-    aSlot.mRotation = pRotation;
-    return aSlot;
-}
-
-GAXSKInputSlot GAXSK::MakeNonceSlot(GAXSKNonceByteKind pNonce,
-                                    int pRotation) {
-    GAXSKInputSlot aSlot;
-    aSlot.mKind = GAXSKInputSlotKind::kNonceByte;
-    aSlot.mSource = GAXSKSourceKind::kInvalid;
-    aSlot.mNonceByte = pNonce;
-    aSlot.mOffset = 0;
-    aSlot.mReverse = false;
-    aSlot.mRotation = pRotation;
-    return aSlot;
 }
 
 GAXSKStatement GAXSK::MakePreviousAssignStatement() {
@@ -1315,8 +1285,8 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
         return false;
     }
     
-    if ((pLaneCount < 1) || (pLaneCount > 4)) {
-        SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount lane count must be 1, 2, 3, or 4");
+    if ((pLaneCount < 1) || (pLaneCount > 10)) {
+        SetError(pErrorMessage, "GAXSK::BuildSkeletonForLaneCount lane count must be between 1 and 10");
         return false;
     }
     
@@ -1375,11 +1345,6 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
         return false;
     }
     
-    
-    
-    
-    
-
     return true;
 }
 
@@ -1667,8 +1632,28 @@ bool GAXSK::FinishModelStatements(const GAXSKModel &pModel,
 }
 
 bool GAXSK::Bake(GAXSFormat pFormat,
+                 bool pIgnoreNonces,
                  std::vector<int> pLaneCounts,
                  bool pHasDomainMix,
+                 GAssignType pAssignType,
+                 std::vector<GAXSKSkeleton> *pResult,
+                 std::string *pErrorMessage) {
+    return Bake(pFormat,
+                pIgnoreNonces,
+                pLaneCounts,
+                {},
+                pHasDomainMix,
+                pAssignType,
+                pResult,
+                pErrorMessage);
+}
+
+bool GAXSK::Bake(GAXSFormat pFormat,
+                 bool pIgnoreNonces,
+                 std::vector<int> pLaneCounts,
+                 std::vector<GAXSKSourceLayout> pSourceLayouts,
+                 bool pHasDomainMix,
+                 GAssignType pAssignType,
                  std::vector<GAXSKSkeleton> *pResult,
                  std::string *pErrorMessage) {
     Reset();
@@ -1680,20 +1665,30 @@ bool GAXSK::Bake(GAXSFormat pFormat,
 
     pResult->clear();
 
+    if ((pAssignType != GAssignType::kSet) &&
+        (pAssignType != GAssignType::kXorAssign)) {
+        SetError(pErrorMessage, "GAXSK::Bake supports only kSet and kXorAssign destination modes");
+        return false;
+    }
+
     mFormat = pFormat;
     mHasDomainMix = pHasDomainMix;
     mLaneCounts = pLaneCounts;
 
-    int aPassCount = 0;
-    if (!GetPassCount(&aPassCount, pErrorMessage)) {
+    int aFormatPassCount = 0;
+    if (!GetPassCount(&aFormatPassCount, pErrorMessage)) {
         return false;
     }
 
-    if (aPassCount >= 8) {
+    if (aFormatPassCount >= 8) {
         SetError(pErrorMessage,
-                 std::string("GAXSK::Bake invalid pass count: ") + std::to_string(aPassCount));
+                 std::string("GAXSK::Bake invalid pass count: ") + std::to_string(aFormatPassCount));
         return false;
     }
+
+    const int aPassCount = pSourceLayouts.empty()
+        ? aFormatPassCount
+        : static_cast<int>(pSourceLayouts.size());
 
     mPools.reserve(static_cast<std::size_t>(aPassCount));
     for (int aPoolIndex = 0; aPoolIndex < aPassCount; aPoolIndex++) {
@@ -1719,10 +1714,13 @@ bool GAXSK::Bake(GAXSFormat pFormat,
         }
         
         mPools[aPassIndex]->SetSourceCount(aLaneCount);
+        if (static_cast<std::size_t>(aPassIndex) < pSourceLayouts.size()) {
+            mPools[aPassIndex]->SetSourceLayout(pSourceLayouts[static_cast<std::size_t>(aPassIndex)]);
+        }
         mPools[aPassIndex]->SetOrbiterCount(aOrbiterCount);
         mPools[aPassIndex]->SetWandererCount(aWandererCount);
         
-        if (!mPools[aPassIndex]->FinalizeCounts(pErrorMessage)) {
+        if (!mPools[aPassIndex]->FinalizeCounts(pIgnoreNonces, pErrorMessage)) {
             return false;
         }
         
@@ -1736,6 +1734,8 @@ bool GAXSK::Bake(GAXSFormat pFormat,
             pResult->clear();
             return false;
         }
+
+        aSkeleton.mAssignType = pAssignType;
 
         pResult->push_back(aSkeleton);
     }

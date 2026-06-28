@@ -26,6 +26,7 @@ struct GRunMatrixDiffusionConfig {
     GSymbol                                 mOperationSourceA;
     GSymbol                                 mOperationSourceB;
     
+    bool                                    mUseDomainWords = true;
 };
 
 class GRunMatrixDiffusion {

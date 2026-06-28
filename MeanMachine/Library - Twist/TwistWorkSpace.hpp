@@ -11,8 +11,6 @@
 
 #define S_BLOCK 32768 // 4,096 // 2,048
 
-#define S_SBOX 256
-
 #define S_SALT 32
 #define S_SALT_DIVIDE_BITSHIFT 5
 
@@ -20,25 +18,10 @@
 #define S_SBOX1 255
 #define S_SALT1 31
 
-#define W_KEY_A 512
-#define W_KEY_A1 511
-#define H_KEY_A 8
-#define S_KEY_A (W_KEY_A * H_KEY_A)
-
-#define W_KEY_B 1024
-#define W_KEY_1 1023
-#define H_KEY_B 4
-#define S_KEY_B (W_KEY_B * H_KEY_B)
-
-#define W_MASK_A 512
-#define W_MASK_A1 511
-#define H_MASK_A 8
-#define S_MASK_A (W_MASK_A * H_MASK_A)
-
-#define W_MASK_B 512
-#define W_MASK_B1 511
-#define H_MASK_B 8
-#define S_MASK_B (W_MASK_B * H_MASK_B)
+#define W_KEY 2048
+#define W_KEY1 2047
+#define H_KEY 8
+#define S_KEY (W_KEY * H_KEY)
 
 class TwistExpander;
 
@@ -48,6 +31,10 @@ enum class TwistDomain : std::uint8_t {
     kPhaseB,
     kPhaseC,
     kPhaseD,
+    kPhaseE,
+    kPhaseF,
+    kPhaseG,
+    kPhaseH,
 };
 
 enum class TwistWorkSpaceSlot : std::uint16_t;
@@ -95,6 +82,7 @@ struct TwistBufferKey {
     static TwistBufferKey                    Salt(TwistSaltOwner pOwner,
                                                   TwistDomain pDomain,
                                                   TwistWorkSpaceSlot pSlot);
+    
     static TwistBufferKey                    Constants(TwistSaltOwner pOwner,
                                                        TwistDomain pDomain);
 
@@ -107,8 +95,10 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     
     kInvalid=255,
     
-    kSource=0, // size is N * S_BLOCK. To fetch from here is different, because it includes an offset. So we wrap into [offset...offset+S_BLOCK)
-    kDest=1, // size is N * S_BLOCK To write to here is different, because it includes an offset. So we wrap into [offset...offset+S_BLOCK)
+    kSource=0, // workspace-owned source block
+    kParamSource=2,
+    kParamDestination=3,
+    kParamSnow=4,
     
     kExpansionLaneA=80,
     kExpansionLaneB=81,
@@ -130,7 +120,19 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kSnowLaneC=108,
     kSnowLaneD=109,
 
-    kSnow=112,
+    kFireLaneA=110,
+    kFireLaneB=111,
+    kFireLaneC=112,
+    kFireLaneD=113,
+
+    kInvestA=130,
+    kInvestB=131,
+    kInvestC=132,
+    kInvestD=133,
+    kInvestE=134,
+    kInvestF=135,
+    kInvestG=136,
+    kInvestH=137,
     
     
     // These are confusing.
@@ -139,20 +141,13 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     // 3.) Before writing, we Shift, evicting last row and duplicating first row
     // 4.) We "write", after a twist, from "kKeyRowWriteA" or "kKeyRowWriteB", which is the 'first row'.
     
-    kKeyBoxUnrolledA=120, // size is S_KEY_A
-    kKeyBoxUnrolledB=121, // size is S_KEY_B
-    kKeyRowReadA=122, // size is W_KEY_A
-    kKeyRowReadB=123, // size is W_KEY_B
-    kKeyRowWriteA=124, // size is S_KEY_A
-    kKeyRowWriteB=125, // size is S_KEY_B
+    kKeyBoxUnrolledA=120, // size is S_KEY
+    kKeyBoxUnrolledB=121, // size is S_KEY
+    kKeyRowReadA=122, // size is W_KEY
+    kKeyRowReadB=123, // size is W_KEY
+    kKeyRowWriteA=124, // size is W_KEY
+    kKeyRowWriteB=125, // size is W_KEY
 
-    kMaskBoxUnrolledA=130, // size is S_MASK_A
-    kMaskBoxUnrolledB=131, // size is S_MASK_B
-    kMaskRowReadA=132, // size is W_MASK_A
-    kMaskRowReadB=133, // size is W_MASK_B
-    kMaskRowWriteA=134, // size is S_MASK_A
-    kMaskRowWriteB=135, // size is S_MASK_B
-    
     kParamDomainSaltOrbiterAssignA=170,
     kParamDomainSaltOrbiterAssignB=171,
     kParamDomainSaltOrbiterAssignC=172,
@@ -178,6 +173,158 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kIndexList256B=191,
     kIndexList256C=192,
     kIndexList256D=193,
+
+    kPhaseASaltOrbiterAssignA=300,
+    kPhaseASaltOrbiterAssignB,
+    kPhaseASaltOrbiterAssignC,
+    kPhaseASaltOrbiterAssignD,
+    kPhaseASaltOrbiterAssignE,
+    kPhaseASaltOrbiterAssignF,
+    kPhaseASaltOrbiterUpdateA,
+    kPhaseASaltOrbiterUpdateB,
+    kPhaseASaltOrbiterUpdateC,
+    kPhaseASaltOrbiterUpdateD,
+    kPhaseASaltOrbiterUpdateE,
+    kPhaseASaltOrbiterUpdateF,
+    kPhaseASaltWandererUpdateA,
+    kPhaseASaltWandererUpdateB,
+    kPhaseASaltWandererUpdateC,
+    kPhaseASaltWandererUpdateD,
+    kPhaseASaltWandererUpdateE,
+    kPhaseASaltWandererUpdateF,
+
+    kPhaseBSaltOrbiterAssignA=318,
+    kPhaseBSaltOrbiterAssignB,
+    kPhaseBSaltOrbiterAssignC,
+    kPhaseBSaltOrbiterAssignD,
+    kPhaseBSaltOrbiterAssignE,
+    kPhaseBSaltOrbiterAssignF,
+    kPhaseBSaltOrbiterUpdateA,
+    kPhaseBSaltOrbiterUpdateB,
+    kPhaseBSaltOrbiterUpdateC,
+    kPhaseBSaltOrbiterUpdateD,
+    kPhaseBSaltOrbiterUpdateE,
+    kPhaseBSaltOrbiterUpdateF,
+    kPhaseBSaltWandererUpdateA,
+    kPhaseBSaltWandererUpdateB,
+    kPhaseBSaltWandererUpdateC,
+    kPhaseBSaltWandererUpdateD,
+    kPhaseBSaltWandererUpdateE,
+    kPhaseBSaltWandererUpdateF,
+
+    kPhaseCSaltOrbiterAssignA=336,
+    kPhaseCSaltOrbiterAssignB,
+    kPhaseCSaltOrbiterAssignC,
+    kPhaseCSaltOrbiterAssignD,
+    kPhaseCSaltOrbiterAssignE,
+    kPhaseCSaltOrbiterAssignF,
+    kPhaseCSaltOrbiterUpdateA,
+    kPhaseCSaltOrbiterUpdateB,
+    kPhaseCSaltOrbiterUpdateC,
+    kPhaseCSaltOrbiterUpdateD,
+    kPhaseCSaltOrbiterUpdateE,
+    kPhaseCSaltOrbiterUpdateF,
+    kPhaseCSaltWandererUpdateA,
+    kPhaseCSaltWandererUpdateB,
+    kPhaseCSaltWandererUpdateC,
+    kPhaseCSaltWandererUpdateD,
+    kPhaseCSaltWandererUpdateE,
+    kPhaseCSaltWandererUpdateF,
+
+    kPhaseDSaltOrbiterAssignA=354,
+    kPhaseDSaltOrbiterAssignB,
+    kPhaseDSaltOrbiterAssignC,
+    kPhaseDSaltOrbiterAssignD,
+    kPhaseDSaltOrbiterAssignE,
+    kPhaseDSaltOrbiterAssignF,
+    kPhaseDSaltOrbiterUpdateA,
+    kPhaseDSaltOrbiterUpdateB,
+    kPhaseDSaltOrbiterUpdateC,
+    kPhaseDSaltOrbiterUpdateD,
+    kPhaseDSaltOrbiterUpdateE,
+    kPhaseDSaltOrbiterUpdateF,
+    kPhaseDSaltWandererUpdateA,
+    kPhaseDSaltWandererUpdateB,
+    kPhaseDSaltWandererUpdateC,
+    kPhaseDSaltWandererUpdateD,
+    kPhaseDSaltWandererUpdateE,
+    kPhaseDSaltWandererUpdateF,
+
+    kPhaseESaltOrbiterAssignA=372,
+    kPhaseESaltOrbiterAssignB,
+    kPhaseESaltOrbiterAssignC,
+    kPhaseESaltOrbiterAssignD,
+    kPhaseESaltOrbiterAssignE,
+    kPhaseESaltOrbiterAssignF,
+    kPhaseESaltOrbiterUpdateA,
+    kPhaseESaltOrbiterUpdateB,
+    kPhaseESaltOrbiterUpdateC,
+    kPhaseESaltOrbiterUpdateD,
+    kPhaseESaltOrbiterUpdateE,
+    kPhaseESaltOrbiterUpdateF,
+    kPhaseESaltWandererUpdateA,
+    kPhaseESaltWandererUpdateB,
+    kPhaseESaltWandererUpdateC,
+    kPhaseESaltWandererUpdateD,
+    kPhaseESaltWandererUpdateE,
+    kPhaseESaltWandererUpdateF,
+
+    kPhaseFSaltOrbiterAssignA=390,
+    kPhaseFSaltOrbiterAssignB,
+    kPhaseFSaltOrbiterAssignC,
+    kPhaseFSaltOrbiterAssignD,
+    kPhaseFSaltOrbiterAssignE,
+    kPhaseFSaltOrbiterAssignF,
+    kPhaseFSaltOrbiterUpdateA,
+    kPhaseFSaltOrbiterUpdateB,
+    kPhaseFSaltOrbiterUpdateC,
+    kPhaseFSaltOrbiterUpdateD,
+    kPhaseFSaltOrbiterUpdateE,
+    kPhaseFSaltOrbiterUpdateF,
+    kPhaseFSaltWandererUpdateA,
+    kPhaseFSaltWandererUpdateB,
+    kPhaseFSaltWandererUpdateC,
+    kPhaseFSaltWandererUpdateD,
+    kPhaseFSaltWandererUpdateE,
+    kPhaseFSaltWandererUpdateF,
+
+    kPhaseGSaltOrbiterAssignA=408,
+    kPhaseGSaltOrbiterAssignB,
+    kPhaseGSaltOrbiterAssignC,
+    kPhaseGSaltOrbiterAssignD,
+    kPhaseGSaltOrbiterAssignE,
+    kPhaseGSaltOrbiterAssignF,
+    kPhaseGSaltOrbiterUpdateA,
+    kPhaseGSaltOrbiterUpdateB,
+    kPhaseGSaltOrbiterUpdateC,
+    kPhaseGSaltOrbiterUpdateD,
+    kPhaseGSaltOrbiterUpdateE,
+    kPhaseGSaltOrbiterUpdateF,
+    kPhaseGSaltWandererUpdateA,
+    kPhaseGSaltWandererUpdateB,
+    kPhaseGSaltWandererUpdateC,
+    kPhaseGSaltWandererUpdateD,
+    kPhaseGSaltWandererUpdateE,
+    kPhaseGSaltWandererUpdateF,
+
+    kPhaseHSaltOrbiterAssignA=426,
+    kPhaseHSaltOrbiterAssignB,
+    kPhaseHSaltOrbiterAssignC,
+    kPhaseHSaltOrbiterAssignD,
+    kPhaseHSaltOrbiterAssignE,
+    kPhaseHSaltOrbiterAssignF,
+    kPhaseHSaltOrbiterUpdateA,
+    kPhaseHSaltOrbiterUpdateB,
+    kPhaseHSaltOrbiterUpdateC,
+    kPhaseHSaltOrbiterUpdateD,
+    kPhaseHSaltOrbiterUpdateE,
+    kPhaseHSaltOrbiterUpdateF,
+    kPhaseHSaltWandererUpdateA,
+    kPhaseHSaltWandererUpdateB,
+    kPhaseHSaltWandererUpdateC,
+    kPhaseHSaltWandererUpdateD,
+    kPhaseHSaltWandererUpdateE,
+    kPhaseHSaltWandererUpdateF,
     
 };
 
@@ -206,6 +353,15 @@ public:
     std::uint8_t                            mMaskMutateA;
     std::uint8_t                            mMaskMutateB;
     
+    void                                    Zero() {
+        mIngress = 0; mScatter = 0; mCross = 0;
+        mDomainConstantPublicIngress = 0; mDomainConstantPrivateIngress = 0; mDomainConstantCrossIngress = 0;
+        mMatrixSelectA = 0; mMatrixSelectB = 0;
+        mMatrixUnrollA = 0; mMatrixUnrollB = 0;
+        mMatrixArgA = 0; mMatrixArgB = 0; mMatrixArgC = 0; mMatrixArgD = 0;
+        mMaskMutateA = 0; mMaskMutateB = 0;
+    }
+    
 };
 
 struct TwistDomainSeedRoundMaterial {
@@ -217,6 +373,15 @@ public:
     std::uint64_t                           mSaltE[S_SALT];
     std::uint64_t                           mSaltF[S_SALT];
     
+    void                                    Zero() {
+        memset(mSaltA, 0, sizeof(mSaltA));
+        memset(mSaltB, 0, sizeof(mSaltB));
+        memset(mSaltC, 0, sizeof(mSaltC));
+        memset(mSaltD, 0, sizeof(mSaltD));
+        memset(mSaltE, 0, sizeof(mSaltE));
+        memset(mSaltF, 0, sizeof(mSaltF));
+    }
+    
 };
 
 class TwistDomainSaltSet {
@@ -224,6 +389,12 @@ public:
     TwistDomainSeedRoundMaterial            mOrbiterAssign;
     TwistDomainSeedRoundMaterial            mOrbiterUpdate;
     TwistDomainSeedRoundMaterial            mWandererUpdate;
+    
+    void                                    Zero() {
+        mOrbiterAssign.Zero();
+        mOrbiterUpdate.Zero();
+        mWandererUpdate.Zero();
+    }
     
 };
 
@@ -240,6 +411,46 @@ public:
 
     TwistDomainSaltSet                      mPhaseDSalts;
     TwistDomainConstants                    mPhaseDConstants;
+
+    TwistDomainSaltSet                      mPhaseESalts;
+    TwistDomainConstants                    mPhaseEConstants;
+
+    TwistDomainSaltSet                      mPhaseFSalts;
+    TwistDomainConstants                    mPhaseFConstants;
+
+    TwistDomainSaltSet                      mPhaseGSalts;
+    TwistDomainConstants                    mPhaseGConstants;
+
+    TwistDomainSaltSet                      mPhaseHSalts;
+    TwistDomainConstants                    mPhaseHConstants;
+    
+    void                                    Zero() {
+        mPhaseASalts.Zero();
+        mPhaseAConstants.Zero();
+        
+        mPhaseBSalts.Zero();
+        mPhaseBConstants.Zero();
+
+        mPhaseCSalts.Zero();
+        mPhaseCConstants.Zero();
+
+        mPhaseDSalts.Zero();
+        mPhaseDConstants.Zero();
+
+        mPhaseESalts.Zero();
+        mPhaseEConstants.Zero();
+
+        mPhaseFSalts.Zero();
+        mPhaseFConstants.Zero();
+
+        mPhaseGSalts.Zero();
+        mPhaseGConstants.Zero();
+
+        mPhaseHSalts.Zero();
+        mPhaseHConstants.Zero();
+        
+    }
+    
 };
 
 
@@ -248,10 +459,10 @@ class TwistWorkSpace {
 public:
     TwistWorkSpace();
 
-    uint8_t                                 mKeyBoxA[H_KEY_A][W_KEY_A];
-    uint8_t                                 mKeyBoxB[H_KEY_B][W_KEY_B];
-    uint8_t                                 mMaskBoxA[H_MASK_A][W_MASK_A];
-    uint8_t                                 mMaskBoxB[H_MASK_B][W_MASK_B];
+    uint8_t                                 mKeyBoxA[H_KEY][W_KEY];
+    uint8_t                                 mKeyBoxB[H_KEY][W_KEY];
+
+    std::uint8_t                            mSource[S_BLOCK];
 
     std::uint8_t                            mExpansionLaneA[S_BLOCK];
     std::uint8_t                            mExpansionLaneB[S_BLOCK];
@@ -272,14 +483,29 @@ public:
     std::uint8_t                            mSnowLaneB[S_BLOCK];
     std::uint8_t                            mSnowLaneC[S_BLOCK];
     std::uint8_t                            mSnowLaneD[S_BLOCK];
+    
+    
+    std::uint8_t                            mFireLaneA[S_BLOCK];
+    std::uint8_t                            mFireLaneB[S_BLOCK];
+    std::uint8_t                            mFireLaneC[S_BLOCK];
+    std::uint8_t                            mFireLaneD[S_BLOCK];
+    
+    std::uint8_t                            mInvestLaneA[S_BLOCK];
+    std::uint8_t                            mInvestLaneB[S_BLOCK];
+    std::uint8_t                            mInvestLaneC[S_BLOCK];
+    std::uint8_t                            mInvestLaneD[S_BLOCK];
 
+    std::uint8_t                            mInvestLaneE[S_BLOCK];
+    std::uint8_t                            mInvestLaneF[S_BLOCK];
+    std::uint8_t                            mInvestLaneG[S_BLOCK];
+    std::uint8_t                            mInvestLaneH[S_BLOCK];
+    
+    
     TwistDomainBundle                       mDomainBundle;
     
     // Rotate stays byte-wide across the workspace helpers.
     static void                             ShiftKeyBoxA(std::uint8_t *pBox); //
     static void                             ShiftKeyBoxB(std::uint8_t *pBox); //
-    static void                             ShiftMaskBoxA(std::uint8_t *pBox); //
-    static void                             ShiftMaskBoxB(std::uint8_t *pBox); //
     
     static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkSpace,
                                                        TwistExpander *pExpander,
@@ -291,14 +517,15 @@ public:
                                                        TwistBufferKey pKey);
     static std::uint8_t                     *GetBuffer(TwistWorkSpace *pWorkSpace,
                                                        TwistBufferKey pKey);
-    static bool                             TryLegacySlotToBufferKey(TwistWorkSpaceSlot pSlot,
-                                                                     TwistBufferKey *pKeyOut);
     
     static int                              GetBufferLength(TwistWorkSpaceSlot pSlot); //
     static int                              GetBufferLength(TwistBufferKey pKey);
     
     static bool                             IsSalt(TwistWorkSpaceSlot pSlot);
     static bool                             IsSalt(TwistBufferKey pKey);
+    
+    void                                    Zero_PostSeed();
+    void                                    Zero();
     
 };
 

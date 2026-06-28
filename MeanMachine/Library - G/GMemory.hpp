@@ -22,8 +22,20 @@ public:
                   std::uint32_t pLength,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) const {
-        (void)pLength;
-        return BakeZero(pSource, pStatements, pErrorMessage);
+        if (pStatements == nullptr) {
+            SetError(pErrorMessage, "GMemory output statement list was null.");
+            return false;
+        }
+        if (!pSource.IsBuf()) {
+            SetError(pErrorMessage, "GMemory source must be a buffer symbol.");
+            return false;
+        }
+
+        const std::string aLine = "TwistMemory::Zero(" +
+            BufAliasName(pSource.mSlot) + ", " +
+            std::to_string(pLength) + "U);";
+        pStatements->push_back(GStatement::RawLine(aLine));
+        return true;
     }
     
     bool Bake(GSymbol pSource,
@@ -44,18 +56,6 @@ public:
         return BakeZeroCall("ZeroKeyBoxB", pSource, pStatements, pErrorMessage);
     }
 
-    bool BakeZeroMaskBoxA(GSymbol pSource,
-                          std::vector<GStatement> *pStatements,
-                          std::string *pErrorMessage) const {
-        return BakeZeroCall("ZeroMaskBoxA", pSource, pStatements, pErrorMessage);
-    }
-
-    bool BakeZeroMaskBoxB(GSymbol pSource,
-                          std::vector<GStatement> *pStatements,
-                          std::string *pErrorMessage) const {
-        return BakeZeroCall("ZeroMaskBoxB", pSource, pStatements, pErrorMessage);
-    }
-    
     bool BakeCopy(GSymbol pDest,
                   GSymbol pSource,
                   std::vector<GStatement> *pStatements,

@@ -23,16 +23,25 @@ public:
     void                                    Clear();
     
     bool                                    BakeDispatch(GSymbol pOperation,
-                                                         GExpr pOperationIndex,
+                                                         GSymbol pOperationIndex,
                                                          GSymbol pSource,
-                                                         GExpr pSourceIndex,
+                                                         GSymbol pSourceIndex,
                                                          GSymbol pDestination,
-                                                         GExpr pDestinationIndex,
-                                                         GExpr pUnrollDomainWord,
-                                                         GExpr pArgADomainWord,
-                                                         GExpr pArgBDomainWord,
-                                                         GExpr pArgCDomainWord,
-                                                         GExpr pArgDDomainWord,
+                                                         GSymbol pDestinationIndex,                                                         
+                                                         std::vector<GStatement> *pStatements,
+                                                         std::string *pErrorMessage);
+    
+    bool                                    BakeDispatch(GSymbol pOperation,
+                                                         GSymbol pOperationIndex,
+                                                         GSymbol pSource,
+                                                         GSymbol pSourceIndex,
+                                                         GSymbol pDestination,
+                                                         GSymbol pDestinationIndex,
+                                                         GSymbol pUnrollDomainWord,
+                                                         GSymbol pArgADomainWord,
+                                                         GSymbol pArgBDomainWord,
+                                                         GSymbol pArgCDomainWord,
+                                                         GSymbol pArgDDomainWord,
                                                          
                                                          std::vector<GStatement> *pStatements,
                                                          std::string *pErrorMessage);

@@ -6,10 +6,9 @@
 //
 
 #include "GRunMatrixDiffusion.hpp"
-#include "GIndexShuffle.hpp"
-#include "GM88.hpp"
-#include "GQuick.hpp"
 
+#include <sstream>
+#include <vector>
 
 namespace {
 
@@ -57,140 +56,53 @@ bool GRunMatrixDiffusion::Bake(const GRunMatrixDiffusionConfig &pConfig,
     const GSymbol aIndexListB = BufSymbol(TwistWorkSpaceSlot::kIndexList256B);
     const GSymbol aIndexListC = BufSymbol(TwistWorkSpaceSlot::kIndexList256C);
     const GSymbol aIndexListD = BufSymbol(TwistWorkSpaceSlot::kIndexList256D);
-    
-    const GSymbol aLoopIndex = VarSymbol("aMatrixDiffusionIndex");
-    const GSymbol aWriteIndex = VarSymbol("aMatrixWriteIndex");
-    const GSymbol aSlotA = VarSymbol("aMatrixSlotA");
-    const GSymbol aSlotB = VarSymbol("aMatrixSlotB");
-    const GSymbol aLoadIndexA = VarSymbol("aMatrixLoadIndexA");
-    const GSymbol aLoadIndexB = VarSymbol("aMatrixLoadIndexB");
-    
-    
+
     std::vector<GStatement> aStatements;
-    if (!GIndexShuffle::BakeA(aIndexListA, pConfig.mShuffleEntropyA, &aStatements, pErrorMessage)) {
-        return false;
-    }
-    if (!GIndexShuffle::BakeA(aIndexListB, pConfig.mShuffleEntropyB, &aStatements, pErrorMessage)) {
-        return false;
-    }
-    if (!GIndexShuffle::BakeB(aIndexListC, pConfig.mShuffleEntropyA, &aStatements, pErrorMessage)) {
-        return false;
-    }
-    if (!GIndexShuffle::BakeB(aIndexListD, pConfig.mShuffleEntropyB, &aStatements, pErrorMessage)) {
-        return false;
-    }
-    aStatements.push_back(GQuick::MakeAssignVariableStatement(aWriteIndex, GExpr::Const64(0ULL)));
-    pBatch->CommitStatements(&aStatements);
-    
-    auto BakeSingleLoop = [&](const GSymbol pIndexListLeft,
-                              const GSymbol pIndexListRight,
-                              const GSymbol pOutputBuffer,
-                              const GSymbol pOperationSource,
-                              const GSymbol pUnrollDomainWord,
-                              const int pInputOffsetA,
-                              const int pInputOffsetB,
-                              const int pOutputOffsetA,
-                              const int pOutputOffsetB) -> bool {
-        
-        GLoop aLoop;
-        aLoop.mLoopVariable = aLoopIndex;
-        aLoop.mLoopVariableName = aLoopIndex.mName;
-        aLoop.mLoopBegin = 0;
-        aLoop.mLoopEndText = "256";
-        aLoop.mLoopStep = 1;
-        
-        aLoop.AddBody(GQuick::MakeAssignVariableStatement(
-                                                          aSlotA,
-                                                          GQuick::MakeReadBufferOffsetExpression(pIndexListLeft, aLoopIndex, 0U)));
-        aLoop.AddBody(GQuick::MakeAssignVariableStatement(
-                                                          aSlotB,
-                                                          GQuick::MakeReadBufferOffsetExpression(pIndexListRight, aLoopIndex, 0U)));
-        
-        aLoop.AddBody(GQuick::MakeAssignVariableStatement(
-                                                          aLoadIndexA,
-                                                          GExpr::Add(
-                                                                     GExpr::Mul(GExpr::Symbol(aSlotA), GExpr::Const64(128ULL)),
-                                                                     GExpr::Const64(static_cast<std::uint64_t>(pInputOffsetA)))));
-        aLoop.AddBody(GQuick::MakeAssignVariableStatement(
-                                                          aLoadIndexB,
-                                                          GExpr::Add(
-                                                                     GExpr::Mul(GExpr::Symbol(aSlotB), GExpr::Const64(128ULL)),
-                                                                     GExpr::Const64(static_cast<std::uint64_t>(pInputOffsetB)))));
-        
-        std::vector<GStatement> aSharedStatements;
-        GM88 aMatrix;
-        const GExpr aDispatchIndexA = GExpr::Add(GExpr::Symbol(aWriteIndex),
-                                                 GExpr::Const64(static_cast<std::uint64_t>(pOutputOffsetA)));
-        const GExpr aDispatchIndexB = GExpr::Add(GExpr::Symbol(aWriteIndex),
-                                                 GExpr::Const64(static_cast<std::uint64_t>(pOutputOffsetB)));
-        const GExpr aArgDomainWordA = GExpr::Symbol(GSymbol::Var(TwistVariable::kDomainWordMatrixArgA));
-        const GExpr aArgDomainWordB = GExpr::Symbol(GSymbol::Var(TwistVariable::kDomainWordMatrixArgB));
-        const GExpr aArgDomainWordC = GExpr::Symbol(GSymbol::Var(TwistVariable::kDomainWordMatrixArgC));
-        const GExpr aArgDomainWordD = GExpr::Symbol(GSymbol::Var(TwistVariable::kDomainWordMatrixArgD));
-        if (!aMatrix.BakeDispatch(pOperationSource,
-                                  aDispatchIndexA,
-                                  pConfig.mInputA,
-                                  GExpr::Symbol(aLoadIndexA),
-                                  pOutputBuffer,
-                                  aDispatchIndexA,
-                                  GExpr::Symbol(pUnrollDomainWord),
-                                  aArgDomainWordA,
-                                  aArgDomainWordB,
-                                  aArgDomainWordC,
-                                  aArgDomainWordD,
-                                  &aSharedStatements,
-                                  pErrorMessage)) {
-            return false;
-        }
 
-        if (!aMatrix.BakeDispatch(pOperationSource,
-                                  aDispatchIndexB,
-                                  pConfig.mInputB,
-                                  GExpr::Symbol(aLoadIndexB),
-                                  pOutputBuffer,
-                                  aDispatchIndexB,
-                                  GExpr::Symbol(pUnrollDomainWord),
-                                  aArgDomainWordA,
-                                  aArgDomainWordB,
-                                  aArgDomainWordC,
-                                  aArgDomainWordD,
-                                  &aSharedStatements,
-                                  pErrorMessage)) {
-            return false;
-        }
-
-        aSharedStatements.push_back(GQuick::AddEqual64(aWriteIndex, 128ULL));
-        aLoop.AddBody(&aSharedStatements);
-        pBatch->CommitLoop(&aLoop);
-        return true;
-    };
-    
-    if (!BakeSingleLoop(aIndexListA,
-                        aIndexListB,
-                        pConfig.mOutputA,
-                        pConfig.mOperationSourceA,
-                        GSymbol::Var(TwistVariable::kDomainWordMatrixUnrollA),
-                        0,
-                        64,
-                        0,
-                        64)) {
-        return false;
+    std::ostringstream aCall;
+    aCall << "TwistDiffuse::";
+    if (pConfig.mUseDomainWords) {
+        aCall << "DiffuseWithDomainWords(";
+    } else {
+        aCall << "Diffuse(";
     }
-    
-    aStatements.clear();
-    aStatements.push_back(GQuick::MakeAssignVariableStatement(aWriteIndex, GExpr::Const64(0ULL)));
+    aCall << BufAliasName(pConfig.mInputA) << ", "
+          << BufAliasName(pConfig.mInputB) << ",  // input lanes\n"
+          << "                     "
+          << BufAliasName(pConfig.mOutputA) << ", "
+          << BufAliasName(pConfig.mOutputB) << ", // output lanes\n"
+          << "                     "
+          << BufAliasName(pConfig.mShuffleEntropyA) << ", "
+          << BufAliasName(pConfig.mShuffleEntropyB) << ", // index shuffle seeds\n"
+          << "                     "
+          << BufAliasName(pConfig.mOperationSourceA) << ", "
+          << BufAliasName(pConfig.mOperationSourceB) << ", // operation seeds\n"
+          << "                     "
+          << BufAliasName(aIndexListA) << ", "
+          << BufAliasName(aIndexListB) << ", "
+          << BufAliasName(aIndexListC) << ", "
+          << BufAliasName(aIndexListD) << ",\n"
+          << "                     &mMatrix";
+    if (pConfig.mUseDomainWords) {
+        aCall << ",\n"
+              << "                     "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixSelectA).mName << ", "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixSelectB).mName << ", "
+              << "// matrix select\n"
+              << "                     "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixUnrollA).mName << ", "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixUnrollB).mName << ", "
+              << "// matrix unroll\n"
+              << "                     "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixArgA).mName << ", "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixArgB).mName << ", "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixArgC).mName << ", "
+              << GSymbol::Var(TwistVariable::kDomainWordMatrixArgD).mName
+              << "); // matrix args";
+    } else {
+        aCall << ");";
+    }
+    aStatements.push_back(GStatement::RawLine(aCall.str()));
     pBatch->CommitStatements(&aStatements);
-    
-    if (!BakeSingleLoop(aIndexListC,
-                        aIndexListD,
-                        pConfig.mOutputB,
-                        pConfig.mOperationSourceB,
-                        GSymbol::Var(TwistVariable::kDomainWordMatrixUnrollB),
-                        64,
-                        0,
-                        64,
-                        0)) {
-        return false;
-    }
     return true;
 }

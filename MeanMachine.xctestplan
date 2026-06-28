@@ -1,0 +1,46 @@
+{
+  "configurations" : [
+    {
+      "id" : "2B3BC219-A599-4AC7-BD69-44CEE18C4B74",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:MeanMachine.xcodeproj",
+      "identifier" : "77BAB0812F9707320006BE6E",
+      "name" : "MeanMachine"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:MeanMachine.xcodeproj",
+        "identifier" : "77BAB1922F970DF70006BE6E",
+        "name" : "MeanMachineTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:MeanMachine.xcodeproj",
+        "identifier" : "77BAB09C2F9707330006BE6E",
+        "name" : "MeanMachineUITests"
+      }
+    },
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:MeanMachine.xcodeproj",
+        "identifier" : "77BAB1B02F970E4E0006BE6E",
+        "name" : "CornTesting"
+      }
+    }
+  ],
+  "version" : 1
+}

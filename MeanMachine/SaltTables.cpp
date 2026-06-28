@@ -303,14 +303,30 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
         &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate,
         &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mWandererUpdate,
         &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterUpdate
+        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseESalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseESalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseESalts.mOrbiterUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mOrbiterUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mOrbiterUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mWandererUpdate,
+        &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mOrbiterAssign,
+        &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mOrbiterUpdate
     };
 
     TwistDomainConstants *aConstants[] = {
         &pExpander->mDomainBundleInbuilt.mPhaseAConstants,
         &pExpander->mDomainBundleInbuilt.mPhaseBConstants,
         &pExpander->mDomainBundleInbuilt.mPhaseCConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseDConstants
+        &pExpander->mDomainBundleInbuilt.mPhaseDConstants,
+        &pExpander->mDomainBundleInbuilt.mPhaseEConstants,
+        &pExpander->mDomainBundleInbuilt.mPhaseFConstants,
+        &pExpander->mDomainBundleInbuilt.mPhaseGConstants,
+        &pExpander->mDomainBundleInbuilt.mPhaseHConstants
     };
 
     std::size_t aDomainTableCursor = 8U;

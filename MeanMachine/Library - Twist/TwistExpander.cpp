@@ -5,6 +5,7 @@
 
 #include "TwistExpander.hpp"
 #include "TwistFarmSalt.hpp"
+#include "TwistMix64.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -48,7 +49,6 @@ TwistExpander::TwistExpander() {
     mWorkspace = nullptr;
     mFarmSalt = nullptr;
     mSource = nullptr;
-    mSnow = nullptr;
     mDest = nullptr;
     mKDFCallCounter = 0ULL;
     mKDFSessionNonce = 0ULL;
@@ -102,6 +102,10 @@ TwistExpander::TwistExpander() {
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseBConstants, 0x50484153455F425FULL);
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseCConstants, 0x50484153455F435FULL);
     SeedDomainConstants(&mDomainBundleInbuilt.mPhaseDConstants, 0x50484153455F445FULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mPhaseEConstants, 0x50484153455F455FULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mPhaseFConstants, 0x50484153455F465FULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mPhaseGConstants, 0x50484153455F475FULL);
+    SeedDomainConstants(&mDomainBundleInbuilt.mPhaseHConstants, 0x50484153455F485FULL);
     std::memset(mIndexList256A, 0, sizeof(mIndexList256A));
     std::memset(mIndexList256B, 0, sizeof(mIndexList256B));
     std::memset(mIndexList256C, 0, sizeof(mIndexList256C));
@@ -129,7 +133,9 @@ void TwistExpander::KDF(std::uint64_t pNonce,
 
 void TwistExpander::KDF_A(std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
-                          TwistDomainSaltSet *pDomainSaltSet) {
+                          TwistDomainSaltSet *pDomainSaltSet,
+                          std::uint8_t *pSnow) {
+    (void)pSnow;
     TwistExpander::KDF(pNonce,
                        pDomainConstants,
                        pDomainSaltSet);
@@ -146,15 +152,15 @@ void TwistExpander::KDF_B(std::uint64_t pNonce,
 void TwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                          TwistFarmSalt *pFarmSalt,
                          std::uint64_t pNonce,
-                         std::uint8_t *pSource,
                          std::uint8_t *pPassword,
-                         unsigned int pPasswordByteLength) {
+                         unsigned int pPasswordByteLength,
+                         std::uint8_t *pDestination) {
     if (pWorkSpace == nullptr) {
         std::printf("fatal: TwistExpander::Seed requires workspace\n");
         return;
     }
-    if (pSource == nullptr) {
-        std::printf("fatal: TwistExpander::Seed requires source buffer\n");
+    if (pDestination == nullptr) {
+        std::printf("fatal: TwistExpander::Seed requires destination buffer\n");
         return;
     }
     if (pFarmSalt == nullptr) {
@@ -164,9 +170,9 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkSpace,
 
     mWorkspace = pWorkSpace;
     mFarmSalt = pFarmSalt;
-    mSource = pSource;
-    mDest = nullptr;
-    UnrollPasswordToSource(pSource, pPassword, pPasswordByteLength);
+    mSource = pWorkSpace->mSource;
+    mDest = pDestination;
+    UnrollPasswordToSource(pWorkSpace->mSource, pPassword, pPasswordByteLength);
     mKDFCallCounter = 0ULL;
     mKDFSessionNonce = Mix64(pNonce ^ ProcessKDFFreshnessNonce());
     std::memcpy(&mDomainBundleEphemeral, &mDomainBundleInbuilt, sizeof(mDomainBundleEphemeral));
@@ -176,7 +182,11 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkSpace,
 void TwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
                                std::uint64_t pNonce,
                                std::uint8_t *pSource,
+                               std::size_t pBlockIndex,
+                               std::size_t pBlockCount,
                                std::uint8_t *pDestination) {
+    (void)pBlockIndex;
+    (void)pBlockCount;
     if ((pWorkSpace == nullptr) || (pSource == nullptr) || (pDestination == nullptr)) {
         return;
     }
@@ -185,6 +195,61 @@ void TwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
     mSource = pSource;
     mDest = pDestination;
     mKDFSessionNonce = pNonce;
+}
+
+void TwistExpander::SquashInvestToKeyBoxes() {
+    if (mWorkspace == nullptr) {
+        return;
+    }
+
+    std::uint8_t *aInvestLaneA = mWorkspace->mInvestLaneA;
+    std::uint8_t *aInvestLaneB = mWorkspace->mInvestLaneB;
+    std::uint8_t *aInvestLaneC = mWorkspace->mInvestLaneC;
+    std::uint8_t *aInvestLaneD = mWorkspace->mInvestLaneD;
+    std::uint8_t *aInvestLaneE = mWorkspace->mInvestLaneE;
+    std::uint8_t *aInvestLaneF = mWorkspace->mInvestLaneF;
+    std::uint8_t *aInvestLaneG = mWorkspace->mInvestLaneG;
+    std::uint8_t *aInvestLaneH = mWorkspace->mInvestLaneH;
+
+    std::uint8_t *aKeyBoxA = &(mWorkspace->mKeyBoxA[0][0]);
+    for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_KEY); aIndex += 1U) {
+        std::uint64_t aKeyIngress =
+            (static_cast<std::uint64_t>(aInvestLaneA[aIndex]) << 0U) |
+            (static_cast<std::uint64_t>(aInvestLaneD[aIndex]) << 8U) |
+            (static_cast<std::uint64_t>(aInvestLaneC[aIndex]) << 16U) |
+            (static_cast<std::uint64_t>(aInvestLaneB[aIndex]) << 24U) |
+            (static_cast<std::uint64_t>(aInvestLaneE[aIndex]) << 32U) |
+            (static_cast<std::uint64_t>(aInvestLaneH[aIndex]) << 40U) |
+            (static_cast<std::uint64_t>(aInvestLaneF[aIndex]) << 48U) |
+            (static_cast<std::uint64_t>(aInvestLaneG[aIndex]) << 56U);
+        aKeyBoxA[aIndex] = static_cast<std::uint8_t>(TwistMix64::DiffuseA(aKeyIngress));
+    }
+
+    std::uint8_t *aKeyBoxB = &(mWorkspace->mKeyBoxB[0][0]);
+    for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_KEY); aIndex += 1U) {
+        std::uint64_t aKeyIngress =
+            (static_cast<std::uint64_t>(aInvestLaneH[aIndex]) << 0U) |
+            (static_cast<std::uint64_t>(aInvestLaneE[aIndex]) << 8U) |
+            (static_cast<std::uint64_t>(aInvestLaneG[aIndex]) << 16U) |
+            (static_cast<std::uint64_t>(aInvestLaneF[aIndex]) << 24U) |
+            (static_cast<std::uint64_t>(aInvestLaneD[aIndex]) << 32U) |
+            (static_cast<std::uint64_t>(aInvestLaneA[aIndex]) << 40U) |
+            (static_cast<std::uint64_t>(aInvestLaneC[aIndex]) << 48U) |
+            (static_cast<std::uint64_t>(aInvestLaneB[aIndex]) << 56U);
+        aKeyBoxB[aIndex] = static_cast<std::uint8_t>(TwistMix64::DiffuseB(aKeyIngress));
+    }
+}
+
+void TwistExpander::GrowKeyA(TwistWorkSpace *pWorkSpace) {
+    if (pWorkSpace != nullptr) {
+        mWorkspace = pWorkSpace;
+    }
+}
+
+void TwistExpander::GrowKeyB(TwistWorkSpace *pWorkSpace) {
+    if (pWorkSpace != nullptr) {
+        mWorkspace = pWorkSpace;
+    }
 }
 
 TwistFarmSalt *TwistExpander::GetFarmSalt() const {
@@ -213,12 +278,16 @@ void TwistExpander::Twist(TwistWorkSpace *pWorkSpace,
     mSource = pSource;
     mDest = pDestination;
 
+    const std::size_t aBlockCount = static_cast<std::size_t>(pDestinationByteLength / S_BLOCK);
+    std::size_t aBlockIndex = 0U;
     for (unsigned int aStartByte = 0U;
          aStartByte < pDestinationByteLength;
-         aStartByte += S_BLOCK) {
+         aStartByte += S_BLOCK, aBlockIndex += 1U) {
         TwistBlock(pWorkSpace,
                    pNonce,
                    pSource + aStartByte,
+                   aBlockIndex,
+                   aBlockCount,
                    pDestination + aStartByte);
     }
     
@@ -312,4 +381,28 @@ void TwistExpander::UnrollPasswordToSource(std::uint8_t *pSource,
 
         aFilled += aChunk;
     }
+}
+
+void TwistExpander::Zero() {
+    Zero_PostSeed();
+    mDomainBundleInbuilt.Zero();
+    if (mWorkspace != NULL) {
+        mWorkspace->Zero();
+    }
+}
+
+void TwistExpander::Zero_PostSeed() {
+    if (mWorkspace != NULL) {
+        mWorkspace->Zero_PostSeed();
+    }
+    
+    memset(mIndexList256A, 0, sizeof(mIndexList256A));
+    memset(mIndexList256B, 0, sizeof(mIndexList256B));
+    memset(mIndexList256C, 0, sizeof(mIndexList256C));
+    memset(mIndexList256D, 0, sizeof(mIndexList256D));
+    
+    mDomainBundleEphemeral.Zero();
+    
+    mKDFSessionNonce = 0;
+    
 }

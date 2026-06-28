@@ -123,3 +123,7 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
            pRoundMaterial->mSaltE,
            pRoundMaterial->mSaltF);
 }
+
+void TwistFarmSalt::Zero() {
+    
+}

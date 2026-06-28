@@ -1,0 +1,72 @@
+
+/Users/icarus/Desktop/Codex Playground REVO-Latest/MeanPractRand/streams
+
+
+
+Phase analysis
+==============
+
+Counting rule:
+  One helper function call with 4 or 6 ARX loops counts as one ARX set-use.
+  Matrix diffusion and squash calls are listed as notes, but are not counted as ARX set-uses.
+  The seed counts below are the post-KDF seed path, matching the Seed_A / Seed_B style loops.
+
+
+Post-KDF seed per-phase ARX set-use count:
+  PhaseA: 1  (Seed_A)
+  PhaseB: 1  (Seed_B)
+  PhaseC: 1  (Seed_C)
+  PhaseD: 1  (Seed_D)
+  PhaseE: 1  (Seed_E)
+  PhaseF: 2  (Seed_F, Seed_G)
+  PhaseG: 1  (GROW_A)
+  PhaseH: 1  (GROW_B)
+
+Post-KDF seed total:
+  9 ARX set-uses.
+  Unique phases used: 8 of 8.
+  Unused phases: none.
+  Reused phase: PhaseF.
+  Distance from 8 uses: +1.
+
+Seed matrix diffusion notes:
+  Matrix diffusion after Seed_C uses PhaseC constants.
+  Matrix diffusion after Seed_F uses PhaseF constants.
+  Final destination squash runs after Seed_G.
+
+
+Twist per-phase ARX set-use count, normal grow path:
+  PhaseA: 0
+  PhaseB: 0
+  PhaseC: 0
+  PhaseD: 1  (Twist_A)
+  PhaseE: 1  (Twist_B)
+  PhaseF: 1  (Twist_C)
+  PhaseG: 1  (GROW_A)
+  PhaseH: 1  (GROW_B)
+
+Twist normal grow-path total:
+  5 ARX set-uses.
+  Unique phases used: 5 of 8.
+  Unused phases: PhaseA, PhaseB, PhaseC.
+  Distance from 8 uses: -3.
+
+Twist per-phase ARX set-use count, tail shift-only path:
+  PhaseA: 0
+  PhaseB: 0
+  PhaseC: 0
+  PhaseD: 1  (Twist_A)
+  PhaseE: 1  (Twist_B)
+  PhaseF: 1  (Twist_C)
+  PhaseG: 0
+  PhaseH: 0
+
+Twist tail shift-only total:
+  3 ARX set-uses.
+  Unique phases used: 3 of 8.
+  Unused phases: PhaseA, PhaseB, PhaseC, PhaseG, PhaseH.
+  Distance from 8 uses: -5.
+
+Twist matrix diffusion notes:
+  Twist no longer runs a matrix diffusion section.
+  The final destination squash now runs directly after Twist_C.

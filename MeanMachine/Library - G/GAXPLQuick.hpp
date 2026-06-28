@@ -33,6 +33,8 @@ public:
                                                                   const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
                                                                   const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
                                                                   GExpr *pExpr,
+                                                                  int pOffsetRangeLo,
+                                                                  int pOffsetRangeHi,
                                                                   std::string *pErrorMessage);
     
     
@@ -40,6 +42,8 @@ public:
                                                                              const std::unordered_map<GAXSKSourceKind, GSymbol> &pSourceMap,
                                                                              const std::unordered_map<GAXSKNonceByteKind, GSymbol> &pNonceMap,
                                                                              GExpr *pExpr,
+                                                                             int pOffsetRangeLo,
+                                                                             int pOffsetRangeHi,
                                                                              std::string *pErrorMessage);
     
     static bool                                 BakeInputSlotWordsXorNonces(const std::vector<GAXSKInputSlot> &pInputs,

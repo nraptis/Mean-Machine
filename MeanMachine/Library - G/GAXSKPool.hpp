@@ -22,9 +22,11 @@ public:
     GAXSKPool();
     
     void                                    SetSourceCount(int pSourceCount);
+    void                                    SetSourceLayout(const GAXSKSourceLayout &pSourceLayout);
     void                                    SetOrbiterCount(int pOrbiterCount);
     void                                    SetWandererCount(int pWandererCount);
-    bool                                    FinalizeCounts(std::string *pErrorMessage);
+    bool                                    FinalizeCounts(bool pIgnoreNonces,
+                                                           std::string *pErrorMessage);
     
     bool                                    GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult, std::string *pErrorMessage);
     
@@ -34,14 +36,13 @@ public:
     std::vector<GAXSKNonceByteKind>         mNoncesCross;
     std::vector<GAXSKSourceKind>            mSourcesCross;
     
-    std::vector<GAXSKNonceByteKind>         mNoncesOrbiterUpdate;
-    std::vector<GAXSKNonceByteKind>         mNoncesWandererUpdate;
-    
 private:
     
     int                                     mSourceCount = 0;
     int                                     mOrbiterCount = 0;
     int                                     mWandererCount = 0;
+    bool                                    mHasSourceLayout = false;
+    GAXSKSourceLayout                       mSourceLayout;
     
 };
 

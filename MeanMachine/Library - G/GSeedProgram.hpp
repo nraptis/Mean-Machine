@@ -45,7 +45,8 @@ enum class GAssignType : std::uint8_t {
     kInvalid = 0,
     kSet = 1,
     kAddAssign = 2,
-    kXorAssign = 3
+    kXorAssign = 3,
+    kOrAssign = 4,
 };
 
 enum class GStatementType : std::uint8_t {
@@ -69,6 +70,10 @@ struct GStatement {
                                                  const GExpr &pExpression);
     static GStatement                   XorAssign(const GTarget &pTarget,
                                                  const GExpr &pExpression);
+    static GStatement                   OrAssign(const GTarget &pTarget,
+                                                 const GExpr &pExpression);
+    
+    
     static GStatement                   RawLine(const std::string &pRawLine);
     static GStatement                   Comment(const std::string &pComment);
     static GStatement                   EmptyLine();
@@ -116,6 +121,7 @@ struct GLoop {
     GSymbol                             mLoopVariable;
     std::string                         mLoopVariableName;
     int                                 mLoopBegin;
+    std::string                         mLoopBeginText;
     std::string                         mLoopEndText;
     int                                 mLoopStep;
     std::vector<GStatement>             mInitializationStatements;
@@ -159,6 +165,7 @@ struct GBatch {
     std::string                         mName;
     std::vector<GLoop>                  mLoops;
     std::vector<GBatchChunk>            mChunks;
+    bool                                mExportsAsBlock;
 
     GBatch();
 
