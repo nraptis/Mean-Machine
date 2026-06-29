@@ -134,8 +134,10 @@ void TwistExpander::KDF(std::uint64_t pNonce,
 void TwistExpander::KDF_A(std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
                           TwistDomainSaltSet *pDomainSaltSet,
-                          std::uint8_t *pSnow) {
+                          std::uint8_t *pSnow,
+                          int pIndexKDF) {
     (void)pSnow;
+    (void)pIndexKDF;
     TwistExpander::KDF(pNonce,
                        pDomainConstants,
                        pDomainSaltSet);
@@ -143,7 +145,9 @@ void TwistExpander::KDF_A(std::uint64_t pNonce,
 
 void TwistExpander::KDF_B(std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
-                          TwistDomainSaltSet *pDomainSaltSet) {
+                          TwistDomainSaltSet *pDomainSaltSet,
+                          int pIndexKDF) {
+    (void)pIndexKDF;
     TwistExpander::KDF(pNonce,
                        pDomainConstants,
                        pDomainSaltSet);
@@ -404,5 +408,4 @@ void TwistExpander::Zero_PostSeed() {
     mDomainBundleEphemeral.Zero();
     
     mKDFSessionNonce = 0;
-    
 }

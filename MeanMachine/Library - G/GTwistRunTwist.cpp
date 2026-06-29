@@ -79,28 +79,81 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     return aConfig;
 }
 
-std::vector<GSeedRunStageSliceSpec> FourPassDiverseSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                          const std::vector<TwistWorkSpaceSlot> &pResiduals,
-                                                          const std::vector<TwistWorkSpaceSlot> &pDestinations) {
+std::vector<GSeedRunStageSliceSpec> SixPassDiverseSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
+                                                         const std::vector<TwistWorkSpaceSlot> &pResiduals,
+                                                         const std::vector<TwistWorkSpaceSlot> &pDestinations) {
+    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
+    Random::Shuffle(&aResiduals);
+
     return {
-        {{pPrimary[0], pPrimary[1], pResiduals[0]},
-         {pPrimary[2], pPrimary[3], pResiduals[1]},
+        {{pPrimary[0], pPrimary[1], aResiduals[0]},
+         {pPrimary[2], pPrimary[3], aResiduals[1]},
          pDestinations[0],
          false},
 
-        {{pDestinations[0], pPrimary[2], pPrimary[3], pResiduals[2]},
-         {pPrimary[0], pPrimary[1], pResiduals[3]},
+        {{pDestinations[0], pPrimary[2], pPrimary[3], aResiduals[2]},
+         {pPrimary[0], pPrimary[1], aResiduals[3]},
          pDestinations[1],
          true},
 
-        {{pDestinations[1], pPrimary[0], pPrimary[1], pResiduals[4]},
-         {pDestinations[0], pPrimary[2], pResiduals[5]},
+        {{pDestinations[1], pPrimary[0], aResiduals[4]},
+         {pDestinations[0], pPrimary[2]},
          pDestinations[2],
          false},
 
-        {{pDestinations[2], pDestinations[0], pPrimary[3], pResiduals[6]},
-         {pDestinations[1], pPrimary[1], pResiduals[7]},
+        {{pDestinations[2], pDestinations[0], aResiduals[5]},
+         {pDestinations[1], pPrimary[3]},
          pDestinations[3],
+         true},
+
+        {{pDestinations[3], pDestinations[1], aResiduals[6]},
+         {pDestinations[2], pDestinations[0]},
+         pDestinations[4],
+         false},
+
+        {{pDestinations[4], pDestinations[2], aResiduals[7]},
+         {pDestinations[3], pPrimary[1]},
+         pDestinations[5],
+         true},
+    };
+}
+
+std::vector<GSeedRunStageSliceSpec> SixPassRecentResidualSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
+                                                                const std::vector<TwistWorkSpaceSlot> &pResiduals,
+                                                                const std::vector<TwistWorkSpaceSlot> &pDestinations) {
+    
+    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
+    Random::Shuffle(&aResiduals);
+    
+    return {
+        {{pPrimary[0], pPrimary[1], aResiduals[0]},
+         {pPrimary[2], pPrimary[3]},
+         pDestinations[0],
+         false},
+
+        {{pDestinations[0], pPrimary[2], aResiduals[1]},
+         {pPrimary[0], pPrimary[3]},
+         pDestinations[1],
+         true},
+
+        {{pDestinations[1], pPrimary[3], aResiduals[2]},
+         {pDestinations[0], pPrimary[1], pPrimary[0]},
+         pDestinations[2],
+         false},
+
+        {{pDestinations[2], pDestinations[0], aResiduals[3]},
+         {pDestinations[1], pPrimary[3], pPrimary[2]},
+         pDestinations[3],
+         true},
+
+        {{pDestinations[3], pDestinations[2], pPrimary[1]},
+         {pPrimary[2], pDestinations[0], pDestinations[1]},
+         pDestinations[4],
+         false},
+
+        {{pDestinations[4], pPrimary[0], pPrimary[1]},
+         {pDestinations[3], pDestinations[2], pDestinations[1]},
+         pDestinations[5],
          true},
     };
 }
@@ -114,6 +167,7 @@ GSeedRunStageConfig MakeTwist_AConfig() {
                                              GAXSFormat::kN9);
     aConfig.mMaxContextSourceCount = 5;
     aConfig.mMaxBoundSourceCount = 10;
+    aConfig.mWarmupDestinationCount = 4;
     aConfig.mBindDuplicateSourceSlots = true;
     aConfig.mSliceDomains = {
         TwistDomain::kPhaseA, TwistDomain::kPhaseA, TwistDomain::kPhaseA,
@@ -125,72 +179,72 @@ GSeedRunStageConfig MakeTwist_AConfig() {
         // source graph: 3 available sources, ingress [a, b], cross [a, c].
         {{Slot::kKeyRowReadA, Slot::kKeyRowReadB},
             {Slot::kKeyRowReadA, Slot::kSource},
-            Slot::kFireLaneA,
-            false},
-        
-        // cover source forward, key rows backward.
-        {{Slot::kFireLaneA, Slot::kKeyRowReadA},
-            {Slot::kKeyRowReadB, Slot::kSource},
-            Slot::kFireLaneB,
-            true},
-        
-        // cover key_b forward, key_a/source backward.
-        {{Slot::kFireLaneB, Slot::kKeyRowReadB},
-            {Slot::kKeyRowReadA, Slot::kSource, Slot::kFireLaneA},
-            Slot::kFireLaneC,
-            false},
-        
-        // cover key_b/source forward, key_a backward.
-        {{Slot::kFireLaneC, Slot::kKeyRowReadB, Slot::kSource, Slot::kFireLaneA},
-            {Slot::kKeyRowReadA, Slot::kFireLaneB},
-            Slot::kFireLaneD,
-            true},
-        
-        // special five-wide ingress: cover key_a/key_b/source forward.
-        {{Slot::kFireLaneD, Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource, Slot::kFireLaneB},
-            {Slot::kFireLaneA, Slot::kFireLaneC},
             Slot::kWorkLaneA,
             false},
         
-        // special five-wide cross: cover key_a/key_b/source backward.
-        {{Slot::kWorkLaneA, Slot::kFireLaneC},
-            {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource, Slot::kFireLaneB, Slot::kFireLaneA},
+        // cover source forward, key rows backward.
+        {{Slot::kWorkLaneA, Slot::kKeyRowReadA},
+            {Slot::kKeyRowReadB, Slot::kSource},
             Slot::kWorkLaneB,
             true},
         
+        // cover key_b forward, key_a/source backward.
+        {{Slot::kWorkLaneB, Slot::kKeyRowReadB},
+            {Slot::kKeyRowReadA, Slot::kSource, Slot::kWorkLaneA},
+            Slot::kInvestA,
+            false},
+        
+        // cover key_b/source forward, key_a backward.
+        {{Slot::kInvestA, Slot::kKeyRowReadB, Slot::kSource, Slot::kWorkLaneA},
+            {Slot::kKeyRowReadA, Slot::kWorkLaneB},
+            Slot::kInvestB,
+            true},
+        
+        // special five-wide ingress: cover key_a/key_b/source forward.
+        {{Slot::kInvestB, Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource, Slot::kWorkLaneB},
+            {Slot::kWorkLaneA, Slot::kInvestA},
+            Slot::kFireLaneA,
+            false},
+        
+        // special five-wide cross: cover key_a/key_b/source backward.
+        {{Slot::kFireLaneA, Slot::kInvestA},
+            {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource, Slot::kWorkLaneB, Slot::kWorkLaneA},
+            Slot::kFireLaneB,
+            true},
+        
         // cover key_a/source forward, key_b/snow_d backward.
-        {{Slot::kWorkLaneB, Slot::kKeyRowReadA, Slot::kSource, Slot::kFireLaneA},
-            {Slot::kKeyRowReadB, Slot::kFireLaneD, Slot::kWorkLaneA},
-            Slot::kWorkLaneC,
+        {{Slot::kFireLaneB, Slot::kKeyRowReadA, Slot::kSource, Slot::kWorkLaneA},
+            {Slot::kKeyRowReadB, Slot::kInvestB, Slot::kFireLaneA},
+            Slot::kFireLaneC,
             false},
         
         // cover source forward, key_a/key_b backward.
-        {{Slot::kWorkLaneC, Slot::kSource, Slot::kWorkLaneA, Slot::kFireLaneA},
-            {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kWorkLaneB, Slot::kFireLaneB},
-            Slot::kWorkLaneD,
+        {{Slot::kFireLaneC, Slot::kSource, Slot::kFireLaneA, Slot::kWorkLaneA},
+            {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kFireLaneB, Slot::kWorkLaneB},
+            Slot::kFireLaneD,
             true},
         
         // cover key_a/key_b forward, source/snow history backward.
-        {{Slot::kWorkLaneD, Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kWorkLaneC},
-            {Slot::kSource, Slot::kWorkLaneA, Slot::kFireLaneC, Slot::kFireLaneD},
+        {{Slot::kFireLaneD, Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kFireLaneC},
+            {Slot::kSource, Slot::kFireLaneA, Slot::kInvestA, Slot::kInvestB},
             Slot::kExpansionLaneA,
             false},
         
         // cover key_a forward, key_b/source backward.
-        {{Slot::kExpansionLaneA, Slot::kKeyRowReadA, Slot::kWorkLaneD, Slot::kWorkLaneB},
-            {Slot::kKeyRowReadB, Slot::kSource, Slot::kWorkLaneC, Slot::kFireLaneD},
+        {{Slot::kExpansionLaneA, Slot::kKeyRowReadA, Slot::kFireLaneD, Slot::kFireLaneB},
+            {Slot::kKeyRowReadB, Slot::kSource, Slot::kFireLaneC, Slot::kInvestB},
             Slot::kExpansionLaneB,
             true},
         
         // cover key_b forward, key_a/source/work backward.
-        {{Slot::kExpansionLaneB, Slot::kWorkLaneD, Slot::kKeyRowReadB, Slot::kWorkLaneC},
-            {Slot::kKeyRowReadA, Slot::kSource, Slot::kExpansionLaneA, Slot::kWorkLaneB},
+        {{Slot::kExpansionLaneB, Slot::kFireLaneD, Slot::kKeyRowReadB, Slot::kFireLaneC},
+            {Slot::kKeyRowReadA, Slot::kSource, Slot::kExpansionLaneA, Slot::kFireLaneB},
             Slot::kExpansionLaneC,
             false},
         
         // final write, keep previous dest flowing forward.
         {{Slot::kExpansionLaneC, Slot::kKeyRowReadA},
-            {Slot::kWorkLaneD, Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kKeyRowReadB},
+            {Slot::kFireLaneD, Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kKeyRowReadB},
             Slot::kExpansionLaneD,
             true},
     };
@@ -200,8 +254,9 @@ GSeedRunStageConfig MakeTwist_AConfig() {
     aInputs = {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource};
 
     std::vector<Slot> aOutputs;
-    aOutputs = {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
+    aOutputs = {
+        Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kInvestA, Slot::kInvestB,
+        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
         Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
     
     std::string aErrorMessage;
@@ -225,21 +280,20 @@ GSeedRunStageConfig MakeTwist_BConfig() {
                                              "twist_loop_b",
                                              TwistDomain::kPhaseE,
                                              GAXSFormat::kN7);
-    aConfig.mSlices = FourPassDiverseSlices({Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
-                                            {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-                                             Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
-                                            {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD});
-    aConfig.mExpectedSkeletonCount = 4;
+    aConfig.mSlices = SixPassRecentResidualSlices({Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
+                                                  {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD},
+                                                  {Slot::kInvestC, Slot::kInvestD,
+                                                   Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD});
+    aConfig.mExpectedSkeletonCount = 6;
     
     std::vector<Slot> aInputs;
-    aInputs = {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+    aInputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
 
     std::vector<Slot> aResiduals;
-    aResiduals = {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+    aResiduals = { Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD };
 
     std::vector<Slot> aOutputs;
-    aOutputs = {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
+    aOutputs = { Slot::kInvestC, Slot::kInvestD, Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
@@ -262,21 +316,22 @@ GSeedRunStageConfig MakeTwist_CConfig() {
                                              "twist_loop_c",
                                              TwistDomain::kPhaseF,
                                              GAXSFormat::kN11);
-    aConfig.mSlices = FourPassDiverseSlices({Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
-                                            {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-                                             Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
-                                            {Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD});
-    aConfig.mExpectedSkeletonCount = 4;
+    aConfig.mSlices = SixPassDiverseSlices({Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
+                                           {Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
+                                            Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
+                                           {Slot::kSnowLaneA, Slot::kSnowLaneB,
+                                            Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD});
+    aConfig.mExpectedSkeletonCount = 6;
     
     std::vector<Slot> aInputs;
     aInputs = {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
 
     std::vector<Slot> aResiduals;
-    aResiduals = {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    aResiduals = {Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
         Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
 
     std::vector<Slot> aOutputs;
-    aOutputs = {Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+    aOutputs = { Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,

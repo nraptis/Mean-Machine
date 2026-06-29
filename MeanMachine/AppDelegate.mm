@@ -36,6 +36,9 @@
 #include "Builder.hpp"
 //#include "Soccer.hpp"
 #include "Avalancher.hpp"
+#include "Rig.hpp"
+#include "SnapShotter.hpp"
+
 
 namespace {
 
@@ -57,15 +60,39 @@ bool IsRunningUnderXCTest() {
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
     
+    /*
+     TwistExpander_Soccer aExpander;
+
+    Rig aRig;
+    aRig.SetBlockCount(2);
+
+    std::uint8_t aPassword[32] = {
+        'c', 'o', 'r', 'r', 'e', 'c', 't', 'h', 'o', 'r', 's', 'e',
+        'b', 'a', 't', 't', 'e', 'r', 'y', 's', 't', 'a', 'p', 'l',
+        'e', 'r', 'o', 'c', 'k', 's',
+        0, 0
+    };
+
+    aRig.Run(&aExpander,
+             aPassword,
+             30);
+
+    SnapShotter::SaveProjectRoot("dump",
+                                 "EXPORTS");
+
+    printf("exported...\n");
+    return;
+    */
     
     printf("App is awake and running...\n");
     
     if (IsRunningUnderXCTest() == false) {
         std::string aError;
         if (!Builder::Go("CornTesting/Gen",
-                         "Greezy",
+                         "Exercea",
                          26,
                          8,
+                         true,
                          &aError)) {
             printf("Builder::Go failed:\n%s\n", aError.c_str());
             return;
@@ -73,6 +100,7 @@ bool IsRunningUnderXCTest() {
     }
     printf("Done with export block...\n");
     
+    return;
 
     /*
     if (IsRunningUnderXCTest() == false) {
@@ -166,8 +194,6 @@ bool IsRunningUnderXCTest() {
     }
     */
     
-    
-    
     /*
     if (IsRunningUnderXCTest() == false) {
         std::string aError;
@@ -203,6 +229,7 @@ bool IsRunningUnderXCTest() {
                              aName,
                              26,
                              8,
+                             false,
                              &aError)) {
                 printf("Builder::Go failed:\n%s\n", aError.c_str());
                 return;
@@ -212,6 +239,7 @@ bool IsRunningUnderXCTest() {
         printf("done export...\n");
     }
     */
+    
 
     /*
     if (IsRunningUnderXCTest() == false) {

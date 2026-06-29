@@ -87,27 +87,30 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     return aConfig;
 }
 
-std::vector<GSeedRunStageSliceSpec> FourPassDiverseSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                          const std::vector<TwistWorkSpaceSlot> &pResiduals,
-                                                          const std::vector<TwistWorkSpaceSlot> &pDestinations) {
+std::vector<GSeedRunStageSliceSpec> FourPassEightResidualSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
+                                                                const std::vector<TwistWorkSpaceSlot> &pResiduals,
+                                                                const std::vector<TwistWorkSpaceSlot> &pDestinations) {
+    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
+    Random::Shuffle(&aResiduals);
+
     return {
-        {{pPrimary[0], pPrimary[1], pResiduals[0]},
-         {pPrimary[2], pPrimary[3], pResiduals[1]},
+        {{pPrimary[0], pPrimary[1], aResiduals[0]},
+         {pPrimary[2], pPrimary[3], aResiduals[1]},
          pDestinations[0],
          false},
 
-        {{pDestinations[0], pPrimary[2], pPrimary[3], pResiduals[2]},
-         {pPrimary[0], pPrimary[1], pResiduals[3]},
+        {{pDestinations[0], pPrimary[2], aResiduals[2]},
+         {pPrimary[0], pPrimary[3], aResiduals[3]},
          pDestinations[1],
          true},
 
-        {{pDestinations[1], pPrimary[0], pPrimary[1], pResiduals[4]},
-         {pDestinations[0], pPrimary[2], pResiduals[5]},
+        {{pDestinations[1], pPrimary[3], aResiduals[4]},
+         {pDestinations[0], pPrimary[1], aResiduals[5]},
          pDestinations[2],
          false},
 
-        {{pDestinations[2], pDestinations[0], pPrimary[3], pResiduals[6]},
-         {pDestinations[1], pPrimary[1], pResiduals[7]},
+        {{pDestinations[2], pDestinations[0], aResiduals[6]},
+         {pDestinations[1], pPrimary[2], aResiduals[7]},
          pDestinations[3],
          true},
     };
@@ -145,50 +148,22 @@ GSeedRunStageConfig MakeKDF_B_AConfig() {
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunKDF_B_A",
                                              "kdf_b_loop_a",
                                              GAXSFormat::kN7);
-    aConfig.mWarmupDestinationCount = 2;
-    aConfig.mSlices = {
-        {{Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kOperationLaneA},
-         {Slot::kWorkLaneC, Slot::kWorkLaneD},
-            Slot::kFireLaneA,
-            false},
-        
-        {{Slot::kFireLaneA, Slot::kWorkLaneC, Slot::kOperationLaneB},
-         {Slot::kWorkLaneA, Slot::kWorkLaneD, Slot::kWorkLaneB},
-            Slot::kFireLaneB,
-            true},
-        
-        {{Slot::kFireLaneB, Slot::kWorkLaneD, Slot::kOperationLaneC},
-         {Slot::kWorkLaneB, Slot::kFireLaneA},
-            Slot::kExpansionLaneA,
-            false},
-        
-        {{Slot::kExpansionLaneA, Slot::kWorkLaneC, Slot::kOperationLaneD},
-         {Slot::kFireLaneB, Slot::kWorkLaneD},
-            Slot::kExpansionLaneB,
-            true},
-
-        {{Slot::kExpansionLaneB, Slot::kFireLaneB},
-         {Slot::kExpansionLaneA, Slot::kWorkLaneA},
-            Slot::kExpansionLaneC,
-            false},
-
-        {{Slot::kExpansionLaneC, Slot::kExpansionLaneA},
-         {Slot::kExpansionLaneB, Slot::kWorkLaneB},
-            Slot::kExpansionLaneD,
-            true},
-    };
-    aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mSlices = FourPassEightResidualSlices({Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
+                                                  {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
+                                                   Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD},
+                                                  {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD});
+    aConfig.mExpectedSkeletonCount = 4;
     
     
     std::vector<Slot> aInputs;
     aInputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
 
     std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+    aResiduals = { Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
+        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD};
 
     std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kFireLaneA, Slot::kFireLaneB,
-                 Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+    aOutputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
@@ -214,10 +189,10 @@ GSeedRunStageConfig MakeKDF_B_BConfig() {
     //aConfig.mIgnoreNonces = true;
     //aConfig.mHasDomainMix = false;
     
-    aConfig.mSlices = FourPassDiverseSlices({Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
-                                            {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-                                             Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
-                                            {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD});
+    aConfig.mSlices = FourPassEightResidualSlices({Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
+                                                  {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+                                                   Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
+                                                  {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD});
     aConfig.mExpectedSkeletonCount = 4;
     
     std::vector<Slot> aInputs;
@@ -253,10 +228,10 @@ GSeedRunStageConfig MakeKDF_B_CConfig() {
     //aConfig.mIgnoreNonces = true;
     //aConfig.mHasDomainMix = false;
     
-    aConfig.mSlices = FourPassDiverseSlices({Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
-                                            {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-                                             Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
-                                            {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD});
+    aConfig.mSlices = FourPassEightResidualSlices({Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
+                                                  {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+                                                   Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
+                                                  {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD});
     aConfig.mExpectedSkeletonCount = 4;
     
     
@@ -294,10 +269,10 @@ GSeedRunStageConfig MakeKDF_B_DConfig() {
     //aConfig.mIgnoreNonces = true;
     //aConfig.mHasDomainMix = false;
     
-    aConfig.mSlices = FourPassDiverseSlices({Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
-                                            {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-                                             Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
-                                            {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD});
+    aConfig.mSlices = FourPassEightResidualSlices({Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
+                                                  {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+                                                   Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
+                                                  {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD});
     aConfig.mExpectedSkeletonCount = 4;
     
     

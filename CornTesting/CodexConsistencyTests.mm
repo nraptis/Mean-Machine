@@ -205,7 +205,8 @@ static bool ScratchLanesAreZeroedAfterSeed(const TwistWorkSpace &pWorkSpace) {
     aExpander.KDF_A(aVars.mNonce,
                     &aVars.mConstants,
                     &aVars.mDomainSaltSet,
-                    aVars.mSnow);
+                    aVars.mSnow,
+                    0);
 
     XCTAssertTrue(BufferHasAnyDifference(aBeforeKdfA.mExpansionLaneA, aVars.mWorkSpace.mExpansionLaneA, S_BLOCK), @"KDF_A should write expansion lane A.");
     XCTAssertTrue(BufferHasAnyDifference(aBeforeKdfA.mExpansionLaneB, aVars.mWorkSpace.mExpansionLaneB, S_BLOCK), @"KDF_A should write expansion lane B.");
@@ -219,7 +220,8 @@ static bool ScratchLanesAreZeroedAfterSeed(const TwistWorkSpace &pWorkSpace) {
     TwistWorkSpace aBeforeKdfB = aVars.mWorkSpace;
     aExpander.KDF_B(aVars.mNonce,
                     &aVars.mConstants,
-                    &aVars.mDomainSaltSet);
+                    &aVars.mDomainSaltSet,
+                    0);
 
     XCTAssertTrue(BufferHasAnyDifference(aBeforeKdfB.mExpansionLaneA, aVars.mWorkSpace.mExpansionLaneA, S_BLOCK), @"KDF_B should write expansion lane A.");
     XCTAssertTrue(BufferHasAnyDifference(aBeforeKdfB.mExpansionLaneB, aVars.mWorkSpace.mExpansionLaneB, S_BLOCK), @"KDF_B should write expansion lane B.");

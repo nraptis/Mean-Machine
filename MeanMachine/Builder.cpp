@@ -37,6 +37,20 @@ bool Builder::Go(const std::string &pOutputRoot,
                  int pTrialNumber,
                  int pLeadingZeros,
                  std::string *pErrorMessage) {
+    return Builder::Go(pOutputRoot,
+                       pFilePrefix,
+                       pTrialNumber,
+                       pLeadingZeros,
+                       false,
+                       pErrorMessage);
+}
+
+bool Builder::Go(const std::string &pOutputRoot,
+                 const std::string &pFilePrefix,
+                 int pTrialNumber,
+                 int pLeadingZeros,
+                 bool pUseSnapShotter,
+                 std::string *pErrorMessage) {
     if (pErrorMessage != nullptr) {
         pErrorMessage->clear();
     }
@@ -76,7 +90,7 @@ bool Builder::Go(const std::string &pOutputRoot,
         return false;
     }
 
-    if (!aExpander.ExportCPPProjectRoot(pOutputRoot, &aError)) {
+    if (!aExpander.ExportCPPProjectRoot(pOutputRoot, pUseSnapShotter, &aError)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "ExportCPPProjectRoot failed:\n" + aError;
         }

@@ -56,11 +56,13 @@ public:
     void                                KDF_A(std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
                                               TwistDomainSaltSet *pDomainSaltSet,
-                                              std::uint8_t *pSnow) override;
+                                              std::uint8_t *pSnow,
+                                              int pIndexKDF) override;
 
     void                                KDF_B(std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet) override;
+                                              TwistDomainSaltSet *pDomainSaltSet,
+                                              int pIndexKDF) override;
 
     void                                Seed(TwistWorkSpace *pWorkSpace,
                                              TwistFarmSalt *pFarmSalt,
@@ -79,6 +81,9 @@ public:
     void                                GrowKeyB(TwistWorkSpace *pWorkSpace) override;
 
     bool                                ExportCPPProjectRoot(const std::string &pRootPath,
+                                                             std::string *pErrorMessage = nullptr) const;
+    bool                                ExportCPPProjectRoot(const std::string &pRootPath,
+                                                             bool pUseSnapShotter,
                                                              std::string *pErrorMessage = nullptr) const;
     bool                                ExportJSONProjectRoot(const std::string &pRootPath,
                                                               std::string *pErrorMessage = nullptr) const;

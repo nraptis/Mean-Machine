@@ -264,6 +264,7 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         aKDF_A.mKDFSnow = aPhaseSnowLanes[aDomainIndex];
         if (!aKDF_A.Bake(aDomains[aDomainIndex],
                          GKDFMaterialBundle::kInbuilt,
+                         static_cast<int>(aDomainIndex),
                          &aStatementsKDFA,
                          pErrorMessage)) {
             if (pErrorMessage != nullptr) {
@@ -304,6 +305,7 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         GKDF_B aKDF_B;
         if (!aKDF_B.Bake(aDomains[aDomainIndex],
                          GKDFMaterialBundle::kEphemeral,
+                         static_cast<int>(aDomainIndex),
                          &aStatementsKDFB,
                          pErrorMessage)) {
             if (pErrorMessage != nullptr) {
@@ -454,9 +456,6 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     AddSeedMatrixDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseG, false);
     
     pExpander->mSeed.AddLine("//");
-    
-    
-    
     
     for (int i=0;i<4;i+=2) {
         

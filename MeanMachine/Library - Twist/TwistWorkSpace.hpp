@@ -473,23 +473,23 @@ public:
     std::uint8_t                            mWorkLaneB[S_BLOCK];
     std::uint8_t                            mWorkLaneC[S_BLOCK];
     std::uint8_t                            mWorkLaneD[S_BLOCK];
-    
+
     std::uint8_t                            mOperationLaneA[S_BLOCK];
     std::uint8_t                            mOperationLaneB[S_BLOCK];
     std::uint8_t                            mOperationLaneC[S_BLOCK];
     std::uint8_t                            mOperationLaneD[S_BLOCK];
-    
+
     std::uint8_t                            mSnowLaneA[S_BLOCK];
     std::uint8_t                            mSnowLaneB[S_BLOCK];
     std::uint8_t                            mSnowLaneC[S_BLOCK];
     std::uint8_t                            mSnowLaneD[S_BLOCK];
-    
-    
+
+
     std::uint8_t                            mFireLaneA[S_BLOCK];
     std::uint8_t                            mFireLaneB[S_BLOCK];
     std::uint8_t                            mFireLaneC[S_BLOCK];
     std::uint8_t                            mFireLaneD[S_BLOCK];
-    
+
     std::uint8_t                            mInvestLaneA[S_BLOCK];
     std::uint8_t                            mInvestLaneB[S_BLOCK];
     std::uint8_t                            mInvestLaneC[S_BLOCK];
@@ -499,8 +499,8 @@ public:
     std::uint8_t                            mInvestLaneF[S_BLOCK];
     std::uint8_t                            mInvestLaneG[S_BLOCK];
     std::uint8_t                            mInvestLaneH[S_BLOCK];
-    
-    
+
+
     TwistDomainBundle                       mDomainBundle;
     
     // Rotate stays byte-wide across the workspace helpers.

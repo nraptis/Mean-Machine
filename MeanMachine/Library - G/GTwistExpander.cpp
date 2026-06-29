@@ -1766,51 +1766,115 @@ bool ExecuteKDFLine(const std::string &pLine,
         return false;
     }
 
-    const bool aUsesKDF_ASnowArgument = (aFunctionName == "KDF_A") &&
-                                        ((aArgs.size() == 3U) || (aArgs.size() == 4U));
-    const bool aUsesExplicitBuffers = !aUsesKDF_ASnowArgument &&
-                                      ((aArgs.size() == 4U) || (aArgs.size() == 5U));
-    const bool aHasExplicitNonce = aUsesKDF_ASnowArgument ?
-        (aArgs.size() == 4U) :
-        ((aArgs.size() == 3U) || (aArgs.size() == 5U));
-    std::uint64_t aNonce = pExpander->GetSessionNonce();
-    std::size_t aOffset = 0U;
-    if (aHasExplicitNonce) {
-        aOffset = 1U;
-        const std::string aNonceToken = TrimCopy(aArgs[0]);
+    auto ResolveNonceToken = [&](const std::string &pToken,
+                                 std::uint64_t *pNonceOut) -> bool {
+        if (pNonceOut == nullptr) {
+            return false;
+        }
+        const std::string aNonceToken = TrimCopy(pToken);
         if (aNonceToken == "pNonce") {
             if (pVariables != nullptr) {
                 const auto aIterator = pVariables->find("pNonce");
-                aNonce = (aIterator == pVariables->end())
+                *pNonceOut = (aIterator == pVariables->end())
                     ? pExpander->GetSessionNonce()
                     : static_cast<std::uint64_t>(aIterator->second);
             } else {
-                aNonce = pExpander->GetSessionNonce();
+                *pNonceOut = pExpander->GetSessionNonce();
             }
-        } else if (aNonceToken == "mKDFSessionNonce") {
-            aNonce = pExpander->GetSessionNonce();
-        } else if (pVariables != nullptr) {
+            return true;
+        }
+        if (aNonceToken == "mKDFSessionNonce") {
+            *pNonceOut = pExpander->GetSessionNonce();
+            return true;
+        }
+        if (pVariables != nullptr) {
             const auto aIterator = pVariables->find(aNonceToken);
             if (aIterator != pVariables->end()) {
-                aNonce = static_cast<std::uint64_t>(aIterator->second);
-            } else {
-                char *aEnd = nullptr;
-                const unsigned long long aParsed = std::strtoull(aNonceToken.c_str(), &aEnd, 0);
-                if ((aEnd == nullptr) || (*aEnd != '\0')) {
-                    SetError(pErrorMessage, "KDF nonce token was invalid: " + aArgs[0]);
-                    return false;
-                }
-                aNonce = static_cast<std::uint64_t>(aParsed);
+                *pNonceOut = static_cast<std::uint64_t>(aIterator->second);
+                return true;
             }
-        } else {
-            char *aEnd = nullptr;
-            const unsigned long long aParsed = std::strtoull(aNonceToken.c_str(), &aEnd, 0);
-            if ((aEnd == nullptr) || (*aEnd != '\0')) {
-                SetError(pErrorMessage, "KDF nonce token was invalid: " + aArgs[0]);
-                return false;
-            }
-            aNonce = static_cast<std::uint64_t>(aParsed);
         }
+
+        char *aEnd = nullptr;
+        const unsigned long long aParsed = std::strtoull(aNonceToken.c_str(), &aEnd, 0);
+        if ((aEnd == nullptr) || (*aEnd != '\0')) {
+            return false;
+        }
+        *pNonceOut = static_cast<std::uint64_t>(aParsed);
+        return true;
+    };
+
+    auto ResolveIndexToken = [&](const std::string &pToken,
+                                 int *pIndexOut) -> bool {
+        if (pIndexOut == nullptr) {
+            return false;
+        }
+        const std::string aIndexToken = TrimCopy(pToken);
+        if (pVariables != nullptr) {
+            const auto aIterator = pVariables->find(aIndexToken);
+            if (aIterator != pVariables->end()) {
+                *pIndexOut = static_cast<int>(aIterator->second);
+                return true;
+            }
+        }
+
+        char *aEnd = nullptr;
+        const long aParsed = std::strtol(aIndexToken.c_str(), &aEnd, 0);
+        if ((aEnd == nullptr) || (*aEnd != '\0')) {
+            return false;
+        }
+        *pIndexOut = static_cast<int>(aParsed);
+        return true;
+    };
+
+    auto LooksLikeNonceToken = [&](const std::string &pToken) -> bool {
+        std::uint64_t aUnused = 0U;
+        return ResolveNonceToken(pToken, &aUnused);
+    };
+
+    bool aUsesKDF_ASnowArgument = false;
+    bool aUsesExplicitBuffers = false;
+    bool aHasExplicitNonce = false;
+    bool aHasKDFIndex = false;
+
+    if (aFunctionName == "KDF_A") {
+        if ((aArgs.size() < 3U) || (aArgs.size() > 5U)) {
+            SetError(pErrorMessage, "KDF_A call expects constants, salts, snow, optional nonce, and optional index.");
+            return false;
+        }
+        aUsesKDF_ASnowArgument = true;
+        aHasExplicitNonce = (aArgs.size() >= 4U);
+        aHasKDFIndex = (aArgs.size() == 5U);
+    } else if (aFunctionName == "KDF_B") {
+        if ((aArgs.size() < 2U) || (aArgs.size() > 5U)) {
+            SetError(pErrorMessage, "KDF_B call expects constants, salts, optional nonce, optional index, or explicit buffers.");
+            return false;
+        }
+        if ((aArgs.size() == 4U) && LooksLikeNonceToken(aArgs[0])) {
+            aHasExplicitNonce = true;
+            aHasKDFIndex = true;
+        } else {
+            aUsesExplicitBuffers = (aArgs.size() == 4U) || (aArgs.size() == 5U);
+            aHasExplicitNonce = (aArgs.size() == 3U) || (aArgs.size() == 5U);
+        }
+    } else {
+        aUsesExplicitBuffers = (aArgs.size() == 4U) || (aArgs.size() == 5U);
+        aHasExplicitNonce = (aArgs.size() == 3U) || (aArgs.size() == 5U);
+    }
+
+    std::uint64_t aNonce = pExpander->GetSessionNonce();
+    int aIndexKDF = 0;
+    std::size_t aOffset = 0U;
+    if (aHasExplicitNonce) {
+        aOffset = 1U;
+        if (!ResolveNonceToken(aArgs[0], &aNonce)) {
+            SetError(pErrorMessage, "KDF nonce token was invalid: " + aArgs[0]);
+            return false;
+        }
+    }
+    if (aHasKDFIndex && !ResolveIndexToken(aArgs.back(), &aIndexKDF)) {
+        SetError(pErrorMessage, "KDF index token was invalid: " + aArgs.back());
+        return false;
     }
 
     if (aUsesExplicitBuffers) {
@@ -1853,11 +1917,13 @@ bool ExecuteKDFLine(const std::string &pLine,
         pExpander->KDF_A(aNonce,
                          aConstants,
                          aSaltSet,
-                         aSnow);
+                         aSnow,
+                         aIndexKDF);
     } else if (aFunctionName == "KDF_B") {
         pExpander->KDF_B(aNonce,
                          aConstants,
-                         aSaltSet);
+                         aSaltSet,
+                         aIndexKDF);
     } else {
         pExpander->KDF(aNonce,
                        aConstants,
@@ -2180,19 +2246,23 @@ void GTwistExpander::KDF(std::uint64_t pNonce,
 void GTwistExpander::KDF_A(std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
                            TwistDomainSaltSet *pDomainSaltSet,
-                           std::uint8_t *pSnow) {
+                           std::uint8_t *pSnow,
+                           int pIndexKDF) {
     TwistExpander::KDF_A(pNonce,
                          pDomainConstants,
                          pDomainSaltSet,
-                         pSnow);
+                         pSnow,
+                         pIndexKDF);
 }
 
 void GTwistExpander::KDF_B(std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
-                           TwistDomainSaltSet *pDomainSaltSet) {
+                           TwistDomainSaltSet *pDomainSaltSet,
+                           int pIndexKDF) {
     TwistExpander::KDF_B(pNonce,
                          pDomainConstants,
-                         pDomainSaltSet);
+                         pDomainSaltSet,
+                         pIndexKDF);
 }
 
 void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,

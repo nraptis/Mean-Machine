@@ -24,6 +24,7 @@ class GKDF_A {
 public:
     bool                                Bake(TwistDomain pDomain,
                                              GKDFMaterialBundle pBundle,
+                                             int pIndexKDF,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
     
@@ -35,6 +36,7 @@ class GKDF_B {
 public:
     bool                                Bake(TwistDomain pDomain,
                                              GKDFMaterialBundle pBundle,
+                                             int pIndexKDF,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
 };

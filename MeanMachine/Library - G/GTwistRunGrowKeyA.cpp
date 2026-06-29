@@ -4,6 +4,7 @@
 //
 
 #include "GTwistRunGrowKeyA.hpp"
+#include "GSeedRunStageConfigValidator.hpp"
 
 namespace {
 
@@ -70,27 +71,51 @@ GSeedRunStageConfig MakeGrowAConfig() {
                                              "grow_key_a",
                                              TwistDomain::kPhaseG);
     aConfig.mSlices = {
-        {{Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC},
-         {Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
+        {{Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kInvestA},
+         {Slot::kWorkLaneC, Slot::kWorkLaneD, Slot::kOperationLaneA},
          Slot::kExpansionLaneA,
          false},
 
-        {{Slot::kExpansionLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC},
-         {Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD},
+        {{Slot::kExpansionLaneA, Slot::kWorkLaneC, Slot::kInvestB},
+         {Slot::kWorkLaneA, Slot::kWorkLaneD, Slot::kOperationLaneB},
          Slot::kExpansionLaneB,
          true},
 
-        {{Slot::kExpansionLaneB, Slot::kExpansionLaneA, Slot::kWorkLaneD},
-         {Slot::kExpansionLaneA, Slot::kWorkLaneD, Slot::kWorkLaneC},
+        {{Slot::kExpansionLaneB, Slot::kWorkLaneD, Slot::kInvestC},
+         {Slot::kExpansionLaneA, Slot::kWorkLaneB, Slot::kOperationLaneC},
          Slot::kExpansionLaneC,
          false},
 
-        {{Slot::kExpansionLaneC, Slot::kExpansionLaneB, Slot::kExpansionLaneA},
-         {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC},
+        {{Slot::kExpansionLaneC, Slot::kExpansionLaneA, Slot::kInvestD},
+         {Slot::kExpansionLaneB, Slot::kWorkLaneA, Slot::kOperationLaneD},
          Slot::kExpansionLaneD,
          true},
     };
     aConfig.mExpectedSkeletonCount = 4;
+    
+    
+    std::vector<Slot> aInputs;
+    aInputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+
+    std::vector<Slot> aResiduals;
+    aResiduals = { Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
+        Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+
+    std::vector<Slot> aOutputs;
+    aOutputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+    
+    std::string aErrorMessage;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
+                                                        aInputs,
+                                                        aResiduals,
+                                                        aOutputs,
+                                                        &aErrorMessage)) {
+        printf("MakeGrowAConfig was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessage.c_str());
+        exit(0);
+    }
+    
     return aConfig;
 }
 
@@ -101,27 +126,52 @@ GSeedRunStageConfig MakeGrowBConfig() {
                                              "grow_key_b",
                                              TwistDomain::kPhaseH);
     aConfig.mSlices = {
-        {{Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC},
-         {Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
+        {{Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kInvestA},
+         {Slot::kExpansionLaneC, Slot::kExpansionLaneD, Slot::kOperationLaneA},
          Slot::kWorkLaneA,
          false},
 
-        {{Slot::kWorkLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC},
-         {Slot::kExpansionLaneC, Slot::kExpansionLaneD, Slot::kWorkLaneA},
+        {{Slot::kWorkLaneA, Slot::kExpansionLaneC, Slot::kInvestB},
+         {Slot::kExpansionLaneA, Slot::kExpansionLaneD, Slot::kOperationLaneB},
          Slot::kWorkLaneB,
          true},
 
-        {{Slot::kWorkLaneB, Slot::kWorkLaneA, Slot::kExpansionLaneD},
-         {Slot::kWorkLaneA, Slot::kExpansionLaneD, Slot::kExpansionLaneC},
+        {{Slot::kWorkLaneB, Slot::kExpansionLaneD, Slot::kInvestC},
+         {Slot::kWorkLaneA, Slot::kExpansionLaneB, Slot::kOperationLaneC},
          Slot::kWorkLaneC,
          false},
 
-        {{Slot::kWorkLaneC, Slot::kWorkLaneB, Slot::kWorkLaneA},
-         {Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC},
+        {{Slot::kWorkLaneC, Slot::kWorkLaneA, Slot::kInvestD},
+         {Slot::kWorkLaneB, Slot::kExpansionLaneC, Slot::kOperationLaneD},
          Slot::kWorkLaneD,
          true},
     };
     aConfig.mExpectedSkeletonCount = 4;
+    
+    
+    std::vector<Slot> aInputs;
+    aInputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+
+    std::vector<Slot> aResiduals;
+    aResiduals = { Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
+        Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+
+    std::vector<Slot> aOutputs;
+    aOutputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+    
+    std::string aErrorMessage;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
+                                                        aInputs,
+                                                        aResiduals,
+                                                        aOutputs,
+                                                        &aErrorMessage)) {
+        printf("MakeGrowBConfig was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessage.c_str());
+        exit(0);
+    }
+    
+    
     return aConfig;
 }
 

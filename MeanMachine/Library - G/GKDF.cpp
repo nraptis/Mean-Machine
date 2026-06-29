@@ -55,6 +55,7 @@ bool BakeKDFCall(const char *pFunctionName,
                  TwistDomain pDomain,
                  GKDFMaterialBundle pBundle,
                  const GSymbol *pSnow,
+                 int pIndexKDF,
                  std::vector<GStatement> *pStatements,
                  std::string *pErrorMessage) {
     if (pErrorMessage != nullptr) {
@@ -82,6 +83,7 @@ bool BakeKDFCall(const char *pFunctionName,
         }
         aCall += ", " + BufAliasName(*pSnow);
     }
+    aCall += ", " + std::to_string(pIndexKDF);
     aCall += ");";
     pStatements->push_back(GStatement::RawLine(aCall));
     return true;
@@ -91,24 +93,28 @@ bool BakeKDFCall(const char *pFunctionName,
 
 bool GKDF_A::Bake(TwistDomain pDomain,
                   GKDFMaterialBundle pBundle,
+                  int pIndexKDF,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) {
     return BakeKDFCall("KDF_A",
                        pDomain,
                        pBundle,
                        &mKDFSnow,
+                       pIndexKDF,
                        pStatements,
                        pErrorMessage);
 }
 
 bool GKDF_B::Bake(TwistDomain pDomain,
                   GKDFMaterialBundle pBundle,
+                  int pIndexKDF,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) {
     return BakeKDFCall("KDF_B",
                        pDomain,
                        pBundle,
                        nullptr,
+                       pIndexKDF,
                        pStatements,
                        pErrorMessage);
 }

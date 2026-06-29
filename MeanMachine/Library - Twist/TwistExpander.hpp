@@ -40,11 +40,13 @@ public:
     virtual void                            KDF_A(std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
                                                   TwistDomainSaltSet *pDomainSaltSet,
-                                                  std::uint8_t *pSnow);
+                                                  std::uint8_t *pSnow,
+                                                  int pIndexKDF);
 
     virtual void                            KDF_B(std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet);
+                                                  TwistDomainSaltSet *pDomainSaltSet,
+                                                  int pIndexKDF);
 
     virtual void                            Seed(TwistWorkSpace *pWorkSpace,
                                                  TwistFarmSalt *pFarmSalt,
@@ -97,6 +99,7 @@ public:
     TwistWorkSpace                          *mWorkspace;
     
     void                                    Zero_PostSeed();
+    
     void                                    Zero();
     
 protected:

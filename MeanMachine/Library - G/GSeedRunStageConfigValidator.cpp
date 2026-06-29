@@ -847,7 +847,7 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
         return false;
     }
 
-    std::vector<TwistWorkSpaceSlot> aSeenResiduals;
+    std::unordered_set<int> aExpectedResiduals;
     for (TwistWorkSpaceSlot aResidual : pResiduals) {
         if (aResidual == TwistWorkSpaceSlot::kInvalid) {
             SetError(pErrorMessage,
@@ -855,35 +855,46 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
             return false;
         }
 
-        if (HasSlot(aSeenResiduals, aResidual)) {
+        const int aResidualKey = static_cast<int>(aResidual);
+        if (aExpectedResiduals.find(aResidualKey) != aExpectedResiduals.end()) {
             SetError(pErrorMessage,
                      pConfig.mStageName + " residual graph contained duplicate residual source");
             return false;
         }
-
-        AppendUniqueSlot(&aSeenResiduals, aResidual);
+        aExpectedResiduals.insert(aResidualKey);
     }
 
-    std::size_t aResidualIndex = 0U;
+    std::unordered_set<int> aDiscoveredResiduals;
+    std::size_t aRemainingResidualCount = pResiduals.size();
     for (std::size_t aSliceIndex = 0U; aSliceIndex < pConfig.mSlices.size(); ++aSliceIndex) {
         const GSeedRunStageSliceSpec &aSlice = pConfig.mSlices[aSliceIndex];
         const std::vector<TwistWorkSpaceSlot> aIngressSources = aSlice.IngressSources();
         const std::vector<TwistWorkSpaceSlot> aCrossSources = aSlice.CrossSources();
 
-        const std::size_t aRemainingResidualCount = pResiduals.size() - aResidualIndex;
         const std::size_t aRemainingSliceCount = pConfig.mSlices.size() - aSliceIndex;
-        const bool aShouldUseCrossResidual = (aRemainingResidualCount > aRemainingSliceCount);
         const bool aShouldUseIngressResidual = (aRemainingResidualCount > 0U);
+        const bool aShouldUseCrossResidual = (aRemainingResidualCount > aRemainingSliceCount);
 
-        if (aShouldUseIngressResidual) {
-            const TwistWorkSpaceSlot aExpectedResidual = pResiduals[aResidualIndex];
-            if (aIngressSources.back() != aExpectedResidual) {
+        auto DiscoverResidual = [&](const TwistWorkSpaceSlot pSlot,
+                                    const char *pPositionName) -> bool {
+            const int aSlotKey = static_cast<int>(pSlot);
+            if (aExpectedResiduals.find(aSlotKey) == aExpectedResiduals.end()) {
                 SetError(pErrorMessage,
                          StagePrefix(pConfig, aSliceIndex) +
-                         " residual graph expected ingress random source to use next residual");
+                         " residual graph expected " + pPositionName +
+                         " random source to use one of the residuals");
                 return false;
             }
-            aResidualIndex += 1U;
+
+            aDiscoveredResiduals.insert(aSlotKey);
+            return true;
+        };
+
+        if (aShouldUseIngressResidual) {
+            if (!DiscoverResidual(aIngressSources.back(), "ingress")) {
+                return false;
+            }
+            aRemainingResidualCount -= 1U;
         } else if (HasSlot(pResiduals, aIngressSources.back())) {
             SetError(pErrorMessage,
                      StagePrefix(pConfig, aSliceIndex) +
@@ -892,18 +903,24 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
         }
 
         if (aShouldUseCrossResidual) {
-            const TwistWorkSpaceSlot aExpectedResidual = pResiduals[aResidualIndex];
-            if (aCrossSources.back() != aExpectedResidual) {
-                SetError(pErrorMessage,
-                         StagePrefix(pConfig, aSliceIndex) +
-                         " residual graph expected cross random source to use next residual");
+            if (!DiscoverResidual(aCrossSources.back(), "cross")) {
                 return false;
             }
-            aResidualIndex += 1U;
+            aRemainingResidualCount -= 1U;
         } else if (HasSlot(pResiduals, aCrossSources.back())) {
             SetError(pErrorMessage,
                      StagePrefix(pConfig, aSliceIndex) +
                      " residual graph used a residual in cross random source unexpectedly");
+            return false;
+        }
+    }
+
+    for (TwistWorkSpaceSlot aResidual : pResiduals) {
+        if (aDiscoveredResiduals.find(static_cast<int>(aResidual)) == aDiscoveredResiduals.end()) {
+            SetError(pErrorMessage,
+                     pConfig.mStageName +
+                     " residual graph did not discover residual source " +
+                     BufName(aResidual));
             return false;
         }
     }
