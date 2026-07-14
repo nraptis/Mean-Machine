@@ -26,9 +26,6 @@ public:
     static void                         Aria256Counter(std::uint8_t *pSource,
                                                       std::uint8_t *pDest);
     
-    static void                         MurmurHash(std::uint8_t *pSource,
-                                                   std::uint8_t *pDest);
-    
 private:
 
     static inline std::uint32_t          Load32BE(const std::uint8_t *pData);

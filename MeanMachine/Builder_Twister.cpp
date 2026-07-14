@@ -7,8 +7,8 @@
 
 #include "Builder_Twister.hpp"
 #include "GTwistExpander.hpp"
-#include "GKeyFoldA.hpp"
 #include "GTwistRunTwist.hpp"
+#include "GRunMatrixDiffusion.hpp"
 
 #include "GSquash.hpp"
 
@@ -30,6 +30,24 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
     aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneB));
     aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneC));
     aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneD));
+
+    std::vector<GSymbol> aFuseLanes;
+    aFuseLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneA));
+    aFuseLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneB));
+    aFuseLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneC));
+    aFuseLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneD));
+
+    std::vector<GSymbol> aFireLanes;
+    aFireLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFireLaneA));
+    aFireLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFireLaneB));
+    aFireLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFireLaneC));
+    aFireLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFireLaneD));
+
+    std::vector<GSymbol> aOperationLanes;
+    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneA));
+    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneB));
+    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneC));
+    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneD));
     
     std::vector<GStatement> aStatementsSeed6;
     GTwistRunTwist_A aRunnerTwistA;
@@ -100,6 +118,78 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
         pExpander->mTwister.AddLine(aStatement.mRawLine);
     }
 
+    std::vector<GStatement> aStatementsTwistD;
+    GTwistRunTwist_D aRunnerTwistD;
+    
+    if (!aRunnerTwistD.Plan(pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = std::string("error on GTwistRunTwist_D.Plan for ") + "twist-d" + "\n" + *pErrorMessage;
+        }
+        return false;
+    }
+    
+    if (!aRunnerTwistD.Build(pExpander->mTwister, pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_D:\n" + *pErrorMessage;
+        }
+        return false;
+    }
+    for (const GStatement &aStatement : aStatementsTwistD) {
+        if (!aStatement.IsRawLine()) {
+            continue;
+        }
+        pExpander->mTwister.AddLine(aStatement.mRawLine);
+    }
+
+    for (int i=0;i<4;i+=2) {
+        
+        GRunMatrixDiffusionConfig aDiffusion;
+        aDiffusion.mInputA = aFuseLanes[i];
+        aDiffusion.mInputB = aFuseLanes[i + 1];
+        aDiffusion.mOutputA = aFireLanes[i];
+        aDiffusion.mOutputB =  aFireLanes[i + 1];
+        
+        aDiffusion.mShuffleEntropyA = aOperationLanes[(i + 2) % 4];
+        aDiffusion.mShuffleEntropyB = aOperationLanes[(i + 3) % 4];
+        aDiffusion.mOperationSourceA = aOperationLanes[(i + 0) % 4];
+        aDiffusion.mOperationSourceB = aOperationLanes[(i + 1) % 4];
+        aDiffusion.mUseDomainWords = false;
+        
+        GBatch aBatchDiffusion;
+        aBatchDiffusion.mExportsAsBlock = false;
+        
+        if (!GRunMatrixDiffusion::Bake(aDiffusion, &aBatchDiffusion, pErrorMessage)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = std::string("error on matrix diffusion for twist: ") + *pErrorMessage;
+            }
+            return false;
+        }
+        pExpander->mTwister.AddBatch(aBatchDiffusion);
+    }
+    
+    std::vector<GStatement> aStatementsTwistE;
+    GTwistRunTwist_E aRunnerTwistE;
+    
+    if (!aRunnerTwistE.Plan(pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = std::string("error on GTwistRunTwist_E.Plan for ") + "twist-e" + "\n" + *pErrorMessage;
+        }
+        return false;
+    }
+    
+    if (!aRunnerTwistE.Build(pExpander->mTwister, pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_E:\n" + *pErrorMessage;
+        }
+        return false;
+    }
+    for (const GStatement &aStatement : aStatementsTwistE) {
+        if (!aStatement.IsRawLine()) {
+            continue;
+        }
+        pExpander->mTwister.AddLine(aStatement.mRawLine);
+    }
+    
     pExpander->mTwister.AddLine("//");
     std::vector<GStatement> aStatementsSquash;
     GSymbol aIndex = GSymbol::Var(TwistVariable::kIndex);
@@ -121,27 +211,6 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
     aFinishBatch.mExportsAsBlock = false;
     aFinishBatch.CommitStatements(&aStatementsSquash);
     pExpander->mTwister.AddBatch(aFinishBatch);
-    
-    
-    
-    
-    pExpander->mGrowKeyA.AddLine("// [grow key a]");
-    GKeyFoldA aKeyFold;
-    if (!aKeyFold.BakeGrowKeyA(pExpander->mGrowKeyA, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GKeyFoldA grow key A:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    pExpander->mGrowKeyB.AddLine("// [grow key b]");
-    if (!aKeyFold.BakeGrowKeyB(pExpander->mGrowKeyB, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GKeyFoldA grow key B:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
     return true;
     
 }

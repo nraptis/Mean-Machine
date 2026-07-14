@@ -82,7 +82,7 @@ void Rig::Run(TwistExpander *pExpander,
                     &aFarmSalt,
                     0ULL,
                     pPassword,
-                    static_cast<unsigned int>(pPasswordLength),
+                    static_cast<std::size_t>(pPasswordLength),
                     mData);
     
     for (int aBlockIndex=1; aBlockIndex<mBlockCount; aBlockIndex++) {
@@ -92,10 +92,7 @@ void Rig::Run(TwistExpander *pExpander,
         
         
         pExpander->TwistBlock(&aWorkSpace,
-                              0ULL,
                               aSource,
-                              static_cast<std::size_t>(aBlockIndex),
-                              static_cast<std::size_t>(mBlockCount),
                               aDest);
         
     }

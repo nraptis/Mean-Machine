@@ -270,6 +270,30 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkSpace,
         case TwistWorkSpaceSlot::kFireLaneB: return pWorkSpace->mFireLaneB;
         case TwistWorkSpaceSlot::kFireLaneC: return pWorkSpace->mFireLaneC;
         case TwistWorkSpaceSlot::kFireLaneD: return pWorkSpace->mFireLaneD;
+        case TwistWorkSpaceSlot::kWaterLaneA: return pWorkSpace->mWaterLaneA;
+        case TwistWorkSpaceSlot::kWaterLaneB: return pWorkSpace->mWaterLaneB;
+        case TwistWorkSpaceSlot::kWaterLaneC: return pWorkSpace->mWaterLaneC;
+        case TwistWorkSpaceSlot::kWaterLaneD: return pWorkSpace->mWaterLaneD;
+        case TwistWorkSpaceSlot::kEarthLaneA: return pWorkSpace->mEarthLaneA;
+        case TwistWorkSpaceSlot::kEarthLaneB: return pWorkSpace->mEarthLaneB;
+        case TwistWorkSpaceSlot::kEarthLaneC: return pWorkSpace->mEarthLaneC;
+        case TwistWorkSpaceSlot::kEarthLaneD: return pWorkSpace->mEarthLaneD;
+        case TwistWorkSpaceSlot::kWindLaneA: return pWorkSpace->mWindLaneA;
+        case TwistWorkSpaceSlot::kWindLaneB: return pWorkSpace->mWindLaneB;
+        case TwistWorkSpaceSlot::kWindLaneC: return pWorkSpace->mWindLaneC;
+        case TwistWorkSpaceSlot::kWindLaneD: return pWorkSpace->mWindLaneD;
+        case TwistWorkSpaceSlot::kFuseLaneA: return pWorkSpace->mFuseLaneA;
+        case TwistWorkSpaceSlot::kFuseLaneB: return pWorkSpace->mFuseLaneB;
+        case TwistWorkSpaceSlot::kFuseLaneC: return pWorkSpace->mFuseLaneC;
+        case TwistWorkSpaceSlot::kFuseLaneD: return pWorkSpace->mFuseLaneD;
+        case TwistWorkSpaceSlot::kScrapLaneA: return pWorkSpace->mScrapLaneA;
+        case TwistWorkSpaceSlot::kScrapLaneB: return pWorkSpace->mScrapLaneB;
+        case TwistWorkSpaceSlot::kScrapLaneC: return pWorkSpace->mScrapLaneC;
+        case TwistWorkSpaceSlot::kScrapLaneD: return pWorkSpace->mScrapLaneD;
+        case TwistWorkSpaceSlot::kMergeLaneA: return pWorkSpace->mMergeLaneA;
+        case TwistWorkSpaceSlot::kMergeLaneB: return pWorkSpace->mMergeLaneB;
+        case TwistWorkSpaceSlot::kMergeLaneC: return pWorkSpace->mMergeLaneC;
+        case TwistWorkSpaceSlot::kMergeLaneD: return pWorkSpace->mMergeLaneD;
         case TwistWorkSpaceSlot::kInvestA: return pWorkSpace->mInvestLaneA;
         case TwistWorkSpaceSlot::kInvestB: return pWorkSpace->mInvestLaneB;
         case TwistWorkSpaceSlot::kInvestC: return pWorkSpace->mInvestLaneC;
@@ -368,6 +392,12 @@ int TwistWorkSpace::GetBufferLength(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kIndexList256D:
             return static_cast<int>(256U * sizeof(std::size_t));
 
+        case TwistWorkSpaceSlot::kMergeLaneA:
+        case TwistWorkSpaceSlot::kMergeLaneB:
+        case TwistWorkSpaceSlot::kMergeLaneC:
+        case TwistWorkSpaceSlot::kMergeLaneD:
+            return S_QUARTER;
+
         default:
             return S_BLOCK;
     }
@@ -431,6 +461,36 @@ void TwistWorkSpace::Zero_PostSeed() {
     memset(mFireLaneB, 0, sizeof(mFireLaneB));
     memset(mFireLaneC, 0, sizeof(mFireLaneC));
     memset(mFireLaneD, 0, sizeof(mFireLaneD));
+
+    memset(mWaterLaneA, 0, sizeof(mWaterLaneA));
+    memset(mWaterLaneB, 0, sizeof(mWaterLaneB));
+    memset(mWaterLaneC, 0, sizeof(mWaterLaneC));
+    memset(mWaterLaneD, 0, sizeof(mWaterLaneD));
+
+    memset(mEarthLaneA, 0, sizeof(mEarthLaneA));
+    memset(mEarthLaneB, 0, sizeof(mEarthLaneB));
+    memset(mEarthLaneC, 0, sizeof(mEarthLaneC));
+    memset(mEarthLaneD, 0, sizeof(mEarthLaneD));
+
+    memset(mWindLaneA, 0, sizeof(mWindLaneA));
+    memset(mWindLaneB, 0, sizeof(mWindLaneB));
+    memset(mWindLaneC, 0, sizeof(mWindLaneC));
+    memset(mWindLaneD, 0, sizeof(mWindLaneD));
+
+    memset(mFuseLaneA, 0, sizeof(mFuseLaneA));
+    memset(mFuseLaneB, 0, sizeof(mFuseLaneB));
+    memset(mFuseLaneC, 0, sizeof(mFuseLaneC));
+    memset(mFuseLaneD, 0, sizeof(mFuseLaneD));
+
+    memset(mScrapLaneA, 0, sizeof(mScrapLaneA));
+    memset(mScrapLaneB, 0, sizeof(mScrapLaneB));
+    memset(mScrapLaneC, 0, sizeof(mScrapLaneC));
+    memset(mScrapLaneD, 0, sizeof(mScrapLaneD));
+
+    memset(mMergeLaneA, 0, sizeof(mMergeLaneA));
+    memset(mMergeLaneB, 0, sizeof(mMergeLaneB));
+    memset(mMergeLaneC, 0, sizeof(mMergeLaneC));
+    memset(mMergeLaneD, 0, sizeof(mMergeLaneD));
     
     memset(mInvestLaneA, 0, sizeof(mInvestLaneA));
     memset(mInvestLaneB, 0, sizeof(mInvestLaneB));

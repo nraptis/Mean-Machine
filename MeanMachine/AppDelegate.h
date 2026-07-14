@@ -6,9 +6,9 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#include "stdafx.hpp"
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 
 
 @end
-

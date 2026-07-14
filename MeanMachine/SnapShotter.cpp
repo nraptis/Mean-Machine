@@ -84,6 +84,36 @@ void CaptureSlice(std::vector<SnapShotterSlice> *pSlices,
     CopyBytes(aSlice.mFireLaneB, pWorkSpace->mFireLaneB, sizeof(aSlice.mFireLaneB));
     CopyBytes(aSlice.mFireLaneC, pWorkSpace->mFireLaneC, sizeof(aSlice.mFireLaneC));
     CopyBytes(aSlice.mFireLaneD, pWorkSpace->mFireLaneD, sizeof(aSlice.mFireLaneD));
+
+    CopyBytes(aSlice.mWaterLaneA, pWorkSpace->mWaterLaneA, sizeof(aSlice.mWaterLaneA));
+    CopyBytes(aSlice.mWaterLaneB, pWorkSpace->mWaterLaneB, sizeof(aSlice.mWaterLaneB));
+    CopyBytes(aSlice.mWaterLaneC, pWorkSpace->mWaterLaneC, sizeof(aSlice.mWaterLaneC));
+    CopyBytes(aSlice.mWaterLaneD, pWorkSpace->mWaterLaneD, sizeof(aSlice.mWaterLaneD));
+
+    CopyBytes(aSlice.mEarthLaneA, pWorkSpace->mEarthLaneA, sizeof(aSlice.mEarthLaneA));
+    CopyBytes(aSlice.mEarthLaneB, pWorkSpace->mEarthLaneB, sizeof(aSlice.mEarthLaneB));
+    CopyBytes(aSlice.mEarthLaneC, pWorkSpace->mEarthLaneC, sizeof(aSlice.mEarthLaneC));
+    CopyBytes(aSlice.mEarthLaneD, pWorkSpace->mEarthLaneD, sizeof(aSlice.mEarthLaneD));
+
+    CopyBytes(aSlice.mWindLaneA, pWorkSpace->mWindLaneA, sizeof(aSlice.mWindLaneA));
+    CopyBytes(aSlice.mWindLaneB, pWorkSpace->mWindLaneB, sizeof(aSlice.mWindLaneB));
+    CopyBytes(aSlice.mWindLaneC, pWorkSpace->mWindLaneC, sizeof(aSlice.mWindLaneC));
+    CopyBytes(aSlice.mWindLaneD, pWorkSpace->mWindLaneD, sizeof(aSlice.mWindLaneD));
+
+    CopyBytes(aSlice.mFuseLaneA, pWorkSpace->mFuseLaneA, sizeof(aSlice.mFuseLaneA));
+    CopyBytes(aSlice.mFuseLaneB, pWorkSpace->mFuseLaneB, sizeof(aSlice.mFuseLaneB));
+    CopyBytes(aSlice.mFuseLaneC, pWorkSpace->mFuseLaneC, sizeof(aSlice.mFuseLaneC));
+    CopyBytes(aSlice.mFuseLaneD, pWorkSpace->mFuseLaneD, sizeof(aSlice.mFuseLaneD));
+
+    CopyBytes(aSlice.mScrapLaneA, pWorkSpace->mScrapLaneA, sizeof(aSlice.mScrapLaneA));
+    CopyBytes(aSlice.mScrapLaneB, pWorkSpace->mScrapLaneB, sizeof(aSlice.mScrapLaneB));
+    CopyBytes(aSlice.mScrapLaneC, pWorkSpace->mScrapLaneC, sizeof(aSlice.mScrapLaneC));
+    CopyBytes(aSlice.mScrapLaneD, pWorkSpace->mScrapLaneD, sizeof(aSlice.mScrapLaneD));
+
+    CopyBytes(aSlice.mMergeLaneA, pWorkSpace->mMergeLaneA, sizeof(aSlice.mMergeLaneA));
+    CopyBytes(aSlice.mMergeLaneB, pWorkSpace->mMergeLaneB, sizeof(aSlice.mMergeLaneB));
+    CopyBytes(aSlice.mMergeLaneC, pWorkSpace->mMergeLaneC, sizeof(aSlice.mMergeLaneC));
+    CopyBytes(aSlice.mMergeLaneD, pWorkSpace->mMergeLaneD, sizeof(aSlice.mMergeLaneD));
     
     CopyBytes(aSlice.mInvestLaneA, pWorkSpace->mInvestLaneA, sizeof(aSlice.mInvestLaneA));
     CopyBytes(aSlice.mInvestLaneB, pWorkSpace->mInvestLaneB, sizeof(aSlice.mInvestLaneB));
@@ -289,6 +319,11 @@ bool SaveSlice(const SnapShotterSlice &pSlice,
                               { static_cast<std::size_t>(S_BLOCK) },
                               &aFirstArray);
     };
+    auto SaveQuarterBlock = [&](const std::string &pName, const void *pData, const std::size_t pByteCount) -> bool {
+        return SaveSliceArray(pManifest, pRootPath, pRelativeFolder, pName, pData, pByteCount,
+                              { static_cast<std::size_t>(S_QUARTER) },
+                              &aFirstArray);
+    };
     auto SaveBytes = [&](const std::string &pName, const void *pData, const std::size_t pByteCount) -> bool {
         return SaveSliceArray(pManifest, pRootPath, pRelativeFolder, pName, pData, pByteCount,
                               { pByteCount },
@@ -324,6 +359,36 @@ bool SaveSlice(const SnapShotterSlice &pSlice,
     if (!SaveBlock("fire_lane_b", pSlice.mFireLaneB, sizeof(pSlice.mFireLaneB))) { return false; }
     if (!SaveBlock("fire_lane_c", pSlice.mFireLaneC, sizeof(pSlice.mFireLaneC))) { return false; }
     if (!SaveBlock("fire_lane_d", pSlice.mFireLaneD, sizeof(pSlice.mFireLaneD))) { return false; }
+
+    if (!SaveBlock("water_lane_a", pSlice.mWaterLaneA, sizeof(pSlice.mWaterLaneA))) { return false; }
+    if (!SaveBlock("water_lane_b", pSlice.mWaterLaneB, sizeof(pSlice.mWaterLaneB))) { return false; }
+    if (!SaveBlock("water_lane_c", pSlice.mWaterLaneC, sizeof(pSlice.mWaterLaneC))) { return false; }
+    if (!SaveBlock("water_lane_d", pSlice.mWaterLaneD, sizeof(pSlice.mWaterLaneD))) { return false; }
+
+    if (!SaveBlock("earth_lane_a", pSlice.mEarthLaneA, sizeof(pSlice.mEarthLaneA))) { return false; }
+    if (!SaveBlock("earth_lane_b", pSlice.mEarthLaneB, sizeof(pSlice.mEarthLaneB))) { return false; }
+    if (!SaveBlock("earth_lane_c", pSlice.mEarthLaneC, sizeof(pSlice.mEarthLaneC))) { return false; }
+    if (!SaveBlock("earth_lane_d", pSlice.mEarthLaneD, sizeof(pSlice.mEarthLaneD))) { return false; }
+
+    if (!SaveBlock("wind_lane_a", pSlice.mWindLaneA, sizeof(pSlice.mWindLaneA))) { return false; }
+    if (!SaveBlock("wind_lane_b", pSlice.mWindLaneB, sizeof(pSlice.mWindLaneB))) { return false; }
+    if (!SaveBlock("wind_lane_c", pSlice.mWindLaneC, sizeof(pSlice.mWindLaneC))) { return false; }
+    if (!SaveBlock("wind_lane_d", pSlice.mWindLaneD, sizeof(pSlice.mWindLaneD))) { return false; }
+
+    if (!SaveBlock("fuse_lane_a", pSlice.mFuseLaneA, sizeof(pSlice.mFuseLaneA))) { return false; }
+    if (!SaveBlock("fuse_lane_b", pSlice.mFuseLaneB, sizeof(pSlice.mFuseLaneB))) { return false; }
+    if (!SaveBlock("fuse_lane_c", pSlice.mFuseLaneC, sizeof(pSlice.mFuseLaneC))) { return false; }
+    if (!SaveBlock("fuse_lane_d", pSlice.mFuseLaneD, sizeof(pSlice.mFuseLaneD))) { return false; }
+
+    if (!SaveBlock("scrap_lane_a", pSlice.mScrapLaneA, sizeof(pSlice.mScrapLaneA))) { return false; }
+    if (!SaveBlock("scrap_lane_b", pSlice.mScrapLaneB, sizeof(pSlice.mScrapLaneB))) { return false; }
+    if (!SaveBlock("scrap_lane_c", pSlice.mScrapLaneC, sizeof(pSlice.mScrapLaneC))) { return false; }
+    if (!SaveBlock("scrap_lane_d", pSlice.mScrapLaneD, sizeof(pSlice.mScrapLaneD))) { return false; }
+
+    if (!SaveQuarterBlock("merge_lane_a", pSlice.mMergeLaneA, sizeof(pSlice.mMergeLaneA))) { return false; }
+    if (!SaveQuarterBlock("merge_lane_b", pSlice.mMergeLaneB, sizeof(pSlice.mMergeLaneB))) { return false; }
+    if (!SaveQuarterBlock("merge_lane_c", pSlice.mMergeLaneC, sizeof(pSlice.mMergeLaneC))) { return false; }
+    if (!SaveQuarterBlock("merge_lane_d", pSlice.mMergeLaneD, sizeof(pSlice.mMergeLaneD))) { return false; }
     
     if (!SaveBlock("invest_lane_a", pSlice.mInvestLaneA, sizeof(pSlice.mInvestLaneA))) { return false; }
     if (!SaveBlock("invest_lane_b", pSlice.mInvestLaneB, sizeof(pSlice.mInvestLaneB))) { return false; }

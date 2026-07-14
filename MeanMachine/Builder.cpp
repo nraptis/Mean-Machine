@@ -14,6 +14,9 @@
 #include "Builder_KDF.hpp"
 #include "Builder_Seeder.hpp"
 #include "Builder_Twister.hpp"
+#include "Builder_GrowA.hpp"
+#include "Builder_GrowB.hpp"
+#include "GPrintTool.hpp"
 #include "GTwistExpander.hpp"
 
 #include <sstream>
@@ -54,6 +57,7 @@ bool Builder::Go(const std::string &pOutputRoot,
     if (pErrorMessage != nullptr) {
         pErrorMessage->clear();
     }
+    GPrintTool::Reset();
 
     GTwistExpander aExpander;
     aExpander.mNameBase = pFilePrefix;
@@ -86,6 +90,22 @@ bool Builder::Go(const std::string &pOutputRoot,
     if (!aTwisterBuilder.Build(&aExpander, &aError)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "Builder_Twister failed:\n" + aError;
+        }
+        return false;
+    }
+
+    Builder_GrowA aGrowABuilder;
+    if (!aGrowABuilder.Build(&aExpander, &aError)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "Builder_GrowA failed:\n" + aError;
+        }
+        return false;
+    }
+
+    Builder_GrowB aGrowBBuilder;
+    if (!aGrowBBuilder.Build(&aExpander, &aError)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "Builder_GrowB failed:\n" + aError;
         }
         return false;
     }

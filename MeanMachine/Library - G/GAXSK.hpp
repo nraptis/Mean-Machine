@@ -299,6 +299,8 @@ struct GAXSKSkeleton {
 struct GAXSKSourceLayout {
     std::vector<GAXSKSourceKind>             mIngress;
     std::vector<GAXSKSourceKind>             mCross;
+    bool                                     mIsLastIngressDirectionLocked = false;
+    bool                                     mIsLastCrossDirectionLocked = false;
 };
 
 class GAXSK {

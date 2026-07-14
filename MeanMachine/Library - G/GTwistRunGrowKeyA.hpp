@@ -10,6 +10,13 @@
 
 #include <string>
 
+namespace GTwistRunGrowKeyConfig {
+
+GSeedRunStageConfig                         MakeGrowAConfig();
+GSeedRunStageConfig                         MakeGrowBConfig();
+
+}
+
 class GTwistRunGrowKeyA {
 public:
     GTwistRunGrowKeyA();

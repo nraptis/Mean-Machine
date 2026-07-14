@@ -8,6 +8,7 @@
 
 #include "CSPRNGV2.hpp"
 #include "GMagicNumbers.hpp"
+#include "GPrintTool.hpp"
 #include "GSeedRunStageConfig.hpp"
 #include "GTwistExpander.hpp"
 #include <cstddef>
@@ -26,6 +27,7 @@ class GSeedRunStage {
 public:
     explicit GSeedRunStage(GSeedRunStageConfig pConfig)
     : mConfig(std::move(pConfig)) {
+        GPrintTool::AddStage(mConfig);
         Reset();
     }
 
@@ -183,6 +185,8 @@ public:
                                         mConfig.mBatchName + " loop " + std::to_string(aIndex + 1U),
                                         aSpec.IngressSources(),
                                         aSpec.CrossSources(),
+                                        aSpec.mIsLastIngressDirectionLocked,
+                                        aSpec.mIsLastCrossDirectionLocked,
                                         { aSpec.mDest });
             }
             aBatch.CommitLoop(aLoop);
@@ -335,6 +339,8 @@ private:
         pResult->mSourceSlots.clear();
         pResult->mSourceLayout.mIngress.clear();
         pResult->mSourceLayout.mCross.clear();
+        pResult->mSourceLayout.mIsLastIngressDirectionLocked = pSpec.mIsLastIngressDirectionLocked;
+        pResult->mSourceLayout.mIsLastCrossDirectionLocked = pSpec.mIsLastCrossDirectionLocked;
 
         const std::vector<TwistWorkSpaceSlot> aIngressSources = pSpec.IngressSources();
         const std::vector<TwistWorkSpaceSlot> aCrossSources = pSpec.CrossSources();
@@ -479,7 +485,8 @@ private:
     }
 
     static std::string JoinLaneDirections(const std::vector<TwistWorkSpaceSlot> &pSlots,
-                                          const bool pIsIngress) {
+                                          const bool pIsIngress,
+                                          const bool pIsLastDirectionLocked) {
         if (pSlots.empty()) {
             return "(none)";
         }
@@ -490,7 +497,8 @@ private:
                 aStream << ", ";
             }
 
-            const bool aIsRandomDirection = (aIndex == (pSlots.size() - 1U));
+            const bool aIsRandomDirection =
+                (aIndex == (pSlots.size() - 1U)) && !pIsLastDirectionLocked;
 
             aStream << BufAliasName(pSlots[aIndex]) << " ";
             if (aIsRandomDirection) {
@@ -554,6 +562,8 @@ private:
                                  const std::string &pTitle,
                                  const std::vector<TwistWorkSpaceSlot> &pIngressSlots,
                                  const std::vector<TwistWorkSpaceSlot> &pCrossSlots,
+                                 const bool pIsLastIngressDirectionLocked,
+                                 const bool pIsLastCrossDirectionLocked,
                                  const std::vector<TwistWorkSpaceSlot> &pWriteSlots) const {
         if (pLoop == nullptr) {
             return;
@@ -561,9 +571,13 @@ private:
         std::vector<GStatement> aStatements;
         aStatements.push_back(GStatement::Comment(pTitle));
         aStatements.push_back(GStatement::Comment("ingress from: " + JoinLaneNames(pIngressSlots)));
-        aStatements.push_back(GStatement::Comment("ingress directions: " + JoinLaneDirections(pIngressSlots, true)));
+        aStatements.push_back(GStatement::Comment("ingress directions: " + JoinLaneDirections(pIngressSlots,
+                                                                                               true,
+                                                                                               pIsLastIngressDirectionLocked)));
         aStatements.push_back(GStatement::Comment("cross from: " + JoinLaneNames(pCrossSlots)));
-        aStatements.push_back(GStatement::Comment("cross directions: " + JoinLaneDirections(pCrossSlots, false)));
+        aStatements.push_back(GStatement::Comment("cross directions: " + JoinLaneDirections(pCrossSlots,
+                                                                                            false,
+                                                                                            pIsLastCrossDirectionLocked)));
         aStatements.push_back(GStatement::Comment("write to: " + JoinLaneNames(pWriteSlots, mConfig.mAssignType)));
         pLoop->mInitializationStatements.insert(pLoop->mInitializationStatements.begin(),
                                                 aStatements.begin(),

@@ -21,7 +21,7 @@ public:
     
     
     // 2 sources: FF, FB, BF, BB
-    // 3 sources: FFF, FFB, FBF, FBB, BFF, BFB, BBF, BBB
+    // 3 source key flow: source/key_a/key_b => FFB, FBF, BFB, BBF
     
     // entry point #1
     // always calls ValidateDestinations, ValidateList, ValidateSequencing
@@ -41,6 +41,15 @@ public:
                                                                              std::vector<TwistWorkSpaceSlot> pResidualSources,
                                                                              std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
                                                                              std::string *pErrorMessage);
+
+    // Terminal midstage packs write lanes for the next non-ARX operation.
+    // They still validate source shape and residual use, but they do not require
+    // written destinations to be read by later slices.
+    static bool                                             ValidateTerminalMidstage(const GSeedRunStageConfig &pConfig,
+                                                                                     std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                     std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                     std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+                                                                                     std::string *pErrorMessage);
     
 private:
     

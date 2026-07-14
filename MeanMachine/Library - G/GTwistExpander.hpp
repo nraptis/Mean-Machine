@@ -68,13 +68,10 @@ public:
                                              TwistFarmSalt *pFarmSalt,
                                              std::uint64_t pNonce,
                                              std::uint8_t *pPassword,
-                                             unsigned int pPasswordByteLength,
+                                             std::size_t pPasswordByteLength,
                                              std::uint8_t *pDestination) override;
     void                                TwistBlock(TwistWorkSpace *pWorkSpace,
-                                                   std::uint64_t pNonce,
                                                    std::uint8_t *pSource,
-                                                   std::size_t pBlockIndex,
-                                                   std::size_t pBlockCount,
                                                    std::uint8_t *pDestination) override;
     void                                SquashInvestToKeyBoxes() override;
     void                                GrowKeyA(TwistWorkSpace *pWorkSpace) override;

@@ -365,7 +365,9 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
             }
 
             const bool aIsRandomDirection =
-                (static_cast<std::size_t>(aIngressSourceCount) == (mSourcesIngress.size() - 1U));
+                !mSourcesIngress.empty() &&
+                (static_cast<std::size_t>(aIngressSourceCount) == (mSourcesIngress.size() - 1U)) &&
+                !mSourceLayout.mIsLastIngressDirectionLocked;
             aIngress[i].mReverse = aIsRandomDirection ? Random::Bool() : false;
             aIngressSourceCount++;
         }
@@ -377,7 +379,9 @@ bool GAXSKPool::GenerateInputSlotOrdering(GAXSKInputSlotOrdering *pResult,
             }
 
             const bool aIsRandomDirection =
-                (static_cast<std::size_t>(aCrossSourceCount) == (mSourcesCross.size() - 1U));
+                !mSourcesCross.empty() &&
+                (static_cast<std::size_t>(aCrossSourceCount) == (mSourcesCross.size() - 1U)) &&
+                !mSourceLayout.mIsLastCrossDirectionLocked;
             aCross[i].mReverse = aIsRandomDirection ? Random::Bool() : true;
             aCrossSourceCount++;
         }

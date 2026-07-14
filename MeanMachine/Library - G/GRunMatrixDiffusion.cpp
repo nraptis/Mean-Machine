@@ -6,6 +6,7 @@
 //
 
 #include "GRunMatrixDiffusion.hpp"
+#include "GPrintTool.hpp"
 
 #include <sstream>
 #include <vector>
@@ -51,6 +52,20 @@ bool GRunMatrixDiffusion::Bake(const GRunMatrixDiffusionConfig &pConfig,
     
     if (!EnsureBufferSymbol(pConfig.mOperationSourceA, "operation_source_a", pErrorMessage)) { return false; }
     if (!EnsureBufferSymbol(pConfig.mOperationSourceB, "operation_source_b", pErrorMessage)) { return false; }
+
+    std::ostringstream aReadLanes;
+    aReadLanes << BufName(pConfig.mInputA) << ", "
+               << BufName(pConfig.mInputB) << ", "
+               << BufName(pConfig.mShuffleEntropyA) << ", "
+               << BufName(pConfig.mShuffleEntropyB) << ", "
+               << BufName(pConfig.mOperationSourceA) << ", "
+               << BufName(pConfig.mOperationSourceB);
+
+    std::ostringstream aWriteLanes;
+    aWriteLanes << BufName(pConfig.mOutputA) << ", "
+                << BufName(pConfig.mOutputB);
+    GPrintTool::AddDiffusion(aReadLanes.str().c_str(),
+                             aWriteLanes.str().c_str());
     
     const GSymbol aIndexListA = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
     const GSymbol aIndexListB = BufSymbol(TwistWorkSpaceSlot::kIndexList256B);

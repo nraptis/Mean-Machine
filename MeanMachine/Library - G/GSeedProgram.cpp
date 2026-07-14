@@ -193,6 +193,30 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kFireLaneB,
         TwistWorkSpaceSlot::kFireLaneC,
         TwistWorkSpaceSlot::kFireLaneD,
+        TwistWorkSpaceSlot::kWaterLaneA,
+        TwistWorkSpaceSlot::kWaterLaneB,
+        TwistWorkSpaceSlot::kWaterLaneC,
+        TwistWorkSpaceSlot::kWaterLaneD,
+        TwistWorkSpaceSlot::kEarthLaneA,
+        TwistWorkSpaceSlot::kEarthLaneB,
+        TwistWorkSpaceSlot::kEarthLaneC,
+        TwistWorkSpaceSlot::kEarthLaneD,
+        TwistWorkSpaceSlot::kWindLaneA,
+        TwistWorkSpaceSlot::kWindLaneB,
+        TwistWorkSpaceSlot::kWindLaneC,
+        TwistWorkSpaceSlot::kWindLaneD,
+        TwistWorkSpaceSlot::kFuseLaneA,
+        TwistWorkSpaceSlot::kFuseLaneB,
+        TwistWorkSpaceSlot::kFuseLaneC,
+        TwistWorkSpaceSlot::kFuseLaneD,
+        TwistWorkSpaceSlot::kScrapLaneA,
+        TwistWorkSpaceSlot::kScrapLaneB,
+        TwistWorkSpaceSlot::kScrapLaneC,
+        TwistWorkSpaceSlot::kScrapLaneD,
+        TwistWorkSpaceSlot::kMergeLaneA,
+        TwistWorkSpaceSlot::kMergeLaneB,
+        TwistWorkSpaceSlot::kMergeLaneC,
+        TwistWorkSpaceSlot::kMergeLaneD,
         TwistWorkSpaceSlot::kInvestA,
         TwistWorkSpaceSlot::kInvestB,
         TwistWorkSpaceSlot::kInvestC,
@@ -269,6 +293,30 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kFireLaneB: return "fire_lane_b";
         case TwistWorkSpaceSlot::kFireLaneC: return "fire_lane_c";
         case TwistWorkSpaceSlot::kFireLaneD: return "fire_lane_d";
+        case TwistWorkSpaceSlot::kWaterLaneA: return "water_lane_a";
+        case TwistWorkSpaceSlot::kWaterLaneB: return "water_lane_b";
+        case TwistWorkSpaceSlot::kWaterLaneC: return "water_lane_c";
+        case TwistWorkSpaceSlot::kWaterLaneD: return "water_lane_d";
+        case TwistWorkSpaceSlot::kEarthLaneA: return "earth_lane_a";
+        case TwistWorkSpaceSlot::kEarthLaneB: return "earth_lane_b";
+        case TwistWorkSpaceSlot::kEarthLaneC: return "earth_lane_c";
+        case TwistWorkSpaceSlot::kEarthLaneD: return "earth_lane_d";
+        case TwistWorkSpaceSlot::kWindLaneA: return "wind_lane_a";
+        case TwistWorkSpaceSlot::kWindLaneB: return "wind_lane_b";
+        case TwistWorkSpaceSlot::kWindLaneC: return "wind_lane_c";
+        case TwistWorkSpaceSlot::kWindLaneD: return "wind_lane_d";
+        case TwistWorkSpaceSlot::kFuseLaneA: return "fuse_lane_a";
+        case TwistWorkSpaceSlot::kFuseLaneB: return "fuse_lane_b";
+        case TwistWorkSpaceSlot::kFuseLaneC: return "fuse_lane_c";
+        case TwistWorkSpaceSlot::kFuseLaneD: return "fuse_lane_d";
+        case TwistWorkSpaceSlot::kScrapLaneA: return "scrap_lane_a";
+        case TwistWorkSpaceSlot::kScrapLaneB: return "scrap_lane_b";
+        case TwistWorkSpaceSlot::kScrapLaneC: return "scrap_lane_c";
+        case TwistWorkSpaceSlot::kScrapLaneD: return "scrap_lane_d";
+        case TwistWorkSpaceSlot::kMergeLaneA: return "merge_lane_a";
+        case TwistWorkSpaceSlot::kMergeLaneB: return "merge_lane_b";
+        case TwistWorkSpaceSlot::kMergeLaneC: return "merge_lane_c";
+        case TwistWorkSpaceSlot::kMergeLaneD: return "merge_lane_d";
         case TwistWorkSpaceSlot::kParamSnow: return "param_snow";
         case TwistWorkSpaceSlot::kInvestA: return "invest_lane_a";
         case TwistWorkSpaceSlot::kInvestB: return "invest_lane_b";
@@ -3088,6 +3136,8 @@ std::string CppIndexForSlot(const TwistWorkSpaceSlot pSlot,
                 aMaskToken = "S_SALT1";
             } else if (IsIndexListSlot(pSlot)) {
                 aMaskToken = "S_SBOX1";
+            } else if (aElementCount == S_QUARTER) {
+                aMaskToken = "S_QUARTER1";
             } else if (aElementCount == S_BLOCK) {
                 aMaskToken = "S_BLOCK1";
             } else if ((aElementCount > 0) && ((aElementCount & (aElementCount - 1)) == 0)) {
@@ -3126,6 +3176,14 @@ std::string CppExpr(const GExpr &pExpr) {
         case GExprType::kConst:
             if (pExpr.mConstVal == static_cast<std::uint64_t>(S_BLOCK1)) {
                 return "S_BLOCK1";
+            }
+            if (pExpr.mConstPreferHex) {
+                char aHexLiteral[24];
+                std::snprintf(aHexLiteral,
+                              sizeof(aHexLiteral),
+                              "0x%016llXULL",
+                              static_cast<unsigned long long>(pExpr.mConstVal));
+                return aHexLiteral;
             }
             return std::to_string(static_cast<unsigned long long>(pExpr.mConstVal)) + "U";
         case GExprType::kRead: {

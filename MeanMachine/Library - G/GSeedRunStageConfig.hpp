@@ -25,6 +25,20 @@ struct GSeedRunStageSliceSpec {
       mDestWriteInverted(pDestWriteInverted) {
     }
 
+    GSeedRunStageSliceSpec(std::initializer_list<TwistWorkSpaceSlot> pIngressSources,
+                           bool pIsLastIngressDirectionLocked,
+                           std::initializer_list<TwistWorkSpaceSlot> pCrossSources,
+                           bool pIsLastCrossDirectionLocked,
+                           TwistWorkSpaceSlot pDest,
+                           bool pDestWriteInverted)
+    : mIngressSources(pIngressSources),
+      mCrossSources(pCrossSources),
+      mDest(pDest),
+      mDestWriteInverted(pDestWriteInverted),
+      mIsLastIngressDirectionLocked(pIsLastIngressDirectionLocked),
+      mIsLastCrossDirectionLocked(pIsLastCrossDirectionLocked) {
+    }
+
     std::vector<TwistWorkSpaceSlot> IngressSources() const {
         return mIngressSources;
     }
@@ -37,6 +51,8 @@ struct GSeedRunStageSliceSpec {
     std::vector<TwistWorkSpaceSlot>         mCrossSources;
     TwistWorkSpaceSlot                      mDest;
     bool                                    mDestWriteInverted;
+    bool                                    mIsLastIngressDirectionLocked = false;
+    bool                                    mIsLastCrossDirectionLocked = false;
 };
 
 struct GSeedRunStageConfig {

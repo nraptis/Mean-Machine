@@ -72,6 +72,7 @@ public:
     GExprType                           mType;
     GSymbol                             mSymbol;
     std::uint64_t                       mConstVal;
+    bool                                mConstPreferHex;
 
     GReadWrapType                       mReadWrapType;
     GSymbol                             mReadWrapIndexSymbol;
@@ -91,6 +92,7 @@ public:
     static GExpr                        Const8(int pVal);
     static GExpr                        Const32(int pVal);
     static GExpr                        Const64(std::uint64_t pVal);
+    static GExpr                        Const64Hex(std::uint64_t pVal);
     static GExpr                        Cast32(const GExpr &pExpr);
     static GExpr                        Diffuse64A(std::uint64_t pVal);
     static GExpr                        Diffuse64A(const GExpr &pExpr);

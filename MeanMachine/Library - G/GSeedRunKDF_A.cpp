@@ -4,6 +4,7 @@
 //
 
 #include "GSeedRunKDF_A.hpp"
+#include "GPassFactory.hpp"
 #include "GQuick.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
 #include "Random.hpp"
@@ -87,89 +88,6 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     return aConfig;
 }
 
-std::vector<GSeedRunStageSliceSpec> FourPassNoResidualSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                             const std::vector<TwistWorkSpaceSlot> &pDestinations) {
-    return {
-        {{pPrimary[0], pPrimary[1]},
-         {pPrimary[2], pPrimary[3]},
-         pDestinations[0],
-         false},
-
-        {{pDestinations[0], pPrimary[1], pPrimary[2]},
-         {pPrimary[0], pPrimary[3]},
-         pDestinations[1],
-         true},
-
-        {{pDestinations[1], pPrimary[3], pPrimary[0]},
-         {pDestinations[0], pPrimary[1], pPrimary[2]},
-         pDestinations[2],
-         false},
-
-        {{pDestinations[2], pPrimary[2], pDestinations[0]},
-         {pDestinations[1], pPrimary[3], pPrimary[0]},
-         pDestinations[3],
-         true},
-    };
-}
-
-std::vector<GSeedRunStageSliceSpec> FourPassFourResidualSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                               const std::vector<TwistWorkSpaceSlot> &pResiduals,
-                                                               const std::vector<TwistWorkSpaceSlot> &pDestinations) {
-    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
-    Random::Shuffle(&aResiduals);
-
-    return {
-        {{pPrimary[0], pPrimary[1], aResiduals[0]},
-         {pPrimary[2], pPrimary[3]},
-         pDestinations[0],
-         false},
-
-        {{pDestinations[0], pPrimary[2], aResiduals[1]},
-         {pPrimary[0], pPrimary[3], pPrimary[1]},
-         pDestinations[1],
-         true},
-
-        {{pDestinations[1], pPrimary[3], aResiduals[2]},
-         {pDestinations[0], pPrimary[1], pPrimary[2]},
-         pDestinations[2],
-         false},
-
-        {{pDestinations[2], pDestinations[0], aResiduals[3]},
-         {pDestinations[1], pPrimary[2], pPrimary[3], pPrimary[0]},
-         pDestinations[3],
-         true},
-    };
-}
-
-std::vector<GSeedRunStageSliceSpec> FourPassEightResidualSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                                const std::vector<TwistWorkSpaceSlot> &pResiduals,
-                                                                const std::vector<TwistWorkSpaceSlot> &pDestinations) {
-    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
-    Random::Shuffle(&aResiduals);
-
-    return {
-        {{pPrimary[0], pPrimary[1], aResiduals[0]},
-         {pPrimary[2], pPrimary[3], aResiduals[1]},
-         pDestinations[0],
-         false},
-
-        {{pDestinations[0], pPrimary[2], aResiduals[2]},
-         {pPrimary[0], pPrimary[3], aResiduals[3]},
-         pDestinations[1],
-         true},
-
-        {{pDestinations[1], pPrimary[3], aResiduals[4]},
-         {pDestinations[0], pPrimary[1], aResiduals[5]},
-         pDestinations[2],
-         false},
-
-        {{pDestinations[2], pDestinations[0], aResiduals[6]},
-         {pDestinations[1], pPrimary[2], aResiduals[7]},
-         pDestinations[3],
-         true},
-    };
-}
-
 void AddKDF_APrologue(TwistProgramBranch &pBranch) {
     pBranch.AddLine("// [kdf-a]");
     pBranch.AddLine("std::uint64_t aDomainWordIngress = pConstants->mIngress;");
@@ -186,6 +104,7 @@ void AddKDF_APrologue(TwistProgramBranch &pBranch) {
 
     GBatch aInitBatch;
     aInitBatch.mName = "init varz";
+    aInitBatch.mExportsAsBlock = false;
 
     std::vector<GStatement> aInitStatements;
     for (TwistVariable aVariable : kInitialRandomVariables) {
@@ -197,55 +116,32 @@ void AddKDF_APrologue(TwistProgramBranch &pBranch) {
     pBranch.AddBatch(aInitBatch);
 }
 
-GSeedRunStageConfig MakeKDF_A_AConfig() {
+GSeedRunStageConfig BuildKDF_A_AConfig() {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray2 aPrimarySources = {
+        Slot::kSource, Slot::kParamSnow,
+    };
+    const GPassFactory::SlotArray2 aWarmUpLanes = {
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const GPassFactory::SlotArray6 aExpectedDestinations = GPassFactory::Concat(aWarmUpLanes,
+                                                                                aDestinations);
+
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunKDF_A_A",
                                              "kdf_a_loop_a",
                                              GAXSFormat::kN11);
     aConfig.mWarmupDestinationCount = 2;
-    
-    aConfig.mSlices = {
-        // source/snow are the only initialized KDF_A_A inputs.
-        {{Slot::kSource, Slot::kParamSnow},
-            {Slot::kParamSnow, Slot::kSource},
-            Slot::kWorkLaneA,
-            false},
-        
-        {{Slot::kWorkLaneA, Slot::kSource},
-            {Slot::kWorkLaneA, Slot::kParamSnow},
-            Slot::kWorkLaneB,
-            true},
-        
-        {{Slot::kWorkLaneB, Slot::kSource},
-            {Slot::kParamSnow, Slot::kWorkLaneA},
-            Slot::kFireLaneA,
-            false},
-        
-        {{Slot::kFireLaneA, Slot::kWorkLaneA},
-            {Slot::kSource, Slot::kParamSnow, Slot::kWorkLaneB},
-            Slot::kFireLaneB,
-            true},
-        
-        {{Slot::kFireLaneB, Slot::kSource, Slot::kParamSnow, Slot::kWorkLaneA},
-            {Slot::kFireLaneA, Slot::kWorkLaneB},
-            Slot::kFireLaneC,
-            false},
-        
-        {{Slot::kFireLaneC, Slot::kParamSnow, Slot::kFireLaneA},
-            {Slot::kFireLaneB, Slot::kSource, Slot::kWorkLaneB},
-            Slot::kFireLaneD,
-            true},
-    };
+    aConfig.mSlices = GPassFactory::KDF_A_AStarterSlices(aPrimarySources,
+                                                         aWarmUpLanes,
+                                                         aDestinations);
     aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
-    
-    std::vector<Slot> aInputs;
-    aInputs = {Slot::kSource, Slot::kParamSnow};
-
-    std::vector<Slot> aOutputs;
-    aOutputs = {
-        Slot::kWorkLaneA, Slot::kWorkLaneB,
-        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD};
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aOutputs = GPassFactory::ToVector(aExpectedDestinations);
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateStarter(aConfig,
@@ -262,25 +158,29 @@ GSeedRunStageConfig MakeKDF_A_AConfig() {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeKDF_A_BConfig() {
+GSeedRunStageConfig BuildKDF_A_BConfig() {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunKDF_A_B",
                                              "kdf_a_loop_b",
                                              GAXSFormat::kN9);
 
     
-    aConfig.mSlices = FourPassNoResidualSlices({Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD},
-                                               {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD});
+    aConfig.mSlices = GPassFactory::FourPassNoResidualSlices(aPrimarySources,
+                                                             aDestinations);
     aConfig.mExpectedSkeletonCount = 4;
+    aConfig.mHotPackCount = 4;
     
     {
-        std::vector<Slot> aInputs;
-        aInputs = { Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD };
-
+        const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
         std::vector<Slot> aResiduals;
-
-        std::vector<Slot> aOutputs;
-        aOutputs = {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
+        const std::vector<Slot> aOutputs = GPassFactory::ToVector(aDestinations);
         
         std::string aErrorMessage;
         if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
@@ -297,27 +197,32 @@ GSeedRunStageConfig MakeKDF_A_BConfig() {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeKDF_A_CConfig() {
+GSeedRunStageConfig BuildKDF_A_CConfig() {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const GPassFactory::SlotArray4 aResidualSources = {
+        Slot::kSource, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunKDF_A_C",
                                              "kdf_a_loop_c",
-                                             GAXSFormat::kN5);
+                                             GAXSFormat::kN7);
     
-    aConfig.mSlices = FourPassFourResidualSlices({Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
-                                                 {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD},
-                                                 {Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD});
+    aConfig.mSlices = GPassFactory::FourPassFourResidualSlices(aPrimarySources,
+                                                               aResidualSources,
+                                                               aDestinations);
     aConfig.mExpectedSkeletonCount = 4;
+    aConfig.mHotPackCount = 4;
     
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
+    const std::vector<Slot> aOutputs = GPassFactory::ToVector(aDestinations);
     
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
-    
-    std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD };
-    
-    std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
-
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
                                                         aInputs,
@@ -332,38 +237,40 @@ GSeedRunStageConfig MakeKDF_A_CConfig() {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeKDF_A_DConfig() {
+GSeedRunStageConfig BuildKDF_A_DConfig() {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+    const GPassFactory::SlotArray8 aResidualSources = {
+        Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD, Slot::kSource,
+        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kFuseLaneA, Slot::kFuseLaneB, Slot::kFuseLaneC, Slot::kFuseLaneD,
+    };
+
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunKDF_A_D",
                                              "kdf_a_loop_d",
-                                             GAXSFormat::kN7);
-    //aConfig.mIgnoreNonces = true;
-    //aConfig.mHasDomainMix = false;
+                                             GAXSFormat::kN9);
     
-    aConfig.mSlices = FourPassEightResidualSlices({Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
-                                                  {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-                                                   Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
-                                                  {Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD});
+    aConfig.mSlices = GPassFactory::FourPassTerminalEightResidualSlices(aPrimarySources,
+                                                                        aResidualSources,
+                                                                        aDestinations);
     aConfig.mExpectedSkeletonCount = 4;
+    aConfig.mHotPackCount = 4;
     
-    
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
-
-    std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
+    const std::vector<Slot> aOutputs = GPassFactory::ToVector(aDestinations);
     
     std::string aErrorMessage;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
-                                                        aInputs,
-                                                        aResiduals,
-                                                        aOutputs,
-                                                        &aErrorMessage)) {
-        printf("MakeKDF_A_DConfig was not valid with ValidateMidstage");
+    if (!GSeedRunStageConfigValidator::ValidateTerminalMidstage(aConfig,
+                                                                aInputs,
+                                                                aResiduals,
+                                                                aOutputs,
+                                                                &aErrorMessage)) {
+        printf("MakeKDF_A_DConfig was not valid with ValidateTerminalMidstage");
         printf("%s\n", aErrorMessage.c_str());
         exit(0);
     }
@@ -372,10 +279,77 @@ GSeedRunStageConfig MakeKDF_A_DConfig() {
     return aConfig;
 }
 
+// Here we diffuse [fuse] to [wind]
+
+GSeedRunStageConfig BuildKDF_A_EConfig() {
+    using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kWindLaneA, Slot::kWindLaneB, Slot::kWindLaneC, Slot::kWindLaneD,
+    };
+    const GPassFactory::SlotArray8 aResidualSources = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
+        Slot::kSource, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kWaterLaneA, Slot::kWaterLaneB, Slot::kWaterLaneC, Slot::kWaterLaneD,
+    };
+
+    GSeedRunStageConfig aConfig = BaseConfig("GSeedRunKDF_A_E",
+                                             "kdf_a_loop_e",
+                                             GAXSFormat::kN11);
+    
+    aConfig.mSlices = GPassFactory::FourPassEightResidualSlices(aPrimarySources,
+                                                                aResidualSources,
+                                                                aDestinations);
+    aConfig.mExpectedSkeletonCount = 4;
+    aConfig.mHotPackCount = 4;
+    
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
+    const std::vector<Slot> aOutputs = GPassFactory::ToVector(aDestinations);
+    
+    std::string aErrorMessage;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
+                                                        aInputs,
+                                                        aResiduals,
+                                                        aOutputs,
+                                                        &aErrorMessage)) {
+        printf("MakeKDF_A_EConfig was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessage.c_str());
+        exit(0);
+    }
+    
+    return aConfig;
+}
+
 } // namespace
 
+namespace GSeedRunKDF_AConfig {
+
+GSeedRunStageConfig MakeKDF_A_AConfig() {
+    return BuildKDF_A_AConfig();
+}
+
+GSeedRunStageConfig MakeKDF_A_BConfig() {
+    return BuildKDF_A_BConfig();
+}
+
+GSeedRunStageConfig MakeKDF_A_CConfig() {
+    return BuildKDF_A_CConfig();
+}
+
+GSeedRunStageConfig MakeKDF_A_DConfig() {
+    return BuildKDF_A_DConfig();
+}
+
+GSeedRunStageConfig MakeKDF_A_EConfig() {
+    return BuildKDF_A_EConfig();
+}
+
+}
+
 GSeedRunKDF_A_A::GSeedRunKDF_A_A()
-: mStage(MakeKDF_A_AConfig()) {
+: mStage(GSeedRunKDF_AConfig::MakeKDF_A_AConfig()) {
 }
 
 GSeedRunKDF_A_A::~GSeedRunKDF_A_A() {
@@ -396,7 +370,7 @@ bool GSeedRunKDF_A_A::Build(TwistProgramBranch &pBranch,
 }
 
 GSeedRunKDF_A_B::GSeedRunKDF_A_B()
-: mStage(MakeKDF_A_BConfig()) {
+: mStage(GSeedRunKDF_AConfig::MakeKDF_A_BConfig()) {
 }
 
 GSeedRunKDF_A_B::~GSeedRunKDF_A_B() {
@@ -416,7 +390,7 @@ bool GSeedRunKDF_A_B::Build(TwistProgramBranch &pBranch,
 }
 
 GSeedRunKDF_A_C::GSeedRunKDF_A_C()
-: mStage(MakeKDF_A_CConfig()) {
+: mStage(GSeedRunKDF_AConfig::MakeKDF_A_CConfig()) {
 }
 
 GSeedRunKDF_A_C::~GSeedRunKDF_A_C() {
@@ -436,7 +410,7 @@ bool GSeedRunKDF_A_C::Build(TwistProgramBranch &pBranch,
 }
 
 GSeedRunKDF_A_D::GSeedRunKDF_A_D()
-: mStage(MakeKDF_A_DConfig()) {
+: mStage(GSeedRunKDF_AConfig::MakeKDF_A_DConfig()) {
 }
 
 GSeedRunKDF_A_D::~GSeedRunKDF_A_D() {
@@ -451,6 +425,26 @@ bool GSeedRunKDF_A_D::Plan(std::string *pErrorMessage) {
 }
 
 bool GSeedRunKDF_A_D::Build(TwistProgramBranch &pBranch,
+                            std::string *pErrorMessage) {
+    return mStage.Build(pBranch, pErrorMessage);
+}
+
+GSeedRunKDF_A_E::GSeedRunKDF_A_E()
+: mStage(GSeedRunKDF_AConfig::MakeKDF_A_EConfig()) {
+}
+
+GSeedRunKDF_A_E::~GSeedRunKDF_A_E() {
+}
+
+void GSeedRunKDF_A_E::Reset() {
+    mStage.Reset();
+}
+
+bool GSeedRunKDF_A_E::Plan(std::string *pErrorMessage) {
+    return mStage.Plan(pErrorMessage);
+}
+
+bool GSeedRunKDF_A_E::Build(TwistProgramBranch &pBranch,
                             std::string *pErrorMessage) {
     return mStage.Build(pBranch, pErrorMessage);
 }

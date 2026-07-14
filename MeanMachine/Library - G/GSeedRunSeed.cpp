@@ -4,6 +4,7 @@
 //
 
 #include "GSeedRunSeed.hpp"
+#include "GPassFactory.hpp"
 #include "Random.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
 
@@ -127,7 +128,7 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     aConfig.mHasDomainMix = true;
     aConfig.mDomain = pDomain;
     aConfig.mIsNonKDF = true;
-    aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mExpectedSkeletonCount = 8;
     aConfig.mLoopCeiling = S_BLOCK;
     aConfig.mLoopEndText = "S_BLOCK";
     aConfig.mHotPackCount = 12;
@@ -137,211 +138,51 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     return aConfig;
 }
 
-std::vector<GSeedRunStageSliceSpec> FourPassDiverseSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                          const std::vector<TwistWorkSpaceSlot> &pResiduals,
-                                                          const std::vector<TwistWorkSpaceSlot> &pDestinations) {
-    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
-    Random::Shuffle(&aResiduals);
-
-    return {
-        {{pPrimary[0], pPrimary[1], aResiduals[0]},
-         {pPrimary[2], pPrimary[3], aResiduals[1]},
-         pDestinations[0],
-         false},
-
-        {{pDestinations[0], pPrimary[2], pPrimary[3], aResiduals[2]},
-         {pPrimary[0], pPrimary[1], aResiduals[3]},
-         pDestinations[1],
-         true},
-
-        {{pDestinations[1], pPrimary[0], pPrimary[1], aResiduals[4]},
-         {pDestinations[0], pPrimary[2], aResiduals[5]},
-         pDestinations[2],
-         false},
-
-        {{pDestinations[2], pDestinations[0], pPrimary[3], aResiduals[6]},
-         {pDestinations[1], pPrimary[1], aResiduals[7]},
-         pDestinations[3],
-         true},
-    };
-}
-
-std::vector<GSeedRunStageSliceSpec> SixPassDiverseSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                         const std::vector<TwistWorkSpaceSlot> &pResiduals,
-                                                         const std::vector<TwistWorkSpaceSlot> &pDestinations) {
-    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
-    Random::Shuffle(&aResiduals);
-
-    return {
-        {{pPrimary[0], pPrimary[1], aResiduals[0]},
-         {pPrimary[2], pPrimary[3], aResiduals[1]},
-         pDestinations[0],
-         false},
-
-        {{pDestinations[0], pPrimary[2], pPrimary[3], aResiduals[2]},
-         {pPrimary[0], pPrimary[1], aResiduals[3]},
-         pDestinations[1],
-         true},
-
-        {{pDestinations[1], pPrimary[0], aResiduals[4]},
-         {pDestinations[0], pPrimary[2]},
-         pDestinations[2],
-         false},
-
-        {{pDestinations[2], pDestinations[0], aResiduals[5]},
-         {pDestinations[1], pPrimary[3]},
-         pDestinations[3],
-         true},
-
-        {{pDestinations[3], pDestinations[1], aResiduals[6]},
-         {pDestinations[2], pDestinations[0]},
-         pDestinations[4],
-         false},
-
-        {{pDestinations[4], pDestinations[2], aResiduals[7]},
-         {pDestinations[3], pPrimary[1]},
-         pDestinations[5],
-         true},
-    };
-}
-
-std::vector<GSeedRunStageSliceSpec> SixPassRecentResidualSlices(const std::vector<TwistWorkSpaceSlot> &pPrimary,
-                                                                const std::vector<TwistWorkSpaceSlot> &pResiduals,
-                                                                const std::vector<TwistWorkSpaceSlot> &pDestinations) {
-    std::vector<TwistWorkSpaceSlot> aResiduals = pResiduals;
-    Random::Shuffle(&aResiduals);
-
-    return {
-        {{pPrimary[0], pPrimary[1], aResiduals[0]},
-         {pPrimary[2], pPrimary[3]},
-         pDestinations[0],
-         false},
-
-        {{pDestinations[0], pPrimary[2], aResiduals[1]},
-         {pPrimary[0], pPrimary[3]},
-         pDestinations[1],
-         true},
-
-        {{pDestinations[1], pPrimary[3], aResiduals[2]},
-         {pDestinations[0], pPrimary[1], pPrimary[0]},
-         pDestinations[2],
-         false},
-
-        {{pDestinations[2], pDestinations[0], aResiduals[3]},
-         {pDestinations[1], pPrimary[3], pPrimary[2]},
-         pDestinations[3],
-         true},
-
-        {{pDestinations[3], pDestinations[2], pPrimary[1]},
-         {pPrimary[2], pDestinations[0], pDestinations[1]},
-         pDestinations[4],
-         false},
-
-        {{pDestinations[4], pPrimary[0], pPrimary[1]},
-         {pDestinations[3], pDestinations[2], pDestinations[1]},
-         pDestinations[5],
-         true},
-    };
-}
-
-GSeedRunStageConfig MakeSeed_AConfig(const bool pUseNonces) {
+GSeedRunStageConfig BuildSeed_AConfig(const bool pUseNonces) {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray3 aPrimarySources = {
+        Slot::kSource, Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+    };
+    const GPassFactory::SlotArray2 aWarmUpLanes = {
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+    };
+    const GPassFactory::SlotArray6 aExpectedDestinations = GPassFactory::Concat(aWarmUpLanes,
+                                                                                aDestinations);
     
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_A",
                                              TwistDomain::kPhaseA,
                                              pUseNonces,
-                                             GAXSFormat::kN11);
+                                             GAXSFormat::kN9);
     
-    aConfig.mMaxContextSourceCount = 5;
-    aConfig.mMaxBoundSourceCount = 10;
-    aConfig.mWarmupDestinationCount = 4;
-    aConfig.mBindDuplicateSourceSlots = true;
+    aConfig.mMaxContextSourceCount = 4;
+    aConfig.mMaxBoundSourceCount = 8;
+    aConfig.mWarmupDestinationCount = 2;
+    aConfig.mBindDuplicateSourceSlots = false;
     aConfig.mSliceDomains = {
-        TwistDomain::kPhaseE, TwistDomain::kPhaseE, TwistDomain::kPhaseE,
-        TwistDomain::kPhaseF, TwistDomain::kPhaseF, TwistDomain::kPhaseF,
-        TwistDomain::kPhaseG, TwistDomain::kPhaseG, TwistDomain::kPhaseG,
-        TwistDomain::kPhaseH, TwistDomain::kPhaseH, TwistDomain::kPhaseH,
+        TwistDomain::kPhaseA, TwistDomain::kPhaseB,
+        TwistDomain::kPhaseC, TwistDomain::kPhaseD,
+        TwistDomain::kPhaseE, TwistDomain::kPhaseF,
     };
     
-    aConfig.mSlices = {
-        {{Slot::kKeyRowReadA, Slot::kKeyRowReadB},
-         {Slot::kKeyRowReadA, Slot::kSource},
-            Slot::kWorkLaneA,
-            false},
-        
-        {{Slot::kWorkLaneA, Slot::kKeyRowReadA},
-         {Slot::kKeyRowReadB, Slot::kSource},
-            Slot::kWorkLaneB,
-            true},
-        
-        {{Slot::kWorkLaneB, Slot::kKeyRowReadB},
-         {Slot::kKeyRowReadA, Slot::kSource, Slot::kWorkLaneA},
-            Slot::kWorkLaneC,
-            false},
-        
-        {{Slot::kWorkLaneC, Slot::kKeyRowReadB, Slot::kSource, Slot::kWorkLaneA},
-         {Slot::kKeyRowReadA, Slot::kWorkLaneB},
-            Slot::kWorkLaneD,
-            true},
-        
-        {{Slot::kWorkLaneD, Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource, Slot::kWorkLaneB},
-         {Slot::kWorkLaneA, Slot::kWorkLaneC},
-            Slot::kFireLaneA,
-            false},
-        
-        {{Slot::kFireLaneA, Slot::kWorkLaneC},
-         {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource, Slot::kWorkLaneB, Slot::kWorkLaneA},
-            Slot::kFireLaneB,
-            true},
-        
-        {{Slot::kFireLaneB, Slot::kKeyRowReadA, Slot::kSource, Slot::kWorkLaneA},
-         {Slot::kKeyRowReadB, Slot::kWorkLaneD, Slot::kFireLaneA},
-            Slot::kFireLaneC,
-            false},
-        
-        {{Slot::kFireLaneC, Slot::kSource, Slot::kFireLaneA, Slot::kWorkLaneA},
-         {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kFireLaneB, Slot::kWorkLaneB},
-            Slot::kFireLaneD,
-            true},
-        
-        {{Slot::kFireLaneD, Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kFireLaneC},
-         {Slot::kSource, Slot::kFireLaneA, Slot::kWorkLaneC, Slot::kWorkLaneD},
-            Slot::kExpansionLaneA,
-            false},
-        
-        {{Slot::kExpansionLaneA, Slot::kKeyRowReadA, Slot::kFireLaneD, Slot::kFireLaneB},
-         {Slot::kKeyRowReadB, Slot::kSource, Slot::kFireLaneC, Slot::kWorkLaneD},
-            Slot::kExpansionLaneB,
-            true},
-        
-        {{Slot::kExpansionLaneB, Slot::kFireLaneD, Slot::kKeyRowReadB, Slot::kFireLaneC},
-         {Slot::kKeyRowReadA, Slot::kSource, Slot::kExpansionLaneA, Slot::kFireLaneB},
-            Slot::kExpansionLaneC,
-            false},
-        
-        {{Slot::kExpansionLaneC, Slot::kKeyRowReadA},
-         {Slot::kFireLaneD, Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kKeyRowReadB},
-            Slot::kExpansionLaneD,
-            true},
-        
-    };
+    aConfig.mSlices = GPassFactory::Seed_AStarterSlices(aPrimarySources,
+                                                        aWarmUpLanes,
+                                                        aDestinations);
    
-    aConfig.mExpectedSkeletonCount = 12;
+    aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
-    std::vector<Slot> aInputs;
-    aInputs = {Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSource};
-
-    std::vector<Slot> aOutputs;
-    aOutputs = {
-        Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
-        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aOutputs = GPassFactory::ToVector(aExpectedDestinations);
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateStarter(aConfig,
                                                        aInputs, // primary inputs
                                                        aOutputs,
-                                                       true,
+                                                       false,
                                                        &aErrorMessage)) {
         printf("MakeSeed_AConfig was not valid with ValidateStarter");
         printf("%s\n", aErrorMessage.c_str());
@@ -351,29 +192,35 @@ GSeedRunStageConfig MakeSeed_AConfig(const bool pUseNonces) {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeSeed_BConfig(const bool pUseNonces) {
+GSeedRunStageConfig BuildSeed_BConfig(const bool pUseNonces) {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+    };
+    const GPassFactory::SlotArray2 aResidualSources = {
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+    };
+    const GPassFactory::SlotArray6 aDestinations = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kWorkLaneA, Slot::kWorkLaneB,
+        Slot::kWorkLaneC, Slot::kWorkLaneD,
+    };
     
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_B",
                                              TwistDomain::kPhaseA,
                                              pUseNonces,
-                                             GAXSFormat::kN5);
+                                             GAXSFormat::kN11);
     
-    aConfig.mSlices = SixPassRecentResidualSlices({Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
-                                                  {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD},
-                                                  {Slot::kInvestA, Slot::kInvestB,
-                                                   Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD});
+    aConfig.mSlices = GPassFactory::SixPassTwoResidualSlices(aPrimarySources,
+                                                             aResidualSources,
+                                                             aDestinations);
     aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
-    
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD };
-
-    std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kInvestA, Slot::kInvestB, Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
+    const std::vector<Slot> aOutputs = GPassFactory::ToVector(aDestinations);
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
@@ -390,36 +237,47 @@ GSeedRunStageConfig MakeSeed_BConfig(const bool pUseNonces) {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeSeed_CConfig(const bool pUseNonces) {
+GSeedRunStageConfig BuildSeed_CConfig(const bool pUseNonces) {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kWorkLaneC, Slot::kWorkLaneD,
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+    };
+    const GPassFactory::SlotArray6 aResidualSources = {
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kKeyRowReadA, Slot::kSource
+    };
+    const GPassFactory::SlotArray2 aPrefixDestinations = {
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const GPassFactory::SlotArray4 aBodyDestinations = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB,
+        Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+    const GPassFactory::SlotArray6 aDestinations = GPassFactory::Concat(aPrefixDestinations,
+                                                                        aBodyDestinations);
+    
     
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_C",
                                              TwistDomain::kPhaseB,
                                              pUseNonces,
-                                             GAXSFormat::kN9);
+                                             GAXSFormat::kN7);
     
-    aConfig.mSlices = SixPassDiverseSlices({Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
-                                           {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-                                            Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD},
-                                           {Slot::kInvestC, Slot::kInvestD,
-                                            Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD});
+    aConfig.mSlices = GPassFactory::SixPassSixResidualSlices(aPrimarySources,
+                                                             aResidualSources,
+                                                             aDestinations);
     aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
-
-    std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kInvestC, Slot::kInvestD, Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
                                                         aInputs,
                                                         aResiduals,
-                                                        aOutputs,
+                                                        GPassFactory::ToVector(aDestinations),
                                                         &aErrorMessage)) {
         printf("GSeedRunSeed_C was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessage.c_str());
@@ -429,70 +287,49 @@ GSeedRunStageConfig MakeSeed_CConfig(const bool pUseNonces) {
     return aConfig;
 }
 
-/*
- Now matrix diffuses [work] -> [expansion]
- */
-
-GSeedRunStageConfig MakeSeed_DConfig(const bool pUseNonces) {
+GSeedRunStageConfig BuildSeed_DConfig(const bool pUseNonces) {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB,
+        Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+    const GPassFactory::SlotArray8 aResidualSources = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kKeyRowReadB, Slot::kSource,
+    };
+    const GPassFactory::SlotArray2 aPrefixDestinations = {
+        Slot::kSnowLaneA, Slot::kSnowLaneB,
+    };
+    const GPassFactory::SlotArray4 aBodyDestinations = {
+        Slot::kFuseLaneA, Slot::kFuseLaneB,
+        Slot::kFuseLaneC, Slot::kFuseLaneD,
+    };
+    const GPassFactory::SlotArray6 aDestinations = GPassFactory::Concat(aPrefixDestinations,
+                                                                        aBodyDestinations);
     
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_D",
-                                             TwistDomain::kPhaseD,
+                                             TwistDomain::kPhaseB,
                                              pUseNonces,
-                                             GAXSFormat::kN7);
-    aConfig.mSlices = {
-        {{Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kInvestA},
-         {Slot::kExpansionLaneC, Slot::kExpansionLaneD, Slot::kInvestB},
-         Slot::kSnowLaneA,
-         false},
-
-        {{Slot::kSnowLaneA, Slot::kExpansionLaneC, Slot::kExpansionLaneD, Slot::kInvestC},
-         {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kInvestD},
-         Slot::kSnowLaneB,
-         true},
-
-        {{Slot::kSnowLaneB, Slot::kExpansionLaneA, Slot::kFireLaneA},
-         {Slot::kSnowLaneA, Slot::kExpansionLaneC},
-         Slot::kInvestA,
-         false},
-
-        {{Slot::kInvestA, Slot::kSnowLaneA, Slot::kFireLaneB},
-         {Slot::kSnowLaneB, Slot::kExpansionLaneD},
-         Slot::kInvestB,
-         true},
-
-        {{Slot::kInvestB, Slot::kSnowLaneB, Slot::kFireLaneC},
-         {Slot::kInvestA, Slot::kSnowLaneA},
-         Slot::kInvestC,
-         false},
-
-        {{Slot::kInvestC, Slot::kInvestA, Slot::kFireLaneD},
-         {Slot::kInvestB, Slot::kExpansionLaneB},
-         Slot::kInvestD,
-         true},
-    };
+                                             GAXSFormat::kN11);
+    aConfig.mSlices = GPassFactory::SixPassTerminalDiverseSlices(aPrimarySources,
+                                                                 aResidualSources,
+                                                                 aDestinations);
     aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
     
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = {
-        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD
-    };
-
-    std::vector<Slot> aOutputs;
-    aOutputs = {Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD };
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
     
     std::string aErrorMessage;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
-                                                        aInputs,
-                                                        aResiduals,
-                                                        aOutputs,
-                                                        &aErrorMessage)) {
-        printf("GSeedRunSeed_D was not valid with ValidateMidstage");
+    if (!GSeedRunStageConfigValidator::ValidateTerminalMidstage(aConfig,
+                                                                aInputs,
+                                                                aResiduals,
+                                                                GPassFactory::ToVector(aDestinations),
+                                                                &aErrorMessage)) {
+        printf("GSeedRunSeed_D was not valid with ValidateTerminalMidstage");
         printf("%s\n", aErrorMessage.c_str());
         exit(0);
     }
@@ -501,62 +338,48 @@ GSeedRunStageConfig MakeSeed_DConfig(const bool pUseNonces) {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeSeed_EConfig(const bool pUseNonces) {
+GSeedRunStageConfig BuildSeed_EConfig(const bool pUseNonces) {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const GPassFactory::SlotArray12 aResidualSources = {
+        Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+        Slot::kSnowLaneA, Slot::kSnowLaneB,
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const GPassFactory::SlotArray2 aPrefixDestinations = {
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+    };
+    const GPassFactory::SlotArray4 aBodyDestinations = {
+        Slot::kInvestA, Slot::kInvestB,
+        Slot::kInvestC, Slot::kInvestD,
+    };
+    const GPassFactory::SlotArray6 aDestinations = GPassFactory::Concat(aPrefixDestinations,
+                                                                        aBodyDestinations);
 
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_E",
-                                             TwistDomain::kPhaseE,
+                                             TwistDomain::kPhaseC,
                                              pUseNonces,
-                                             GAXSFormat::kN11);
-    aConfig.mSlices = {
-        {{Slot::kInvestA, Slot::kInvestB, Slot::kFireLaneA},
-         {Slot::kInvestC, Slot::kInvestD, Slot::kFireLaneB},
-         Slot::kFireLaneA,
-         false},
-
-        {{Slot::kFireLaneA, Slot::kInvestC, Slot::kInvestD, Slot::kWorkLaneA},
-         {Slot::kInvestA, Slot::kInvestB, Slot::kWorkLaneB},
-         Slot::kFireLaneB,
-         true},
-
-        {{Slot::kFireLaneB, Slot::kInvestA, Slot::kWorkLaneC},
-         {Slot::kFireLaneA, Slot::kInvestC},
-         Slot::kOperationLaneA,
-         false},
-
-        {{Slot::kOperationLaneA, Slot::kFireLaneA, Slot::kWorkLaneD},
-         {Slot::kFireLaneB, Slot::kInvestD},
-         Slot::kOperationLaneB,
-         true},
-
-        {{Slot::kOperationLaneB, Slot::kFireLaneB, Slot::kFireLaneC},
-         {Slot::kOperationLaneA, Slot::kFireLaneA, Slot::kInvestA},
-         Slot::kOperationLaneC,
-         false},
-
-        {{Slot::kOperationLaneC, Slot::kOperationLaneA, Slot::kFireLaneD},
-         {Slot::kOperationLaneB, Slot::kInvestB},
-         Slot::kOperationLaneD,
-         true},
-    };
+                                             GAXSFormat::kN9);
+    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aPrimarySources,
+                                                                aResidualSources,
+                                                                aDestinations);
     aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
-    
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
-                    Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD };
-
-    std::vector<Slot> aOutputs;
-    aOutputs = {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
                                                         aInputs,
                                                         aResiduals,
-                                                        aOutputs,
+                                                        GPassFactory::ToVector(aDestinations),
                                                         &aErrorMessage)) {
         printf("GSeedRunSeed_E was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessage.c_str());
@@ -566,38 +389,49 @@ GSeedRunStageConfig MakeSeed_EConfig(const bool pUseNonces) {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeSeed_FConfig(const bool pUseNonces) {
+
+GSeedRunStageConfig BuildSeed_FConfig(const bool pUseNonces) {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kInvestA, Slot::kInvestB,
+        Slot::kInvestC, Slot::kInvestD,
+    };
+    const GPassFactory::SlotArray12 aResidualSources = {
+        Slot::kSnowLaneA, Slot::kSnowLaneB,
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kSource, Slot::kKeyRowReadA,
+    };
+    const GPassFactory::SlotArray2 aPrefixDestinations = {
+        Slot::kSnowLaneC, Slot::kSnowLaneD,
+    };
+    const GPassFactory::SlotArray4 aBodyDestinations = {
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+    };
+    const GPassFactory::SlotArray6 aDestinations = GPassFactory::Concat(aPrefixDestinations,
+                                                                        aBodyDestinations);
 
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_F",
-                                             TwistDomain::kPhaseF,
+                                             TwistDomain::kPhaseC,
                                              pUseNonces,
-                                             GAXSFormat::kN9);
-    aConfig.mSlices = SixPassDiverseSlices({Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD},
-                                           {Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
-                                            Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD},
-                                           {Slot::kSnowLaneC, Slot::kSnowLaneD,
-                                            Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD});
+                                             GAXSFormat::kN11);
+    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aPrimarySources,
+                                                                aResidualSources,
+                                                                aDestinations);
     aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
-    
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = {
-        Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
-        Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
-    };
-
-    std::vector<Slot> aOutputs;
-    aOutputs = {Slot::kSnowLaneC, Slot::kSnowLaneD, Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
                                                         aInputs,
                                                         aResiduals,
-                                                        aOutputs,
+                                                        GPassFactory::ToVector(aDestinations),
                                                         &aErrorMessage)) {
         printf("GSeedRunSeed_F was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessage.c_str());
@@ -607,39 +441,49 @@ GSeedRunStageConfig MakeSeed_FConfig(const bool pUseNonces) {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeSeed_GConfig(const bool pUseNonces) {
+GSeedRunStageConfig BuildSeed_GConfig(const bool pUseNonces) {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+    };
+    const GPassFactory::SlotArray12 aResidualSources = {
+        Slot::kSnowLaneC, Slot::kSnowLaneD,
+        Slot::kSource, Slot::kKeyRowReadB,
+        Slot::kInvestA, Slot::kInvestB,
+        Slot::kInvestC, Slot::kInvestD,
+        Slot::kSnowLaneA, Slot::kSnowLaneB,
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+    };
+    const GPassFactory::SlotArray2 aPrefixDestinations = {
+        Slot::kWaterLaneA, Slot::kWaterLaneB,
+    };
+    const GPassFactory::SlotArray4 aBodyDestinations = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB,
+        Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+    const GPassFactory::SlotArray6 aDestinations = GPassFactory::Concat(aPrefixDestinations,
+                                                                        aBodyDestinations);
 
     GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_G",
-                                             TwistDomain::kPhaseH,
+                                             TwistDomain::kPhaseD,
                                              pUseNonces,
                                              GAXSFormat::kN7);
-    aConfig.mSlices = SixPassDiverseSlices({Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kSnowLaneC, Slot::kSnowLaneD},
-                                           {Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
-                                            Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD},
-                                           {Slot::kWorkLaneA, Slot::kWorkLaneB,
-                                            Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD});
+    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aPrimarySources,
+                                                                aResidualSources,
+                                                                aDestinations);
     aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
     
-    
-    
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kSnowLaneC, Slot::kSnowLaneD };
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
         
-    std::vector<Slot> aResiduals;
-    aResiduals = {
-        Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
-        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD
-    };
-
-    std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
                                                         aInputs,
                                                         aResiduals,
-                                                        aOutputs,
+                                                        GPassFactory::ToVector(aDestinations),
                                                         &aErrorMessage)) {
         printf("GSeedRunSeed_G was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessage.c_str());
@@ -649,11 +493,157 @@ GSeedRunStageConfig MakeSeed_GConfig(const bool pUseNonces) {
     return aConfig;
 }
 
+GSeedRunStageConfig BuildSeed_HConfig(const bool pUseNonces) {
+    using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB,
+        Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+    const GPassFactory::SlotArray12 aResidualSources = {
+        Slot::kFireLaneC, Slot::kFireLaneD,
+        Slot::kSource, Slot::kKeyRowReadA,
+        Slot::kSnowLaneC, Slot::kSnowLaneD,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+    };
+    const GPassFactory::SlotArray2 aPrefixDestinations = {
+        Slot::kFireLaneA, Slot::kFireLaneB,
+    };
+    const GPassFactory::SlotArray4 aBodyDestinations = {
+        Slot::kFuseLaneA, Slot::kFuseLaneB,
+        Slot::kFuseLaneC, Slot::kFuseLaneD,
+    };
+    const GPassFactory::SlotArray6 aDestinations = GPassFactory::Concat(aPrefixDestinations,
+                                                                        aBodyDestinations);
+
+    GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_H",
+                                             TwistDomain::kPhaseE,
+                                             pUseNonces,
+                                             GAXSFormat::kN9);
+    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aPrimarySources,
+                                                                aResidualSources,
+                                                                aDestinations);
+    aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
+    
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+        
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
+    
+    std::string aErrorMessage;
+    if (!GSeedRunStageConfigValidator::ValidateTerminalMidstage(aConfig,
+                                                                aInputs,
+                                                                aResiduals,
+                                                                GPassFactory::ToVector(aDestinations),
+                                                                &aErrorMessage)) {
+        printf("GSeedRunSeed_H was not valid with ValidateTerminalMidstage");
+        printf("%s\n", aErrorMessage.c_str());
+        exit(0);
+    }
+    
+    return aConfig;
+}
+
+// Here we diffuse [fuse] to [invest_efgh]
+
+GSeedRunStageConfig BuildSeed_IConfig(const bool pUseNonces) {
+    using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimarySources = {
+        Slot::kInvestE, Slot::kInvestF,
+        Slot::kInvestG, Slot::kInvestH,
+    };
+    const GPassFactory::SlotArray12 aResidualSources = {
+        Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kSnowLaneA, Slot::kSnowLaneB,
+        Slot::kWaterLaneA, Slot::kWaterLaneB,
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+    };
+    const GPassFactory::SlotArray2 aPrefixDestinations = {
+        Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const GPassFactory::SlotArray4 aBodyDestinations = {
+        Slot::kWorkLaneA, Slot::kWorkLaneB,
+        Slot::kWorkLaneC, Slot::kWorkLaneD,
+    };
+    const GPassFactory::SlotArray6 aDestinations = GPassFactory::Concat(aPrefixDestinations,
+                                                                        aBodyDestinations);
+
+    GSeedRunStageConfig aConfig = BaseConfig("GSeedRunSeed_I",
+                                             TwistDomain::kPhaseF,
+                                             pUseNonces,
+                                             GAXSFormat::kN7);
+    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aPrimarySources,
+                                                                aResidualSources,
+                                                                aDestinations);
+    aConfig.mExpectedSkeletonCount = 6;
+    aConfig.mHotPackCount = 6;
+    
+    const std::vector<Slot> aInputs = GPassFactory::ToVector(aPrimarySources);
+        
+    const std::vector<Slot> aResiduals = GPassFactory::ToVector(aResidualSources);
+    
+    std::string aErrorMessage;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
+                                                        aInputs,
+                                                        aResiduals,
+                                                        GPassFactory::ToVector(aDestinations),
+                                                        &aErrorMessage)) {
+        printf("GSeedRunSeed_I was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessage.c_str());
+        exit(0);
+    }
+    
+    return aConfig;
+}
+
 } // namespace
+
+namespace GSeedRunSeedConfig {
+
+GSeedRunStageConfig MakeSeed_AConfig(const bool pUseNonces) {
+    return BuildSeed_AConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_BConfig(const bool pUseNonces) {
+    return BuildSeed_BConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_CConfig(const bool pUseNonces) {
+    return BuildSeed_CConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_DConfig(const bool pUseNonces) {
+    return BuildSeed_DConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_EConfig(const bool pUseNonces) {
+    return BuildSeed_EConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_FConfig(const bool pUseNonces) {
+    return BuildSeed_FConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_GConfig(const bool pUseNonces) {
+    return BuildSeed_GConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_HConfig(const bool pUseNonces) {
+    return BuildSeed_HConfig(pUseNonces);
+}
+
+GSeedRunStageConfig MakeSeed_IConfig(const bool pUseNonces) {
+    return BuildSeed_IConfig(pUseNonces);
+}
+
+}
 
 GSeedRunSeed_A::GSeedRunSeed_A(const bool pUseNonces,
                                const bool pEmitNoncePrologue)
-: mStage(MakeSeed_AConfig(pUseNonces)),
+: mStage(GSeedRunSeedConfig::MakeSeed_AConfig(pUseNonces)),
   mUseNonces(pUseNonces),
   mEmitNoncePrologue(pEmitNoncePrologue) {
 }
@@ -679,7 +669,7 @@ bool GSeedRunSeed_A::Build(TwistProgramBranch &pBranch,
 
 GSeedRunSeed_B::GSeedRunSeed_B(const bool pUseNonces,
                                const bool pEmitNoncePrologue)
-: mStage(MakeSeed_BConfig(pUseNonces)),
+: mStage(GSeedRunSeedConfig::MakeSeed_BConfig(pUseNonces)),
   mUseNonces(pUseNonces),
   mEmitNoncePrologue(pEmitNoncePrologue) {
 }
@@ -705,7 +695,7 @@ bool GSeedRunSeed_B::Build(TwistProgramBranch &pBranch,
 
 GSeedRunSeed_C::GSeedRunSeed_C(const bool pUseNonces,
                                const bool pEmitNoncePrologue)
-: mStage(MakeSeed_CConfig(pUseNonces)),
+: mStage(GSeedRunSeedConfig::MakeSeed_CConfig(pUseNonces)),
   mUseNonces(pUseNonces),
   mEmitNoncePrologue(pEmitNoncePrologue) {
 }
@@ -731,7 +721,7 @@ bool GSeedRunSeed_C::Build(TwistProgramBranch &pBranch,
 
 GSeedRunSeed_D::GSeedRunSeed_D(const bool pUseNonces,
                                const bool pEmitNoncePrologue)
-: mStage(MakeSeed_DConfig(pUseNonces)),
+: mStage(GSeedRunSeedConfig::MakeSeed_DConfig(pUseNonces)),
   mUseNonces(pUseNonces),
   mEmitNoncePrologue(pEmitNoncePrologue) {
 }
@@ -757,7 +747,7 @@ bool GSeedRunSeed_D::Build(TwistProgramBranch &pBranch,
 
 GSeedRunSeed_E::GSeedRunSeed_E(const bool pUseNonces,
                                const bool pEmitNoncePrologue)
-: mStage(MakeSeed_EConfig(pUseNonces)),
+: mStage(GSeedRunSeedConfig::MakeSeed_EConfig(pUseNonces)),
   mUseNonces(pUseNonces),
   mEmitNoncePrologue(pEmitNoncePrologue) {
 }
@@ -783,7 +773,7 @@ bool GSeedRunSeed_E::Build(TwistProgramBranch &pBranch,
 
 GSeedRunSeed_F::GSeedRunSeed_F(const bool pUseNonces,
                                const bool pEmitNoncePrologue)
-: mStage(MakeSeed_FConfig(pUseNonces)),
+: mStage(GSeedRunSeedConfig::MakeSeed_FConfig(pUseNonces)),
   mUseNonces(pUseNonces),
   mEmitNoncePrologue(pEmitNoncePrologue) {
 }
@@ -809,7 +799,7 @@ bool GSeedRunSeed_F::Build(TwistProgramBranch &pBranch,
 
 GSeedRunSeed_G::GSeedRunSeed_G(const bool pUseNonces,
                                const bool pEmitNoncePrologue)
-: mStage(MakeSeed_GConfig(pUseNonces)),
+: mStage(GSeedRunSeedConfig::MakeSeed_GConfig(pUseNonces)),
   mUseNonces(pUseNonces),
   mEmitNoncePrologue(pEmitNoncePrologue) {
 }
@@ -826,6 +816,58 @@ bool GSeedRunSeed_G::Plan(std::string *pErrorMessage) {
 }
 
 bool GSeedRunSeed_G::Build(TwistProgramBranch &pBranch,
+                           std::string *pErrorMessage) {
+    if (mUseNonces && mEmitNoncePrologue) {
+        AddSeedNoncePrologue(pBranch);
+    }
+    return mStage.Build(pBranch, pErrorMessage);
+}
+
+GSeedRunSeed_H::GSeedRunSeed_H(const bool pUseNonces,
+                               const bool pEmitNoncePrologue)
+: mStage(GSeedRunSeedConfig::MakeSeed_HConfig(pUseNonces)),
+  mUseNonces(pUseNonces),
+  mEmitNoncePrologue(pEmitNoncePrologue) {
+}
+
+GSeedRunSeed_H::~GSeedRunSeed_H() {
+}
+
+void GSeedRunSeed_H::Reset() {
+    mStage.Reset();
+}
+
+bool GSeedRunSeed_H::Plan(std::string *pErrorMessage) {
+    return mStage.Plan(pErrorMessage);
+}
+
+bool GSeedRunSeed_H::Build(TwistProgramBranch &pBranch,
+                           std::string *pErrorMessage) {
+    if (mUseNonces && mEmitNoncePrologue) {
+        AddSeedNoncePrologue(pBranch);
+    }
+    return mStage.Build(pBranch, pErrorMessage);
+}
+
+GSeedRunSeed_I::GSeedRunSeed_I(const bool pUseNonces,
+                               const bool pEmitNoncePrologue)
+: mStage(GSeedRunSeedConfig::MakeSeed_IConfig(pUseNonces)),
+  mUseNonces(pUseNonces),
+  mEmitNoncePrologue(pEmitNoncePrologue) {
+}
+
+GSeedRunSeed_I::~GSeedRunSeed_I() {
+}
+
+void GSeedRunSeed_I::Reset() {
+    mStage.Reset();
+}
+
+bool GSeedRunSeed_I::Plan(std::string *pErrorMessage) {
+    return mStage.Plan(pErrorMessage);
+}
+
+bool GSeedRunSeed_I::Build(TwistProgramBranch &pBranch,
                            std::string *pErrorMessage) {
     if (mUseNonces && mEmitNoncePrologue) {
         AddSeedNoncePrologue(pBranch);

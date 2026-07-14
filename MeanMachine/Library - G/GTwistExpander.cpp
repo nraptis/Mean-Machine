@@ -176,6 +176,52 @@ bool ParseUInt64Array(const JsonValue *pArrayValue,
     return true;
 }
 
+std::uint8_t NonZeroRandomByte() {
+    std::uint8_t aValue = Random::GetByte();
+    if (aValue == 0U) {
+        aValue = 1U;
+    }
+    return aValue;
+}
+
+void RandomizeDomainConstants(TwistDomainConstants *pConstants) {
+    if (pConstants == nullptr) {
+        return;
+    }
+
+    pConstants->mIngress = Random::Get64High();
+    pConstants->mScatter = Random::Get64High();
+    pConstants->mCross = Random::Get64High();
+    pConstants->mDomainConstantPublicIngress = pConstants->mIngress;
+    pConstants->mDomainConstantPrivateIngress = pConstants->mScatter;
+    pConstants->mDomainConstantCrossIngress = pConstants->mCross;
+    pConstants->mMatrixSelectA = Random::Get64High();
+    pConstants->mMatrixSelectB = Random::Get64High();
+    pConstants->mMatrixUnrollA = NonZeroRandomByte();
+    pConstants->mMatrixUnrollB = NonZeroRandomByte();
+    pConstants->mMatrixArgA = NonZeroRandomByte();
+    pConstants->mMatrixArgB = NonZeroRandomByte();
+    pConstants->mMatrixArgC = NonZeroRandomByte();
+    pConstants->mMatrixArgD = NonZeroRandomByte();
+    pConstants->mMaskMutateA = NonZeroRandomByte();
+    pConstants->mMaskMutateB = NonZeroRandomByte();
+}
+
+void RandomizeDomainBundleConstants(TwistDomainBundle *pBundle) {
+    if (pBundle == nullptr) {
+        return;
+    }
+
+    RandomizeDomainConstants(&pBundle->mPhaseAConstants);
+    RandomizeDomainConstants(&pBundle->mPhaseBConstants);
+    RandomizeDomainConstants(&pBundle->mPhaseCConstants);
+    RandomizeDomainConstants(&pBundle->mPhaseDConstants);
+    RandomizeDomainConstants(&pBundle->mPhaseEConstants);
+    RandomizeDomainConstants(&pBundle->mPhaseFConstants);
+    RandomizeDomainConstants(&pBundle->mPhaseGConstants);
+    RandomizeDomainConstants(&pBundle->mPhaseHConstants);
+}
+
 [[maybe_unused]] bool ParseBranch(const JsonValue &pRoot,
                                   const std::string &pBranchName,
                                   TwistProgramBranch *pBranch,
@@ -964,6 +1010,46 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mOperationLaneB", TwistWorkSpaceSlot::kOperationLaneB},
         {"mOperationLaneC", TwistWorkSpaceSlot::kOperationLaneC},
         {"mOperationLaneD", TwistWorkSpaceSlot::kOperationLaneD},
+        {"mSnowLaneA", TwistWorkSpaceSlot::kSnowLaneA},
+        {"mSnowLaneB", TwistWorkSpaceSlot::kSnowLaneB},
+        {"mSnowLaneC", TwistWorkSpaceSlot::kSnowLaneC},
+        {"mSnowLaneD", TwistWorkSpaceSlot::kSnowLaneD},
+        {"mFireLaneA", TwistWorkSpaceSlot::kFireLaneA},
+        {"mFireLaneB", TwistWorkSpaceSlot::kFireLaneB},
+        {"mFireLaneC", TwistWorkSpaceSlot::kFireLaneC},
+        {"mFireLaneD", TwistWorkSpaceSlot::kFireLaneD},
+        {"mWaterLaneA", TwistWorkSpaceSlot::kWaterLaneA},
+        {"mWaterLaneB", TwistWorkSpaceSlot::kWaterLaneB},
+        {"mWaterLaneC", TwistWorkSpaceSlot::kWaterLaneC},
+        {"mWaterLaneD", TwistWorkSpaceSlot::kWaterLaneD},
+        {"mEarthLaneA", TwistWorkSpaceSlot::kEarthLaneA},
+        {"mEarthLaneB", TwistWorkSpaceSlot::kEarthLaneB},
+        {"mEarthLaneC", TwistWorkSpaceSlot::kEarthLaneC},
+        {"mEarthLaneD", TwistWorkSpaceSlot::kEarthLaneD},
+        {"mWindLaneA", TwistWorkSpaceSlot::kWindLaneA},
+        {"mWindLaneB", TwistWorkSpaceSlot::kWindLaneB},
+        {"mWindLaneC", TwistWorkSpaceSlot::kWindLaneC},
+        {"mWindLaneD", TwistWorkSpaceSlot::kWindLaneD},
+        {"mFuseLaneA", TwistWorkSpaceSlot::kFuseLaneA},
+        {"mFuseLaneB", TwistWorkSpaceSlot::kFuseLaneB},
+        {"mFuseLaneC", TwistWorkSpaceSlot::kFuseLaneC},
+        {"mFuseLaneD", TwistWorkSpaceSlot::kFuseLaneD},
+        {"mScrapLaneA", TwistWorkSpaceSlot::kScrapLaneA},
+        {"mScrapLaneB", TwistWorkSpaceSlot::kScrapLaneB},
+        {"mScrapLaneC", TwistWorkSpaceSlot::kScrapLaneC},
+        {"mScrapLaneD", TwistWorkSpaceSlot::kScrapLaneD},
+        {"mMergeLaneA", TwistWorkSpaceSlot::kMergeLaneA},
+        {"mMergeLaneB", TwistWorkSpaceSlot::kMergeLaneB},
+        {"mMergeLaneC", TwistWorkSpaceSlot::kMergeLaneC},
+        {"mMergeLaneD", TwistWorkSpaceSlot::kMergeLaneD},
+        {"mInvestLaneA", TwistWorkSpaceSlot::kInvestA},
+        {"mInvestLaneB", TwistWorkSpaceSlot::kInvestB},
+        {"mInvestLaneC", TwistWorkSpaceSlot::kInvestC},
+        {"mInvestLaneD", TwistWorkSpaceSlot::kInvestD},
+        {"mInvestLaneE", TwistWorkSpaceSlot::kInvestE},
+        {"mInvestLaneF", TwistWorkSpaceSlot::kInvestF},
+        {"mInvestLaneG", TwistWorkSpaceSlot::kInvestG},
+        {"mInvestLaneH", TwistWorkSpaceSlot::kInvestH},
         {"mKeyBoxUnrolledA", TwistWorkSpaceSlot::kKeyBoxUnrolledA},
         {"mKeyBoxUnrolledB", TwistWorkSpaceSlot::kKeyBoxUnrolledB},
         {"mKeyRowReadA", TwistWorkSpaceSlot::kKeyRowReadA},
@@ -2224,6 +2310,7 @@ GTwistExpander::GTwistExpander()
     mInitialValue_Value = static_cast<unsigned char>(Random::Get(256));
     mInitialValue_Permute = static_cast<unsigned char>(Random::Get(256));
 
+    RandomizeDomainBundleConstants(&mDomainBundleInbuilt);
     SaltTables::InjectRandomEight(this);
     RefreshTablePointers();
 }
@@ -2269,7 +2356,7 @@ void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                           TwistFarmSalt *pFarmSalt,
                           std::uint64_t pNonce,
                           std::uint8_t *pPassword,
-                          unsigned int pPasswordByteLength,
+                          std::size_t pPasswordByteLength,
                           std::uint8_t *pDestination) {
     RefreshTablePointers();
     TwistExpander::Seed(pWorkSpace,
@@ -2282,16 +2369,10 @@ void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
 }
 
 void GTwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
-                                std::uint64_t pNonce,
                                 std::uint8_t *pSource,
-                                std::size_t pBlockIndex,
-                                std::size_t pBlockCount,
                                 std::uint8_t *pDestination) {
     TwistExpander::TwistBlock(pWorkSpace,
-                              pNonce,
                               pSource,
-                              pBlockIndex,
-                              pBlockCount,
                               pDestination);
 }
 

@@ -978,28 +978,3 @@ void TwistSnow::Aria256Counter(std::uint8_t *pSource,
         IncrementCounter128BE(aCounter);
     }
 }
-
-void TwistSnow::MurmurHash(std::uint8_t *pSource,
-                           std::uint8_t *pDest) {
-
-    std::uint64_t aState = 5381;
-
-    for (int aIndex = 0; aIndex < S_BLOCK; aIndex++) {
-
-        std::uint64_t aChar = pSource[aIndex];
-
-        aState ^= aChar + 0x9E3779B97F4A7C15ULL + (aState << 6) + (aState >> 2);
-        aState *= 0xD6E8FEB86659FD93ULL;
-        aState = (aState << 27) | (aState >> 37);
-
-        std::uint64_t aMixed = aState + static_cast<std::uint64_t>(aIndex);
-
-        aMixed ^= aMixed >> 30;
-        aMixed *= 0xBF58476D1CE4E5B9ULL;
-        aMixed ^= aMixed >> 27;
-        aMixed *= 0x94D049BB133111EBULL;
-        aMixed ^= aMixed >> 31;
-
-        pDest[aIndex] = static_cast<std::uint8_t>(aMixed >> 56);
-    }
-}

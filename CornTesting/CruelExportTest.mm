@@ -13,6 +13,11 @@
 #include "Builder_KDF.hpp"
 #include "Builder_Seeder.hpp"
 #include "Builder_Twister.hpp"
+#include "Builder_GrowA.hpp"
+#include "Builder_GrowB.hpp"
+#include "SmartSquashControl.hpp"
+#include "GrowAControl.hpp"
+#include "GrowBControl.hpp"
 #include "Avalancher.hpp"
 #include "FileIO.hpp"
 #include "GAXSK.hpp"
@@ -49,26 +54,345 @@
 
 @implementation CruelExportTest
 
+- (void)testSmartSquashUsesCanonicalLaneIdentityAndEffectiveOffsets {
+    auto CountText = [](const std::string &pText,
+                        const std::string &pNeedle) -> std::size_t {
+        std::size_t aCount = 0U;
+        std::size_t aPosition = 0U;
+        while ((aPosition = pText.find(pNeedle, aPosition)) != std::string::npos) {
+            ++aCount;
+            aPosition += pNeedle.size();
+        }
+        return aCount;
+    };
+
+    SmartSquashControl::Reset(0x5351554153485445ULL);
+    const std::string aBaseline =
+        SmartSquashControl::GenerateSquashInvestToKeyBoxes(64ULL);
+    const std::string aCandidate =
+        SmartSquashControl::GenerateSquashInvestToKeyBoxes(256ULL);
+
+    for (char aLane = 'A'; aLane <= 'H'; ++aLane) {
+        std::string aBinding = "aFragment";
+        aBinding += aLane;
+        aBinding += " = aInvestLane";
+        aBinding += aLane;
+        XCTAssertTrue(CountText(aBaseline, aBinding) == 16U,
+                      "Every key row should preserve fragment/invest-lane identity.");
+        XCTAssertTrue(CountText(aCandidate, aBinding) == 16U,
+                      "Every candidate should preserve fragment/invest-lane identity.");
+    }
+    XCTAssertTrue(CountText(aBaseline, " = aInvestLane") == (16U * 8U),
+                  "Expected exactly eight canonical lane bindings per key row.");
+    XCTAssertTrue(CountText(aCandidate, " = aInvestLane") == (16U * 8U),
+                  "Expected exactly eight canonical lane bindings per key row.");
+
+    const std::string aOffsetMarker = "aIndex + ";
+    std::size_t aOffsetCount = 0U;
+    std::size_t aPosition = 0U;
+    while ((aPosition = aCandidate.find(aOffsetMarker, aPosition)) != std::string::npos) {
+        aPosition += aOffsetMarker.size();
+        const unsigned long aOffset = std::stoul(aCandidate.substr(aPosition));
+        XCTAssertTrue(aOffset < static_cast<unsigned long>(W_KEY),
+                      "SmartSquash should export the effective W_KEY residue.");
+        ++aOffsetCount;
+    }
+    XCTAssertTrue(aOffsetCount == (16U * 8U),
+                  "Expected one effective offset per row and lane.");
+    XCTAssertTrue(aCandidate.find(" / 1984 (") != std::string::npos,
+                  "Diversity denominator should cover only meaningful candidate fields.");
+    XCTAssertTrue(aCandidate.find(" / 3008 (") == std::string::npos,
+                  "Legacy lane-permutation distance must not reach the score.");
+}
+
+- (void)testGrowAUsesTwoStageRoutesAndScoresEffectiveChoices {
+    auto CountText = [](const std::string &pText,
+                        const std::string &pNeedle) -> std::size_t {
+        std::size_t aCount = 0U;
+        std::size_t aPosition = 0U;
+        while ((aPosition = pText.find(pNeedle, aPosition)) != std::string::npos) {
+            ++aCount;
+            aPosition += pNeedle.size();
+        }
+        return aCount;
+    };
+
+    GrowAControl::Reset(0x47524F57415F5445ULL);
+    const std::string aBaseline = GrowAControl::Generate(64ULL);
+    const std::string aCandidate = GrowAControl::Generate(256ULL);
+
+    auto RouteGroupsAreValid = [](const std::string &pText,
+                                  const std::string &pMarker) {
+        std::size_t aPosition = 0U;
+        for (std::size_t aGroup = 0U; aGroup < 4U; ++aGroup) {
+            std::array<bool, 4U> aSeen{};
+            std::size_t aDistinctCount = 0U;
+            for (std::size_t i = 0U; i < 4U; ++i) {
+                aPosition = pText.find(pMarker, aPosition);
+                if (aPosition == std::string::npos) { return false; }
+                const std::size_t aValuePosition = pText.rfind(" = ", aPosition);
+                if (aValuePosition == std::string::npos) { return false; }
+                const unsigned long aValue =
+                    std::stoul(pText.substr(aValuePosition + 3U));
+                if (aValue >= aSeen.size()) { return false; }
+                if (!aSeen[aValue]) {
+                    aSeen[aValue] = true;
+                    ++aDistinctCount;
+                }
+                aPosition += pMarker.size();
+            }
+            if (aDistinctCount < 3U) { return false; }
+        }
+        return pText.find(pMarker, aPosition) == std::string::npos;
+    };
+
+    XCTAssertTrue(aCandidate.find("aWorkLane") == std::string::npos,
+                  "GrowA should consume the expansion lanes written by GROW_A.");
+    XCTAssertTrue(aCandidate.find("S_BLOCK1") == std::string::npos,
+                  "GrowA should not emit a full-block fold.");
+    XCTAssertTrue(RouteGroupsAreValid(aCandidate, "U * S_QUARTER;"),
+                  "Each GrowA four-source fold may repeat at most one quarter.");
+    XCTAssertTrue(RouteGroupsAreValid(aCandidate, "U * W_KEY;"),
+                  "Each GrowA four-source fold may repeat at most one key chunk.");
+
+    for (char aLane = 'A'; aLane <= 'D'; ++aLane) {
+        std::string aExpandRead = "aExpandLane";
+        aExpandRead += aLane;
+        aExpandRead += "[aFoldIndex";
+        aExpandRead += aLane;
+        aExpandRead += "]";
+        XCTAssertTrue(CountText(aCandidate, aExpandRead) == 4U,
+                      "Every quarter fold should read each fixed expansion lane once.");
+
+        std::string aScrapRead = "aScrapLane";
+        aScrapRead += aLane;
+        aScrapRead += "[aFoldIndex";
+        aScrapRead += aLane;
+        aScrapRead += "]";
+        XCTAssertTrue(CountText(aCandidate, aScrapRead) == 4U,
+                      "Every key fold should read each fixed scrap lane once.");
+
+        std::string aMergeRead = "aMergeLane";
+        aMergeRead += aLane;
+        aMergeRead += "[aFoldIndex";
+        aMergeRead += aLane;
+        aMergeRead += "]";
+        XCTAssertTrue(CountText(aCandidate, aMergeRead) == 1U,
+                      "The final fold should read each fixed merge lane once.");
+
+        std::string aScrapWrite = "aScrapLane";
+        aScrapWrite += aLane;
+        aScrapWrite += "[aIndex] = aFoldWord;";
+        XCTAssertTrue(CountText(aCandidate, aScrapWrite) == 1U,
+                      "Each first-stage fold should have one fixed scrap destination.");
+
+        std::string aMergeWrite = "aMergeLane";
+        aMergeWrite += aLane;
+        aMergeWrite += "[aIndex] = aFoldWord;";
+        XCTAssertTrue(CountText(aCandidate, aMergeWrite) == 1U,
+                      "Each second-stage fold should have one fixed merge destination.");
+
+        for (std::size_t aBase = 0U; aBase < 4U; ++aBase) {
+            std::string aQuarterRoute = "aFoldBase";
+            aQuarterRoute += aLane;
+            aQuarterRoute += " = " + std::to_string(aBase) +
+                             "U * S_QUARTER;";
+            XCTAssertTrue(CountText(aCandidate, aQuarterRoute) == 1U,
+                          "Every expansion-lane quarter should be routed exactly once.");
+
+            std::string aKeyRoute = "aFoldBase";
+            aKeyRoute += aLane;
+            aKeyRoute += " = " + std::to_string(aBase) + "U * W_KEY;";
+            XCTAssertTrue(CountText(aCandidate, aKeyRoute) == 1U,
+                          "Every scrap-lane key chunk should be routed exactly once.");
+        }
+    }
+
+    for (const unsigned aShift : {0U, 8U, 16U, 24U}) {
+        const std::string aShiftText = "<< " + std::to_string(aShift) + "U)";
+        XCTAssertTrue(CountText(aCandidate, aShiftText) == 9U,
+                      "Every GrowA fold should assign each output byte exactly once.");
+    }
+    XCTAssertTrue(CountText(aCandidate, "TwistMix32::Diffuse") == 9U,
+                  "GrowA should contain exactly eight routed folds and one final fold.");
+
+    const std::string aOffsetMarker = "aIndex + ";
+    std::size_t aPosition = 0U;
+    std::size_t aQuarterOffsets = 0U;
+    std::size_t aKeyOffsets = 0U;
+    while ((aPosition = aCandidate.find(aOffsetMarker, aPosition)) != std::string::npos) {
+        aPosition += aOffsetMarker.size();
+        const unsigned long aOffset = std::stoul(aCandidate.substr(aPosition));
+        const std::string aLookup = aCandidate.substr(aPosition, 80U);
+        if (aLookup.find("S_QUARTER1") != std::string::npos) {
+            XCTAssertTrue(aOffset < static_cast<unsigned long>(S_QUARTER));
+            ++aQuarterOffsets;
+        } else {
+            XCTAssertTrue(aLookup.find("W_KEY1") != std::string::npos);
+            XCTAssertTrue(aOffset < static_cast<unsigned long>(W_KEY));
+            ++aKeyOffsets;
+        }
+    }
+    XCTAssertTrue(aQuarterOffsets == 16U);
+    XCTAssertTrue(aKeyOffsets == 20U);
+    XCTAssertTrue(aCandidate.find("; nearest pair: ") != std::string::npos);
+    XCTAssertTrue(aCandidate.find(" / 674") != std::string::npos,
+                  "GrowA score should cover routes, shifts, offsets, and diffusion.");
+    XCTAssertTrue(aBaseline != aCandidate,
+                  "GrowA candidates should still vary meaningful operation choices.");
+}
+
+- (void)testGrowBUsesTwoStageRoutesAndScoresEffectiveChoices {
+    auto CountText = [](const std::string &pText,
+                        const std::string &pNeedle) -> std::size_t {
+        std::size_t aCount = 0U;
+        std::size_t aPosition = 0U;
+        while ((aPosition = pText.find(pNeedle, aPosition)) != std::string::npos) {
+            ++aCount;
+            aPosition += pNeedle.size();
+        }
+        return aCount;
+    };
+
+    GrowBControl::Reset(0x47524F57425F5445ULL);
+    const std::string aBaseline = GrowBControl::Generate(64ULL);
+    const std::string aCandidate = GrowBControl::Generate(256ULL);
+
+    auto RouteGroupsAreValid = [](const std::string &pText,
+                                  const std::string &pMarker) {
+        std::size_t aPosition = 0U;
+        for (std::size_t aGroup = 0U; aGroup < 4U; ++aGroup) {
+            std::array<bool, 4U> aSeen{};
+            std::size_t aDistinctCount = 0U;
+            for (std::size_t i = 0U; i < 4U; ++i) {
+                aPosition = pText.find(pMarker, aPosition);
+                if (aPosition == std::string::npos) { return false; }
+                const std::size_t aValuePosition = pText.rfind(" = ", aPosition);
+                if (aValuePosition == std::string::npos) { return false; }
+                const unsigned long aValue =
+                    std::stoul(pText.substr(aValuePosition + 3U));
+                if (aValue >= aSeen.size()) { return false; }
+                if (!aSeen[aValue]) {
+                    aSeen[aValue] = true;
+                    ++aDistinctCount;
+                }
+                aPosition += pMarker.size();
+            }
+            if (aDistinctCount < 3U) { return false; }
+        }
+        return pText.find(pMarker, aPosition) == std::string::npos;
+    };
+
+    XCTAssertTrue(aCandidate.find("aExpandLane") == std::string::npos,
+                  "GrowB should consume the work lanes written by GROW_B.");
+    XCTAssertTrue(aCandidate.find("S_BLOCK1") == std::string::npos,
+                  "GrowB should not emit a full-block fold.");
+    XCTAssertTrue(RouteGroupsAreValid(aCandidate, "U * S_QUARTER;"),
+                  "Each GrowB four-source fold may repeat at most one quarter.");
+    XCTAssertTrue(RouteGroupsAreValid(aCandidate, "U * W_KEY;"),
+                  "Each GrowB four-source fold may repeat at most one key chunk.");
+
+    for (char aLane = 'A'; aLane <= 'D'; ++aLane) {
+        std::string aWorkRead = "aWorkLane";
+        aWorkRead += aLane;
+        aWorkRead += "[aFoldIndex";
+        aWorkRead += aLane;
+        aWorkRead += "]";
+        XCTAssertTrue(CountText(aCandidate, aWorkRead) == 4U,
+                      "Every quarter fold should read each fixed work lane once.");
+
+        std::string aScrapRead = "aScrapLane";
+        aScrapRead += aLane;
+        aScrapRead += "[aFoldIndex";
+        aScrapRead += aLane;
+        aScrapRead += "]";
+        XCTAssertTrue(CountText(aCandidate, aScrapRead) == 4U,
+                      "Every key fold should read each fixed scrap lane once.");
+
+        std::string aMergeRead = "aMergeLane";
+        aMergeRead += aLane;
+        aMergeRead += "[aFoldIndex";
+        aMergeRead += aLane;
+        aMergeRead += "]";
+        XCTAssertTrue(CountText(aCandidate, aMergeRead) == 1U,
+                      "The final fold should read each fixed merge lane once.");
+
+        std::string aScrapWrite = "aScrapLane";
+        aScrapWrite += aLane;
+        aScrapWrite += "[aIndex] = aFoldWord;";
+        XCTAssertTrue(CountText(aCandidate, aScrapWrite) == 1U,
+                      "Each first-stage fold should have one fixed scrap destination.");
+
+        std::string aMergeWrite = "aMergeLane";
+        aMergeWrite += aLane;
+        aMergeWrite += "[aIndex] = aFoldWord;";
+        XCTAssertTrue(CountText(aCandidate, aMergeWrite) == 1U,
+                      "Each second-stage fold should have one fixed merge destination.");
+
+        for (std::size_t aBase = 0U; aBase < 4U; ++aBase) {
+            std::string aQuarterRoute = "aFoldBase";
+            aQuarterRoute += aLane;
+            aQuarterRoute += " = " + std::to_string(aBase) +
+                             "U * S_QUARTER;";
+            XCTAssertTrue(CountText(aCandidate, aQuarterRoute) == 1U,
+                          "Every work-lane quarter should be routed exactly once.");
+
+            std::string aKeyRoute = "aFoldBase";
+            aKeyRoute += aLane;
+            aKeyRoute += " = " + std::to_string(aBase) + "U * W_KEY;";
+            XCTAssertTrue(CountText(aCandidate, aKeyRoute) == 1U,
+                          "Every scrap-lane key chunk should be routed exactly once.");
+        }
+    }
+
+    for (const unsigned aShift : {0U, 8U, 16U, 24U}) {
+        const std::string aShiftText = "<< " + std::to_string(aShift) + "U)";
+        XCTAssertTrue(CountText(aCandidate, aShiftText) == 9U,
+                      "Every GrowB fold should assign each output byte exactly once.");
+    }
+    XCTAssertTrue(CountText(aCandidate, "TwistMix32::Diffuse") == 9U,
+                  "GrowB should contain exactly eight routed folds and one final fold.");
+
+    std::size_t aPosition = 0U;
+    std::size_t aQuarterOffsets = 0U;
+    std::size_t aKeyOffsets = 0U;
+    const std::string aOffsetMarker = "aIndex + ";
+    while ((aPosition = aCandidate.find(aOffsetMarker, aPosition)) !=
+           std::string::npos) {
+        aPosition += aOffsetMarker.size();
+        const unsigned long aOffset = std::stoul(aCandidate.substr(aPosition));
+        const std::string aLookup = aCandidate.substr(aPosition, 100U);
+        if (aLookup.find("S_QUARTER1") != std::string::npos) {
+            XCTAssertTrue(aOffset < static_cast<unsigned long>(S_QUARTER));
+            ++aQuarterOffsets;
+        } else {
+            XCTAssertTrue(aLookup.find("W_KEY1") != std::string::npos);
+            XCTAssertTrue(aOffset < static_cast<unsigned long>(W_KEY));
+            ++aKeyOffsets;
+        }
+    }
+    XCTAssertTrue(aQuarterOffsets == 16U);
+    XCTAssertTrue(aKeyOffsets == 20U);
+    XCTAssertTrue(aCandidate.find("; nearest pair: ") != std::string::npos);
+    XCTAssertTrue(aCandidate.find(" / 674") != std::string::npos,
+                  "GrowB score should cover routes, shifts, offsets, and diffusion.");
+    XCTAssertTrue(aBaseline != aCandidate,
+                  "GrowB candidates should still vary meaningful operation choices.");
+}
+
 class AvalancherToyExpander : public TwistExpander {
 public:
     void TwistBlock(TwistWorkSpace *pWorkSpace,
-                    std::uint64_t pNonce,
                     std::uint8_t *pSource,
-                    std::size_t pBlockIndex,
-                    std::size_t pBlockCount,
                     std::uint8_t *pDestination) override {
         TwistExpander::TwistBlock(pWorkSpace,
-                                  pNonce,
                                   pSource,
-                                  pBlockIndex,
-                                  pBlockCount,
                                   pDestination);
         if ((pSource == nullptr) || (pDestination == nullptr)) {
             return;
         }
 
-        std::uint8_t aCarry = static_cast<std::uint8_t>((pBlockIndex * 29U) +
-                                                        (pBlockCount * 11U));
+        std::uint8_t aCarry = 1U;
         for (std::size_t aIndex = 0U; aIndex < S_BLOCK; aIndex += 1U) {
             const std::uint8_t aRight = pSource[(aIndex + 1U) & S_BLOCK1];
             aCarry = static_cast<std::uint8_t>(aCarry + pSource[aIndex] +
@@ -415,7 +739,7 @@ static BOOL CompareKeyBoxB(const char *pLabel,
     std::uint8_t aTwistDest[S_BLOCK];
     std::memset(aTwistSource, 0x42, sizeof(aTwistSource));
     std::memset(aTwistDest, 0, sizeof(aTwistDest));
-    aExpander.TwistBlock(&aWorkSpace, 1ULL, aTwistSource, 0U, 1U, aTwistDest);
+    aExpander.TwistBlock(&aWorkSpace, aTwistSource, aTwistDest);
 
     XCTAssertTrue(true, "Exported C++ fixture compiled and ran.");
 
@@ -1060,6 +1384,123 @@ static BOOL CompareKeyBoxB(const char *pLabel,
     XCTAssertTrue(aSnowAssign < aKDF, "Snow assignment should export before KDF.");
 }
 
+- (void)testGrowAExportUsesCanonicalRecipe {
+    GTwistExpander aExpander;
+    aExpander.mNameBase = "GrowACanonicalRecipe";
+
+    Builder_GrowA aGrowA;
+    std::string aError;
+    XCTAssertTrue(aGrowA.Build(&aExpander, &aError),
+                  "Grow A build failed: %s", aError.c_str());
+
+    const std::string aExportRoot = "/private/tmp/mm_grow_a_canonical_recipe";
+    XCTAssertTrue(aExpander.ExportCPPProjectRoot(aExportRoot, &aError),
+                  "Export failed: %s", aError.c_str());
+
+    std::vector<std::uint8_t> aCppBytes;
+    const std::string aCppPath = FileIO::Join(aExportRoot,
+                                               "TwistExpander_GrowACanonicalRecipe.cpp");
+    XCTAssertTrue(FileIO::Load(aCppPath, aCppBytes),
+                  "Failed to load emitted cpp file.");
+    std::vector<std::uint8_t> aArxCppBytes;
+    const std::string aArxCppPath = FileIO::Join(
+        aExportRoot,
+        "TwistExpander_GrowACanonicalRecipe_Arx.cpp");
+    XCTAssertTrue(FileIO::Load(aArxCppPath, aArxCppBytes),
+                  "Failed to load emitted ARX cpp file.");
+
+    const std::string aCpp(aCppBytes.begin(), aCppBytes.end());
+    const std::string aArxCpp(aArxCppBytes.begin(), aArxCppBytes.end());
+    const std::size_t aArxGrowABegin = aArxCpp.find(
+        "void TwistExpander_GrowACanonicalRecipe_Arx::GROW_A(");
+    const std::size_t aArxGrowAEnd = aArxCpp.find(
+        "void TwistExpander_GrowACanonicalRecipe_Arx::GROW_B(",
+        aArxGrowABegin);
+    const std::string aArxGrowAText =
+        ((aArxGrowABegin != std::string::npos) &&
+         (aArxGrowAEnd != std::string::npos) &&
+         (aArxGrowABegin < aArxGrowAEnd)) ?
+        aArxCpp.substr(aArxGrowABegin, aArxGrowAEnd - aArxGrowABegin) :
+        "";
+
+    XCTAssertTrue(aCpp.find("// GROW_A grow_key_a (start)") != std::string::npos,
+                  "Builder_GrowA should emit the Grow A run stage.");
+    XCTAssertTrue(aCpp.find("// GKeyFoldA grow_key_a_fold (start)") != std::string::npos,
+                  "Builder_GrowA should emit the Grow A key fold.");
+    XCTAssertTrue(aCpp.find("// temp storage: scrap_a, scrap_b, water_a, water_b, water_c, water_d, invest_a, invest_b, invest_c, invest_d, fire_a, fire_b, fire_c, fire_d") != std::string::npos,
+                  "Grow A call metadata should list invest lanes as temporary storage.");
+    XCTAssertTrue(!aArxGrowAText.empty(),
+                  "Expected exported ARX companion GROW_A definition.");
+    XCTAssertTrue(aArxGrowAText.find("aOperationLane") == std::string::npos,
+                  "Exported GROW_A should not reference operation lanes.");
+    XCTAssertTrue(aArxGrowAText.find("aInvestLaneA") != std::string::npos &&
+                  aArxGrowAText.find("aInvestLaneB") != std::string::npos &&
+                  aArxGrowAText.find("aInvestLaneC") != std::string::npos &&
+                  aArxGrowAText.find("aInvestLaneD") != std::string::npos,
+                  "Exported GROW_A should use all four canonical invest residuals.");
+}
+
+- (void)testGrowBExportUsesCanonicalRecipe {
+    GTwistExpander aExpander;
+    aExpander.mNameBase = "GrowBCanonicalRecipe";
+
+    Builder_GrowB aGrowB;
+    std::string aError;
+    XCTAssertTrue(aGrowB.Build(&aExpander, &aError),
+                  "Grow B build failed: %s", aError.c_str());
+
+    const std::string aExportRoot = "/private/tmp/mm_grow_b_canonical_recipe";
+    XCTAssertTrue(aExpander.ExportCPPProjectRoot(aExportRoot, &aError),
+                  "Export failed: %s", aError.c_str());
+
+    std::vector<std::uint8_t> aCppBytes;
+    const std::string aCppPath = FileIO::Join(aExportRoot,
+                                               "TwistExpander_GrowBCanonicalRecipe.cpp");
+    XCTAssertTrue(FileIO::Load(aCppPath, aCppBytes),
+                  "Failed to load emitted cpp file.");
+    std::vector<std::uint8_t> aArxCppBytes;
+    const std::string aArxCppPath = FileIO::Join(
+        aExportRoot,
+        "TwistExpander_GrowBCanonicalRecipe_Arx.cpp");
+    XCTAssertTrue(FileIO::Load(aArxCppPath, aArxCppBytes),
+                  "Failed to load emitted ARX cpp file.");
+
+    const std::string aCpp(aCppBytes.begin(), aCppBytes.end());
+    const std::string aArxCpp(aArxCppBytes.begin(), aArxCppBytes.end());
+    const std::size_t aArxGrowBBegin = aArxCpp.find(
+        "void TwistExpander_GrowBCanonicalRecipe_Arx::GROW_B(");
+    const std::string aArxGrowBText =
+        (aArxGrowBBegin == std::string::npos) ?
+        "" :
+        aArxCpp.substr(aArxGrowBBegin);
+
+    XCTAssertTrue(aCpp.find("// GROW_B grow_key_b (start)") != std::string::npos,
+                  "Builder_GrowB should emit the Grow B run stage.");
+    XCTAssertTrue(aCpp.find("// GKeyFoldB grow_key_b_fold (start)") != std::string::npos,
+                  "Builder_GrowB should emit the Grow B key fold.");
+    XCTAssertTrue(aCpp.find("// temp storage: scrap_c, scrap_d, earth_a, earth_b, earth_c, earth_d, wind_a, wind_b, wind_c, wind_d, invest_e, invest_f, invest_g, invest_h") != std::string::npos,
+                  "Grow B call metadata should list its canonical temporary lanes.");
+    XCTAssertTrue(!aArxGrowBText.empty(),
+                  "Expected exported ARX companion GROW_B definition.");
+    XCTAssertTrue(aArxGrowBText.find("aOperationLane") == std::string::npos,
+                  "Exported GROW_B should not reference operation lanes.");
+    XCTAssertTrue(aArxGrowBText.find("aEarthLaneA") != std::string::npos &&
+                  aArxGrowBText.find("aEarthLaneB") != std::string::npos &&
+                  aArxGrowBText.find("aEarthLaneC") != std::string::npos &&
+                  aArxGrowBText.find("aEarthLaneD") != std::string::npos,
+                  "Exported GROW_B should use all four canonical earth residuals.");
+    XCTAssertTrue(aArxGrowBText.find("aWindLaneA") != std::string::npos &&
+                  aArxGrowBText.find("aWindLaneB") != std::string::npos &&
+                  aArxGrowBText.find("aWindLaneC") != std::string::npos &&
+                  aArxGrowBText.find("aWindLaneD") != std::string::npos,
+                  "Exported GROW_B should use all four canonical wind residuals.");
+    XCTAssertTrue(aArxGrowBText.find("aInvestLaneE") != std::string::npos &&
+                  aArxGrowBText.find("aInvestLaneF") != std::string::npos &&
+                  aArxGrowBText.find("aInvestLaneG") != std::string::npos &&
+                  aArxGrowBText.find("aInvestLaneH") != std::string::npos,
+                  "Exported GROW_B should use all four canonical invest residuals.");
+}
+
 - (void)testTwisterExportUsesNamedTwistRunStages {
     GTwistExpander aExpander;
     aExpander.mNameBase = "TwisterStageNames";
@@ -1068,6 +1509,14 @@ static BOOL CompareKeyBoxB(const char *pLabel,
     std::string aError;
     XCTAssertTrue(aTwister.Build(&aExpander, &aError),
                   "Twister build failed: %s", aError.c_str());
+
+    Builder_GrowA aGrowA;
+    XCTAssertTrue(aGrowA.Build(&aExpander, &aError),
+                  "Grow A build failed: %s", aError.c_str());
+
+    Builder_GrowB aGrowB;
+    XCTAssertTrue(aGrowB.Build(&aExpander, &aError),
+                  "Grow B build failed: %s", aError.c_str());
 
     const std::string aExportRoot = "/private/tmp/mm_twister_stage_names";
     XCTAssertTrue(aExpander.ExportCPPProjectRoot(aExportRoot, &aError),
@@ -1099,10 +1548,10 @@ static BOOL CompareKeyBoxB(const char *pLabel,
         }
         return aCount;
     };
-    XCTAssertTrue(aHpp.find("std::size_t pBlockIndex") != std::string::npos,
-                  "Expected exported TwistBlock declaration to include block index.");
-    XCTAssertTrue(aHpp.find("std::size_t pBlockCount") != std::string::npos,
-                  "Expected exported TwistBlock declaration to include block count.");
+    XCTAssertTrue(aHpp.find("std::size_t pBlockIndex") == std::string::npos,
+                  "Expected exported TwistBlock declaration to omit block index.");
+    XCTAssertTrue(aHpp.find("std::size_t pBlockCount") == std::string::npos,
+                  "Expected exported TwistBlock declaration to omit block count.");
     XCTAssertTrue(aArxHpp.find("class TwistExpander_TwisterStageNames_Arx {") != std::string::npos,
                   "Expected exported ARX companion class.");
     XCTAssertTrue(aArxHpp.find("void KDF_A_A(") != std::string::npos,
@@ -1257,10 +1706,10 @@ static BOOL CompareKeyBoxB(const char *pLabel,
     XCTAssertTrue(aArxCpp.find("// read from: aExpandLaneD, aExpandLaneC, aExpandLaneB, aExpandLaneA") != std::string::npos &&
                   aArxCpp.find("// write to: aOperationLaneA") != std::string::npos,
                   "Expected Twist_B first loop to read expansion lanes and write operation A.");
-    XCTAssertTrue(aCpp.find("std::size_t pBlockIndex") != std::string::npos,
-                  "Expected exported TwistBlock definition to include block index.");
-    XCTAssertTrue(aCpp.find("std::size_t pBlockCount") != std::string::npos,
-                  "Expected exported TwistBlock definition to include block count.");
+    XCTAssertTrue(aCpp.find("std::size_t pBlockIndex") == std::string::npos,
+                  "Expected exported TwistBlock definition to omit block index.");
+    XCTAssertTrue(aCpp.find("std::size_t pBlockCount") == std::string::npos,
+                  "Expected exported TwistBlock definition to omit block count.");
     XCTAssertTrue(aHpp.find("#include \"TwistExpander_TwisterStageNames_Arx.hpp\"") != std::string::npos,
                   "Expected exported twister header to include its ARX companion.");
     XCTAssertTrue(aCpp.find("#include \"TwistExpander_TwisterStageNames_Arx.hpp\"") == std::string::npos,
@@ -1367,16 +1816,10 @@ static BOOL CompareKeyBoxB(const char *pLabel,
                   "GrowKeyB loops should start at S_BLOCK >> 1.");
     XCTAssertTrue(aGrowBText.find("aIndex < static_cast<std::size_t>(S_BLOCK)") != std::string::npos,
                   "GrowKeyB loops should run to S_BLOCK.");
-    XCTAssertTrue(aCpp.find("if ((pBlockCount - pBlockIndex) > static_cast<std::size_t>(H_KEY_A)) {") != std::string::npos,
-                  "TwistBlock should grow key box A only before the final H_KEY_A blocks.");
-    XCTAssertTrue(aCpp.find("TwistShiftBox::ShiftKeyBoxA(pWorkSpace);") != std::string::npos,
-                  "TwistBlock should shift key box A when it does not need new key material.");
-    XCTAssertTrue(aCpp.find("if ((pBlockCount - pBlockIndex) > static_cast<std::size_t>(H_KEY_B)) {") != std::string::npos,
-                  "TwistBlock should grow key box B only before the final H_KEY_B blocks.");
-    XCTAssertTrue(aCpp.find("TwistShiftBox::ShiftKeyBoxB(pWorkSpace);") != std::string::npos,
-                  "TwistBlock should shift key box B when it does not need new key material.");
+    XCTAssertTrue(aCpp.find("if ((pBlockCount - pBlockIndex) > static_cast<std::size_t>(H_KEY)") == std::string::npos,
+                  "TwistBlock should always grow key boxes.");
     XCTAssertTrue(aCpp.find("pBlockIndex < pBlockCount") == std::string::npos,
-                  "TwistBlock should trust the block index/count invariant and emit only the remaining-block check.");
+                  "TwistBlock should not take block index/count parameters.");
 }
 
 - (void)testSeederPostKDFSeedLoopsUseNonceOnlyInFirstPhase {

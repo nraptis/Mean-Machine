@@ -188,17 +188,53 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
     
     std::vector<GStatement> aStatements;
     
+    std::vector<GSymbol> aFuseLanes;
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneA));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneB));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneC));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneD));
+    
+    std::vector<GSymbol> aEarthLanes;
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneA));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneB));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneC));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneD));
+    
+    std::vector<GSymbol> aFireLanes;
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneA));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneB));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneC));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneD));
+    
+    std::vector<GSymbol> aWindLanes;
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneA));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneB));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneC));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneD));
+    
+    std::vector<GSymbol> aWaterLanes;
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneA));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneB));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneC));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneD));
+    
     std::vector<GSymbol> aWorkLanes;
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneA));
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneB));
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneC));
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneD));
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
     
     std::vector<GSymbol> aExpansionLanes;
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneA));
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneB));
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneC));
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneD));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneA));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneB));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneC));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneD));
+    
+    std::vector<GSymbol> aOperationLanes;
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneA));
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneB));
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneC));
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneD));
     
     std::vector<TwistDomain> aDomains;
     aDomains.push_back(TwistDomain::kPhaseA);
@@ -281,12 +317,11 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         pExpander->mSeed.AddLine("");
 
         std::vector<GStatement> aStatementsFarmA;
-        Random::Shuffle(&aExpansionLanes);
         GFarm aFarm;
-        if (!aFarm.BakeEphemeral(aExpansionLanes[0],
-                                 aExpansionLanes[1],
-                                 aExpansionLanes[2],
-                                 aExpansionLanes[3],
+        if (!aFarm.BakeEphemeral(aWaterLanes[0],
+                                 aWaterLanes[1],
+                                 aWaterLanes[2],
+                                 aWaterLanes[3],
                                  aDomainPartialName,
                                  &aStatementsFarmA,
                                  pErrorMessage)) {
@@ -328,7 +363,6 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         
         
         std::vector<GStatement> aStatementsFarmB;
-        Random::Shuffle(&aWorkLanes);
         if (!aFarm.BakeWorkspace(aExpansionLanes[0],
                                  aExpansionLanes[1],
                                  aExpansionLanes[2],
@@ -364,17 +398,55 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
 bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
                                    std::string *pErrorMessage) {
     
-    std::vector<GSymbol> aExpansionLanes;
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneA));
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneB));
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneC));
-    aExpansionLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kExpansionLaneD));
+    
+    std::vector<GSymbol> aInvestLanes;
+    aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestE));
+    aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestF));
+    aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestG));
+    aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestH));
+    
+    
+    std::vector<GSymbol> aFuseLanes;
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneA));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneB));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneC));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneD));
+    
+    std::vector<GSymbol> aEarthLanes;
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneA));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneB));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneC));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneD));
+    
+    std::vector<GSymbol> aFireLanes;
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneA));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneB));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneC));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneD));
+    
+    std::vector<GSymbol> aWindLanes;
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneA));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneB));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneC));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneD));
+    
+    std::vector<GSymbol> aWaterLanes;
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneA));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneB));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneC));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneD));
     
     std::vector<GSymbol> aWorkLanes;
     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
+    
+    std::vector<GSymbol> aExpansionLanes;
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneA));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneB));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneC));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneD));
     
     std::vector<GSymbol> aOperationLanes;
     aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneA));
@@ -406,15 +478,21 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         return false;
     }
     
-    AddSeedMatrixDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseC, true);
+    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseB, false);
+    GSeedRunSeed_D aRunnerSeedD(true, false);
+    if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedD, "GSeedRunSeed_D", pErrorMessage)) {
+        return false;
+    }
+    
+    AddSeedMatrixDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseB, true);
     
     for (int i=0;i<4;i+=2) {
         
         GRunMatrixDiffusionConfig aDiffusionA;
-        aDiffusionA.mInputA = aWorkLanes[i];
-        aDiffusionA.mInputB = aWorkLanes[i + 1];
-        aDiffusionA.mOutputA = aExpansionLanes[i];
-        aDiffusionA.mOutputB =  aExpansionLanes[i + 1];
+        aDiffusionA.mInputA = aFuseLanes[i];
+        aDiffusionA.mInputB = aFuseLanes[i + 1];
+        aDiffusionA.mOutputA = aFireLanes[i];
+        aDiffusionA.mOutputB =  aFireLanes[i + 1];
         
         aDiffusionA.mShuffleEntropyA = aOperationLanes[(i + 2) % 4];
         aDiffusionA.mShuffleEntropyB = aOperationLanes[(i + 3) % 4];
@@ -435,35 +513,41 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         pExpander->mSeed.AddBatch(aBatchDiffusion);
     }
     
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseD, false);
-    GSeedRunSeed_D aRunnerSeedD(true, false);
-    if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedD, "GSeedRunSeed_D", pErrorMessage)) {
-        return false;
-    }
-
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseE, false);
+    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseC, false);
     GSeedRunSeed_E aRunnerSeedE(true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedE, "GSeedRunSeed_E", pErrorMessage)) {
         return false;
     }
 
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseF, false);
+    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseC, false);
     GSeedRunSeed_F aRunnerSeedF(true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedF, "GSeedRunSeed_F", pErrorMessage)) {
         return false;
     }
     
-    AddSeedMatrixDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseG, false);
+    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseD, false);
+    GSeedRunSeed_G aRunnerSeedG(true, false);
+    if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedG, "GSeedRunSeed_G", pErrorMessage)) {
+        return false;
+    }
+
+    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseE, false);
+    GSeedRunSeed_H aRunnerSeedH(true, false);
+    if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedH, "GSeedRunSeed_H", pErrorMessage)) {
+        return false;
+    }
+    
+    AddSeedMatrixDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseE, false);
     
     pExpander->mSeed.AddLine("//");
     
     for (int i=0;i<4;i+=2) {
         
         GRunMatrixDiffusionConfig aDiffusionA;
-        aDiffusionA.mInputA = aExpansionLanes[i];
-        aDiffusionA.mInputB = aExpansionLanes[i + 1];
-        aDiffusionA.mOutputA = aSnowLanes[i];
-        aDiffusionA.mOutputB =  aSnowLanes[i + 1];
+        aDiffusionA.mInputA = aFuseLanes[i];
+        aDiffusionA.mInputB = aFuseLanes[i + 1];
+        aDiffusionA.mOutputA = aInvestLanes[i];
+        aDiffusionA.mOutputB =  aInvestLanes[i + 1];
         
         aDiffusionA.mShuffleEntropyA = aOperationLanes[(i + 2) % 4];
         aDiffusionA.mShuffleEntropyB = aOperationLanes[(i + 3) % 4];
@@ -483,22 +567,22 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         pExpander->mSeed.AddBatch(aBatchDiffusion);
     }
     
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseH, false);
-    GSeedRunSeed_G aRunnerSeedG(true, false);
-    if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedG, "GSeedRunSeed_G", pErrorMessage)) {
+    
+
+    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseF, false);
+    GSeedRunSeed_I aRunnerSeedI(true, false);
+    if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedI, "GSeedRunSeed_I", pErrorMessage)) {
         return false;
     }
-    
-    
     
     std::vector<GStatement> aStatementsSquash;
     GSymbol aIndex = GSymbol::Var(TwistVariable::kIndex);
     GSquash aSquash;
     if (!aSquash.Bake(GSymbol::Var(TwistVariable::kParamOutput),
-                      aExpansionLanes[0],
-                      aExpansionLanes[1],
-                      aExpansionLanes[2],
-                      aExpansionLanes[3],
+                      aWorkLanes[0],
+                      aWorkLanes[1],
+                      aWorkLanes[2],
+                      aWorkLanes[3],
                       
                       aIndex,
                       
@@ -506,13 +590,11 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
                       pErrorMessage)) {
         return false;
     }
+    
     GBatch aFinishBatch;
     aFinishBatch.mExportsAsBlock = false;
     aFinishBatch.CommitStatements(&aStatementsSquash);
     pExpander->mSeed.AddBatch(aFinishBatch);
-    
-    
-    
     
     return true;
 }

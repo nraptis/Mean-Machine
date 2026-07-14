@@ -62,6 +62,55 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         return false;
     }
     
+    std::vector<GSymbol> aFuseLanes;
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneA));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneB));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneC));
+    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneD));
+    
+    std::vector<GSymbol> aEarthLanes;
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneA));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneB));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneC));
+    aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneD));
+    
+    std::vector<GSymbol> aFireLanes;
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneA));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneB));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneC));
+    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneD));
+    
+    std::vector<GSymbol> aWindLanes;
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneA));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneB));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneC));
+    aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneD));
+    
+    std::vector<GSymbol> aWaterLanes;
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneA));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneB));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneC));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneD));
+    
+    std::vector<GSymbol> aWorkLanes;
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
+    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
+    
+    std::vector<GSymbol> aExpansionLanes;
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneA));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneB));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneC));
+    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneD));
+    
+    std::vector<GSymbol> aOperationLanes;
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneA));
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneB));
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneC));
+    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneD));
+    
+    
     if (!BuildKDFStage<GSeedRunKDF_A_A>(pExpander->mKDF_A,
                                         "GSeedRunKDF_A_A",
                                         "kdf-a",
@@ -91,32 +140,20 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         return false;
     }
     
-    std::vector<GSymbol> aWorkLanes;
-    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneA));
-    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
-    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
-    aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
-    
-    std::vector<GSymbol> aExpansionLanes;
-    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneA));
-    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneB));
-    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneC));
-    aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneD));
-    
-    std::vector<GSymbol> aOperationLanes;
-    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneA));
-    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneB));
-    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneC));
-    aOperationLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kOperationLaneD));
-    
+    if (!BuildKDFStage<GSeedRunKDF_A_D>(pExpander->mKDF_A,
+                                        "GSeedRunKDF_A_D",
+                                        "kdf-a",
+                                        pErrorMessage)) {
+        return false;
+    }
     
     for (int i=0;i<4;i+=2) {
         
         GRunMatrixDiffusionConfig aDiffusionA;
-        aDiffusionA.mInputA = aWorkLanes[i];
-        aDiffusionA.mInputB = aWorkLanes[i + 1];
-        aDiffusionA.mOutputA = aExpansionLanes[i];
-        aDiffusionA.mOutputB =  aExpansionLanes[i + 1];
+        aDiffusionA.mInputA = aFuseLanes[i];
+        aDiffusionA.mInputB = aFuseLanes[i + 1];
+        aDiffusionA.mOutputA = aWindLanes[i];
+        aDiffusionA.mOutputB =  aWindLanes[i + 1];
         
         aDiffusionA.mShuffleEntropyA = aOperationLanes[(i + 0) % 4];
         aDiffusionA.mShuffleEntropyB = aOperationLanes[(i + 1) % 4];
@@ -137,10 +174,8 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         pExpander->mKDF_A.AddBatch(aBatchDiffusion);
     }
     
-    
-    
-    if (!BuildKDFStage<GSeedRunKDF_A_D>(pExpander->mKDF_A,
-                                        "GSeedRunKDF_A_D",
+    if (!BuildKDFStage<GSeedRunKDF_A_E>(pExpander->mKDF_A,
+                                        "GSeedRunKDF_A_E",
                                         "kdf-a",
                                         pErrorMessage)) {
         return false;
@@ -178,8 +213,8 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     for (int i=0;i<4;i+=2) {
         
         GRunMatrixDiffusionConfig aDiffusionB;
-        aDiffusionB.mInputA = aExpansionLanes[i];
-        aDiffusionB.mInputB = aExpansionLanes[i + 1];
+        aDiffusionB.mInputA = aFuseLanes[i];
+        aDiffusionB.mInputB = aFuseLanes[i + 1];
         aDiffusionB.mOutputA = aWorkLanes[i];
         aDiffusionB.mOutputB = aWorkLanes[i + 1];
         

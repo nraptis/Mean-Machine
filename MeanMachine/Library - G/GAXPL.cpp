@@ -83,7 +83,7 @@ bool GAXPL::MakeHotAddExpr(int pHotIndex,
         return false;
     }
 
-    *pResult = GExpr::Const64(
+    *pResult = GExpr::Const64Hex(
         mHotPack.mPair[static_cast<std::size_t>(aHotIndex)].mAdd
     );
 
@@ -104,7 +104,7 @@ bool GAXPL::MakeHotMulExpr(int pHotIndex,
         return false;
     }
 
-    *pResult = GExpr::Const64(
+    *pResult = GExpr::Const64Hex(
         mHotPack.mPair[static_cast<std::size_t>(aHotIndex)].mMul
     );
 

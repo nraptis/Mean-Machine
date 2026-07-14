@@ -527,6 +527,30 @@ std::string BufName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kFireLaneB: return "fire_b";
         case TwistWorkSpaceSlot::kFireLaneC: return "fire_c";
         case TwistWorkSpaceSlot::kFireLaneD: return "fire_d";
+        case TwistWorkSpaceSlot::kWaterLaneA: return "water_a";
+        case TwistWorkSpaceSlot::kWaterLaneB: return "water_b";
+        case TwistWorkSpaceSlot::kWaterLaneC: return "water_c";
+        case TwistWorkSpaceSlot::kWaterLaneD: return "water_d";
+        case TwistWorkSpaceSlot::kEarthLaneA: return "earth_a";
+        case TwistWorkSpaceSlot::kEarthLaneB: return "earth_b";
+        case TwistWorkSpaceSlot::kEarthLaneC: return "earth_c";
+        case TwistWorkSpaceSlot::kEarthLaneD: return "earth_d";
+        case TwistWorkSpaceSlot::kWindLaneA: return "wind_a";
+        case TwistWorkSpaceSlot::kWindLaneB: return "wind_b";
+        case TwistWorkSpaceSlot::kWindLaneC: return "wind_c";
+        case TwistWorkSpaceSlot::kWindLaneD: return "wind_d";
+        case TwistWorkSpaceSlot::kFuseLaneA: return "fuse_a";
+        case TwistWorkSpaceSlot::kFuseLaneB: return "fuse_b";
+        case TwistWorkSpaceSlot::kFuseLaneC: return "fuse_c";
+        case TwistWorkSpaceSlot::kFuseLaneD: return "fuse_d";
+        case TwistWorkSpaceSlot::kScrapLaneA: return "scrap_a";
+        case TwistWorkSpaceSlot::kScrapLaneB: return "scrap_b";
+        case TwistWorkSpaceSlot::kScrapLaneC: return "scrap_c";
+        case TwistWorkSpaceSlot::kScrapLaneD: return "scrap_d";
+        case TwistWorkSpaceSlot::kMergeLaneA: return "merge_a";
+        case TwistWorkSpaceSlot::kMergeLaneB: return "merge_b";
+        case TwistWorkSpaceSlot::kMergeLaneC: return "merge_c";
+        case TwistWorkSpaceSlot::kMergeLaneD: return "merge_d";
         case TwistWorkSpaceSlot::kParamSnow: return "param_snow";
         case TwistWorkSpaceSlot::kInvestA: return "invest_a";
         case TwistWorkSpaceSlot::kInvestB: return "invest_b";
@@ -579,7 +603,7 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
     }
 
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource: return "mSource";
+        case TwistWorkSpaceSlot::kSource: return "aSource";
         case TwistWorkSpaceSlot::kParamSource: return "pSource";
         case TwistWorkSpaceSlot::kParamDestination: return "pDestination";
 
@@ -624,6 +648,30 @@ std::string BufAliasName(TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kFireLaneB: return "aFireLaneB";
         case TwistWorkSpaceSlot::kFireLaneC: return "aFireLaneC";
         case TwistWorkSpaceSlot::kFireLaneD: return "aFireLaneD";
+        case TwistWorkSpaceSlot::kWaterLaneA: return "aWaterLaneA";
+        case TwistWorkSpaceSlot::kWaterLaneB: return "aWaterLaneB";
+        case TwistWorkSpaceSlot::kWaterLaneC: return "aWaterLaneC";
+        case TwistWorkSpaceSlot::kWaterLaneD: return "aWaterLaneD";
+        case TwistWorkSpaceSlot::kEarthLaneA: return "aEarthLaneA";
+        case TwistWorkSpaceSlot::kEarthLaneB: return "aEarthLaneB";
+        case TwistWorkSpaceSlot::kEarthLaneC: return "aEarthLaneC";
+        case TwistWorkSpaceSlot::kEarthLaneD: return "aEarthLaneD";
+        case TwistWorkSpaceSlot::kWindLaneA: return "aWindLaneA";
+        case TwistWorkSpaceSlot::kWindLaneB: return "aWindLaneB";
+        case TwistWorkSpaceSlot::kWindLaneC: return "aWindLaneC";
+        case TwistWorkSpaceSlot::kWindLaneD: return "aWindLaneD";
+        case TwistWorkSpaceSlot::kFuseLaneA: return "aFuseLaneA";
+        case TwistWorkSpaceSlot::kFuseLaneB: return "aFuseLaneB";
+        case TwistWorkSpaceSlot::kFuseLaneC: return "aFuseLaneC";
+        case TwistWorkSpaceSlot::kFuseLaneD: return "aFuseLaneD";
+        case TwistWorkSpaceSlot::kScrapLaneA: return "aScrapLaneA";
+        case TwistWorkSpaceSlot::kScrapLaneB: return "aScrapLaneB";
+        case TwistWorkSpaceSlot::kScrapLaneC: return "aScrapLaneC";
+        case TwistWorkSpaceSlot::kScrapLaneD: return "aScrapLaneD";
+        case TwistWorkSpaceSlot::kMergeLaneA: return "aMergeLaneA";
+        case TwistWorkSpaceSlot::kMergeLaneB: return "aMergeLaneB";
+        case TwistWorkSpaceSlot::kMergeLaneC: return "aMergeLaneC";
+        case TwistWorkSpaceSlot::kMergeLaneD: return "aMergeLaneD";
         case TwistWorkSpaceSlot::kParamSnow: return "pSnow";
         case TwistWorkSpaceSlot::kInvestA: return "aInvestLaneA";
         case TwistWorkSpaceSlot::kInvestB: return "aInvestLaneB";

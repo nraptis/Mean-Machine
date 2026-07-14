@@ -241,16 +241,16 @@ private:
         }
 
         using Slot = TwistWorkSpaceSlot;
-        const GSymbol aOperationA = GSymbol::Buf(Slot::kOperationLaneA);
-        const GSymbol aOperationB = GSymbol::Buf(Slot::kOperationLaneB);
-        const GSymbol aOperationC = GSymbol::Buf(Slot::kOperationLaneC);
-        const GSymbol aOperationD = GSymbol::Buf(Slot::kOperationLaneD);
+        const GSymbol aWaterA = GSymbol::Buf(Slot::kScrapLaneA);
+        const GSymbol aWaterB = GSymbol::Buf(Slot::kScrapLaneB);
+        const GSymbol aWaterC = GSymbol::Buf(Slot::kScrapLaneC);
+        const GSymbol aWaterD = GSymbol::Buf(Slot::kScrapLaneD);
         const GSymbol aKeyRowWriteA = GSymbol::Buf(Slot::kKeyRowWriteA);
-        const GSymbol aWorkA = GSymbol::Buf(Slot::kWorkLaneA);
-        const GSymbol aWorkB = GSymbol::Buf(Slot::kWorkLaneB);
-        const GSymbol aWorkC = GSymbol::Buf(Slot::kWorkLaneC);
-        const GSymbol aWorkD = GSymbol::Buf(Slot::kWorkLaneD);
-        const GSymbol aOperationLanes[4] = { aOperationA, aOperationB, aOperationC, aOperationD };
+        const GSymbol aWorkA = GSymbol::Buf(Slot::kMergeLaneA);
+        const GSymbol aWorkB = GSymbol::Buf(Slot::kMergeLaneB);
+        const GSymbol aWorkC = GSymbol::Buf(Slot::kMergeLaneC);
+        const GSymbol aWorkD = GSymbol::Buf(Slot::kMergeLaneD);
+        const GSymbol aWaterLanes[4] = { aWaterA, aWaterB, aWaterC, aWaterD };
 
         auto AddLine = [&pBranch](const int pIndent,
                                   const std::string &pLine) {
@@ -279,7 +279,7 @@ private:
         AddLine(0, "{");
         AddLine(1, "// read from: " + BufAliasName(pSourceA) + ", " + BufAliasName(pSourceB) + ", " + BufAliasName(pSourceC) + ", " + BufAliasName(pSourceD));
         AddLine(1, "// byte shifts: " + ShiftListText(aInitialByteShifts) + "; diffuse: " + aInitialDiffuseName);
-        AddLine(1, "// write to: " + BufAliasName(aOperationA));
+        AddLine(1, "// write to: " + BufAliasName(aWaterA));
         AddLine(1, "for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_BLOCK); aIndex += 1U) {");
         AddFoldWord(2,
                     Indexed(pSourceA, "aIndex"),
@@ -288,11 +288,11 @@ private:
                     Indexed(pSourceD, "aIndex"),
                     aInitialByteShifts);
         AddLine(2, DiffuseLine("aFoldWord", aInitialDiffuseName, "aFoldWord"));
-        AddLine(2, Indexed(aOperationA, "aIndex") + " = aFoldWord;");
+        AddLine(2, Indexed(aWaterA, "aIndex") + " = aFoldWord;");
         AddLine(1, "}");
         AddLine(0, "}");
 
-        const int aQuarterSize = S_BLOCK >> 2;
+        const int aQuarterSize = S_QUARTER;
         const GSymbol aWorkLanes[4] = { aWorkA, aWorkB, aWorkC, aWorkD };
         std::vector<int> aSourceQuartersA;
         std::vector<int> aSourceQuartersB;
@@ -318,28 +318,28 @@ private:
             const std::vector<int> aByteShifts = RandomByteShifts();
 
             AddLine(0, "{");
-            AddLine(1, "// read from: " + BufAliasName(aOperationA) + " source quarters " +
+            AddLine(1, "// read from: " + BufAliasName(aWaterA) + " source quarters " +
                     std::to_string(aSourceQuarterA) + ", " +
                     std::to_string(aSourceQuarterB) + ", " +
                     std::to_string(aSourceQuarterC) + ", " +
                     std::to_string(aSourceQuarterD) + " with offsets " +
                     SizeLiteral(aShiftA) + ", " + SizeLiteral(aShiftB) + ", " + SizeLiteral(aShiftC) + ", " + SizeLiteral(aShiftD));
             AddLine(1, "// byte shifts: " + ShiftListText(aByteShifts) + "; diffuse: " + aDiffuseName);
-            AddLine(1, "// write to: " + BufAliasName(aWorkLanes[aQuarter]) + " [0..<(S_BLOCK >> 2U)]");
-            AddLine(1, "const std::size_t aFoldBaseA = " + std::to_string(aSourceQuarterA) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "const std::size_t aFoldBaseB = " + std::to_string(aSourceQuarterB) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "const std::size_t aFoldBaseC = " + std::to_string(aSourceQuarterC) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "const std::size_t aFoldBaseD = " + std::to_string(aSourceQuarterD) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_BLOCK >> 2U); aIndex += 1U) {");
-            AddLine(2, "const std::size_t aFoldIndexA = aFoldBaseA + ((aIndex + " + SizeLiteral(aShiftA) + ") & ((S_BLOCK >> 2U) - 1U));");
-            AddLine(2, "const std::size_t aFoldIndexB = aFoldBaseB + ((aIndex + " + SizeLiteral(aShiftB) + ") & ((S_BLOCK >> 2U) - 1U));");
-            AddLine(2, "const std::size_t aFoldIndexC = aFoldBaseC + ((aIndex + " + SizeLiteral(aShiftC) + ") & ((S_BLOCK >> 2U) - 1U));");
-            AddLine(2, "const std::size_t aFoldIndexD = aFoldBaseD + ((aIndex + " + SizeLiteral(aShiftD) + ") & ((S_BLOCK >> 2U) - 1U));");
+            AddLine(1, "// write to: " + BufAliasName(aWorkLanes[aQuarter]) + " [0..<S_QUARTER]");
+            AddLine(1, "const std::size_t aFoldBaseA = " + std::to_string(aSourceQuarterA) + "U * S_QUARTER;");
+            AddLine(1, "const std::size_t aFoldBaseB = " + std::to_string(aSourceQuarterB) + "U * S_QUARTER;");
+            AddLine(1, "const std::size_t aFoldBaseC = " + std::to_string(aSourceQuarterC) + "U * S_QUARTER;");
+            AddLine(1, "const std::size_t aFoldBaseD = " + std::to_string(aSourceQuarterD) + "U * S_QUARTER;");
+            AddLine(1, "for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_QUARTER); aIndex += 1U) {");
+            AddLine(2, "const std::size_t aFoldIndexA = aFoldBaseA + ((aIndex + " + SizeLiteral(aShiftA) + ") & S_QUARTER1);");
+            AddLine(2, "const std::size_t aFoldIndexB = aFoldBaseB + ((aIndex + " + SizeLiteral(aShiftB) + ") & S_QUARTER1);");
+            AddLine(2, "const std::size_t aFoldIndexC = aFoldBaseC + ((aIndex + " + SizeLiteral(aShiftC) + ") & S_QUARTER1);");
+            AddLine(2, "const std::size_t aFoldIndexD = aFoldBaseD + ((aIndex + " + SizeLiteral(aShiftD) + ") & S_QUARTER1);");
             AddFoldWord(2,
-                        Indexed(aOperationA, "aFoldIndexA"),
-                        Indexed(aOperationA, "aFoldIndexB"),
-                        Indexed(aOperationA, "aFoldIndexC"),
-                        Indexed(aOperationA, "aFoldIndexD"),
+                        Indexed(aWaterA, "aFoldIndexA"),
+                        Indexed(aWaterA, "aFoldIndexB"),
+                        Indexed(aWaterA, "aFoldIndexC"),
+                        Indexed(aWaterA, "aFoldIndexD"),
                         aByteShifts);
             AddLine(2, DiffuseLine("aFoldWord", aDiffuseName, "aFoldWord"));
             AddLine(2, Indexed(aWorkLanes[aQuarter], "aIndex") + " = aFoldWord;");
@@ -364,7 +364,7 @@ private:
                     std::to_string(aFragments[3]) + " with offsets " +
                     SizeLiteral(aShiftA) + ", " + SizeLiteral(aShiftB) + ", " + SizeLiteral(aShiftC) + ", " + SizeLiteral(aShiftD));
             AddLine(1, "// byte shifts: " + ShiftListText(aByteShifts) + "; diffuse: " + aDiffuseName);
-            AddLine(1, "// write to: " + BufAliasName(aOperationLanes[aLane]) + " [0..<W_KEY]");
+            AddLine(1, "// write to: " + BufAliasName(aWaterLanes[aLane]) + " [0..<W_KEY]");
             AddLine(1, "const std::size_t aFoldBaseA = " + std::to_string(aFragments[0]) + "U * W_KEY;");
             AddLine(1, "const std::size_t aFoldBaseB = " + std::to_string(aFragments[1]) + "U * W_KEY;");
             AddLine(1, "const std::size_t aFoldBaseC = " + std::to_string(aFragments[2]) + "U * W_KEY;");
@@ -381,7 +381,7 @@ private:
                         Indexed(aWorkLanes[aLane], "aFoldIndexD"),
                         aByteShifts);
             AddLine(2, DiffuseLine("aFoldWord", aDiffuseName, "aFoldWord"));
-            AddLine(2, Indexed(aOperationLanes[aLane], "aIndex") + " = aFoldWord;");
+            AddLine(2, Indexed(aWaterLanes[aLane], "aIndex") + " = aFoldWord;");
             AddLine(1, "}");
             AddLine(0, "}");
         }
@@ -395,7 +395,7 @@ private:
             const std::vector<int> aByteShifts = RandomByteShifts();
 
             AddLine(0, "{");
-            AddLine(1, "// read from: " + BufAliasName(aOperationA) + ", " + BufAliasName(aOperationB) + ", " + BufAliasName(aOperationC) + ", " + BufAliasName(aOperationD) + " [0..<W_KEY]");
+            AddLine(1, "// read from: " + BufAliasName(aWaterA) + ", " + BufAliasName(aWaterB) + ", " + BufAliasName(aWaterC) + ", " + BufAliasName(aWaterD) + " [0..<W_KEY]");
             AddLine(1, "// offsets: " + SizeLiteral(aShiftA) + ", " + SizeLiteral(aShiftB) + ", " + SizeLiteral(aShiftC) + ", " + SizeLiteral(aShiftD));
             AddLine(1, "// byte shifts: " + ShiftListText(aByteShifts) + "; diffuse: " + aDiffuseName);
             AddLine(1, "// write to: " + BufAliasName(aKeyRowWriteA));
@@ -405,10 +405,10 @@ private:
             AddLine(2, "const std::size_t aFoldIndexC = (aIndex + " + SizeLiteral(aShiftC) + ") & W_KEY1;");
             AddLine(2, "const std::size_t aFoldIndexD = (aIndex + " + SizeLiteral(aShiftD) + ") & W_KEY1;");
             AddFoldWord(2,
-                        Indexed(aOperationA, "aFoldIndexA"),
-                        Indexed(aOperationB, "aFoldIndexB"),
-                        Indexed(aOperationC, "aFoldIndexC"),
-                        Indexed(aOperationD, "aFoldIndexD"),
+                        Indexed(aWaterA, "aFoldIndexA"),
+                        Indexed(aWaterB, "aFoldIndexB"),
+                        Indexed(aWaterC, "aFoldIndexC"),
+                        Indexed(aWaterD, "aFoldIndexD"),
                         aByteShifts);
             AddLine(2, DiffuseLine("aFoldWord", aDiffuseName, "aFoldWord"));
             AddLine(2, Indexed(aKeyRowWriteA, "aIndex") + " = aFoldWord;");
@@ -453,12 +453,13 @@ private:
         }
 
         using Slot = TwistWorkSpaceSlot;
-        const GSymbol aOperationA = GSymbol::Buf(Slot::kOperationLaneA);
+        const GSymbol aWaterA = GSymbol::Buf(Slot::kScrapLaneA);
         const GSymbol aKeyRowWriteB = GSymbol::Buf(Slot::kKeyRowWriteB);
-        const GSymbol aExpandA = GSymbol::Buf(Slot::kExpansionLaneA);
-        const GSymbol aExpandB = GSymbol::Buf(Slot::kExpansionLaneB);
-        const GSymbol aExpandC = GSymbol::Buf(Slot::kExpansionLaneC);
-        const GSymbol aExpandD = GSymbol::Buf(Slot::kExpansionLaneD);
+        const GSymbol aExpandA = GSymbol::Buf(Slot::kMergeLaneA);
+        const GSymbol aExpandB = GSymbol::Buf(Slot::kMergeLaneB);
+        const GSymbol aExpandC = GSymbol::Buf(Slot::kMergeLaneC);
+        const GSymbol aExpandD = GSymbol::Buf(Slot::kMergeLaneD);
+        const GSymbol aFoldScratch = GSymbol::Buf(Slot::kScrapLaneB);
 
         auto AddLine = [&pBranch](const int pIndent,
                                   const std::string &pLine) {
@@ -482,7 +483,7 @@ private:
         AddLine(0, "static_assert((S_BLOCK / W_KEY) == 16, \"GKeyFoldB expects 16 key-row chunks.\");");
         AddLine(0, "TwistShiftBox::ShiftKeyBoxB(pWorkSpace);");
 
-        const int aQuarterSize = S_BLOCK >> 2;
+        const int aQuarterSize = S_QUARTER;
         const GSymbol aExpandLanes[4] = { aExpandA, aExpandB, aExpandC, aExpandD };
         std::vector<int> aSourceQuartersA;
         std::vector<int> aSourceQuartersB;
@@ -516,16 +517,16 @@ private:
                     std::to_string(aSourceQuarterD) + " with offsets " +
                     SizeLiteral(aShiftA) + ", " + SizeLiteral(aShiftB) + ", " + SizeLiteral(aShiftC) + ", " + SizeLiteral(aShiftD));
             AddLine(1, "// byte shifts: " + ShiftListText(aByteShifts) + "; diffuse: " + aDiffuseName);
-            AddLine(1, "// write to: " + BufAliasName(aExpandLanes[aQuarter]) + " [0..<(S_BLOCK >> 2U)]");
-            AddLine(1, "const std::size_t aFoldBaseA = " + std::to_string(aSourceQuarterA) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "const std::size_t aFoldBaseB = " + std::to_string(aSourceQuarterB) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "const std::size_t aFoldBaseC = " + std::to_string(aSourceQuarterC) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "const std::size_t aFoldBaseD = " + std::to_string(aSourceQuarterD) + "U * (S_BLOCK >> 2U);");
-            AddLine(1, "for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_BLOCK >> 2U); aIndex += 1U) {");
-            AddLine(2, "const std::size_t aFoldIndexA = aFoldBaseA + ((aIndex + " + SizeLiteral(aShiftA) + ") & ((S_BLOCK >> 2U) - 1U));");
-            AddLine(2, "const std::size_t aFoldIndexB = aFoldBaseB + ((aIndex + " + SizeLiteral(aShiftB) + ") & ((S_BLOCK >> 2U) - 1U));");
-            AddLine(2, "const std::size_t aFoldIndexC = aFoldBaseC + ((aIndex + " + SizeLiteral(aShiftC) + ") & ((S_BLOCK >> 2U) - 1U));");
-            AddLine(2, "const std::size_t aFoldIndexD = aFoldBaseD + ((aIndex + " + SizeLiteral(aShiftD) + ") & ((S_BLOCK >> 2U) - 1U));");
+            AddLine(1, "// write to: " + BufAliasName(aExpandLanes[aQuarter]) + " [0..<S_QUARTER]");
+            AddLine(1, "const std::size_t aFoldBaseA = " + std::to_string(aSourceQuarterA) + "U * S_QUARTER;");
+            AddLine(1, "const std::size_t aFoldBaseB = " + std::to_string(aSourceQuarterB) + "U * S_QUARTER;");
+            AddLine(1, "const std::size_t aFoldBaseC = " + std::to_string(aSourceQuarterC) + "U * S_QUARTER;");
+            AddLine(1, "const std::size_t aFoldBaseD = " + std::to_string(aSourceQuarterD) + "U * S_QUARTER;");
+            AddLine(1, "for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_QUARTER); aIndex += 1U) {");
+            AddLine(2, "const std::size_t aFoldIndexA = aFoldBaseA + ((aIndex + " + SizeLiteral(aShiftA) + ") & S_QUARTER1);");
+            AddLine(2, "const std::size_t aFoldIndexB = aFoldBaseB + ((aIndex + " + SizeLiteral(aShiftB) + ") & S_QUARTER1);");
+            AddLine(2, "const std::size_t aFoldIndexC = aFoldBaseC + ((aIndex + " + SizeLiteral(aShiftC) + ") & S_QUARTER1);");
+            AddLine(2, "const std::size_t aFoldIndexD = aFoldBaseD + ((aIndex + " + SizeLiteral(aShiftD) + ") & S_QUARTER1);");
             AddFoldWord(2,
                         Indexed(pSourceA, "aFoldIndexA"),
                         Indexed(pSourceB, "aFoldIndexB"),
@@ -547,15 +548,15 @@ private:
             const std::vector<int> aByteShifts = RandomByteShifts();
 
             AddLine(0, "{");
-            AddLine(1, "// read from: " + BufAliasName(aExpandA) + ", " + BufAliasName(aExpandB) + ", " + BufAliasName(aExpandC) + ", " + BufAliasName(aExpandD) + " [0..<(S_BLOCK >> 2U)]");
+            AddLine(1, "// read from: " + BufAliasName(aExpandA) + ", " + BufAliasName(aExpandB) + ", " + BufAliasName(aExpandC) + ", " + BufAliasName(aExpandD) + " [0..<S_QUARTER]");
             AddLine(1, "// offsets: " + SizeLiteral(aShiftA) + ", " + SizeLiteral(aShiftB) + ", " + SizeLiteral(aShiftC) + ", " + SizeLiteral(aShiftD));
             AddLine(1, "// byte shifts: " + ShiftListText(aByteShifts) + "; diffuse: " + aDiffuseName);
-            AddLine(1, "// write to: " + BufAliasName(aOperationA) + " [0..<(S_BLOCK >> 2U)]");
-            AddLine(1, "for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_BLOCK >> 2U); aIndex += 1U) {");
-            AddLine(2, "const std::size_t aFoldIndexA = (aIndex + " + SizeLiteral(aShiftA) + ") & ((S_BLOCK >> 2U) - 1U);");
-            AddLine(2, "const std::size_t aFoldIndexB = (aIndex + " + SizeLiteral(aShiftB) + ") & ((S_BLOCK >> 2U) - 1U);");
-            AddLine(2, "const std::size_t aFoldIndexC = (aIndex + " + SizeLiteral(aShiftC) + ") & ((S_BLOCK >> 2U) - 1U);");
-            AddLine(2, "const std::size_t aFoldIndexD = (aIndex + " + SizeLiteral(aShiftD) + ") & ((S_BLOCK >> 2U) - 1U);");
+            AddLine(1, "// write to: " + BufAliasName(aWaterA) + " [0..<S_QUARTER]");
+            AddLine(1, "for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(S_QUARTER); aIndex += 1U) {");
+            AddLine(2, "const std::size_t aFoldIndexA = (aIndex + " + SizeLiteral(aShiftA) + ") & S_QUARTER1;");
+            AddLine(2, "const std::size_t aFoldIndexB = (aIndex + " + SizeLiteral(aShiftB) + ") & S_QUARTER1;");
+            AddLine(2, "const std::size_t aFoldIndexC = (aIndex + " + SizeLiteral(aShiftC) + ") & S_QUARTER1;");
+            AddLine(2, "const std::size_t aFoldIndexD = (aIndex + " + SizeLiteral(aShiftD) + ") & S_QUARTER1;");
             AddFoldWord(2,
                         Indexed(aExpandA, "aFoldIndexA"),
                         Indexed(aExpandB, "aFoldIndexB"),
@@ -563,12 +564,11 @@ private:
                         Indexed(aExpandD, "aFoldIndexD"),
                         aByteShifts);
             AddLine(2, DiffuseLine("aFoldWord", aDiffuseName, "aFoldWord"));
-            AddLine(2, Indexed(aOperationA, "aIndex") + " = aFoldWord;");
+            AddLine(2, Indexed(aWaterA, "aIndex") + " = aFoldWord;");
             AddLine(1, "}");
             AddLine(0, "}");
         }
 
-        const GSymbol aFoldScratch = pSourceA;
         const std::vector<int> aSourceFragments = RandomFourOrder();
         const std::vector<int> aScratchFragments = RandomFourOrder();
         for (int aLane = 0; aLane < 4; aLane += 1) {
@@ -582,7 +582,7 @@ private:
             const int aScratchFragment = aScratchFragments[static_cast<std::size_t>(aLane)];
 
             AddLine(0, "{");
-            AddLine(1, "// read from: " + BufAliasName(aOperationA) + " fragment " +
+            AddLine(1, "// read from: " + BufAliasName(aWaterA) + " fragment " +
                     std::to_string(aSourceFragment) + " with offsets " +
                     SizeLiteral(aShiftA) + ", " + SizeLiteral(aShiftB) + ", " + SizeLiteral(aShiftC) + ", " + SizeLiteral(aShiftD));
             AddLine(1, "// byte shifts: " + ShiftListText(aByteShifts) + "; diffuse: " + aDiffuseName);
@@ -595,10 +595,10 @@ private:
             AddLine(2, "const std::size_t aFoldIndexC = aReadBase + ((aIndex + " + SizeLiteral(aShiftC) + ") & W_KEY1);");
             AddLine(2, "const std::size_t aFoldIndexD = aReadBase + ((aIndex + " + SizeLiteral(aShiftD) + ") & W_KEY1);");
             AddFoldWord(2,
-                        Indexed(aOperationA, "aFoldIndexA"),
-                        Indexed(aOperationA, "aFoldIndexB"),
-                        Indexed(aOperationA, "aFoldIndexC"),
-                        Indexed(aOperationA, "aFoldIndexD"),
+                        Indexed(aWaterA, "aFoldIndexA"),
+                        Indexed(aWaterA, "aFoldIndexB"),
+                        Indexed(aWaterA, "aFoldIndexC"),
+                        Indexed(aWaterA, "aFoldIndexD"),
                         aByteShifts);
             AddLine(2, DiffuseLine("aFoldWord", aDiffuseName, "aFoldWord"));
             AddLine(2, Indexed(aFoldScratch, "aWriteBase + aIndex") + " = aFoldWord;");

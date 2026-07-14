@@ -259,7 +259,15 @@ std::vector<std::string> FileIO::GetAllFiles(const std::string &pRootPath) {
             aIterator.increment(aIteratorError);
             continue;
         }
-        aEntries.push_back(aEntry.path().lexically_normal().generic_string());
+        
+        std::string aString = aEntry.path().lexically_normal().generic_string();
+        
+        if (aString.find("DS_Store") != -1) {
+            printf("SKIPPING FILE: %s\n", aString.c_str());
+        } else {
+            aEntries.push_back(aString);
+        }
+        
         aIterator.increment(aIteratorError);
     }
     

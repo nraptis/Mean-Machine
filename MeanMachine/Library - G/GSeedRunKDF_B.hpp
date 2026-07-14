@@ -9,6 +9,15 @@
 #include "GSeedRunStage.hpp"
 #include <string>
 
+namespace GSeedRunKDF_BConfig {
+
+GSeedRunStageConfig                         MakeKDF_B_AConfig();
+GSeedRunStageConfig                         MakeKDF_B_BConfig();
+GSeedRunStageConfig                         MakeKDF_B_CConfig();
+GSeedRunStageConfig                         MakeKDF_B_DConfig();
+
+}
+
 class GSeedRunKDF_B_A {
 public:
     GSeedRunKDF_B_A();

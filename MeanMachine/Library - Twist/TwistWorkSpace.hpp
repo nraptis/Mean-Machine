@@ -10,11 +10,15 @@
 #include <vector>
 
 #define S_BLOCK 32768 // 4,096 // 2,048
+#define S_BLOCK1 (S_BLOCK - 1U)
+
+#define S_QUARTER (S_BLOCK >> 2U)
+#define S_QUARTER1 (S_QUARTER - 1U)
 
 #define S_SALT 32
 #define S_SALT_DIVIDE_BITSHIFT 5
 
-#define S_BLOCK1 32767
+
 #define S_SBOX1 255
 #define S_SALT1 31
 
@@ -124,6 +128,36 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kFireLaneB=111,
     kFireLaneC=112,
     kFireLaneD=113,
+
+    kWaterLaneA=114,
+    kWaterLaneB=115,
+    kWaterLaneC=116,
+    kWaterLaneD=117,
+
+    kEarthLaneA=140,
+    kEarthLaneB=141,
+    kEarthLaneC=142,
+    kEarthLaneD=143,
+
+    kWindLaneA=144,
+    kWindLaneB=145,
+    kWindLaneC=146,
+    kWindLaneD=147,
+
+    kFuseLaneA=148,
+    kFuseLaneB=149,
+    kFuseLaneC=150,
+    kFuseLaneD=151,
+
+    kScrapLaneA=152,
+    kScrapLaneB=153,
+    kScrapLaneC=154,
+    kScrapLaneD=155,
+
+    kMergeLaneA=156,
+    kMergeLaneB=157,
+    kMergeLaneC=158,
+    kMergeLaneD=159,
 
     kInvestA=130,
     kInvestB=131,
@@ -484,12 +518,41 @@ public:
     std::uint8_t                            mSnowLaneC[S_BLOCK];
     std::uint8_t                            mSnowLaneD[S_BLOCK];
 
-
     std::uint8_t                            mFireLaneA[S_BLOCK];
     std::uint8_t                            mFireLaneB[S_BLOCK];
     std::uint8_t                            mFireLaneC[S_BLOCK];
     std::uint8_t                            mFireLaneD[S_BLOCK];
+    
+    std::uint8_t                            mWaterLaneA[S_BLOCK];
+    std::uint8_t                            mWaterLaneB[S_BLOCK];
+    std::uint8_t                            mWaterLaneC[S_BLOCK];
+    std::uint8_t                            mWaterLaneD[S_BLOCK];
+    
+    std::uint8_t                            mEarthLaneA[S_BLOCK];
+    std::uint8_t                            mEarthLaneB[S_BLOCK];
+    std::uint8_t                            mEarthLaneC[S_BLOCK];
+    std::uint8_t                            mEarthLaneD[S_BLOCK];
+    
+    std::uint8_t                            mWindLaneA[S_BLOCK];
+    std::uint8_t                            mWindLaneB[S_BLOCK];
+    std::uint8_t                            mWindLaneC[S_BLOCK];
+    std::uint8_t                            mWindLaneD[S_BLOCK];
 
+    std::uint8_t                            mFuseLaneA[S_BLOCK];
+    std::uint8_t                            mFuseLaneB[S_BLOCK];
+    std::uint8_t                            mFuseLaneC[S_BLOCK];
+    std::uint8_t                            mFuseLaneD[S_BLOCK];
+
+    std::uint8_t                            mScrapLaneA[S_BLOCK];
+    std::uint8_t                            mScrapLaneB[S_BLOCK];
+    std::uint8_t                            mScrapLaneC[S_BLOCK];
+    std::uint8_t                            mScrapLaneD[S_BLOCK];
+
+    std::uint8_t                            mMergeLaneA[S_QUARTER];
+    std::uint8_t                            mMergeLaneB[S_QUARTER];
+    std::uint8_t                            mMergeLaneC[S_QUARTER];
+    std::uint8_t                            mMergeLaneD[S_QUARTER];
+    
     std::uint8_t                            mInvestLaneA[S_BLOCK];
     std::uint8_t                            mInvestLaneB[S_BLOCK];
     std::uint8_t                            mInvestLaneC[S_BLOCK];

@@ -8,6 +8,7 @@
 #ifndef SaltTables_hpp
 #define SaltTables_hpp
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -15,15 +16,12 @@ class GTwistExpander;
 
 class SaltTables {
 public:
-    static std::vector<std::vector<std::uint8_t>>               Get();
+    using Salt = std::array<std::uint64_t, 32U>;
 
-    static std::vector<std::uint8_t>                            GetDefaultA();
-    static std::vector<std::uint8_t>                            GetDefaultB();
-    static std::vector<std::uint8_t>                            GetDefaultC();
-    static std::vector<std::uint8_t>                            GetDefaultD();
+    static const std::vector<Salt>                              &Get();
 
     static void                                                 InjectRandomEight(GTwistExpander *pExpander);
-    static void                                                 InjectRandomFour(GTwistExpander *pExpander);
+    
 };
 
 #endif /* SaltTables_hpp */

@@ -285,6 +285,12 @@ GExpr GExpr::Const64(std::uint64_t pVal) {
     return aExpr;
 }
 
+GExpr GExpr::Const64Hex(std::uint64_t pVal) {
+    GExpr aExpr = Const64(pVal);
+    aExpr.mConstPreferHex = true;
+    return aExpr;
+}
+
 GExpr GExpr::Cast32(const GExpr &pExpr) {
     GExpr aExpr;
     aExpr.mType = GExprType::kCast32;
@@ -686,6 +692,7 @@ void GExpr::Set(const GExpr &pOther) {
     mType = pOther.mType;
     mSymbol = pOther.mSymbol;
     mConstVal = pOther.mConstVal;
+    mConstPreferHex = pOther.mConstPreferHex;
     mIndex = pOther.mIndex;
     mA = pOther.mA;
     mB = pOther.mB;
@@ -698,6 +705,7 @@ void GExpr::Invalidate() {
     mType = GExprType::kInv;
     mSymbol.Invalidate();
     mConstVal = 0;
+    mConstPreferHex = false;
     mIndex.reset();
     mA.reset();
     mB.reset();

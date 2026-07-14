@@ -4,6 +4,7 @@
 //
 
 #include "GTwistRunGrowKeyA.hpp"
+#include "GPassFactory.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
 
 namespace {
@@ -47,7 +48,7 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     aConfig.mBatchName = pLoopName;
     aConfig.mStartLine = "// " + pStageName + " " + pLoopName + " (start)";
     aConfig.mEndLine = "// " + pStageName + " " + pLoopName + " (end)";
-    aConfig.mFormat = GAXSFormat::kN5;
+    
     aConfig.mIgnoreNonces = true;
     aConfig.mHasDomainMix = false;
     aConfig.mAssignType = GAssignType::kSet;
@@ -64,52 +65,48 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     return aConfig;
 }
 
-GSeedRunStageConfig MakeGrowAConfig() {
+GSeedRunStageConfig BuildGrowAConfig() {
+    
+    //TODO:
+    // This doesn't work. The generated code uses operation lanes, which are not listed here.
+    
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aInputs = {
+        Slot::kWorkLaneA, Slot::kWorkLaneB,
+        Slot::kWorkLaneC, Slot::kWorkLaneD,
+    };
+    const GPassFactory::SlotArray12 aResiduals = {
+        Slot::kWaterLaneA, Slot::kWaterLaneB,
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+        Slot::kInvestA, Slot::kInvestB,
+        Slot::kInvestC, Slot::kInvestD,
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const GPassFactory::SlotArray2 aWarmUpLanes = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+    };
+    const GPassFactory::SlotArray6 aExpectedDestinations = GPassFactory::Concat(aWarmUpLanes,
+                                                                                aDestinations);
 
     GSeedRunStageConfig aConfig = BaseConfig("GROW_A",
                                              "grow_key_a",
                                              TwistDomain::kPhaseG);
-    aConfig.mSlices = {
-        {{Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kInvestA},
-         {Slot::kWorkLaneC, Slot::kWorkLaneD, Slot::kOperationLaneA},
-         Slot::kExpansionLaneA,
-         false},
-
-        {{Slot::kExpansionLaneA, Slot::kWorkLaneC, Slot::kInvestB},
-         {Slot::kWorkLaneA, Slot::kWorkLaneD, Slot::kOperationLaneB},
-         Slot::kExpansionLaneB,
-         true},
-
-        {{Slot::kExpansionLaneB, Slot::kWorkLaneD, Slot::kInvestC},
-         {Slot::kExpansionLaneA, Slot::kWorkLaneB, Slot::kOperationLaneC},
-         Slot::kExpansionLaneC,
-         false},
-
-        {{Slot::kExpansionLaneC, Slot::kExpansionLaneA, Slot::kInvestD},
-         {Slot::kExpansionLaneB, Slot::kWorkLaneA, Slot::kOperationLaneD},
-         Slot::kExpansionLaneD,
-         true},
-    };
-    aConfig.mExpectedSkeletonCount = 4;
-    
-    
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
-        Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
-    };
-
-    std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
+    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aInputs,
+                                                                aResiduals,
+                                                                aExpectedDestinations);
+    aConfig.mWarmupDestinationCount = 2;
+    aConfig.mFormat = GAXSFormat::kN7;
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
-                                                        aInputs,
-                                                        aResiduals,
-                                                        aOutputs,
+                                                        GPassFactory::ToVector(aInputs),
+                                                        GPassFactory::ToVector(aResiduals),
+                                                        GPassFactory::ToVector(aExpectedDestinations),
                                                         &aErrorMessage)) {
         printf("MakeGrowAConfig was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessage.c_str());
@@ -119,52 +116,45 @@ GSeedRunStageConfig MakeGrowAConfig() {
     return aConfig;
 }
 
-GSeedRunStageConfig MakeGrowBConfig() {
+GSeedRunStageConfig BuildGrowBConfig() {
     using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aInputs = {
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+    };
+    const GPassFactory::SlotArray12 aResiduals = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+        Slot::kInvestE, Slot::kInvestF,
+        Slot::kInvestG, Slot::kInvestH,
+    };
+    const GPassFactory::SlotArray2 aWarmUpLanes = {
+        Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+    const GPassFactory::SlotArray4 aDestinations = {
+        Slot::kWorkLaneA, Slot::kWorkLaneB,
+        Slot::kWorkLaneC, Slot::kWorkLaneD,
+    };
+    const GPassFactory::SlotArray6 aExpectedDestinations = GPassFactory::Concat(aWarmUpLanes,
+                                                                                aDestinations);
 
     GSeedRunStageConfig aConfig = BaseConfig("GROW_B",
                                              "grow_key_b",
                                              TwistDomain::kPhaseH);
-    aConfig.mSlices = {
-        {{Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kInvestA},
-         {Slot::kExpansionLaneC, Slot::kExpansionLaneD, Slot::kOperationLaneA},
-         Slot::kWorkLaneA,
-         false},
-
-        {{Slot::kWorkLaneA, Slot::kExpansionLaneC, Slot::kInvestB},
-         {Slot::kExpansionLaneA, Slot::kExpansionLaneD, Slot::kOperationLaneB},
-         Slot::kWorkLaneB,
-         true},
-
-        {{Slot::kWorkLaneB, Slot::kExpansionLaneD, Slot::kInvestC},
-         {Slot::kWorkLaneA, Slot::kExpansionLaneB, Slot::kOperationLaneC},
-         Slot::kWorkLaneC,
-         false},
-
-        {{Slot::kWorkLaneC, Slot::kWorkLaneA, Slot::kInvestD},
-         {Slot::kWorkLaneB, Slot::kExpansionLaneC, Slot::kOperationLaneD},
-         Slot::kWorkLaneD,
-         true},
-    };
-    aConfig.mExpectedSkeletonCount = 4;
+    aConfig.mFormat = GAXSFormat::kN9;
     
-    
-    std::vector<Slot> aInputs;
-    aInputs = { Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD };
-
-    std::vector<Slot> aResiduals;
-    aResiduals = { Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
-        Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
-    };
-
-    std::vector<Slot> aOutputs;
-    aOutputs = { Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD };
+    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aInputs,
+                                                                aResiduals,
+                                                                aExpectedDestinations);
+    aConfig.mWarmupDestinationCount = 2;
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
-                                                        aInputs,
-                                                        aResiduals,
-                                                        aOutputs,
+                                                        GPassFactory::ToVector(aInputs),
+                                                        GPassFactory::ToVector(aResiduals),
+                                                        GPassFactory::ToVector(aExpectedDestinations),
                                                         &aErrorMessage)) {
         printf("MakeGrowBConfig was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessage.c_str());
@@ -177,8 +167,20 @@ GSeedRunStageConfig MakeGrowBConfig() {
 
 } // namespace
 
+namespace GTwistRunGrowKeyConfig {
+
+GSeedRunStageConfig MakeGrowAConfig() {
+    return BuildGrowAConfig();
+}
+
+GSeedRunStageConfig MakeGrowBConfig() {
+    return BuildGrowBConfig();
+}
+
+}
+
 GTwistRunGrowKeyA::GTwistRunGrowKeyA()
-: mStage(MakeGrowAConfig()) {
+: mStage(GTwistRunGrowKeyConfig::MakeGrowAConfig()) {
 }
 
 GTwistRunGrowKeyA::~GTwistRunGrowKeyA() {
@@ -199,7 +201,7 @@ bool GTwistRunGrowKeyA::Build(TwistProgramBranch &pBranch,
 }
 
 GTwistRunGrowKeyB::GTwistRunGrowKeyB()
-: mStage(MakeGrowBConfig()) {
+: mStage(GTwistRunGrowKeyConfig::MakeGrowBConfig()) {
 }
 
 GTwistRunGrowKeyB::~GTwistRunGrowKeyB() {

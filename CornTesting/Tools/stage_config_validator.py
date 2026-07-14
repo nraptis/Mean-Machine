@@ -10,6 +10,8 @@ class Slice:
     cross: tuple[str, ...]
     dest: str
     inverted: bool
+    ingress_last_locked: bool = False
+    cross_last_locked: bool = False
 
 
 @dataclass
@@ -25,14 +27,17 @@ class Config:
     special_twelve_pass: bool = False
     validate_primary_combos: bool = True
     warmup_destination_count: int = 0
+    validate_chained_destinations: bool = True
 
 
 def forced_forward(item: str, stage_slice: Slice) -> bool:
-    return item in stage_slice.ingress[:-1]
+    forced = stage_slice.ingress if stage_slice.ingress_last_locked else stage_slice.ingress[:-1]
+    return item in forced
 
 
 def forced_backward(item: str, stage_slice: Slice) -> bool:
-    return item in stage_slice.cross[:-1]
+    forced = stage_slice.cross if stage_slice.cross_last_locked else stage_slice.cross[:-1]
+    return item in forced
 
 
 def append_unique(items: list[str], item: str) -> None:
@@ -120,13 +125,14 @@ def validate(config: Config) -> list[str]:
         if stage_slice.dest not in available:
             available.append(stage_slice.dest)
 
-    for index in range(1, len(config.slices)):
-        prefix = f"{config.name} {config.batch} slice {index + 1} (slice index = {index})"
-        previous_dest = config.slices[index - 1].dest
-        if config.slices[index].ingress[0] != previous_dest:
-            errors.append(f"{prefix} did not use previous dest as first source")
-        if not forced_forward(previous_dest, config.slices[index]):
-            errors.append(f"{prefix} did not force previous dest forward")
+    if config.validate_chained_destinations:
+        for index in range(1, len(config.slices)):
+            prefix = f"{config.name} {config.batch} slice {index + 1} (slice index = {index})"
+            previous_dest = config.slices[index - 1].dest
+            if config.slices[index].ingress[0] != previous_dest:
+                errors.append(f"{prefix} did not use previous dest as first source")
+            if not forced_forward(previous_dest, config.slices[index]):
+                errors.append(f"{prefix} did not force previous dest forward")
 
     residual_index = 0
     for index, stage_slice in enumerate(config.slices):
@@ -152,31 +158,32 @@ def validate(config: Config) -> list[str]:
         elif stage_slice.cross[-1] in config.residual_sources:
             errors.append(f"{prefix} residual graph used unexpected cross residual")
 
-    for index, stage_slice in enumerate(config.slices):
-        prefix = f"{config.name} {config.batch} slice {index + 1} (slice index = {index})"
-        if index < config.warmup_destination_count:
-            continue
+    if config.validate_chained_destinations:
+        for index, stage_slice in enumerate(config.slices):
+            prefix = f"{config.name} {config.batch} slice {index + 1} (slice index = {index})"
+            if index < config.warmup_destination_count:
+                continue
 
-        use_count = 0
-        has_forward = False
-        has_backward = False
-        for later_slice in config.slices[index + 1:]:
-            if stage_slice.dest in later_slice.ingress:
-                use_count += 1
-                has_forward = has_forward or forced_forward(stage_slice.dest, later_slice)
-            if stage_slice.dest in later_slice.cross:
-                use_count += 1
-                has_backward = has_backward or forced_backward(stage_slice.dest, later_slice)
-        required_use_count = min(len(config.slices) - index - 1, 3)
-        if index == len(config.slices) - 1:
-            if use_count != 0:
-                errors.append(f"{prefix} final destination had a future use")
-        elif use_count < required_use_count:
-            errors.append(f"{prefix} destination had {use_count} future uses, expected {required_use_count}")
-        elif required_use_count == 1 and not has_forward:
-            errors.append(f"{prefix} destination was used once but not forced forward")
-        elif required_use_count >= 2 and not (has_forward and has_backward):
-            errors.append(f"{prefix} destination lacked forward/backward coverage")
+            use_count = 0
+            has_forward = False
+            has_backward = False
+            for later_slice in config.slices[index + 1:]:
+                if stage_slice.dest in later_slice.ingress:
+                    use_count += 1
+                    has_forward = has_forward or forced_forward(stage_slice.dest, later_slice)
+                if stage_slice.dest in later_slice.cross:
+                    use_count += 1
+                    has_backward = has_backward or forced_backward(stage_slice.dest, later_slice)
+            required_use_count = min(len(config.slices) - index - 1, 3)
+            if index == len(config.slices) - 1:
+                if use_count != 0:
+                    errors.append(f"{prefix} final destination had a future use")
+            elif use_count < required_use_count:
+                errors.append(f"{prefix} destination had {use_count} future uses, expected {required_use_count}")
+            elif required_use_count == 1 and not has_forward:
+                errors.append(f"{prefix} destination was used once but not forced forward")
+            elif required_use_count >= 2 and not (has_forward and has_backward):
+                errors.append(f"{prefix} destination lacked forward/backward coverage")
 
     if not config.bind_duplicate_source_slots:
         for index, stage_slice in enumerate(config.slices):
@@ -187,7 +194,15 @@ def validate(config: Config) -> list[str]:
                 errors.append(f"{prefix} duplicated a cross source")
 
     if config.validate_primary_combos:
-        expected_combos = list(product((True, False), repeat=len(config.primary_sources)))
+        if config.name in ("GSeedRunSeed_A", "GTwistRunTwist_A"):
+            expected_combos = (
+                (True, True, False),
+                (True, False, True),
+                (False, True, False),
+                (False, False, True),
+            )
+        else:
+            expected_combos = list(product((True, False), repeat=len(config.primary_sources)))
         for combo in expected_combos:
             found = False
             for stage_slice in config.slices:
@@ -225,6 +240,9 @@ EXPAND = ("expand_a", "expand_b", "expand_c", "expand_d")
 OPERATION = ("operation_a", "operation_b", "operation_c", "operation_d")
 SNOW = ("snow_a", "snow_b", "snow_c", "snow_d")
 INVEST = ("invest_a", "invest_b", "invest_c", "invest_d")
+EARTH = ("earth_a", "earth_b", "earth_c", "earth_d")
+WATER = ("water_a", "water_b", "water_c", "water_d")
+FUSE = ("fuse_a", "fuse_b", "fuse_c", "fuse_d")
 KEY_SOURCE = ("key_a", "key_b", "source")
 SOURCE_SNOW = ("source", "snow")
 
@@ -255,6 +273,23 @@ def starter_key_source_fire_slices() -> tuple[Slice, ...]:
               ("key_a", "source", "expand_a", "work_b"), "expand_c", False),
         Slice(("expand_c", "key_a"),
               ("work_d", "expand_a", "expand_b", "key_b"), "expand_d", True),
+    )
+
+
+def seed_a_starter_slices() -> tuple[Slice, ...]:
+    return (
+        Slice(("source", "key_a"),
+              ("source", "key_b"), "water_a", False, True, True),
+        Slice(("water_a", "key_b"),
+              ("source", "key_a"), "water_b", True, True, True),
+        Slice(("water_b", "source", "key_b"),
+              ("key_a", "water_a"), "expand_a", False, True, False),
+        Slice(("expand_a", "water_a"),
+              ("water_b", "key_b"), "expand_b", True),
+        Slice(("expand_b", "water_b"),
+              ("expand_a", "key_a"), "expand_c", False),
+        Slice(("expand_c", "expand_a"),
+              ("expand_b", "water_b"), "expand_d", True),
     )
 
 
@@ -378,6 +413,70 @@ def six_pass_slices(primary: tuple[str, ...],
     )
 
 
+def six_pass_no_residual_slices(primary: tuple[str, ...],
+                                destinations: tuple[str, ...]) -> tuple[Slice, ...]:
+    p = primary
+    d = destinations
+    return (
+        Slice((p[0], p[1]),
+              (p[2], p[3]), d[0], False, True, True),
+        Slice((d[0], p[2], p[3]),
+              (p[0], p[1]), d[1], True, True, True),
+        Slice((d[1], p[0]),
+              (d[0], p[2]), d[2], False),
+        Slice((d[2], d[0]),
+              (d[1], p[3]), d[3], True),
+        Slice((d[3], d[1]),
+              (d[2], p[0]), d[4], False),
+        Slice((d[4], d[2]),
+              (d[3], p[1]), d[5], True),
+    )
+
+
+def six_pass_recent_residual_slices(primary: tuple[str, ...],
+                                    residuals: tuple[str, ...],
+                                    destinations: tuple[str, ...]) -> tuple[Slice, ...]:
+    p = primary
+    r = residuals
+    d = destinations
+    return (
+        Slice((p[0], p[1], r[0]),
+              (p[2], p[3]), d[0], False),
+        Slice((d[0], p[2], r[1]),
+              (p[0], p[3]), d[1], True),
+        Slice((d[1], p[3], r[2]),
+              (d[0], p[1], p[0]), d[2], False),
+        Slice((d[2], d[0], r[3]),
+              (d[1], p[3], p[2]), d[3], True),
+        Slice((d[3], d[2], p[1]),
+              (p[2], d[0], d[1]), d[4], False),
+        Slice((d[4], p[0], p[1]),
+              (d[3], d[2], d[1]), d[5], True),
+    )
+
+
+def six_pass_terminal_slices(primary: tuple[str, ...],
+                             residuals: tuple[str, ...],
+                             destinations: tuple[str, ...]) -> tuple[Slice, ...]:
+    p = primary
+    r = residuals
+    d = destinations
+    return (
+        Slice((p[0], r[0]),
+              (p[1], r[1]), d[0], False),
+        Slice((p[2], r[2]),
+              (p[3], r[3]), d[1], True),
+        Slice((p[1], r[4]),
+              (p[0], p[2]), d[2], False),
+        Slice((p[3], r[5]),
+              (p[1], p[0]), d[3], True),
+        Slice((p[0], r[6]),
+              (p[2], p[3]), d[4], False),
+        Slice((p[2], r[7]),
+              (p[3], p[1]), d[5], True),
+    )
+
+
 def eight_pass_slices(primary: tuple[str, ...],
                       residuals: tuple[str, ...],
                       destinations: tuple[str, ...]) -> tuple[Slice, ...]:
@@ -410,7 +509,8 @@ def midstage_config(name: str,
                     residuals: tuple[str, ...],
                     destinations: tuple[str, ...],
                     slices: tuple[Slice, ...],
-                    warmup_destination_count: int = 0) -> Config:
+                    warmup_destination_count: int = 0,
+                    validate_chained_destinations: bool = True) -> Config:
     return Config(
         name=name,
         batch=batch,
@@ -419,6 +519,7 @@ def midstage_config(name: str,
         expected_destinations=destinations,
         validate_primary_combos=False,
         warmup_destination_count=warmup_destination_count,
+        validate_chained_destinations=validate_chained_destinations,
         slices=slices,
     )
 
@@ -427,12 +528,10 @@ def twist_a_config() -> Config:
     return Config(
         name="GTwistRunTwist_A",
         batch="twist_loop_a",
-        primary_sources=KEY_SOURCE,
-        expected_destinations=FIRE + WORK + EXPAND,
-        max_context_sources=5,
-        bind_duplicate_source_slots=True,
-        special_twelve_pass=True,
-        slices=starter_key_source_fire_slices(),
+        primary_sources=("source", "key_a", "key_b"),
+        expected_destinations=("water_a", "water_b") + EXPAND,
+        warmup_destination_count=2,
+        slices=seed_a_starter_slices(),
     )
 
 
@@ -473,12 +572,10 @@ def seed_a_config() -> Config:
     return Config(
         name="GSeedRunSeed_A",
         batch="seed_loop_a",
-        primary_sources=KEY_SOURCE,
-        expected_destinations=FIRE + WORK + EXPAND,
-        max_context_sources=5,
-        bind_duplicate_source_slots=True,
-        special_twelve_pass=True,
-        slices=starter_key_source_fire_slices(),
+        primary_sources=("source", "key_a", "key_b"),
+        expected_destinations=("water_a", "water_b") + EXPAND,
+        warmup_destination_count=2,
+        slices=seed_a_starter_slices(),
     )
 
 
@@ -487,9 +584,9 @@ def seed_b_config() -> Config:
         name="GSeedRunSeed_B",
         batch="seed_loop_a",
         primary=EXPAND,
-        residuals=FIRE + WORK,
-        destinations=("invest_a", "invest_b") + OPERATION,
-        slices=six_pass_slices(EXPAND, FIRE + WORK, ("invest_a", "invest_b") + OPERATION),
+        residuals=(),
+        destinations=WORK + ("earth_a", "earth_b"),
+        slices=six_pass_no_residual_slices(EXPAND, WORK + ("earth_a", "earth_b")),
     )
 
 
@@ -497,54 +594,75 @@ def seed_c_config() -> Config:
     return midstage_config(
         name="GSeedRunSeed_C",
         batch="seed_loop_b",
-        primary=OPERATION,
-        residuals=FIRE + EXPAND,
-        destinations=WORK,
-        slices=four_pass_slices(OPERATION, FIRE + EXPAND, WORK),
+        primary=("work_c", "work_d", "earth_a", "earth_b"),
+        residuals=("work_a", "work_b", "expand_c", "expand_d"),
+        destinations=("earth_c", "earth_d") + OPERATION,
+        slices=six_pass_recent_residual_slices(
+            ("work_c", "work_d", "earth_a", "earth_b"),
+            ("work_a", "work_b", "expand_c", "expand_d"),
+            ("earth_c", "earth_d") + OPERATION,
+        ),
     )
 
 
 def seed_d_config() -> Config:
     return midstage_config(
         name="GSeedRunSeed_D",
-        batch="seed_loop_d",
-        primary=EXPAND,
-        residuals=FIRE + OPERATION,
-        destinations=("work_a", "work_b") + INVEST,
-        slices=six_pass_slices(EXPAND, FIRE + OPERATION, ("work_a", "work_b") + INVEST),
+        batch="seed_loop_b",
+        primary=OPERATION,
+        residuals=WORK + ("earth_a", "earth_b") + ("expand_a", "expand_b"),
+        destinations=("snow_a", "snow_b") + FUSE,
+        slices=six_pass_terminal_slices(
+            OPERATION,
+            WORK + ("earth_a", "earth_b") + ("expand_a", "expand_b"),
+            ("snow_a", "snow_b") + FUSE,
+        ),
+        validate_chained_destinations=False,
     )
 
 
 def seed_e_config() -> Config:
     return midstage_config(
         name="GSeedRunSeed_E",
-        batch="seed_loop_e",
-        primary=INVEST,
-        residuals=FIRE + WORK,
-        destinations=("snow_a", "snow_b") + OPERATION,
-        slices=six_pass_slices(INVEST, FIRE + WORK, ("snow_a", "snow_b") + OPERATION),
+        batch="seed_loop_c",
+        primary=FIRE,
+        residuals=("snow_a", "snow_b", "work_c", "work_d", "earth_a", "earth_b", "water_a", "water_b"),
+        destinations=("invest_a", "invest_b") + EXPAND,
+        slices=six_pass_slices(
+            FIRE,
+            ("snow_a", "snow_b", "work_c", "work_d", "earth_a", "earth_b", "water_a", "water_b"),
+            ("invest_a", "invest_b") + EXPAND,
+        ),
     )
 
 
 def seed_f_config() -> Config:
     return midstage_config(
         name="GSeedRunSeed_F",
-        batch="seed_loop_f",
-        primary=OPERATION,
-        residuals=FIRE + INVEST,
-        destinations=("snow_a", "snow_b") + EXPAND,
-        slices=six_pass_slices(OPERATION, FIRE + INVEST, ("snow_a", "snow_b") + EXPAND),
+        batch="seed_loop_c",
+        primary=EXPAND,
+        residuals=("snow_a", "snow_b", "invest_a", "invest_b", "earth_c", "earth_d", "fire_a", "fire_b"),
+        destinations=("work_a", "work_b", "snow_c", "snow_d", "work_c", "work_d"),
+        slices=six_pass_slices(
+            EXPAND,
+            ("snow_a", "snow_b", "invest_a", "invest_b", "earth_c", "earth_d", "fire_a", "fire_b"),
+            ("work_a", "work_b", "snow_c", "snow_d", "work_c", "work_d"),
+        ),
     )
 
 
 def seed_g_config() -> Config:
     return midstage_config(
         name="GSeedRunSeed_G",
-        batch="seed_loop_h",
-        primary=SNOW,
-        residuals=FIRE + OPERATION,
-        destinations=("work_a", "work_b") + EXPAND,
-        slices=six_pass_slices(SNOW, FIRE + OPERATION, ("work_a", "work_b") + EXPAND),
+        batch="seed_loop_d",
+        primary=WORK,
+        residuals=("snow_a", "snow_c", "earth_b", "earth_d", "expand_a", "expand_c", "fire_b", "fire_d"),
+        destinations=("operation_a", "operation_b", "invest_c", "invest_d", "operation_c", "operation_d"),
+        slices=six_pass_slices(
+            WORK,
+            ("snow_a", "snow_c", "earth_b", "earth_d", "expand_a", "expand_c", "fire_b", "fire_d"),
+            ("operation_a", "operation_b", "invest_c", "invest_d", "operation_c", "operation_d"),
+        ),
     )
 
 

@@ -330,16 +330,10 @@ static bool ScratchLanesAreZeroedAfterSeed(const TwistWorkSpace &pWorkSpace) {
     std::memcpy(aOldKeyRowB0, aWorkSpaceA.mKeyBoxB[0], W_KEY);
 
     aExpanderA.TwistBlock(&aWorkSpaceA,
-                          0xF00D123456789ABCULL,
                           aSourceA.data(),
-                          1U,
-                          12U,
                           aDestA.data());
     aExpanderB.TwistBlock(&aWorkSpaceB,
-                          0xF00D123456789ABCULL,
                           aSourceB.data(),
-                          1U,
-                          12U,
                           aDestB.data());
 
     XCTAssertFalse(BufferIsAllZero(aDestA.data(), aDestA.size()),
