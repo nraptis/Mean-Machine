@@ -14,6 +14,7 @@
 #include "Random.hpp"
 
 #include "GSeedRunSeed.hpp"
+#include "GDomainSchedule.hpp"
 #include "GSquashInvestToKeyBoxes.hpp"
 
 #include "GRunMatrixDiffusion.hpp"
@@ -81,18 +82,6 @@ void AddSeedPhaseFooter(TwistProgramBranch &pBranch) {
     pBranch.AddLine("////////");
     pBranch.AddLine("////////////////////////////////////////////////////////");
     pBranch.AddLine("");
-}
-
-void AddSeedDomainWordLines(TwistProgramBranch &pBranch,
-                            const TwistDomain pDomain,
-                            const bool pDeclare) {
-    const std::string aPrefix = pDeclare ? "std::uint64_t " : "";
-    const std::string aConstants = std::string("pWorkSpace->mDomainBundle.") +
-                                   PhaseConstantsMemberName(pDomain);
-
-    pBranch.AddLine(aPrefix + "aDomainWordIngress = " + aConstants + ".mIngress;");
-    pBranch.AddLine(aPrefix + "aDomainWordScatter = " + aConstants + ".mScatter;");
-    pBranch.AddLine(aPrefix + "aDomainWordCross = " + aConstants + ".mCross;");
 }
 
 void AddSeedMatrixDomainWordLines(TwistProgramBranch &pBranch,
@@ -255,7 +244,6 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
     aInvestLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kInvestF));
     aInvestLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kInvestG));
     aInvestLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kInvestH));
-    Random::Shuffle(&aInvestLanes);
     
     std::vector<GSymbol> aSnowLanes;
     aSnowLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnowLaneA));
@@ -397,14 +385,41 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
 
 bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
                                    std::string *pErrorMessage) {
-    
+    if (pExpander == nullptr) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "Builder_Seeder::Build_PostKDF received null expander";
+        }
+        return false;
+    }
+
+    std::vector<GSeedRunStageConfig> aStageConfigs = {
+        GSeedRunSeedConfig::MakeSeed_AConfig(true),
+        GSeedRunSeedConfig::MakeSeed_BConfig(true),
+        GSeedRunSeedConfig::MakeSeed_CConfig(true),
+        GSeedRunSeedConfig::MakeSeed_DConfig(true),
+        GSeedRunSeedConfig::MakeSeed_EConfig(true),
+        GSeedRunSeedConfig::MakeSeed_FConfig(true),
+        GSeedRunSeedConfig::MakeSeed_GConfig(true),
+        GSeedRunSeedConfig::MakeSeed_HConfig(true),
+        GSeedRunSeedConfig::MakeSeed_IConfig(true),
+    };
+    std::vector<TwistDomain> aMatrixDomains;
+    if (!GDomainSchedule::AssignShuffledRoundRobin(&aStageConfigs,
+                                                   2U,
+                                                   &aMatrixDomains)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "Builder_Seeder failed to assign its domain schedule";
+        }
+        return false;
+    }
+    pExpander->mSeedStageConfigs = aStageConfigs;
+    pExpander->mSeedMatrixDomains = aMatrixDomains;
     
     std::vector<GSymbol> aInvestLanes;
     aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestE));
     aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestF));
     aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestG));
     aInvestLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kInvestH));
-    
     
     std::vector<GSymbol> aFuseLanes;
     aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneA));
@@ -460,31 +475,27 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     aSnowLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kSnowLaneC));
     aSnowLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kSnowLaneD));
 
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseA, true);
-    GSeedRunSeed_A aRunnerSeedA(true, false);
+    GSeedRunSeed_A aRunnerSeedA(aStageConfigs[0], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedA, "GSeedRunSeed_A", pErrorMessage)) {
         return false;
     }
     
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseA, false);
-    GSeedRunSeed_B aRunnerSeedB(true, false);
+    GSeedRunSeed_B aRunnerSeedB(aStageConfigs[1], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedB, "GSeedRunSeed_B", pErrorMessage)) {
         return false;
     }
     
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseB, false);
-    GSeedRunSeed_C aRunnerSeedC(true, false);
+    GSeedRunSeed_C aRunnerSeedC(aStageConfigs[2], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedC, "GSeedRunSeed_C", pErrorMessage)) {
         return false;
     }
     
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseB, false);
-    GSeedRunSeed_D aRunnerSeedD(true, false);
+    GSeedRunSeed_D aRunnerSeedD(aStageConfigs[3], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedD, "GSeedRunSeed_D", pErrorMessage)) {
         return false;
     }
     
-    AddSeedMatrixDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseB, true);
+    AddSeedMatrixDomainWordLines(pExpander->mSeed, aMatrixDomains[0], true);
     
     for (int i=0;i<4;i+=2) {
         
@@ -513,31 +524,27 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         pExpander->mSeed.AddBatch(aBatchDiffusion);
     }
     
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseC, false);
-    GSeedRunSeed_E aRunnerSeedE(true, false);
+    GSeedRunSeed_E aRunnerSeedE(aStageConfigs[4], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedE, "GSeedRunSeed_E", pErrorMessage)) {
         return false;
     }
 
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseC, false);
-    GSeedRunSeed_F aRunnerSeedF(true, false);
+    GSeedRunSeed_F aRunnerSeedF(aStageConfigs[5], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedF, "GSeedRunSeed_F", pErrorMessage)) {
         return false;
     }
     
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseD, false);
-    GSeedRunSeed_G aRunnerSeedG(true, false);
+    GSeedRunSeed_G aRunnerSeedG(aStageConfigs[6], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedG, "GSeedRunSeed_G", pErrorMessage)) {
         return false;
     }
 
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseE, false);
-    GSeedRunSeed_H aRunnerSeedH(true, false);
+    GSeedRunSeed_H aRunnerSeedH(aStageConfigs[7], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedH, "GSeedRunSeed_H", pErrorMessage)) {
         return false;
     }
     
-    AddSeedMatrixDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseE, false);
+    AddSeedMatrixDomainWordLines(pExpander->mSeed, aMatrixDomains[1], false);
     
     pExpander->mSeed.AddLine("//");
     
@@ -569,8 +576,7 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     
     
 
-    AddSeedDomainWordLines(pExpander->mSeed, TwistDomain::kPhaseF, false);
-    GSeedRunSeed_I aRunnerSeedI(true, false);
+    GSeedRunSeed_I aRunnerSeedI(aStageConfigs[8], true, false);
     if (!BuildSeedStage(pExpander->mSeed, aRunnerSeedI, "GSeedRunSeed_I", pErrorMessage)) {
         return false;
     }

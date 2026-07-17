@@ -28,7 +28,6 @@ public:
     bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
 
 private:
-    void                                    Reset();
     GSeedRunStage                           mStage;
 };
 
@@ -41,7 +40,6 @@ public:
     bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
 
 private:
-    void                                    Reset();
     GSeedRunStage                           mStage;
 };
 
@@ -54,7 +52,6 @@ public:
     bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
 
 private:
-    void                                    Reset();
     GSeedRunStage                           mStage;
 };
 
@@ -67,7 +64,6 @@ public:
     bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
 
 private:
-    void                                    Reset();
     GSeedRunStage                           mStage;
 };
 
@@ -80,7 +76,6 @@ public:
     bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
 
 private:
-    void                                    Reset();
     GSeedRunStage                           mStage;
 };
 

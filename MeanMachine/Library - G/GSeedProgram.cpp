@@ -2627,6 +2627,9 @@ JsonValue ExprToJsonValue(const GExpr &pExpr) {
     }
     if (pExpr.mType == GExprType::kConst) {
         aObject["value"] = JsonValue::String(std::to_string(static_cast<unsigned long long>(pExpr.mConstVal)));
+        if (pExpr.mConstPreferHex) {
+            aObject["prefer_hex"] = JsonValue::Bool(true);
+        }
     }
     if (pExpr.mIndex != nullptr) {
         aObject["index"] = ExprToJsonValue(*pExpr.mIndex);
@@ -2692,7 +2695,17 @@ bool ExprFromJsonValue(const JsonValue &pValue,
                 SetError(pError, "Constant expression value was invalid.");
                 return false;
             }
-            aExpr = GExpr::Const64(aNumber);
+            bool aPreferHex = false;
+            if (const JsonValue *aPreferHexValue = pValue.find("prefer_hex");
+                aPreferHexValue != NULL) {
+                if (!aPreferHexValue->is_bool()) {
+                    SetError(pError, "Constant expression prefer_hex value was invalid.");
+                    return false;
+                }
+                aPreferHex = aPreferHexValue->as_bool();
+            }
+            aExpr = aPreferHex ? GExpr::Const64Hex(aNumber)
+                               : GExpr::Const64(aNumber);
             break;
         }
         case GExprType::kRead: {

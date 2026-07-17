@@ -30,6 +30,19 @@ bool HasSlot(const std::vector<TwistWorkSpaceSlot> &pSlots,
     return false;
 }
 
+bool IsForbiddenResidual(const TwistWorkSpaceSlot pSlot) {
+    using Slot = TwistWorkSpaceSlot;
+    switch (pSlot) {
+        case Slot::kFuseLaneA:
+        case Slot::kFuseLaneB:
+        case Slot::kFuseLaneC:
+        case Slot::kFuseLaneD:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void AppendUniqueSlot(std::vector<TwistWorkSpaceSlot> *pSlots,
                       const TwistWorkSpaceSlot pSlot) {
     if ((pSlots == nullptr) || HasSlot(*pSlots, pSlot)) {
@@ -545,11 +558,12 @@ bool GSeedRunStageConfigValidator::ValidateMidstage(const GSeedRunStageConfig &p
     return true;
 }
 
-bool GSeedRunStageConfigValidator::ValidateTerminalMidstage(const GSeedRunStageConfig &pConfig,
-                                                            std::vector<TwistWorkSpaceSlot> pPrimarySources,
-                                                            std::vector<TwistWorkSpaceSlot> pResidualSources,
-                                                            std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
-                                                            std::string *pErrorMessage) {
+bool GSeedRunStageConfigValidator::ValidateIndependentMidstage(
+    const GSeedRunStageConfig &pConfig,
+    std::vector<TwistWorkSpaceSlot> pPrimarySources,
+    std::vector<TwistWorkSpaceSlot> pResidualSources,
+    std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+    std::string *pErrorMessage) {
     if (!ValidateBasicShape(pConfig, pErrorMessage)) {
         return false;
     }
@@ -600,7 +614,6 @@ bool GSeedRunStageConfigValidator::ValidateTerminalMidstage(const GSeedRunStageC
 
     return true;
 }
-
 
 bool GSeedRunStageConfigValidator::ValidateSequencing(const GSeedRunStageConfig &pConfig,
                                                       std::vector<TwistWorkSpaceSlot> pAllSources,
@@ -965,11 +978,14 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
         return true;
     }
 
-    const std::size_t aMaxResidualCount = pConfig.mSlices.size() * 2U;
+    std::size_t aMaxResidualCount = pConfig.mSlices.size() * 4U;
+    if (aMaxResidualCount > 18U) {
+        aMaxResidualCount = 18U;
+    }
     if (pResiduals.size() > aMaxResidualCount) {
         SetError(pErrorMessage,
                  pConfig.mStageName +
-                 " residual graph had more residual sources than available random source slots");
+                 " residual graph had more than the supported residual source capacity");
         return false;
     }
 
@@ -978,6 +994,13 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
         if (aResidual == TwistWorkSpaceSlot::kInvalid) {
             SetError(pErrorMessage,
                      pConfig.mStageName + " residual graph contained invalid residual source");
+            return false;
+        }
+
+        if (IsForbiddenResidual(aResidual)) {
+            SetError(pErrorMessage,
+                     pConfig.mStageName +
+                     " residual graph may not use fuse lanes");
             return false;
         }
 
@@ -990,48 +1013,59 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
         aExpectedResiduals.insert(aResidualKey);
     }
 
-    std::unordered_set<int> aDiscoveredResiduals;
+    std::unordered_map<int, std::size_t> aResidualUseCounts;
     for (std::size_t aSliceIndex = 0U; aSliceIndex < pConfig.mSlices.size(); ++aSliceIndex) {
         const GSeedRunStageSliceSpec &aSlice = pConfig.mSlices[aSliceIndex];
         const std::vector<TwistWorkSpaceSlot> aIngressSources = aSlice.IngressSources();
         const std::vector<TwistWorkSpaceSlot> aCrossSources = aSlice.CrossSources();
 
-        auto CheckResidualPosition = [&](const std::vector<TwistWorkSpaceSlot> &pSources,
-                                         const char *pPositionName) -> bool {
+        auto CheckResidualSuffix = [&](const std::vector<TwistWorkSpaceSlot> &pSources,
+                                       const char *pPositionName) -> bool {
+            bool aFoundResidual = false;
             for (std::size_t aSourceIndex = 0U; aSourceIndex < pSources.size(); ++aSourceIndex) {
                 const TwistWorkSpaceSlot aSource = pSources[aSourceIndex];
                 if (!HasSlot(pResiduals, aSource)) {
+                    if (aFoundResidual) {
+                        SetError(pErrorMessage,
+                                 StagePrefix(pConfig, aSliceIndex) +
+                                 " residual graph used a non-residual after the " +
+                                 std::string(pPositionName) +
+                                 " residual suffix began");
+                        return false;
+                    }
                     continue;
                 }
 
-                if (aSourceIndex + 1U != pSources.size()) {
-                    SetError(pErrorMessage,
-                             StagePrefix(pConfig, aSliceIndex) +
-                             " residual graph used a residual outside the " +
-                             std::string(pPositionName) +
-                             " random source position");
-                    return false;
-                }
-
-                aDiscoveredResiduals.insert(static_cast<int>(aSource));
+                aFoundResidual = true;
+                aResidualUseCounts[static_cast<int>(aSource)] += 1U;
             }
             return true;
         };
 
-        if (!CheckResidualPosition(aIngressSources, "ingress")) {
+        if (!CheckResidualSuffix(aIngressSources, "ingress")) {
             return false;
         }
-        if (!CheckResidualPosition(aCrossSources, "cross")) {
+        if (!CheckResidualSuffix(aCrossSources, "cross")) {
             return false;
         }
     }
 
     for (TwistWorkSpaceSlot aResidual : pResiduals) {
-        if (aDiscoveredResiduals.find(static_cast<int>(aResidual)) == aDiscoveredResiduals.end()) {
+        const std::size_t aUseCount =
+            aResidualUseCounts[static_cast<int>(aResidual)];
+        if (aUseCount == 0U) {
             SetError(pErrorMessage,
                      pConfig.mStageName +
                      " residual graph did not discover residual source " +
                      BufName(aResidual));
+            return false;
+        }
+        if (aUseCount != 1U) {
+            SetError(pErrorMessage,
+                     pConfig.mStageName +
+                     " residual graph used residual source " +
+                     BufName(aResidual) +
+                     " more than once");
             return false;
         }
     }

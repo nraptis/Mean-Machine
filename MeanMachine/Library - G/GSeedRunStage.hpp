@@ -168,15 +168,6 @@ public:
 
         GBatch aBatch;
         aBatch.mName = mConfig.mBatchName;
-        if (mConfig.mEmitLaneFlowComments &&
-            mConfig.mEmitGroupLaneFlowComments &&
-            (mConfig.mSlices.size() > 1U)) {
-            AddLaneFlowCommentBlock(&aBatch,
-                                    mConfig.mStageName + " " + mConfig.mBatchName + " lane group",
-                                    CollectGroupReadSlots(),
-                                    CollectGroupWriteSlots(),
-                                    true);
-        }
         for (std::size_t aIndex = 0U; aIndex < aLoops.size(); ++aIndex) {
             GLoop aLoop = aLoops[aIndex];
             if (mConfig.mEmitLaneFlowComments && (aIndex < mConfig.mSlices.size())) {
@@ -484,9 +475,9 @@ private:
         return aStream.str();
     }
 
-    static std::string JoinLaneDirections(const std::vector<TwistWorkSpaceSlot> &pSlots,
-                                          const bool pIsIngress,
-                                          const bool pIsLastDirectionLocked) {
+    static std::string JoinLaneDiagram(const std::vector<TwistWorkSpaceSlot> &pSlots,
+                                       const bool pIsIngress,
+                                       const bool pIsLastDirectionLocked) {
         if (pSlots.empty()) {
             return "(none)";
         }
@@ -500,62 +491,15 @@ private:
             const bool aIsRandomDirection =
                 (aIndex == (pSlots.size() - 1U)) && !pIsLastDirectionLocked;
 
-            aStream << BufAliasName(pSlots[aIndex]) << " ";
+            aStream << BufAliasName(pSlots[aIndex]) << " (";
             if (aIsRandomDirection) {
-                aStream << (pIsIngress ? "forward/backward random" : "backward/forward random");
+                aStream << "<-?->";
             } else {
-                aStream << (pIsIngress ? "forward forced" : "backward forced");
+                aStream << (pIsIngress ? "-->" : "<--");
             }
+            aStream << ")";
         }
         return aStream.str();
-    }
-
-    std::vector<TwistWorkSpaceSlot> CollectGroupReadSlots() const {
-        std::vector<TwistWorkSpaceSlot> aResult;
-        for (const GSeedRunStageSliceSpec &aSpec : mConfig.mSlices) {
-            for (TwistWorkSpaceSlot aSlot : aSpec.IngressSources()) {
-                AppendUniqueSlot(&aResult, aSlot);
-            }
-            for (TwistWorkSpaceSlot aSlot : aSpec.CrossSources()) {
-                AppendUniqueSlot(&aResult, aSlot);
-            }
-        }
-        return aResult;
-    }
-
-    std::vector<TwistWorkSpaceSlot> CollectGroupWriteSlots() const {
-        std::vector<TwistWorkSpaceSlot> aResult;
-        for (const GSeedRunStageSliceSpec &aSpec : mConfig.mSlices) {
-            AppendUniqueSlot(&aResult, aSpec.mDest);
-        }
-        return aResult;
-    }
-
-    static std::vector<GStatement> LaneFlowCommentStatements(const std::string &pTitle,
-                                                             const std::vector<TwistWorkSpaceSlot> &pReadSlots,
-                                                             const std::vector<TwistWorkSpaceSlot> &pWriteSlots,
-                                                             const GAssignType pAssignType) {
-        std::vector<GStatement> aStatements;
-        aStatements.push_back(GStatement::Comment(pTitle));
-        aStatements.push_back(GStatement::Comment("read from: " + JoinLaneNames(pReadSlots)));
-        aStatements.push_back(GStatement::Comment("write to: " + JoinLaneNames(pWriteSlots, pAssignType)));
-        return aStatements;
-    }
-
-    void AddLaneFlowCommentBlock(GBatch *pBatch,
-                                 const std::string &pTitle,
-                                 const std::vector<TwistWorkSpaceSlot> &pReadSlots,
-                                 const std::vector<TwistWorkSpaceSlot> &pWriteSlots,
-                                 const bool pUseAssignSuffix) const {
-        if (pBatch == nullptr) {
-            return;
-        }
-        std::vector<GStatement> aStatements = LaneFlowCommentStatements(
-            pTitle,
-            pReadSlots,
-            pWriteSlots,
-            pUseAssignSuffix ? mConfig.mAssignType : GAssignType::kSet);
-        pBatch->CommitStatements(&aStatements);
     }
 
     void AddLoopLaneFlowComments(GLoop *pLoop,
@@ -569,16 +513,22 @@ private:
             return;
         }
         std::vector<GStatement> aStatements;
+        aStatements.push_back(GStatement::Comment(""));
         aStatements.push_back(GStatement::Comment(pTitle));
-        aStatements.push_back(GStatement::Comment("ingress from: " + JoinLaneNames(pIngressSlots)));
-        aStatements.push_back(GStatement::Comment("ingress directions: " + JoinLaneDirections(pIngressSlots,
-                                                                                               true,
-                                                                                               pIsLastIngressDirectionLocked)));
-        aStatements.push_back(GStatement::Comment("cross from: " + JoinLaneNames(pCrossSlots)));
-        aStatements.push_back(GStatement::Comment("cross directions: " + JoinLaneDirections(pCrossSlots,
-                                                                                            false,
-                                                                                            pIsLastCrossDirectionLocked)));
-        aStatements.push_back(GStatement::Comment("write to: " + JoinLaneNames(pWriteSlots, mConfig.mAssignType)));
+        aStatements.push_back(GStatement::Comment(""));
+        aStatements.push_back(GStatement::Comment("Ingress:"));
+        aStatements.push_back(GStatement::Comment("     " + JoinLaneDiagram(pIngressSlots,
+                                                                             true,
+                                                                             pIsLastIngressDirectionLocked)));
+        aStatements.push_back(GStatement::Comment(""));
+        aStatements.push_back(GStatement::Comment("Cross:"));
+        aStatements.push_back(GStatement::Comment("     " + JoinLaneDiagram(pCrossSlots,
+                                                                             false,
+                                                                             pIsLastCrossDirectionLocked)));
+        aStatements.push_back(GStatement::Comment(""));
+        aStatements.push_back(GStatement::Comment("Destination:"));
+        aStatements.push_back(GStatement::Comment("     " + JoinLaneNames(pWriteSlots, mConfig.mAssignType)));
+        aStatements.push_back(GStatement::Comment(""));
         pLoop->mInitializationStatements.insert(pLoop->mInitializationStatements.begin(),
                                                 aStatements.begin(),
                                                 aStatements.end());

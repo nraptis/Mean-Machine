@@ -22,8 +22,12 @@
 #include "FileIO.hpp"
 #include "GAXSK.hpp"
 #include "GFarm.hpp"
+#include "GPassFactory.hpp"
 #include "GShiftBox.hpp"
 #include "GSeedProgram.hpp"
+#include "GSeedRunKDF_A.hpp"
+#include "GSeedRunKDF_B.hpp"
+#include "GSeedRunStageConfigValidator.hpp"
 #include "GRunMatrixDiffusion.hpp"
 #include "GSeedRunSeed.hpp"
 #include "GSquash.hpp"
@@ -43,16 +47,782 @@
 #include "TwistShiftBox.hpp"
 #include "TwistSnow.hpp"
 #include "TwistSquash.hpp"
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <unordered_map>
 #include <vector>
+
+extern int gCandidateIndex;
 
 @interface CruelExportTest : XCTestCase
 
 @end
 
 @implementation CruelExportTest
+
+- (void)testTwistStagesFollowLaneRecipeAndBalanceResiduals {
+    using Slot = TwistWorkSpaceSlot;
+
+    auto Contains = [](const std::vector<Slot> &pSlots, const Slot pSlot) {
+        for (Slot aSlot : pSlots) {
+            if (aSlot == pSlot) { return true; }
+        }
+        return false;
+    };
+    auto SameSet = [&](const std::vector<Slot> &pLeft,
+                       const std::vector<Slot> &pRight) {
+        if (pLeft.size() != pRight.size()) { return false; }
+        for (Slot aSlot : pLeft) {
+            if (!Contains(pRight, aSlot)) { return false; }
+        }
+        return true;
+    };
+    auto Destinations = [](const GSeedRunStageConfig &pConfig) {
+        std::vector<Slot> aResult;
+        for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+            aResult.push_back(aSlice.mDest);
+        }
+        return aResult;
+    };
+    auto ExternalSources = [&](const GSeedRunStageConfig &pConfig) {
+        std::vector<Slot> aResult;
+        std::vector<Slot> aWritten;
+        for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+            for (Slot aSlot : aSlice.IngressSources()) {
+                if (!Contains(aWritten, aSlot) && !Contains(aResult, aSlot)) {
+                    aResult.push_back(aSlot);
+                }
+            }
+            for (Slot aSlot : aSlice.CrossSources()) {
+                if (!Contains(aWritten, aSlot) && !Contains(aResult, aSlot)) {
+                    aResult.push_back(aSlot);
+                }
+            }
+            aWritten.push_back(aSlice.mDest);
+        }
+        return aResult;
+    };
+    auto ReadCount = [](const GSeedRunStageConfig &pConfig, const Slot pSlot) {
+        std::size_t aCount = 0U;
+        for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+            for (Slot aSlot : aSlice.IngressSources()) {
+                aCount += (aSlot == pSlot) ? 1U : 0U;
+            }
+            for (Slot aSlot : aSlice.CrossSources()) {
+                aCount += (aSlot == pSlot) ? 1U : 0U;
+            }
+        }
+        return aCount;
+    };
+
+    std::unordered_map<int, std::size_t> aResidualTotals;
+    auto CheckStage = [&](const GSeedRunStageConfig &pConfig,
+                          const std::vector<Slot> &pPrimary,
+                          const std::vector<Slot> &pResiduals,
+                          const std::vector<Slot> &pRequiredCarryResiduals,
+                          const std::vector<Slot> &pDestinations,
+                          const int pWarmupCount) {
+        std::vector<Slot> aExpectedSources = pPrimary;
+        aExpectedSources.insert(aExpectedSources.end(),
+                                pResiduals.begin(),
+                                pResiduals.end());
+        XCTAssertTrue(SameSet(ExternalSources(pConfig), aExpectedSources),
+                      "Stage %s external source set did not match its recipe.",
+                      pConfig.mStageName.c_str());
+        XCTAssertTrue(Destinations(pConfig) == pDestinations,
+                      "Stage %s destination order did not match its recipe.",
+                      pConfig.mStageName.c_str());
+        XCTAssertTrue(pConfig.mWarmupDestinationCount == pWarmupCount,
+                      "Stage %s had the wrong warmup count.",
+                      pConfig.mStageName.c_str());
+        for (Slot aFuseLane : {Slot::kFuseLaneA, Slot::kFuseLaneB,
+                               Slot::kFuseLaneC, Slot::kFuseLaneD}) {
+            XCTAssertFalse(Contains(pResiduals, aFuseLane),
+                           "Stage %s must not use Fuse as a residual.",
+                           pConfig.mStageName.c_str());
+            XCTAssertTrue(ReadCount(pConfig, aFuseLane) == 0U,
+                          "Stage %s must not read Fuse lanes.",
+                          pConfig.mStageName.c_str());
+        }
+        for (Slot aExpansionLane : {Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+                                    Slot::kExpansionLaneC, Slot::kExpansionLaneD}) {
+            XCTAssertFalse(Contains(pResiduals, aExpansionLane),
+                           "Stage %s must not use Expansion as a residual.",
+                           pConfig.mStageName.c_str());
+        }
+        for (Slot aRequiredCarry : pRequiredCarryResiduals) {
+            XCTAssertTrue(Contains(pResiduals, aRequiredCarry),
+                          "Stage %s dropped an allowed previous input or warmup residual.",
+                          pConfig.mStageName.c_str());
+        }
+        for (Slot aResidual : pResiduals) {
+            XCTAssertTrue(ReadCount(pConfig, aResidual) == 1U,
+                          "Stage %s should use each residual exactly once.",
+                          pConfig.mStageName.c_str());
+            aResidualTotals[static_cast<int>(aResidual)] += 1U;
+            XCTAssertTrue(aResidualTotals[static_cast<int>(aResidual)] <= 3U,
+                          "Stage %s selected a residual for a fourth use.",
+                          pConfig.mStageName.c_str());
+        }
+    };
+
+    CheckStage(GTwistRunTwistConfig::MakeTwist_AConfig(),
+               {Slot::kSource, Slot::kKeyRowReadA, Slot::kKeyRowReadB},
+               {},
+               {},
+               {Slot::kScrapLaneA, Slot::kScrapLaneB,
+                Slot::kWindLaneA, Slot::kWindLaneB,
+                Slot::kWindLaneC, Slot::kWindLaneD},
+               2);
+    CheckStage(GTwistRunTwistConfig::MakeTwist_BConfig(),
+               {Slot::kWindLaneA, Slot::kWindLaneB,
+                Slot::kWindLaneC, Slot::kWindLaneD},
+               {Slot::kScrapLaneA, Slot::kScrapLaneB,
+                Slot::kSource, Slot::kKeyRowReadA,
+                Slot::kKeyRowReadB},
+               {Slot::kSource, Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+                Slot::kScrapLaneA, Slot::kScrapLaneB},
+               {Slot::kScrapLaneC, Slot::kScrapLaneD,
+                Slot::kSnowLaneA, Slot::kSnowLaneB,
+                Slot::kSnowLaneC, Slot::kSnowLaneD},
+               2);
+    CheckStage(GTwistRunTwistConfig::MakeTwist_CConfig(),
+               {Slot::kSnowLaneA, Slot::kSnowLaneB,
+                Slot::kSnowLaneC, Slot::kSnowLaneD},
+               {Slot::kWindLaneA, Slot::kWindLaneB,
+                Slot::kWindLaneC, Slot::kWindLaneD,
+                Slot::kScrapLaneC, Slot::kScrapLaneD,
+                Slot::kScrapLaneA, Slot::kScrapLaneB,
+                Slot::kSource},
+               {Slot::kWindLaneA, Slot::kWindLaneB,
+                Slot::kWindLaneC, Slot::kWindLaneD,
+                Slot::kScrapLaneC, Slot::kScrapLaneD},
+               {Slot::kInvestA, Slot::kInvestB,
+                Slot::kOperationLaneA, Slot::kOperationLaneB,
+                Slot::kOperationLaneC, Slot::kOperationLaneD},
+               2);
+    CheckStage(GTwistRunTwistConfig::MakeTwist_DConfig(),
+               {Slot::kOperationLaneA, Slot::kOperationLaneB,
+                Slot::kOperationLaneC, Slot::kOperationLaneD},
+               {Slot::kSnowLaneA, Slot::kSnowLaneB,
+                Slot::kSnowLaneC, Slot::kSnowLaneD,
+                Slot::kInvestA, Slot::kInvestB,
+                Slot::kScrapLaneC, Slot::kScrapLaneD,
+                Slot::kWindLaneA, Slot::kWindLaneB,
+                Slot::kWindLaneC, Slot::kWindLaneD},
+               {Slot::kSnowLaneA, Slot::kSnowLaneB,
+                Slot::kSnowLaneC, Slot::kSnowLaneD,
+                Slot::kInvestA, Slot::kInvestB},
+               {Slot::kInvestC, Slot::kInvestD,
+                Slot::kWaterLaneA, Slot::kWaterLaneB,
+                Slot::kWaterLaneC, Slot::kWaterLaneD},
+               2);
+    CheckStage(GTwistRunTwistConfig::MakeTwist_EConfig(),
+               {Slot::kWaterLaneA, Slot::kWaterLaneB,
+                Slot::kWaterLaneC, Slot::kWaterLaneD},
+               {Slot::kInvestC, Slot::kInvestD,
+                Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+                Slot::kSnowLaneA, Slot::kSnowLaneB,
+                Slot::kSnowLaneC, Slot::kSnowLaneD},
+               {Slot::kInvestC, Slot::kInvestD},
+               {Slot::kFuseLaneA, Slot::kFuseLaneB,
+                Slot::kFuseLaneC, Slot::kFuseLaneD},
+               0);
+    CheckStage(GTwistRunTwistConfig::MakeTwist_FConfig(),
+               {Slot::kFireLaneA, Slot::kFireLaneB,
+                Slot::kFireLaneC, Slot::kFireLaneD},
+               {Slot::kWaterLaneA, Slot::kWaterLaneB,
+                Slot::kWaterLaneC, Slot::kWaterLaneD,
+                Slot::kInvestA, Slot::kInvestB,
+                Slot::kInvestC, Slot::kInvestD,
+                Slot::kSnowLaneA, Slot::kSnowLaneB,
+                Slot::kSnowLaneC, Slot::kSnowLaneD},
+               {Slot::kWaterLaneA, Slot::kWaterLaneB,
+                Slot::kWaterLaneC, Slot::kWaterLaneD},
+               {Slot::kInvestE, Slot::kInvestF,
+                Slot::kEarthLaneA, Slot::kEarthLaneB,
+                Slot::kEarthLaneC, Slot::kEarthLaneD},
+               2);
+    CheckStage(GTwistRunTwistConfig::MakeTwist_GConfig(),
+               {Slot::kEarthLaneA, Slot::kEarthLaneB,
+                Slot::kEarthLaneC, Slot::kEarthLaneD},
+               {Slot::kFireLaneA, Slot::kFireLaneB,
+                Slot::kFireLaneC, Slot::kFireLaneD,
+                Slot::kInvestE, Slot::kInvestF,
+                Slot::kWaterLaneA, Slot::kWaterLaneB,
+                Slot::kWaterLaneC, Slot::kWaterLaneD,
+                Slot::kInvestC, Slot::kInvestD},
+               {Slot::kFireLaneA, Slot::kFireLaneB,
+                Slot::kFireLaneC, Slot::kFireLaneD,
+                Slot::kInvestE, Slot::kInvestF},
+               {Slot::kInvestG, Slot::kInvestH,
+                Slot::kWorkLaneA, Slot::kWorkLaneB,
+                Slot::kWorkLaneC, Slot::kWorkLaneD},
+               2);
+
+    std::size_t aMinimumResidualUse = static_cast<std::size_t>(-1);
+    std::size_t aMaximumResidualUse = 0U;
+    std::size_t aThirdUseCount = 0U;
+    for (const auto &aEntry : aResidualTotals) {
+        aMinimumResidualUse = std::min(aMinimumResidualUse, aEntry.second);
+        aMaximumResidualUse = std::max(aMaximumResidualUse, aEntry.second);
+        aThirdUseCount += (aEntry.second == 3U) ? 1U : 0U;
+    }
+    XCTAssertTrue(aMinimumResidualUse == 1U,
+                  "Newly recent residuals should remain available at one use.");
+    XCTAssertTrue(aMaximumResidualUse == 3U,
+                  "The no-Expansion layout should require exactly three uses at most.");
+    XCTAssertTrue(aThirdUseCount == 6U,
+                  "Exactly six older lanes should absorb the unavoidable third uses.");
+    for (Slot aThirdUse : {Slot::kSnowLaneA, Slot::kSnowLaneB,
+                           Slot::kSnowLaneC, Slot::kSnowLaneD,
+                           Slot::kInvestC, Slot::kInvestD}) {
+        XCTAssertTrue(aResidualTotals[static_cast<int>(aThirdUse)] == 3U,
+                      "Only the documented fallback lanes should reach a third use.");
+    }
+
+}
+
+- (void)testTwisterBuilderAssignsBalancedShuffledDomains {
+    Random::Seed(0x51CED);
+    GTwistExpander aExpander;
+    Builder_Twister aTwister;
+    std::string aError;
+    XCTAssertTrue(aTwister.Build(&aExpander, &aError),
+                  "Twister build failed: %s", aError.c_str());
+    XCTAssertTrue(aExpander.mTwistStageConfigs.size() == 7U,
+                  "Twister should retain all seven configured stages.");
+
+    std::unordered_map<int, std::size_t> aPhaseTotals;
+    std::size_t aScheduledDomainCount = 1U;
+    std::size_t aMixedStageCount = 0U;
+
+    for (const GSeedRunStageConfig &aConfig : aExpander.mTwistStageConfigs) {
+        XCTAssertTrue(aConfig.mSliceDomains.size() == aConfig.mSlices.size(),
+                      "Stage %s must assign one domain per slice.",
+                      aConfig.mStageName.c_str());
+        bool aStageIsMixed = false;
+        for (TwistDomain aDomain : aConfig.mSliceDomains) {
+            aPhaseTotals[static_cast<int>(aDomain)] += 1U;
+            aStageIsMixed = aStageIsMixed ||
+                (aDomain != aConfig.mSliceDomains.front());
+        }
+        aMixedStageCount += aStageIsMixed ? 1U : 0U;
+        aScheduledDomainCount += aConfig.mSliceDomains.size();
+    }
+    aPhaseTotals[static_cast<int>(aExpander.mTwistMatrixDomain)] += 1U;
+
+    std::size_t aSixUseDomainCount = 0U;
+    for (TwistDomain aDomain : {TwistDomain::kPhaseA, TwistDomain::kPhaseB,
+                                TwistDomain::kPhaseC, TwistDomain::kPhaseD,
+                                TwistDomain::kPhaseE, TwistDomain::kPhaseF,
+                                TwistDomain::kPhaseG, TwistDomain::kPhaseH}) {
+        const std::size_t aUseCount = aPhaseTotals[static_cast<int>(aDomain)];
+        XCTAssertTrue((aUseCount == 5U) || (aUseCount == 6U),
+                      "Every Twist domain should appear five or six times across slices and matrix.");
+        aSixUseDomainCount += (aUseCount == 6U) ? 1U : 0U;
+    }
+    XCTAssertTrue(aScheduledDomainCount == 43U,
+                  "Seven six-slice stages plus the matrix should schedule 43 domains.");
+    XCTAssertTrue(aSixUseDomainCount == 3U,
+                  "The shuffled final round should give exactly three domains a sixth use.");
+    XCTAssertTrue(aMixedStageCount > 0U,
+                  "The final shuffle should distribute domains across stage boundaries.");
+}
+
+- (void)testPassFactoryDistributesResidualsRoundRobin {
+    using Slot = TwistWorkSpaceSlot;
+    const GPassFactory::SlotArray4 aPrimary = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const GPassFactory::SlotArray4 aFourDestinations = {
+        Slot::kWorkLaneA, Slot::kWorkLaneB,
+        Slot::kWorkLaneC, Slot::kWorkLaneD,
+    };
+    const GPassFactory::SlotArray6 aSixDestinations = {
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+        Slot::kSnowLaneA, Slot::kSnowLaneB,
+        Slot::kSnowLaneC, Slot::kSnowLaneD,
+    };
+    const GPassFactory::SlotArray12 aAllResiduals = {
+        Slot::kSource, Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+        Slot::kWaterLaneA,
+    };
+    const GPassFactory::SlotArray1 aResiduals1 = {aAllResiduals[0]};
+    const GPassFactory::SlotArray2 aResiduals2 = {aAllResiduals[0], aAllResiduals[1]};
+    const GPassFactory::SlotArray3 aResiduals3 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2]};
+    const GPassFactory::SlotArray4 aResiduals4 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3]};
+    const GPassFactory::SlotArray5 aResiduals5 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3], aAllResiduals[4]};
+    const GPassFactory::SlotArray6 aResiduals6 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3], aAllResiduals[4], aAllResiduals[5]};
+    const GPassFactory::SlotArray7 aResiduals7 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3], aAllResiduals[4], aAllResiduals[5], aAllResiduals[6]};
+    const GPassFactory::SlotArray8 aResiduals8 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3], aAllResiduals[4], aAllResiduals[5], aAllResiduals[6], aAllResiduals[7]};
+    const GPassFactory::SlotArray9 aResiduals9 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3], aAllResiduals[4], aAllResiduals[5], aAllResiduals[6], aAllResiduals[7], aAllResiduals[8]};
+    const GPassFactory::SlotArray10 aResiduals10 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3], aAllResiduals[4], aAllResiduals[5], aAllResiduals[6], aAllResiduals[7], aAllResiduals[8], aAllResiduals[9]};
+    const GPassFactory::SlotArray11 aResiduals11 = {aAllResiduals[0], aAllResiduals[1], aAllResiduals[2], aAllResiduals[3], aAllResiduals[4], aAllResiduals[5], aAllResiduals[6], aAllResiduals[7], aAllResiduals[8], aAllResiduals[9], aAllResiduals[10]};
+    const GPassFactory::SlotArray12 &aResiduals12 = aAllResiduals;
+    const GPassFactory::SlotArray14 aResiduals14 = {
+        Slot::kSource, Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+        Slot::kWaterLaneA, Slot::kWaterLaneB,
+        Slot::kWaterLaneC,
+    };
+    const GPassFactory::SlotArray16 aResiduals16 = {
+        Slot::kSource, Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+        Slot::kWaterLaneA, Slot::kWaterLaneB,
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+        Slot::kFireLaneA,
+    };
+    const GPassFactory::SlotArray18 aResiduals18 = {
+        Slot::kSource, Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+        Slot::kWaterLaneA, Slot::kWaterLaneB,
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC,
+    };
+
+    auto CheckDistribution = [&](const std::vector<GSeedRunStageSliceSpec> &pSlices,
+                                 const std::vector<Slot> &pResiduals,
+                                 const std::size_t pPassCount) {
+        XCTAssertTrue(pSlices.size() == pPassCount);
+        std::size_t aDiscoveredCount = 0U;
+        for (std::size_t aPass = 0U; aPass < pPassCount; ++aPass) {
+            const std::vector<Slot> aIngress = pSlices[aPass].IngressSources();
+            const std::vector<Slot> aCross = pSlices[aPass].CrossSources();
+            const auto IsResidual = [&](const Slot pSlot) {
+                return std::find(pResiduals.begin(), pResiduals.end(), pSlot) != pResiduals.end();
+            };
+            const std::size_t aIngressResidualCount = static_cast<std::size_t>(
+                std::count_if(aIngress.begin(), aIngress.end(), IsResidual));
+            const std::size_t aCrossResidualCount = static_cast<std::size_t>(
+                std::count_if(aCross.begin(), aCross.end(), IsResidual));
+            std::size_t aExpectedIngress = 0U;
+            std::size_t aExpectedCross = 0U;
+            for (std::size_t aResidualIndex = aPass;
+                 aResidualIndex < pResiduals.size();
+                 aResidualIndex += pPassCount) {
+                const std::size_t aColumnIndex = aResidualIndex / pPassCount;
+                if ((aColumnIndex & 1U) == 0U) {
+                    aExpectedIngress += 1U;
+                } else {
+                    aExpectedCross += 1U;
+                }
+            }
+            XCTAssertTrue(aIngressResidualCount == aExpectedIngress);
+            XCTAssertTrue(aCrossResidualCount == aExpectedCross);
+            if (aExpectedIngress != 0U) { XCTAssertTrue(IsResidual(aIngress.back())); }
+            if (aExpectedCross != 0U) { XCTAssertTrue(IsResidual(aCross.back())); }
+            aDiscoveredCount += aIngressResidualCount + aCrossResidualCount;
+        }
+        XCTAssertTrue(aDiscoveredCount == pResiduals.size());
+
+        for (Slot aPrimarySlot : aPrimary) {
+            bool aForcedForward = false;
+            bool aForcedBackward = false;
+            for (const GSeedRunStageSliceSpec &aSlice : pSlices) {
+                const std::vector<Slot> aIngress = aSlice.IngressSources();
+                const std::vector<Slot> aCross = aSlice.CrossSources();
+                const std::size_t aForcedIngressCount =
+                    aSlice.mIsLastIngressDirectionLocked ?
+                    aIngress.size() : (aIngress.empty() ? 0U : aIngress.size() - 1U);
+                const std::size_t aForcedCrossCount =
+                    aSlice.mIsLastCrossDirectionLocked ?
+                    aCross.size() : (aCross.empty() ? 0U : aCross.size() - 1U);
+                aForcedForward = aForcedForward ||
+                    (std::find(aIngress.begin(),
+                               aIngress.begin() + static_cast<std::ptrdiff_t>(aForcedIngressCount),
+                               aPrimarySlot) !=
+                     aIngress.begin() + static_cast<std::ptrdiff_t>(aForcedIngressCount));
+                aForcedBackward = aForcedBackward ||
+                    (std::find(aCross.begin(),
+                               aCross.begin() + static_cast<std::ptrdiff_t>(aForcedCrossCount),
+                               aPrimarySlot) !=
+                     aCross.begin() + static_cast<std::ptrdiff_t>(aForcedCrossCount));
+            }
+            XCTAssertTrue(aForcedForward,
+                          "Every primary lane must remain forced-forward after redistribution.");
+            XCTAssertTrue(aForcedBackward,
+                          "Every primary lane must remain forced-backward after redistribution.");
+        }
+    };
+
+#define CHECK_FOUR(WORD, NUMBER) \
+    CheckDistribution(GPassFactory::FourPass##WORD##ResidualSlices(aPrimary, aResiduals##NUMBER, aFourDestinations), \
+                      GPassFactory::ToVector(aResiduals##NUMBER), 4U)
+    CHECK_FOUR(One, 1);
+    CHECK_FOUR(Two, 2);
+    CHECK_FOUR(Three, 3);
+    CHECK_FOUR(Four, 4);
+    CHECK_FOUR(Five, 5);
+    CHECK_FOUR(Six, 6);
+    CHECK_FOUR(Seven, 7);
+    CHECK_FOUR(Eight, 8);
+    CHECK_FOUR(Nine, 9);
+    CHECK_FOUR(Ten, 10);
+    CHECK_FOUR(Eleven, 11);
+    CHECK_FOUR(Twelve, 12);
+#undef CHECK_FOUR
+
+    CheckDistribution(GPassFactory::FourPassFourteenResidualSlices(aPrimary,
+                                                                    aResiduals14,
+                                                                    aFourDestinations),
+                      GPassFactory::ToVector(aResiduals14),
+                      4U);
+
+    CheckDistribution(GPassFactory::FourPassSixteenResidualSlices(aPrimary,
+                                                                   aResiduals16,
+                                                                   aFourDestinations),
+                      GPassFactory::ToVector(aResiduals16),
+                      4U);
+
+    CheckDistribution(GPassFactory::FourPassIndependentEightResidualSlices(aPrimary, aResiduals8, aFourDestinations),
+                      GPassFactory::ToVector(aResiduals8), 4U);
+
+#define CHECK_SIX(WORD, NUMBER) \
+    CheckDistribution(GPassFactory::SixPass##WORD##ResidualSlices(aPrimary, aResiduals##NUMBER, aSixDestinations), \
+                      GPassFactory::ToVector(aResiduals##NUMBER), 6U)
+    CHECK_SIX(One, 1);
+    CHECK_SIX(Two, 2);
+    CHECK_SIX(Three, 3);
+    CHECK_SIX(Four, 4);
+    CHECK_SIX(Five, 5);
+    CHECK_SIX(Six, 6);
+    CHECK_SIX(Seven, 7);
+    CHECK_SIX(Eight, 8);
+    CHECK_SIX(Nine, 9);
+    CHECK_SIX(Ten, 10);
+    CHECK_SIX(Eleven, 11);
+    CHECK_SIX(Twelve, 12);
+#undef CHECK_SIX
+
+    CheckDistribution(GPassFactory::SixPassFourteenResidualSlices(aPrimary,
+                                                                   aResiduals14,
+                                                                   aSixDestinations),
+                      GPassFactory::ToVector(aResiduals14),
+                      6U);
+
+    CheckDistribution(GPassFactory::SixPassSixteenResidualSlices(aPrimary,
+                                                                  aResiduals16,
+                                                                  aSixDestinations),
+                      GPassFactory::ToVector(aResiduals16),
+                      6U);
+
+    CheckDistribution(GPassFactory::SixPassEighteenResidualSlices(aPrimary,
+                                                                   aResiduals18,
+                                                                   aSixDestinations),
+                      GPassFactory::ToVector(aResiduals18),
+                      6U);
+
+    CheckDistribution(GPassFactory::SixPassDiverseSlices(aPrimary, aResiduals8, aSixDestinations),
+                      GPassFactory::ToVector(aResiduals8), 6U);
+}
+
+- (void)testKDFAResidualsGrowWithoutForbiddenOrDuplicateLanes {
+    using Slot = TwistWorkSpaceSlot;
+
+    auto Contains = [](const std::vector<Slot> &pSlots, Slot pSlot) {
+        return std::find(pSlots.begin(), pSlots.end(), pSlot) != pSlots.end();
+    };
+    auto CheckConfig = [&](const GSeedRunStageConfig &pConfig,
+                           const std::vector<Slot> &pPrimary,
+                           const std::vector<Slot> &pExpectedResiduals) {
+        std::vector<Slot> aWritten;
+        std::vector<Slot> aDiscoveredResiduals;
+        for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+            for (const std::vector<Slot> &aSources :
+                 {aSlice.IngressSources(), aSlice.CrossSources()}) {
+                for (Slot aSource : aSources) {
+                    if (!Contains(aWritten, aSource) &&
+                        !Contains(pPrimary, aSource) &&
+                        !Contains(aDiscoveredResiduals, aSource)) {
+                        aDiscoveredResiduals.push_back(aSource);
+                    }
+                }
+            }
+            aWritten.push_back(aSlice.mDest);
+        }
+
+        XCTAssertTrue(aDiscoveredResiduals.size() == pExpectedResiduals.size());
+        for (Slot aResidual : pExpectedResiduals) {
+            XCTAssertTrue(Contains(aDiscoveredResiduals, aResidual));
+            std::size_t aReadCount = 0U;
+            for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+                aReadCount += static_cast<std::size_t>(
+                    std::count(aSlice.mIngressSources.begin(),
+                               aSlice.mIngressSources.end(),
+                               aResidual));
+                aReadCount += static_cast<std::size_t>(
+                    std::count(aSlice.mCrossSources.begin(),
+                               aSlice.mCrossSources.end(),
+                               aResidual));
+            }
+            XCTAssertTrue(aReadCount == 1U,
+                          "Every KDF-A residual should be read exactly once.");
+        }
+    };
+
+    const std::vector<Slot> aEarth = {
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const std::vector<Slot> aFire = {
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const std::vector<Slot> aOperation = {
+        Slot::kOperationLaneA, Slot::kOperationLaneB,
+        Slot::kOperationLaneC, Slot::kOperationLaneD,
+    };
+    const std::vector<Slot> aWind = {
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+    };
+
+    const std::vector<Slot> aResidualsB = {
+        Slot::kSource, Slot::kParamSnow,
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+    };
+    const std::vector<Slot> aResidualsC = {
+        Slot::kSource, Slot::kParamSnow,
+        Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
+    };
+    const std::vector<Slot> aResidualsD = {
+        Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
+        Slot::kSource, Slot::kParamSnow,
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+    const std::vector<Slot> aResidualsE = {
+        Slot::kSource, Slot::kParamSnow,
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kFireLaneC, Slot::kFireLaneD,
+    };
+
+    CheckConfig(GSeedRunKDF_AConfig::MakeKDF_A_BConfig(), aEarth, aResidualsB);
+    CheckConfig(GSeedRunKDF_AConfig::MakeKDF_A_CConfig(), aFire, aResidualsC);
+    CheckConfig(GSeedRunKDF_AConfig::MakeKDF_A_DConfig(), aOperation, aResidualsD);
+    CheckConfig(GSeedRunKDF_AConfig::MakeKDF_A_EConfig(), aWind, aResidualsE);
+
+    GSeedRunStageConfig aForbiddenConfig =
+        GSeedRunKDF_AConfig::MakeKDF_A_BConfig();
+    for (GSeedRunStageSliceSpec &aSlice : aForbiddenConfig.mSlices) {
+        for (Slot &aSource : aSlice.mIngressSources) {
+            if (aSource == Slot::kSource) { aSource = Slot::kFuseLaneA; }
+        }
+        for (Slot &aSource : aSlice.mCrossSources) {
+            if (aSource == Slot::kSource) { aSource = Slot::kFuseLaneA; }
+        }
+    }
+    std::string aError;
+    XCTAssertFalse(GSeedRunStageConfigValidator::ValidateMidstage(
+        aForbiddenConfig,
+        aEarth,
+        {Slot::kFuseLaneA, Slot::kParamSnow,
+         Slot::kScrapLaneA, Slot::kScrapLaneB},
+        aFire,
+        &aError));
+    XCTAssertTrue(aError.find("may not use fuse lanes") !=
+                  std::string::npos);
+
+    GSeedRunStageConfig aOperationConfig =
+        GSeedRunKDF_AConfig::MakeKDF_A_BConfig();
+    for (GSeedRunStageSliceSpec &aSlice : aOperationConfig.mSlices) {
+        for (Slot &aSource : aSlice.mIngressSources) {
+            if (aSource == Slot::kSource) { aSource = Slot::kOperationLaneA; }
+        }
+        for (Slot &aSource : aSlice.mCrossSources) {
+            if (aSource == Slot::kSource) { aSource = Slot::kOperationLaneA; }
+        }
+    }
+    aError.clear();
+    XCTAssertTrue(GSeedRunStageConfigValidator::ValidateMidstage(
+        aOperationConfig,
+        aEarth,
+        {Slot::kOperationLaneA, Slot::kParamSnow,
+         Slot::kScrapLaneA, Slot::kScrapLaneB},
+        aFire,
+        &aError));
+
+    GSeedRunStageConfig aDuplicateConfig =
+        GSeedRunKDF_AConfig::MakeKDF_A_BConfig();
+    for (GSeedRunStageSliceSpec &aSlice : aDuplicateConfig.mSlices) {
+        for (Slot &aSource : aSlice.mIngressSources) {
+            if (aSource == Slot::kSource) { aSource = Slot::kParamSnow; }
+        }
+        for (Slot &aSource : aSlice.mCrossSources) {
+            if (aSource == Slot::kSource) { aSource = Slot::kParamSnow; }
+        }
+    }
+    aError.clear();
+    XCTAssertFalse(GSeedRunStageConfigValidator::ValidateMidstage(
+        aDuplicateConfig,
+        aEarth,
+        {Slot::kParamSnow, Slot::kScrapLaneA, Slot::kScrapLaneB},
+        aFire,
+        &aError));
+    XCTAssertTrue(aError.find("more than once") != std::string::npos);
+}
+
+- (void)testKDFBKeepsKDFALanesBalancedAndSourceHot {
+    using Slot = TwistWorkSpaceSlot;
+    const std::vector<Slot> aKDFALanes = {
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+        Slot::kEarthLaneA, Slot::kEarthLaneB,
+        Slot::kEarthLaneC, Slot::kEarthLaneD,
+        Slot::kFireLaneA, Slot::kFireLaneB,
+        Slot::kFireLaneC, Slot::kFireLaneD,
+        Slot::kWindLaneA, Slot::kWindLaneB,
+        Slot::kWindLaneC, Slot::kWindLaneD,
+        Slot::kWaterLaneA, Slot::kWaterLaneB,
+        Slot::kWaterLaneC, Slot::kWaterLaneD,
+    };
+    const std::vector<Slot> aExpansion = {
+        Slot::kExpansionLaneA, Slot::kExpansionLaneB,
+        Slot::kExpansionLaneC, Slot::kExpansionLaneD,
+    };
+    auto Contains = [](const std::vector<Slot> &pSlots, Slot pSlot) {
+        return std::find(pSlots.begin(), pSlots.end(), pSlot) != pSlots.end();
+    };
+    auto IsForbidden = [](Slot pSlot) {
+        switch (pSlot) {
+            case Slot::kParamSnow:
+            case Slot::kSnowLaneA:
+            case Slot::kSnowLaneB:
+            case Slot::kSnowLaneC:
+            case Slot::kSnowLaneD:
+            case Slot::kFuseLaneA:
+            case Slot::kFuseLaneB:
+            case Slot::kFuseLaneC:
+            case Slot::kFuseLaneD:
+                return true;
+            default:
+                return false;
+        }
+    };
+
+    std::unordered_map<int, std::size_t> aKDFALaneUseCounts;
+    auto CheckConfig = [&](const GSeedRunStageConfig &pConfig,
+                           const std::vector<Slot> &pPrimary,
+                           const bool pCarriesExpansion) {
+        std::vector<Slot> aWritten;
+        std::vector<Slot> aResiduals;
+        for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+            for (const std::vector<Slot> &aSources :
+                 {aSlice.IngressSources(), aSlice.CrossSources()}) {
+                for (Slot aSource : aSources) {
+                    if (!Contains(aWritten, aSource) &&
+                        !Contains(pPrimary, aSource) &&
+                        !Contains(aResiduals, aSource)) {
+                        aResiduals.push_back(aSource);
+                    }
+                }
+            }
+            aWritten.push_back(aSlice.mDest);
+        }
+
+        XCTAssertTrue(aResiduals.size() == 12U);
+        XCTAssertTrue(Contains(aResiduals, Slot::kSource),
+                      "Every KDF-B stage must reuse Source.");
+        for (Slot aResidual : aResiduals) {
+            XCTAssertFalse(IsForbidden(aResidual));
+            std::size_t aReadCount = 0U;
+            for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+                aReadCount += static_cast<std::size_t>(
+                    std::count(aSlice.mIngressSources.begin(),
+                               aSlice.mIngressSources.end(),
+                               aResidual));
+                aReadCount += static_cast<std::size_t>(
+                    std::count(aSlice.mCrossSources.begin(),
+                               aSlice.mCrossSources.end(),
+                               aResidual));
+            }
+            XCTAssertTrue(aReadCount == 1U);
+
+            if (Contains(aKDFALanes, aResidual)) {
+                aKDFALaneUseCounts[static_cast<int>(aResidual)] += 1U;
+            } else if (aResidual != Slot::kSource) {
+                XCTAssertTrue(pCarriesExpansion && Contains(aExpansion, aResidual),
+                              "Unexpected KDF-B residual lane.");
+            }
+        }
+
+        for (Slot aLane : aExpansion) {
+            XCTAssertTrue(Contains(aResiduals, aLane) == pCarriesExpansion);
+        }
+    };
+
+    CheckConfig(GSeedRunKDF_BConfig::MakeKDF_B_AConfig(),
+                {Slot::kWaterLaneA, Slot::kWaterLaneB,
+                 Slot::kWaterLaneC, Slot::kWaterLaneD},
+                false);
+    CheckConfig(GSeedRunKDF_BConfig::MakeKDF_B_BConfig(),
+                aExpansion,
+                false);
+    CheckConfig(GSeedRunKDF_BConfig::MakeKDF_B_CConfig(),
+                {Slot::kOperationLaneA, Slot::kOperationLaneB,
+                 Slot::kOperationLaneC, Slot::kOperationLaneD},
+                true);
+    CheckConfig(GSeedRunKDF_BConfig::MakeKDF_B_DConfig(),
+                {Slot::kWorkLaneA, Slot::kWorkLaneB,
+                 Slot::kWorkLaneC, Slot::kWorkLaneD},
+                false);
+
+    for (Slot aLane : aKDFALanes) {
+        const std::size_t aUseCount =
+            aKDFALaneUseCounts[static_cast<int>(aLane)];
+        XCTAssertTrue((aUseCount == 2U) || (aUseCount == 3U),
+                      "Every eligible KDF-A lane should remain evenly represented in KDF-B.");
+    }
+}
+
+- (void)testMidstageStagesUseOneChainedPattern {
+    const std::vector<GSeedRunStageConfig> aConfigs = {
+        GSeedRunKDF_AConfig::MakeKDF_A_DConfig(),
+        GSeedRunKDF_BConfig::MakeKDF_B_CConfig(),
+        GSeedRunSeedConfig::MakeSeed_DConfig(false),
+        GSeedRunSeedConfig::MakeSeed_HConfig(false),
+    };
+
+    for (const GSeedRunStageConfig &aConfig : aConfigs) {
+        for (std::size_t aIndex = 1U;
+             aIndex < aConfig.mSlices.size();
+             ++aIndex) {
+            const GSeedRunStageSliceSpec &aSlice = aConfig.mSlices[aIndex];
+            const std::vector<TwistWorkSpaceSlot> aIngress =
+                aSlice.IngressSources();
+            const std::size_t aForcedCount =
+                aSlice.mIsLastIngressDirectionLocked ?
+                    aIngress.size() : (aIngress.size() - 1U);
+            const TwistWorkSpaceSlot aPreviousWrite =
+                aConfig.mSlices[aIndex - 1U].mDest;
+            const bool aFound =
+                std::find(aIngress.begin(),
+                          aIngress.begin() + static_cast<std::ptrdiff_t>(aForcedCount),
+                          aPreviousWrite) !=
+                aIngress.begin() + static_cast<std::ptrdiff_t>(aForcedCount);
+            XCTAssertTrue(aFound,
+                          "Every midstage pass should force the previous write forward.");
+        }
+    }
+}
 
 - (void)testSmartSquashUsesCanonicalLaneIdentityAndEffectiveOffsets {
     auto CountText = [](const std::string &pText,
@@ -1212,22 +1982,11 @@ static BOOL CompareKeyBoxB(const char *pLabel,
                   "Expected exported KDF_B function.");
     XCTAssertTrue(aCpp.find("void TwistExpander_EmitShape::KDF(std::uint64_t") == std::string::npos,
                   "Expected exported KDF wrapper to be omitted.");
-    XCTAssertTrue(aCpp.find("KDF_A_A kdf_a_loop_a:") != std::string::npos,
-                  "Expected generated KDF-A ARX call marker.");
-    XCTAssertTrue(aCpp.find("KDF_A_B kdf_a_loop_b:") != std::string::npos,
-                  "Expected generated KDF-A/B ARX call marker.");
-    XCTAssertTrue(aCpp.find("KDF_A_C kdf_a_loop_c:") != std::string::npos,
-                  "Expected generated KDF-A/C ARX call marker.");
-    XCTAssertTrue(aCpp.find("KDF_A_D kdf_a_loop_d:") != std::string::npos,
-                  "Expected generated KDF-A/D ARX call marker.");
-    XCTAssertTrue(aCpp.find("KDF_B_A kdf_b_loop_a:") != std::string::npos,
-                  "Expected generated KDF-B/A ARX call marker.");
-    XCTAssertTrue(aCpp.find("KDF_B_B kdf_b_loop_b:") != std::string::npos,
-                  "Expected generated KDF-B/B ARX call marker.");
-    XCTAssertTrue(aCpp.find("KDF_B_C kdf_b_loop_c:") != std::string::npos,
-                  "Expected generated KDF-B/C ARX call marker.");
-    XCTAssertTrue(aCpp.find("KDF_B_D kdf_b_loop_d:") != std::string::npos,
-                  "Expected generated KDF-B/D ARX call marker.");
+    XCTAssertTrue(aCpp.find("// KDF_B_C kdf_b_loop_c:") ==
+                  std::string::npos,
+                  "KDF_B_C calls should omit the synthetic lane-summary title.");
+    XCTAssertTrue(aCpp.find("// temp storage:") == std::string::npos,
+                  "Exported ARX calls should rely on generated per-loop lane comments.");
     XCTAssertTrue(aHpp.find("#include \"TwistExpander_EmitShape_Arx.hpp\"") != std::string::npos,
                   "Expected KDF export header to include its ARX companion.");
     XCTAssertTrue(aCpp.find("#include \"TwistExpander_EmitShape_Arx.hpp\"") == std::string::npos,
@@ -1337,6 +2096,20 @@ static BOOL CompareKeyBoxB(const char *pLabel,
         }
         return aCount;
     };
+    auto PhaseName = [](const TwistDomain pDomain) -> const char * {
+        switch (pDomain) {
+            case TwistDomain::kPhaseB: return "PhaseB";
+            case TwistDomain::kPhaseC: return "PhaseC";
+            case TwistDomain::kPhaseD: return "PhaseD";
+            case TwistDomain::kPhaseE: return "PhaseE";
+            case TwistDomain::kPhaseF: return "PhaseF";
+            case TwistDomain::kPhaseG: return "PhaseG";
+            case TwistDomain::kPhaseH: return "PhaseH";
+            case TwistDomain::kPhaseA:
+            default:
+                return "PhaseA";
+        }
+    };
     const std::size_t aZero = aCpp.find("TwistMemory::ZeroKeyBoxA");
     const std::size_t aSnow = aCpp.find("TwistSnow::");
     std::size_t aFourthSnow = aSnow;
@@ -1427,8 +2200,8 @@ static BOOL CompareKeyBoxB(const char *pLabel,
                   "Builder_GrowA should emit the Grow A run stage.");
     XCTAssertTrue(aCpp.find("// GKeyFoldA grow_key_a_fold (start)") != std::string::npos,
                   "Builder_GrowA should emit the Grow A key fold.");
-    XCTAssertTrue(aCpp.find("// temp storage: scrap_a, scrap_b, water_a, water_b, water_c, water_d, invest_a, invest_b, invest_c, invest_d, fire_a, fire_b, fire_c, fire_d") != std::string::npos,
-                  "Grow A call metadata should list invest lanes as temporary storage.");
+    XCTAssertTrue(aCpp.find("// temp storage:") == std::string::npos,
+                  "Grow A calls should omit synthetic lane-summary metadata.");
     XCTAssertTrue(!aArxGrowAText.empty(),
                   "Expected exported ARX companion GROW_A definition.");
     XCTAssertTrue(aArxGrowAText.find("aOperationLane") == std::string::npos,
@@ -1478,8 +2251,8 @@ static BOOL CompareKeyBoxB(const char *pLabel,
                   "Builder_GrowB should emit the Grow B run stage.");
     XCTAssertTrue(aCpp.find("// GKeyFoldB grow_key_b_fold (start)") != std::string::npos,
                   "Builder_GrowB should emit the Grow B key fold.");
-    XCTAssertTrue(aCpp.find("// temp storage: scrap_c, scrap_d, earth_a, earth_b, earth_c, earth_d, wind_a, wind_b, wind_c, wind_d, invest_e, invest_f, invest_g, invest_h") != std::string::npos,
-                  "Grow B call metadata should list its canonical temporary lanes.");
+    XCTAssertTrue(aCpp.find("// temp storage:") == std::string::npos,
+                  "Grow B calls should omit synthetic lane-summary metadata.");
     XCTAssertTrue(!aArxGrowBText.empty(),
                   "Expected exported ARX companion GROW_B definition.");
     XCTAssertTrue(aArxGrowBText.find("aOperationLane") == std::string::npos,
@@ -1502,43 +2275,50 @@ static BOOL CompareKeyBoxB(const char *pLabel,
 }
 
 - (void)testTwisterExportUsesNamedTwistRunStages {
+    gCandidateIndex = 0;
+    Random::Seed(0x51CED);
     GTwistExpander aExpander;
-    aExpander.mNameBase = "TwisterStageNames";
+    aExpander.mNameBase = "Achernar";
 
     Builder_Twister aTwister;
     std::string aError;
     XCTAssertTrue(aTwister.Build(&aExpander, &aError),
                   "Twister build failed: %s", aError.c_str());
 
-    Builder_GrowA aGrowA;
-    XCTAssertTrue(aGrowA.Build(&aExpander, &aError),
-                  "Grow A build failed: %s", aError.c_str());
-
-    Builder_GrowB aGrowB;
-    XCTAssertTrue(aGrowB.Build(&aExpander, &aError),
-                  "Grow B build failed: %s", aError.c_str());
-
-    const std::string aExportRoot = "/private/tmp/mm_twister_stage_names";
-    XCTAssertTrue(aExpander.ExportCPPProjectRoot(aExportRoot, &aError),
+    const std::string aExportRoot = "/private/tmp/mm_twister_achernar";
+    XCTAssertTrue(aExpander.ExportCPPProjectRoot(aExportRoot, true, &aError),
                   "Export failed: %s", aError.c_str());
 
     std::vector<std::uint8_t> aCppBytes;
-    const std::string aCppPath = FileIO::Join(aExportRoot, "TwistExpander_TwisterStageNames.cpp");
+    const std::string aCppPath = FileIO::Join(aExportRoot, "TwistExpander_Achernar.cpp");
     XCTAssertTrue(FileIO::Load(aCppPath, aCppBytes), "Failed to load emitted cpp file.");
     std::vector<std::uint8_t> aHppBytes;
-    const std::string aHppPath = FileIO::Join(aExportRoot, "TwistExpander_TwisterStageNames.hpp");
+    const std::string aHppPath = FileIO::Join(aExportRoot, "TwistExpander_Achernar.hpp");
     XCTAssertTrue(FileIO::Load(aHppPath, aHppBytes), "Failed to load emitted hpp file.");
     std::vector<std::uint8_t> aArxCppBytes;
-    const std::string aArxCppPath = FileIO::Join(aExportRoot, "TwistExpander_TwisterStageNames_Arx.cpp");
+    const std::string aArxCppPath = FileIO::Join(aExportRoot, "TwistExpander_Achernar_Arx.cpp");
     XCTAssertTrue(FileIO::Load(aArxCppPath, aArxCppBytes), "Failed to load emitted ARX cpp file.");
     std::vector<std::uint8_t> aArxHppBytes;
-    const std::string aArxHppPath = FileIO::Join(aExportRoot, "TwistExpander_TwisterStageNames_Arx.hpp");
+    const std::string aArxHppPath = FileIO::Join(aExportRoot, "TwistExpander_Achernar_Arx.hpp");
     XCTAssertTrue(FileIO::Load(aArxHppPath, aArxHppBytes), "Failed to load emitted ARX hpp file.");
 
     const std::string aCpp(aCppBytes.begin(), aCppBytes.end());
     const std::string aHpp(aHppBytes.begin(), aHppBytes.end());
     const std::string aArxCpp(aArxCppBytes.begin(), aArxCppBytes.end());
     const std::string aArxHpp(aArxHppBytes.begin(), aArxHppBytes.end());
+    auto LoadInjectedText = [](const std::string &pRelativePath) {
+        std::vector<std::uint8_t> aBytes;
+        if (!FileIO::Load(FileIO::ProjectRoot(pRelativePath), aBytes)) {
+            return std::string();
+        }
+        return std::string(aBytes.begin(), aBytes.end());
+    };
+    const std::string aInjectedSquash = LoadInjectedText(
+        "Assets/squash_pre_planned/SquashInvestToKeyBoxes_Candidate01.cpp");
+    const std::string aInjectedGrowA = LoadInjectedText(
+        "Assets/grow_a_pre_planned/GrowKeyA_Candidate01.cpp");
+    const std::string aInjectedGrowB = LoadInjectedText(
+        "Assets/grow_b_pre_planned/GrowKeyB_Candidate01.cpp");
     auto CountText = [](const std::string &pText, const std::string &pNeedle) -> std::size_t {
         std::size_t aCount = 0U;
         std::size_t aOffset = pText.find(pNeedle);
@@ -1548,11 +2328,20 @@ static BOOL CompareKeyBoxB(const char *pLabel,
         }
         return aCount;
     };
+    XCTAssertFalse(aInjectedSquash.empty(), "Expected the reviewed Achernar squash injection.");
+    XCTAssertFalse(aInjectedGrowA.empty(), "Expected the reviewed Achernar Grow A injection.");
+    XCTAssertFalse(aInjectedGrowB.empty(), "Expected the reviewed Achernar Grow B injection.");
+    XCTAssertTrue(aCpp.find(aInjectedSquash) != std::string::npos,
+                  "Achernar export must use the injected squash method verbatim.");
+    XCTAssertTrue(aCpp.find(aInjectedGrowA) != std::string::npos,
+                  "Achernar export must use the injected Grow A method verbatim.");
+    XCTAssertTrue(aCpp.find(aInjectedGrowB) != std::string::npos,
+                  "Achernar export must use the injected Grow B method verbatim.");
     XCTAssertTrue(aHpp.find("std::size_t pBlockIndex") == std::string::npos,
                   "Expected exported TwistBlock declaration to omit block index.");
     XCTAssertTrue(aHpp.find("std::size_t pBlockCount") == std::string::npos,
                   "Expected exported TwistBlock declaration to omit block count.");
-    XCTAssertTrue(aArxHpp.find("class TwistExpander_TwisterStageNames_Arx {") != std::string::npos,
+    XCTAssertTrue(aArxHpp.find("class TwistExpander_Achernar_Arx {") != std::string::npos,
                   "Expected exported ARX companion class.");
     XCTAssertTrue(aArxHpp.find("void KDF_A_A(") != std::string::npos,
                   "Expected exported ARX companion KDF_A_A declaration.");
@@ -1562,6 +2351,10 @@ static BOOL CompareKeyBoxB(const char *pLabel,
                   "Expected exported ARX companion KDF_A_C declaration.");
     XCTAssertTrue(aArxHpp.find("void KDF_A_D(") != std::string::npos,
                   "Expected exported ARX companion KDF_A_D declaration.");
+    XCTAssertTrue(CountText(aArxHpp, "std::uint8_t *pSnow,") == 5U,
+                  "Every KDF-A ARX stage should receive the Snow parameter.");
+    XCTAssertTrue(CountText(aArxCpp, "std::uint8_t *pSnow,") == 5U,
+                  "Every KDF-A ARX definition should receive the Snow parameter.");
     XCTAssertTrue(aArxHpp.find("void KDF_B_A(") != std::string::npos,
                   "Expected exported ARX companion KDF_B_A declaration.");
     XCTAssertTrue(aArxHpp.find("void KDF_B_B(") != std::string::npos,
@@ -1582,36 +2375,44 @@ static BOOL CompareKeyBoxB(const char *pLabel,
                   "Expected exported ARX companion Twist_A declaration.");
     XCTAssertTrue(aArxHpp.find("void Twist_B(") != std::string::npos,
                   "Expected exported ARX companion Twist_B declaration.");
+    XCTAssertTrue(aArxHpp.find("void Twist_F(") != std::string::npos,
+                  "Expected exported ARX companion Twist_F declaration.");
+    XCTAssertTrue(aArxHpp.find("void Twist_G(") != std::string::npos,
+                  "Expected exported ARX companion Twist_G declaration.");
     XCTAssertTrue(aArxHpp.find("override") == std::string::npos,
                   "Expected exported ARX companion to use static helpers.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_A_A(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_A_A(") != std::string::npos,
                   "Expected exported ARX companion KDF_A_A definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_A_B(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_A_B(") != std::string::npos,
                   "Expected exported ARX companion KDF_A_B definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_A_C(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_A_C(") != std::string::npos,
                   "Expected exported ARX companion KDF_A_C definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_A_D(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_A_D(") != std::string::npos,
                   "Expected exported ARX companion KDF_A_D definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_B_A(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_B_A(") != std::string::npos,
                   "Expected exported ARX companion KDF_B_A definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_B_B(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_B_B(") != std::string::npos,
                   "Expected exported ARX companion KDF_B_B definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_B_C(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_B_C(") != std::string::npos,
                   "Expected exported ARX companion KDF_B_C definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::KDF_B_D(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::KDF_B_D(") != std::string::npos,
                   "Expected exported ARX companion KDF_B_D definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::Seed_A(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Seed_A(") != std::string::npos,
                   "Expected exported ARX companion Seed_A definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::Seed_B(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Seed_B(") != std::string::npos,
                   "Expected exported ARX companion Seed_B definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::Seed_C(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Seed_C(") != std::string::npos,
                   "Expected exported ARX companion Seed_C definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::Seed_D(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Seed_D(") != std::string::npos,
                   "Expected exported ARX companion Seed_D definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::Twist_A(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Twist_A(") != std::string::npos,
                   "Expected exported ARX companion Twist_A definition.");
-    XCTAssertTrue(aArxCpp.find("void TwistExpander_TwisterStageNames_Arx::Twist_B(") != std::string::npos,
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Twist_B(") != std::string::npos,
                   "Expected exported ARX companion Twist_B definition.");
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Twist_F(") != std::string::npos,
+                  "Expected exported ARX companion Twist_F definition.");
+    XCTAssertTrue(aArxCpp.find("void TwistExpander_Achernar_Arx::Twist_G(") != std::string::npos,
+                  "Expected exported ARX companion Twist_G definition.");
     XCTAssertTrue(aArxCpp.find("std::uint64_t aWandererA = *pWandererA;") != std::string::npos,
                   "Expected KDF_A_A to load wanderer state from pointer.");
     XCTAssertTrue(aArxCpp.find("*pWandererA = aWandererA;") != std::string::npos,
@@ -1634,188 +2435,200 @@ static BOOL CompareKeyBoxB(const char *pLabel,
                   "Expected exported KDF_B_A ARX companion to contain four loops.");
     XCTAssertTrue(CountText(aArxCpp, "// kdf_b_loop_b loop ") == 4U,
                   "Expected exported KDF_B_B ARX companion to contain four loops.");
-    XCTAssertTrue(CountText(aArxCpp, "// kdf_b_loop_c loop ") == 6U,
-                  "Expected exported KDF_B_C ARX companion to contain six loops.");
+    XCTAssertTrue(CountText(aArxCpp, "// kdf_b_loop_c loop ") == 4U,
+                  "Expected exported KDF_B_C ARX companion to contain four loops.");
     XCTAssertTrue(CountText(aArxCpp, "// kdf_b_loop_d loop ") == 4U,
                   "Expected exported KDF_B_D ARX companion to contain four loops.");
-    XCTAssertTrue(CountText(aArxCpp, "// seed_loop_a loop ") == 4U,
-                  "Expected exported Seed_A ARX companion to contain four loops.");
-    XCTAssertTrue(CountText(aArxCpp, "// seed_loop_b loop ") == 4U,
-                  "Expected exported Seed_B ARX companion to contain four loops.");
-    XCTAssertTrue(CountText(aArxCpp, "// seed_loop_c loop ") == 4U,
-                  "Expected exported Seed_C ARX companion to contain four loops.");
-    XCTAssertTrue(CountText(aArxCpp, "// seed_loop_d loop ") == 4U,
-                  "Expected exported Seed_D ARX companion to contain four loops.");
-    XCTAssertTrue(CountText(aArxCpp, "// twist_loop_a loop ") == 4U,
-                  "Expected exported Twist_A ARX companion to contain four loops.");
-    XCTAssertTrue(CountText(aArxCpp, "// twist_loop_b loop ") == 4U,
-                  "Expected exported Twist_B ARX companion to contain four loops.");
-    XCTAssertTrue(aArxCpp.find("// read from: mSource, mSnow") != std::string::npos &&
-                  aArxCpp.find("// write to: aWorkLaneA") != std::string::npos,
-                  "Expected KDF_A_A first loop to read source/snow and write work A.");
-    XCTAssertTrue(aArxCpp.find("// read from: mSource, mSnow, aWorkLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aWorkLaneB") != std::string::npos,
-                  "Expected KDF_A_A second loop to include work A and write work B.");
-    XCTAssertTrue(aArxCpp.find("// read from: mSource, mSnow, aWorkLaneA, aWorkLaneB") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneA") != std::string::npos,
-                  "Expected KDF_A_A third loop to write expansion A.");
-    XCTAssertTrue(aArxCpp.find("// read from: mSnow, aWorkLaneA, aWorkLaneB, aExpandLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneB") != std::string::npos,
-                  "Expected KDF_A_A fourth loop to write expansion B.");
-    XCTAssertTrue(aArxCpp.find("// read from: aWorkLaneA, aWorkLaneB, aExpandLaneA, aExpandLaneB") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneC") != std::string::npos,
-                  "Expected KDF_A_A fifth loop to write expansion C.");
-    XCTAssertTrue(aArxCpp.find("// read from: aWorkLaneB, aExpandLaneA, aExpandLaneB, aExpandLaneC") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneD") != std::string::npos,
-                  "Expected KDF_A_A sixth loop to write expansion D.");
-    XCTAssertTrue(aArxCpp.find("// read from: aExpandLaneD, aExpandLaneC, aExpandLaneB, aExpandLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aOperationLaneA") != std::string::npos,
-                  "Expected KDF_A_B first loop to read expansion lanes and write operation A.");
-    XCTAssertTrue(aArxCpp.find("// read from: aOperationLaneD, aOperationLaneC, aOperationLaneB, aOperationLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aWorkLaneA") != std::string::npos,
-                  "Expected KDF_A_C first loop to read operation lanes and write work A.");
-    XCTAssertTrue(aArxCpp.find("// read from: aExpandLaneD, aExpandLaneC, aExpandLaneB, aExpandLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aWorkLaneA") != std::string::npos,
-                  "Expected KDF_A_D first loop to read expansion lanes and write work A.");
-    XCTAssertTrue(aArxCpp.find("// read from: aWorkLaneD, aWorkLaneC, aWorkLaneB, aWorkLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneA") != std::string::npos,
-                  "Expected KDF_B_A first loop to read work lanes and write expansion A.");
-    XCTAssertTrue(aArxCpp.find("// read from: aExpandLaneD, aExpandLaneC, aExpandLaneB, aExpandLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aOperationLaneA") != std::string::npos,
-                  "Expected KDF_B_B first loop to read expansion lanes and write operation A.");
-    XCTAssertTrue(aArxCpp.find("// read from: aOperationLaneD, aOperationLaneC, aOperationLaneB, aOperationLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aWorkLaneA") != std::string::npos,
-                  "Expected KDF_B_C first loop to read operation lanes and write work A.");
-    XCTAssertTrue(aArxCpp.find("// read from: aWorkLaneA, aOperationLaneD, aOperationLaneC, aOperationLaneB") != std::string::npos &&
-                  aArxCpp.find("// write to: aWorkLaneB") != std::string::npos,
-                  "Expected KDF_B_C second loop to use work A and write work B.");
-    XCTAssertTrue(aArxCpp.find("// read from: aWorkLaneB, aWorkLaneA, aOperationLaneD, aOperationLaneC") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneA") != std::string::npos,
-                  "Expected KDF_B_C third loop to use work lanes and write expansion A.");
-    XCTAssertTrue(aArxCpp.find("// KDF_B_D kdf_b_loop_d (start)") != std::string::npos &&
-                  aArxCpp.find("// read from: aWorkLaneD, aWorkLaneC, aWorkLaneB, aWorkLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneA") != std::string::npos,
-                  "Expected KDF_B_D first loop to read work lanes and write expansion A.");
+    XCTAssertTrue(CountText(aArxCpp, "// twist_loop_b loop ") == 6U,
+                  "Expected exported Twist_B ARX companion to contain two warmups and four Snow loops.");
+    XCTAssertTrue(CountText(aArxCpp, "// twist_loop_f loop ") == 6U,
+                  "Expected exported Twist_F ARX companion to contain six loops.");
+    XCTAssertTrue(CountText(aArxCpp, "// twist_loop_g loop ") == 6U,
+                  "Expected exported Twist_G ARX companion to contain six loops.");
+    static const std::array<const char *, 7> kTwistLoopNames = {
+        "twist_loop_a", "twist_loop_b", "twist_loop_c", "twist_loop_d",
+        "twist_loop_e", "twist_loop_f", "twist_loop_g",
+    };
+    for (std::size_t aStageIndex = 0U;
+         aStageIndex < aExpander.mTwistStageConfigs.size();
+         ++aStageIndex) {
+        const GSeedRunStageConfig &aConfig =
+            aExpander.mTwistStageConfigs[aStageIndex];
+        for (std::size_t aSliceIndex = 0U;
+             aSliceIndex < aConfig.mSliceDomains.size();
+             ++aSliceIndex) {
+            const std::string aLoopMarker =
+                std::string("// ") + kTwistLoopNames[aStageIndex] +
+                " loop " + std::to_string(aSliceIndex + 1U);
+            const std::size_t aLoopBegin = aArxCpp.find(aLoopMarker);
+            const std::string aNextMarker =
+                std::string("// ") + kTwistLoopNames[aStageIndex] +
+                " loop " + std::to_string(aSliceIndex + 2U);
+            std::size_t aLoopEnd = aArxCpp.find(aNextMarker, aLoopBegin);
+            if (aLoopEnd == std::string::npos) {
+                aLoopEnd = aArxCpp.find(aConfig.mEndLine, aLoopBegin);
+            }
+            XCTAssertTrue(aLoopBegin != std::string::npos,
+                          "Expected exported Twist loop marker %s.",
+                          aLoopMarker.c_str());
+            if (aLoopBegin == std::string::npos) {
+                continue;
+            }
+            if (aLoopEnd == std::string::npos) {
+                aLoopEnd = aArxCpp.size();
+            }
+            const std::string aLoopText =
+                aArxCpp.substr(aLoopBegin, aLoopEnd - aLoopBegin);
+            const std::string aExpectedSaltPrefix =
+                std::string("a") + PhaseName(aConfig.mSliceDomains[aSliceIndex]) +
+                "Orbiter";
+            XCTAssertTrue(aLoopText.find(aExpectedSaltPrefix) != std::string::npos,
+                          "Exported %s slice %zu did not use its retained domain.",
+                          kTwistLoopNames[aStageIndex], aSliceIndex + 1U);
+        }
+    }
+    XCTAssertTrue(aArxCpp.find(" lane group") == std::string::npos,
+                  "ARX companions should omit redundant lane-group summaries.");
+    XCTAssertTrue(aArxCpp.find("// ingress from:") == std::string::npos &&
+                  aArxCpp.find("// ingress directions:") == std::string::npos &&
+                  aArxCpp.find("// cross from:") == std::string::npos &&
+                  aArxCpp.find("// cross directions:") == std::string::npos,
+                  "ARX companions should omit the old split lane-flow format.");
+
+    const std::size_t aKDFBCLoop1 =
+        aArxCpp.find("// kdf_b_loop_c loop 1");
+    const std::size_t aKDFBCLoop2 =
+        aArxCpp.find("// kdf_b_loop_c loop 2", aKDFBCLoop1);
+    XCTAssertTrue(aKDFBCLoop1 != std::string::npos &&
+                  aKDFBCLoop2 != std::string::npos,
+                  "Expected KDF_B_C loop comments.");
+    if ((aKDFBCLoop1 != std::string::npos) &&
+        (aKDFBCLoop2 != std::string::npos)) {
+        const std::string aKDFBCLoop1Comments =
+            aArxCpp.substr(aKDFBCLoop1, aKDFBCLoop2 - aKDFBCLoop1);
+        XCTAssertTrue(aKDFBCLoop1Comments.find("// Ingress:") != std::string::npos &&
+                      aKDFBCLoop1Comments.find("aOperationLaneA (-->)") != std::string::npos &&
+                      aKDFBCLoop1Comments.find("aOperationLaneB (-->)") != std::string::npos &&
+                      aKDFBCLoop1Comments.find("(<-?->)") != std::string::npos,
+                      "Expected compact ingress diagram for KDF_B_C loop 1.");
+        XCTAssertTrue(aKDFBCLoop1Comments.find("// Cross:") != std::string::npos &&
+                      aKDFBCLoop1Comments.find("aOperationLaneC (<--)") != std::string::npos &&
+                      aKDFBCLoop1Comments.find("aOperationLaneD (<--)") != std::string::npos,
+                      "Expected compact cross diagram for KDF_B_C loop 1.");
+        XCTAssertTrue(aKDFBCLoop1Comments.find("// Destination:") != std::string::npos &&
+                      aKDFBCLoop1Comments.find("//      aFuseLaneA") != std::string::npos,
+                      "Expected compact destination diagram for KDF_B_C loop 1.");
+    }
     XCTAssertTrue(aArxCpp.find("// GTwistRunTwist_A twist_loop_a (start)") != std::string::npos,
                   "Expected Twist_A body marker in the ARX companion.");
-    XCTAssertTrue(aArxCpp.find("// read from: mSource, aKeyBoxUnrolledA, aKeyBoxUnrolledB") != std::string::npos &&
-                  aArxCpp.find("// write to: aExpandLaneA") != std::string::npos,
-                  "Expected Twist_A first loop to read source/key boxes and write expansion A.");
     XCTAssertTrue(aArxCpp.find("// GTwistRunTwist_B twist_loop_b (start)") != std::string::npos,
                   "Expected Twist_B body marker in the ARX companion.");
-    XCTAssertTrue(aArxCpp.find("// read from: aExpandLaneD, aExpandLaneC, aExpandLaneB, aExpandLaneA") != std::string::npos &&
-                  aArxCpp.find("// write to: aOperationLaneA") != std::string::npos,
-                  "Expected Twist_B first loop to read expansion lanes and write operation A.");
     XCTAssertTrue(aCpp.find("std::size_t pBlockIndex") == std::string::npos,
                   "Expected exported TwistBlock definition to omit block index.");
     XCTAssertTrue(aCpp.find("std::size_t pBlockCount") == std::string::npos,
                   "Expected exported TwistBlock definition to omit block count.");
-    XCTAssertTrue(aHpp.find("#include \"TwistExpander_TwisterStageNames_Arx.hpp\"") != std::string::npos,
+    XCTAssertTrue(aHpp.find("#include \"TwistExpander_Achernar_Arx.hpp\"") != std::string::npos,
                   "Expected exported twister header to include its ARX companion.");
-    XCTAssertTrue(aCpp.find("#include \"TwistExpander_TwisterStageNames_Arx.hpp\"") == std::string::npos,
+    XCTAssertTrue(aCpp.find("#include \"TwistExpander_Achernar_Arx.hpp\"") == std::string::npos,
                   "Expected exported twister cpp to get the ARX type through its header.");
-    const std::size_t aTwistA = aCpp.find("GTwistRunTwist_A twist_loop_a:");
-    const std::size_t aTwistB = aCpp.find("GTwistRunTwist_B twist_loop_b:");
-    const std::size_t aTwistC = aCpp.find("GTwistRunTwist_C twist_loop_c (start)");
-    XCTAssertTrue(aTwistA != std::string::npos, "Expected named twist loop A marker.");
-    XCTAssertTrue(aTwistB != std::string::npos, "Expected named twist loop B marker.");
-    XCTAssertTrue(aTwistC != std::string::npos, "Expected named twist loop C marker.");
-    XCTAssertTrue(aTwistA < aTwistB && aTwistB < aTwistC,
-                  "Expected twist loops in A, B, C order.");
+    const std::size_t aTwistA =
+        aCpp.find("TwistExpander_Achernar_Arx::Twist_A(");
+    const std::size_t aTwistB =
+        aCpp.find("TwistExpander_Achernar_Arx::Twist_B(");
+    const std::size_t aTwistC =
+        aCpp.find("TwistExpander_Achernar_Arx::Twist_C(");
+    const std::size_t aTwistD =
+        aCpp.find("TwistExpander_Achernar_Arx::Twist_D(");
+    const std::size_t aTwistE =
+        aCpp.find("TwistExpander_Achernar_Arx::Twist_E(");
+    const std::size_t aTwistF =
+        aCpp.find("TwistExpander_Achernar_Arx::Twist_F(");
+    const std::size_t aTwistG =
+        aCpp.find("TwistExpander_Achernar_Arx::Twist_G(");
+    XCTAssertTrue(aTwistA != std::string::npos, "Expected twist loop A ARX call.");
+    XCTAssertTrue(aTwistB != std::string::npos, "Expected twist loop B ARX call.");
+    XCTAssertTrue(aTwistC != std::string::npos, "Expected twist loop C ARX call.");
+    XCTAssertTrue(aTwistD != std::string::npos, "Expected twist loop D ARX call.");
+    XCTAssertTrue(aTwistE != std::string::npos, "Expected twist loop E ARX call.");
+    XCTAssertTrue(aTwistF != std::string::npos, "Expected twist loop F ARX call.");
+    XCTAssertTrue(aTwistG != std::string::npos, "Expected twist loop G ARX call.");
+    XCTAssertTrue(aTwistA < aTwistB && aTwistB < aTwistC &&
+                  aTwistC < aTwistD && aTwistD < aTwistE &&
+                  aTwistE < aTwistF && aTwistF < aTwistG,
+                  "Expected twist loops in A through G order.");
+    const std::string aTwistDiffuseSnapshot =
+        "SnapShotter::SnapUpdate_TWIST(pWorkSpace, this, \"TWIST_DIFFUSE\");";
+    const std::size_t aTwistDiffuse = aCpp.find(aTwistDiffuseSnapshot);
+    XCTAssertTrue(aTwistDiffuse != std::string::npos,
+                  "Snapshot-enabled export should capture the completed Twist diffusion.");
+    XCTAssertTrue(aTwistE < aTwistDiffuse && aTwistDiffuse < aTwistF,
+                  "Twist diffusion snapshot should occur after Twist E and before Twist F.");
+    XCTAssertTrue(CountText(aCpp, aTwistDiffuseSnapshot) == 1U,
+                  "Twist diffusion should produce exactly one completed-pair snapshot.");
+    const std::string aMatrixDomainMember =
+        std::string("m") + PhaseName(aExpander.mTwistMatrixDomain) + "Constants";
+    const std::string aMatrixDomainSelectA =
+        "std::uint64_t aDomainWordMatrixSelectA = "
+        "pWorkSpace->mDomainBundle." + aMatrixDomainMember + ".mMatrixSelectA;";
+    const std::string aMatrixDomainArgD =
+        "std::uint8_t aDomainWordMatrixArgD = "
+        "pWorkSpace->mDomainBundle." + aMatrixDomainMember + ".mMatrixArgD;";
+    const std::size_t aMatrixDomainWords =
+        aCpp.find(aMatrixDomainSelectA, aTwistE);
+    const std::size_t aMatrixDomainWordsEnd =
+        aCpp.find(aMatrixDomainArgD, aTwistE);
+    const std::size_t aMatrixBreakerA =
+        aCpp.find("TwistDiffuse::DiffuseWithDomainWords(", aTwistE);
+    const std::size_t aMatrixBreakerB =
+        (aMatrixBreakerA == std::string::npos) ?
+        std::string::npos :
+        aCpp.find("TwistDiffuse::DiffuseWithDomainWords(", aMatrixBreakerA + 1U);
+    XCTAssertTrue(aMatrixDomainWords != std::string::npos &&
+                  aMatrixDomainWordsEnd != std::string::npos &&
+                  aMatrixBreakerA != std::string::npos &&
+                  aMatrixBreakerB != std::string::npos &&
+                  aTwistE < aMatrixDomainWords &&
+                  aMatrixDomainWords < aMatrixDomainWordsEnd &&
+                  aMatrixDomainWordsEnd < aMatrixBreakerA &&
+                  aMatrixBreakerA < aMatrixBreakerB &&
+                  aMatrixBreakerB < aTwistF,
+                  "Expected the scheduled matrix domain words and two matrix-breaker batches between twist loops E and F.");
+    XCTAssertTrue(aCpp.find("TwistDiffuse::DiffuseWithDomainWords(aFuseLaneA, aFuseLaneB", aTwistE) != std::string::npos &&
+                  aCpp.find("TwistDiffuse::DiffuseWithDomainWords(aFuseLaneC, aFuseLaneD", aTwistE) != std::string::npos,
+                  "Fuse lanes should feed the two domain-separated Fuse-to-Fire diffusion batches.");
+    const std::size_t aNoDomainMatrixBreaker =
+        aCpp.find("TwistDiffuse::Diffuse(", aTwistE);
+    XCTAssertTrue(aNoDomainMatrixBreaker == std::string::npos ||
+                  aNoDomainMatrixBreaker > aTwistF,
+                  "Twist E-to-F diffusion should not use the no-domain helper.");
     XCTAssertTrue(aCpp.find("GTwistRunTwist15") == std::string::npos,
                   "Export should not mention numbered twist stages.");
-    XCTAssertTrue(aCpp.find("TwistExpander_TwisterStageNames_Arx::Twist_A(") != std::string::npos,
+    XCTAssertTrue(aCpp.find("TwistExpander_Achernar_Arx::Twist_A(") != std::string::npos,
                   "Expected TwistBlock to call the ARX helper for twist loop A.");
-    XCTAssertTrue(aCpp.find("TwistExpander_TwisterStageNames_Arx::Twist_B(") != std::string::npos,
+    XCTAssertTrue(aCpp.find("TwistExpander_Achernar_Arx::Twist_B(") != std::string::npos,
                   "Expected TwistBlock to call the ARX helper for twist loop B.");
     XCTAssertTrue(aCpp.find("GTwistRunTwist_A twist_loop_a (start)") == std::string::npos,
                   "Expected full twist loop A body to live in the ARX companion.");
     XCTAssertTrue(aCpp.find("GTwistRunTwist_B twist_loop_b (start)") == std::string::npos,
                   "Expected full twist loop B body to live in the ARX companion.");
-    XCTAssertTrue(aArxCpp.find("GTwistRunTwist_A twist_loop_a lane group") != std::string::npos,
-                  "Expected twist loop A lane group comment in the ARX companion.");
-    XCTAssertTrue(aArxCpp.find("GTwistRunTwist_B twist_loop_b lane group") != std::string::npos,
-                  "Expected twist loop B lane group comment in the ARX companion.");
-    XCTAssertTrue(aCpp.find("// write to: aKeyRowWriteA (^=)") != std::string::npos,
-                  "Expected grow-key xor write lane comment.");
     XCTAssertTrue(CountText(aCpp, "TwistSquash::Squash") == 1U,
                   "Twister export should emit exactly one final output squash.");
 
-    const std::size_t aTwistBlock = aCpp.find("void TwistExpander_TwisterStageNames::TwistBlock(");
+    const std::size_t aTwistBlock = aCpp.find("void TwistExpander_Achernar::TwistBlock(");
     const std::size_t aGrowACall = aCpp.find("    GrowKeyA(pWorkSpace);", aTwistBlock);
     const std::size_t aGrowBCall = aCpp.find("    GrowKeyB(pWorkSpace);", aTwistBlock);
-    const std::size_t aGrowAMethod = aCpp.find("void TwistExpander_TwisterStageNames::GrowKeyA(");
-    const std::size_t aGrowBMethod = aCpp.find("void TwistExpander_TwisterStageNames::GrowKeyB(");
-    const std::size_t aGrowExpandA = aCpp.find("GTwistRunGrowKeyA grow_key_a_expand_a (start)");
-    const std::size_t aGrowExpandB = aCpp.find("GTwistRunGrowKeyA grow_key_a_expand_b (start)");
-    const std::size_t aGrowLoopA = aCpp.find("GTwistRunGrowKeyA twist_key_box_loop_a (start)");
-    const std::size_t aGrowBExpandA = aCpp.find("GTwistRunGrowKeyB grow_key_b_expand_a (start)");
-    const std::size_t aGrowBExpandB = aCpp.find("GTwistRunGrowKeyB grow_key_b_expand_b (start)");
-    const std::size_t aGrowLoopB = aCpp.find("GTwistRunGrowKeyB twist_key_box_loop_b (start)");
-    const std::size_t aGrowBNextMethod = (aGrowBMethod == std::string::npos) ?
-        std::string::npos :
-        aCpp.find("\nvoid TwistExpander_TwisterStageNames::", aGrowBMethod + 1U);
-    const std::size_t aGrowBStaticDefinitions = (aGrowBMethod == std::string::npos) ?
-        std::string::npos :
-        aCpp.find("\nconst TwistDomain", aGrowBMethod + 1U);
-    const std::size_t aGrowBMethodEnd = (aGrowBNextMethod != std::string::npos) ?
-        aGrowBNextMethod :
-        aGrowBStaticDefinitions;
-    const std::string aGrowAText = ((aGrowAMethod != std::string::npos) &&
-                                    (aGrowBMethod != std::string::npos) &&
-                                    (aGrowAMethod < aGrowBMethod)) ?
-        aCpp.substr(aGrowAMethod, aGrowBMethod - aGrowAMethod) :
-        "";
-    const std::string aGrowBText = (aGrowBMethod == std::string::npos) ?
-        "" :
-        (aGrowBMethodEnd == std::string::npos) ?
-        aCpp.substr(aGrowBMethod) :
-        aCpp.substr(aGrowBMethod, aGrowBMethodEnd - aGrowBMethod);
+    const std::size_t aGrowAMethod = aCpp.find("void TwistExpander_Achernar::GrowKeyA(");
+    const std::size_t aGrowBMethod = aCpp.find("void TwistExpander_Achernar::GrowKeyB(");
     XCTAssertTrue(aTwistBlock != std::string::npos, "Expected generated TwistBlock method.");
     XCTAssertTrue(aGrowACall != std::string::npos, "Expected TwistBlock to call GrowKeyA.");
     XCTAssertTrue(aGrowBCall != std::string::npos, "Expected TwistBlock to call GrowKeyB.");
-    XCTAssertTrue(aGrowAMethod != std::string::npos, "Expected generated GrowKeyA method.");
-    XCTAssertTrue(aGrowBMethod != std::string::npos, "Expected generated GrowKeyB method.");
-    XCTAssertTrue(aGrowACall < aGrowAMethod && aGrowBCall < aGrowAMethod,
+    XCTAssertTrue(aGrowAMethod != std::string::npos, "Expected injected Achernar GrowKeyA method.");
+    XCTAssertTrue(aGrowBMethod != std::string::npos, "Expected injected Achernar GrowKeyB method.");
+    XCTAssertTrue(aGrowACall < aGrowBCall && aGrowBCall < aGrowAMethod,
                   "Grow-key calls should be emitted at the end of TwistBlock.");
-    XCTAssertTrue(aGrowExpandA > aGrowAMethod && aGrowExpandA < aGrowBMethod,
-                  "grow_key_a_expand_a should live inside GrowKeyA.");
-    XCTAssertTrue(aGrowExpandB > aGrowExpandA && aGrowExpandB < aGrowBMethod,
-                  "grow_key_a_expand_b should follow grow_key_a_expand_a inside GrowKeyA.");
-    XCTAssertTrue(aGrowLoopA > aGrowExpandB && aGrowLoopA < aGrowBMethod,
-                  "twist_key_box_loop_a should be the final GrowKeyA loop.");
-    XCTAssertTrue(aGrowBExpandA > aGrowBMethod,
-                  "grow_key_b_expand_a should live inside GrowKeyB.");
-    XCTAssertTrue(aGrowBExpandB > aGrowBExpandA,
-                  "grow_key_b_expand_b should follow grow_key_b_expand_a inside GrowKeyB.");
-    XCTAssertTrue(aGrowLoopB > aGrowBExpandB,
-                  "twist_key_box_loop_b should be the final GrowKeyB loop.");
-    XCTAssertTrue(aGrowAText.find("PhaseD") != std::string::npos,
-                  "GrowKeyA should use phase D salt aliases.");
-    XCTAssertTrue(aGrowBText.find("PhaseD") != std::string::npos,
-                  "GrowKeyB should use phase D salt aliases.");
-    XCTAssertTrue(aGrowAText.find("PhaseC") == std::string::npos,
-                  "GrowKeyA should not use phase C salt aliases.");
-    XCTAssertTrue(aGrowBText.find("PhaseC") == std::string::npos,
-                  "GrowKeyB should not use phase C salt aliases.");
-    XCTAssertTrue(aGrowAText.find("aWorkLaneA") != std::string::npos &&
-                  aGrowAText.find("aWorkLaneB") != std::string::npos &&
-                  aGrowAText.find("aWorkLaneC") != std::string::npos &&
-                  aGrowAText.find("aWorkLaneD") != std::string::npos,
-                  "GrowKeyA should consume all four work lanes.");
-    XCTAssertTrue(aGrowBText.find("aWorkLaneA") != std::string::npos &&
-                  aGrowBText.find("aWorkLaneB") != std::string::npos &&
-                  aGrowBText.find("aWorkLaneC") != std::string::npos &&
-                  aGrowBText.find("aWorkLaneD") != std::string::npos,
-                  "GrowKeyB should consume all four work lanes.");
-    XCTAssertTrue(aGrowAText.find("aKeyRowWriteA") != std::string::npos,
-                  "GrowKeyA should write key row A.");
-    XCTAssertTrue(aGrowBText.find("aKeyRowWriteB") != std::string::npos,
-                  "GrowKeyB should write key row B.");
-    XCTAssertTrue(aGrowBText.find("for (std::size_t aIndex = static_cast<std::size_t>((S_BLOCK >> 1));") != std::string::npos,
-                  "GrowKeyB loops should start at S_BLOCK >> 1.");
-    XCTAssertTrue(aGrowBText.find("aIndex < static_cast<std::size_t>(S_BLOCK)") != std::string::npos,
-                  "GrowKeyB loops should run to S_BLOCK.");
+    XCTAssertTrue(aCpp.find("GTwistRunGrowKeyA grow_key_a_expand_a (start)") == std::string::npos &&
+                  aCpp.find("GTwistRunGrowKeyB grow_key_b_expand_a (start)") == std::string::npos,
+                  "Achernar export must not fall back to builder-generated Grow methods.");
     XCTAssertTrue(aCpp.find("if ((pBlockCount - pBlockIndex) > static_cast<std::size_t>(H_KEY)") == std::string::npos,
                   "TwistBlock should always grow key boxes.");
     XCTAssertTrue(aCpp.find("pBlockIndex < pBlockCount") == std::string::npos,
@@ -1844,10 +2657,14 @@ static BOOL CompareKeyBoxB(const char *pLabel,
 
     const std::string aCpp(aCppBytes.begin(), aCppBytes.end());
     const std::string aArxCpp(aArxCppBytes.begin(), aArxCppBytes.end());
-    const std::size_t aSeedLoopA = aCpp.find("GSeedRunSeed_A seed_loop_a:");
-    const std::size_t aSeedLoopB = aCpp.find("GSeedRunSeed_B seed_loop_b:");
-    const std::size_t aSeedLoopC = aCpp.find("GSeedRunSeed_C seed_loop_c:");
-    const std::size_t aSeedLoopD = aCpp.find("GSeedRunSeed_D seed_loop_d:");
+    const std::size_t aSeedLoopA =
+        aCpp.find("TwistExpander_SeederSeedPhases_Arx::Seed_A(");
+    const std::size_t aSeedLoopB =
+        aCpp.find("TwistExpander_SeederSeedPhases_Arx::Seed_B(");
+    const std::size_t aSeedLoopC =
+        aCpp.find("TwistExpander_SeederSeedPhases_Arx::Seed_C(");
+    const std::size_t aSeedLoopD =
+        aCpp.find("TwistExpander_SeederSeedPhases_Arx::Seed_D(");
     XCTAssertTrue(aSeedLoopA != std::string::npos, "Expected seed loop A.");
     XCTAssertTrue(aSeedLoopB != std::string::npos, "Expected seed loop B.");
     XCTAssertTrue(aSeedLoopC != std::string::npos, "Expected seed loop C.");

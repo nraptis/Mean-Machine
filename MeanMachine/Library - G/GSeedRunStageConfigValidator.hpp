@@ -42,15 +42,14 @@ public:
                                                                              std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
                                                                              std::string *pErrorMessage);
 
-    // Terminal midstage packs write lanes for the next non-ARX operation.
-    // They still validate source shape and residual use, but they do not require
-    // written destinations to be read by later slices.
-    static bool                                             ValidateTerminalMidstage(const GSeedRunStageConfig &pConfig,
-                                                                                     std::vector<TwistWorkSpaceSlot> pPrimarySources,
-                                                                                     std::vector<TwistWorkSpaceSlot> pResidualSources,
-                                                                                     std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
-                                                                                     std::string *pErrorMessage);
-    
+    // Independent midstages produce sibling outputs that must not feed one
+    // another. Source, residual, direction, and destination rules still apply.
+    static bool                                             ValidateIndependentMidstage(const GSeedRunStageConfig &pConfig,
+                                                                                        std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                        std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                        std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+                                                                                        std::string *pErrorMessage);
+
 private:
     
     static bool                                             IsForcedForward(const GSeedRunStageSliceSpec &pSlice,
@@ -117,29 +116,11 @@ private:
                                                                                           std::string *pErrorMessage);
     
     
-    /*
-     residuals are [a, b, c]
-     
-     we must have slices
-     [ingress_1.last = res.a]
-     [ingress_2.last = res.b]
-     [ingress_3.last = res.c]
-     [ingress_4.last = not residual]
-     
-     
-     residuals are [a, b, c, d, e]
-     
-     we must have slices
-     [ingress_1.last = res.a]
-     [ceoss_1.last = res.b]
-     
-     [ingress_2.last = res.c]
-     [ingress_3.last = res.d]
-     [ingress_4.last = res.e]
-     
-     residuals.count > (lane.count * 2) => fail
-     
-     */
+    // Residuals are unique lanes, each read exactly once. They occupy a
+    // contiguous suffix of an ingress or cross source list so a pass may
+    // carry more than the old single-random-position residual. Fuse lanes are
+    // never valid residuals; Operation lanes are allowed. Capacity is four
+    // residuals per slice, capped at 18.
     static bool                                             ValidateResidualGraph(const GSeedRunStageConfig &pConfig,
                                                                                 std::vector<TwistWorkSpaceSlot> pResiduals,
                                                                                           std::string *pErrorMessage);

@@ -683,7 +683,7 @@ bool GAXSK::ChooseUpdateRotations(int pCount,
         }
 
         aTryCount++;
-        if (aTryCount > 10000) {
+        if (aTryCount > 1000000) {
             SetError(pErrorMessage, "GAXSK::ChooseUpdateRotations failed to choose rotations");
             return false;
         }

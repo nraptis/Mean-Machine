@@ -61,7 +61,6 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     aConfig.mSaltsOrbiterAssign = PhaseSalts(pDomain, Slot::kPhaseASaltOrbiterAssignA, 6);
     aConfig.mSaltsOrbiterUpdate = PhaseSalts(pDomain, Slot::kPhaseASaltOrbiterUpdateA, 6);
     aConfig.mSaltsWandererUpdate = PhaseSalts(pDomain, Slot::kPhaseASaltWandererUpdateA, 6);
-    aConfig.mEmitGroupLaneFlowComments = false;
     return aConfig;
 }
 
@@ -75,16 +74,21 @@ GSeedRunStageConfig BuildGrowAConfig() {
         Slot::kWorkLaneA, Slot::kWorkLaneB,
         Slot::kWorkLaneC, Slot::kWorkLaneD,
     };
-    const GPassFactory::SlotArray12 aResiduals = {
-        Slot::kWaterLaneA, Slot::kWaterLaneB,
-        Slot::kWaterLaneC, Slot::kWaterLaneD,
+    const GPassFactory::SlotArray18 aResiduals = {
+        Slot::kWaterLaneA, Slot::kWaterLaneC,
+        Slot::kEarthLaneB,Slot::kEarthLaneD,
         Slot::kInvestA, Slot::kInvestB,
-        Slot::kInvestC, Slot::kInvestD,
-        Slot::kFireLaneA, Slot::kFireLaneB,
-        Slot::kFireLaneC, Slot::kFireLaneD,
+        Slot::kInvestE, Slot::kInvestF,
+        
+        Slot::kScrapLaneA, Slot::kScrapLaneB,
+        Slot::kScrapLaneC, Slot::kScrapLaneD,
+        Slot::kFireLaneB, Slot::kFireLaneD,
+        Slot::kSnowLaneB, Slot::kSnowLaneD,
+        
+        Slot::kOperationLaneA, Slot::kOperationLaneC,
     };
     const GPassFactory::SlotArray2 aWarmUpLanes = {
-        Slot::kOperationLaneA, Slot::kOperationLaneB,
+        Slot::kOperationLaneB, Slot::kOperationLaneD,
     };
     const GPassFactory::SlotArray4 aDestinations = {
         Slot::kExpansionLaneA, Slot::kExpansionLaneB,
@@ -96,11 +100,11 @@ GSeedRunStageConfig BuildGrowAConfig() {
     GSeedRunStageConfig aConfig = BaseConfig("GROW_A",
                                              "grow_key_a",
                                              TwistDomain::kPhaseG);
-    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aInputs,
+    aConfig.mSlices = GPassFactory::SixPassEighteenResidualSlices(aInputs,
                                                                 aResiduals,
                                                                 aExpectedDestinations);
     aConfig.mWarmupDestinationCount = 2;
-    aConfig.mFormat = GAXSFormat::kN7;
+    aConfig.mFormat = GAXSFormat::kN11;
     
     std::string aErrorMessage;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfig,
@@ -122,16 +126,22 @@ GSeedRunStageConfig BuildGrowBConfig() {
         Slot::kExpansionLaneA, Slot::kExpansionLaneB,
         Slot::kExpansionLaneC, Slot::kExpansionLaneD,
     };
-    const GPassFactory::SlotArray12 aResiduals = {
-        Slot::kEarthLaneA, Slot::kEarthLaneB,
-        Slot::kEarthLaneC, Slot::kEarthLaneD,
+    const GPassFactory::SlotArray18 aResiduals = {
+        
+        Slot::kWaterLaneB, Slot::kWaterLaneD,
+        Slot::kEarthLaneA,Slot::kEarthLaneC,
         Slot::kWindLaneA, Slot::kWindLaneB,
         Slot::kWindLaneC, Slot::kWindLaneD,
-        Slot::kInvestE, Slot::kInvestF,
+        
+        Slot::kInvestC, Slot::kInvestD,
         Slot::kInvestG, Slot::kInvestH,
+        Slot::kFireLaneA, Slot::kFireLaneC,
+        Slot::kSnowLaneA, Slot::kSnowLaneC,
+        
+        Slot::kOperationLaneB, Slot::kOperationLaneD,
     };
     const GPassFactory::SlotArray2 aWarmUpLanes = {
-        Slot::kOperationLaneC, Slot::kOperationLaneD,
+        Slot::kFuseLaneC, Slot::kFuseLaneD,
     };
     const GPassFactory::SlotArray4 aDestinations = {
         Slot::kWorkLaneA, Slot::kWorkLaneB,
@@ -145,7 +155,7 @@ GSeedRunStageConfig BuildGrowBConfig() {
                                              TwistDomain::kPhaseH);
     aConfig.mFormat = GAXSFormat::kN9;
     
-    aConfig.mSlices = GPassFactory::SixPassTwelveResidualSlices(aInputs,
+    aConfig.mSlices = GPassFactory::SixPassEighteenResidualSlices(aInputs,
                                                                 aResiduals,
                                                                 aExpectedDestinations);
     aConfig.mWarmupDestinationCount = 2;

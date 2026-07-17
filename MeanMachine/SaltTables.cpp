@@ -133,7 +133,6 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
             }
             aUniqueTables.push_back(gSaltTables[gSaltTableCursor]);
             gSaltTableCursor += 1U;
-            printf("gSaltTableCursor = %d\n", (int)gSaltTableCursor);
         }
     }
 

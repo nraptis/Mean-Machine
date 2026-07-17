@@ -7,6 +7,7 @@
 #define GGTwistExpander_hpp
 
 #include "GSeedProgram.hpp"
+#include "GSeedRunStageConfig.hpp"
 #include "TwistExpander.hpp"
 
 #include <cstdint>
@@ -96,6 +97,10 @@ public:
     TwistProgramBranch                  mTwister; // Twist branch
     TwistProgramBranch                  mGrowKeyA; // Grow key A branch
     TwistProgramBranch                  mGrowKeyB; // Grow key B branch
+    std::vector<GSeedRunStageConfig>    mSeedStageConfigs;
+    std::vector<TwistDomain>            mSeedMatrixDomains;
+    std::vector<GSeedRunStageConfig>    mTwistStageConfigs;
+    TwistDomain                         mTwistMatrixDomain = TwistDomain::kInvalid;
 
     unsigned char                       mInitialValue_Carry;
     unsigned char                       mInitialValue_Value;

@@ -75,7 +75,6 @@ struct GSeedRunStageConfig {
     int                                     mHotPackCount = 12;
     bool                                    mAutoRangeAdjust = true;
     bool                                    mEmitLaneFlowComments = true;
-    bool                                    mEmitGroupLaneFlowComments = true;
     int                                     mMaxContextSourceCount = 4;
     int                                     mMaxBoundSourceCount = 8;
     int                                     mWarmupDestinationCount = 0;

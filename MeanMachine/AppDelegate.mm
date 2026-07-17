@@ -44,7 +44,7 @@
 int gCandidateIndex = 0;
 
 /*
-#include "TwistExpander_Achernar.hpp"
+
 #include "TwistExpander_Alcor.hpp"
 #include "TwistExpander_Aldebaran.hpp"
 #include "TwistExpander_Alioth.hpp"
@@ -60,6 +60,7 @@ int gCandidateIndex = 0;
 #include "TwistExpander_Canopus.hpp"
 #include "TwistExpander_Capella.hpp"
 #include "TwistExpander_Castor.hpp"
+#include "TwistExpander_Gemma.hpp"
 #include "TwistExpander_Mebsuta.hpp"
 #include "TwistExpander_Menkent.hpp"
 #include "TwistExpander_Mimosa.hpp"
@@ -78,8 +79,9 @@ int gCandidateIndex = 0;
 #include "TwistExpander_Vega.hpp"
 
  */
-#include "TwistExpander_Gemma.hpp"
 
+
+#include "TwistExpander_Achernar.hpp"
  
 #include "Scanner_MagicNumbers.hpp"
 #include "OptimalCombinations.hpp"
@@ -254,15 +256,12 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
     //return;
     */
     
-    
-    
     /*
-    
     if (IsRunningUnderXCTest() == false) {
         std::string aError;
 
         if (!Builder::Go("CornTesting/Gen",
-                         "Gemma",
+                         "Achernar",
                          26,
                          8,
                          true,
@@ -274,10 +273,9 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
     printf("Done with export block...\n");
     
     return;
-    
     */
     
-    /*
+    
     printf("App is awake and running...\n");
     
     
@@ -288,8 +286,8 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
     printf("Done with optimal combinations...\n");
     
     
-    
-    TwistExpander_Gemma aExpander;
+    /*
+    TwistExpander_Achernar aExpander;
 
     Rig aRig;
     aRig.SetBlockCount(2);
@@ -312,8 +310,6 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
     
     return;
     */
-    
-    
     
     
     /*

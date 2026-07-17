@@ -7,13 +7,10 @@
 
 #include "Builder_KDF.hpp"
 
-#include <cstring>
-#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "TwistWorkSpace.hpp"
-#include "Random.hpp"
 #include "GTwistExpander.hpp"
 #include "GSeedRunKDF_A.hpp"
 #include "GSeedRunKDF_B.hpp"
@@ -27,7 +24,6 @@ bool BuildKDFStage(TwistProgramBranch &pBranch,
                    const char *pBranchName,
                    std::string *pErrorMessage) {
     Runner aRunner;
-
     if (!aRunner.Plan(pErrorMessage)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = std::string("error on ") + pStageName + ".Plan for " +
@@ -61,19 +57,19 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         }
         return false;
     }
-    
+
     std::vector<GSymbol> aFuseLanes;
     aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneA));
     aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneB));
     aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneC));
     aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneD));
-    
+
     std::vector<GSymbol> aEarthLanes;
     aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneA));
     aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneB));
     aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneC));
     aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneD));
-    
+
     std::vector<GSymbol> aFireLanes;
     aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneA));
     aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneB));
@@ -85,7 +81,7 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneB));
     aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneC));
     aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneD));
-    
+
     std::vector<GSymbol> aWaterLanes;
     aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneA));
     aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneB));
@@ -97,7 +93,7 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneB));
     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneC));
     aWorkLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWorkLaneD));
-    
+
     std::vector<GSymbol> aExpansionLanes;
     aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneA));
     aExpansionLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kExpansionLaneB));
