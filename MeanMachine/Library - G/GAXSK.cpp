@@ -9,7 +9,6 @@
 #include "GSeedProgram.hpp"
 #include "Random.hpp"
 #include "TwistArray.hpp"
-#include "GCache.hpp"
 #include <array>
 
 namespace {

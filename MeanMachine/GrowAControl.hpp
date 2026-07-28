@@ -11,9 +11,15 @@ public:
 
     static void Reset(std::uint64_t pSeed = 0x47524F57415F3333ULL);
     static std::string Generate(std::uint64_t pExplorationCases = 50000ULL);
+    static std::string RenderCandidate(std::size_t pCandidateIndex);
     static void Print();
-    static bool SavePreview(const std::string &pPath,
-                            std::string *pErrorMessage = nullptr);
+    static bool SaveValues(const std::string &pFolder,
+                           std::string *pErrorMessage = nullptr);
+    static bool LoadValues(const std::string &pFolder,
+                           std::string *pErrorMessage = nullptr);
+    static bool ValidateCandidate(std::size_t pCandidateIndex,
+                                  std::string *pErrorMessage = nullptr);
+    static std::size_t GeneratedCount();
 };
 
 #endif /* GrowAControl_hpp */

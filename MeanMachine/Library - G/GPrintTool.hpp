@@ -199,21 +199,35 @@ private:
         using Slot = TwistWorkSpaceSlot;
         return {
             Slot::kSource, Slot::kParamSource, Slot::kParamDestination, Slot::kParamSnow,
-            Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD,
-            Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD,
-            Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD,
-            Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kSnowLaneC, Slot::kSnowLaneD,
+            Slot::kHeartLaneA, Slot::kHeartLaneB, Slot::kHeartLaneC, Slot::kHeartLaneD,
+            Slot::kPoisonLaneA, Slot::kPoisonLaneB, Slot::kPoisonLaneC, Slot::kPoisonLaneD,
+            Slot::kSpiritLaneA, Slot::kSpiritLaneB, Slot::kSpiritLaneC, Slot::kSpiritLaneD,
             Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
             Slot::kWaterLaneA, Slot::kWaterLaneB, Slot::kWaterLaneC, Slot::kWaterLaneD,
             Slot::kEarthLaneA, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
             Slot::kWindLaneA, Slot::kWindLaneB, Slot::kWindLaneC, Slot::kWindLaneD,
             Slot::kFuseLaneA, Slot::kFuseLaneB, Slot::kFuseLaneC, Slot::kFuseLaneD,
-            Slot::kScrapLaneA, Slot::kScrapLaneB, Slot::kScrapLaneC, Slot::kScrapLaneD,
-            Slot::kMergeLaneA, Slot::kMergeLaneB, Slot::kMergeLaneC, Slot::kMergeLaneD,
-            Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
-            Slot::kInvestE, Slot::kInvestF, Slot::kInvestG, Slot::kInvestH,
+            Slot::kWoodLaneA, Slot::kWoodLaneB, Slot::kWoodLaneC, Slot::kWoodLaneD,
+            Slot::kLightningLaneA, Slot::kLightningLaneB, Slot::kLightningLaneC, Slot::kLightningLaneD,
+            Slot::kMagmaLaneA, Slot::kMagmaLaneB, Slot::kMagmaLaneC, Slot::kMagmaLaneD,
+            Slot::kSoilLaneA, Slot::kSoilLaneB, Slot::kSoilLaneC, Slot::kSoilLaneD,
+            Slot::kPlasmaLaneA, Slot::kPlasmaLaneB, Slot::kPlasmaLaneC, Slot::kPlasmaLaneD,
+            Slot::kShadowLaneA, Slot::kShadowLaneB, Slot::kShadowLaneC, Slot::kShadowLaneD,
+            Slot::kCrystalLaneA, Slot::kCrystalLaneB, Slot::kCrystalLaneC, Slot::kCrystalLaneD,
+            Slot::kAetherLaneA, Slot::kAetherLaneB, Slot::kAetherLaneC, Slot::kAetherLaneD,
+            Slot::kCelestialLaneA, Slot::kCelestialLaneB, Slot::kCelestialLaneC, Slot::kCelestialLaneD,
+            Slot::kKineticLaneA, Slot::kKineticLaneB, Slot::kKineticLaneC, Slot::kKineticLaneD,
+            Slot::kVaporLaneA, Slot::kVaporLaneB, Slot::kVaporLaneC, Slot::kVaporLaneD,
+            Slot::kChanceLaneA, Slot::kChanceLaneB, Slot::kChanceLaneC, Slot::kChanceLaneD,
+            Slot::kDomainLaneKeyRotateA, Slot::kDomainLaneKeySpawnA,
+            Slot::kDomainLaneSeed, Slot::kDomainLaneTwist,
+            Slot::kIceLaneA, Slot::kIceLaneB, Slot::kIceLaneC, Slot::kIceLaneD,
             Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kKeyRowWriteA, Slot::kKeyRowWriteB,
             Slot::kKeyBoxUnrolledA, Slot::kKeyBoxUnrolledB,
+            Slot::kKeyRowA0, Slot::kKeyRowA1, Slot::kKeyRowA2, Slot::kKeyRowA3,
+            Slot::kKeyRowA4, Slot::kKeyRowA5, Slot::kKeyRowA6, Slot::kKeyRowA7,
+            Slot::kKeyRowB0, Slot::kKeyRowB1, Slot::kKeyRowB2, Slot::kKeyRowB3,
+            Slot::kKeyRowB4, Slot::kKeyRowB5, Slot::kKeyRowB6, Slot::kKeyRowB7,
             Slot::kIndexList256A, Slot::kIndexList256B, Slot::kIndexList256C, Slot::kIndexList256D,
         };
     }
@@ -222,16 +236,17 @@ private:
         using Slot = TwistWorkSpaceSlot;
         const std::string aToken = Normalize(pToken);
         if ((aToken == "expand") || (aToken == "expansion") || (aToken == "seed")) {
-            return {Slot::kExpansionLaneA, Slot::kExpansionLaneB, Slot::kExpansionLaneC, Slot::kExpansionLaneD};
+            return {Slot::kHeartLaneA, Slot::kHeartLaneB, Slot::kHeartLaneC, Slot::kHeartLaneD};
         }
         if (aToken == "work") {
-            return {Slot::kWorkLaneA, Slot::kWorkLaneB, Slot::kWorkLaneC, Slot::kWorkLaneD};
+            return {Slot::kPoisonLaneA, Slot::kPoisonLaneB, Slot::kPoisonLaneC, Slot::kPoisonLaneD};
         }
         if ((aToken == "op") || (aToken == "operation")) {
-            return {Slot::kOperationLaneA, Slot::kOperationLaneB, Slot::kOperationLaneC, Slot::kOperationLaneD};
+            return {Slot::kSpiritLaneA, Slot::kSpiritLaneB, Slot::kSpiritLaneC, Slot::kSpiritLaneD};
         }
         if (aToken == "snow") {
-            return {Slot::kSnowLaneA, Slot::kSnowLaneB, Slot::kSnowLaneC, Slot::kSnowLaneD};
+            return {Slot::kHeartLaneA, Slot::kHeartLaneB,
+                    Slot::kHeartLaneC, Slot::kHeartLaneD};
         }
         if (aToken == "fire") {
             return {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD};
@@ -249,14 +264,67 @@ private:
             return {Slot::kFuseLaneA, Slot::kFuseLaneB, Slot::kFuseLaneC, Slot::kFuseLaneD};
         }
         if (aToken == "scrap") {
-            return {Slot::kScrapLaneA, Slot::kScrapLaneB, Slot::kScrapLaneC, Slot::kScrapLaneD};
+            return {Slot::kWoodLaneA, Slot::kWoodLaneB, Slot::kWoodLaneC, Slot::kWoodLaneD};
         }
-        if (aToken == "merge") {
-            return {Slot::kMergeLaneA, Slot::kMergeLaneB, Slot::kMergeLaneC, Slot::kMergeLaneD};
+        if (aToken == "lightning") {
+            return {Slot::kLightningLaneA, Slot::kLightningLaneB, Slot::kLightningLaneC, Slot::kLightningLaneD};
+        }
+        if (aToken == "magma") {
+            return {Slot::kMagmaLaneA, Slot::kMagmaLaneB, Slot::kMagmaLaneC, Slot::kMagmaLaneD};
+        }
+        if (aToken == "soil") {
+            return {Slot::kSoilLaneA, Slot::kSoilLaneB, Slot::kSoilLaneC, Slot::kSoilLaneD};
+        }
+        if (aToken == "plasma") {
+            return {Slot::kPlasmaLaneA, Slot::kPlasmaLaneB, Slot::kPlasmaLaneC, Slot::kPlasmaLaneD};
+        }
+        if (aToken == "shadow") {
+            return {Slot::kShadowLaneA, Slot::kShadowLaneB, Slot::kShadowLaneC, Slot::kShadowLaneD};
+        }
+        if (aToken == "crystal") {
+            return {Slot::kCrystalLaneA, Slot::kCrystalLaneB, Slot::kCrystalLaneC, Slot::kCrystalLaneD};
+        }
+        if (aToken == "aether") {
+            return {Slot::kAetherLaneA, Slot::kAetherLaneB, Slot::kAetherLaneC, Slot::kAetherLaneD};
+        }
+        if (aToken == "celestial") {
+            return {Slot::kCelestialLaneA, Slot::kCelestialLaneB, Slot::kCelestialLaneC, Slot::kCelestialLaneD};
+        }
+        if (aToken == "kinetic") {
+            return {Slot::kKineticLaneA, Slot::kKineticLaneB, Slot::kKineticLaneC, Slot::kKineticLaneD};
+        }
+        if (aToken == "vapor") {
+            return {Slot::kVaporLaneA, Slot::kVaporLaneB, Slot::kVaporLaneC, Slot::kVaporLaneD};
+        }
+        if (aToken == "chance") {
+            return {Slot::kChanceLaneA, Slot::kChanceLaneB, Slot::kChanceLaneC, Slot::kChanceLaneD};
+        }
+        if ((aToken == "domain") || (aToken == "domains")) {
+            return {Slot::kDomainLaneKeyRotateA, Slot::kDomainLaneKeySpawnA,
+                    Slot::kDomainLaneSeed, Slot::kDomainLaneTwist};
         }
         if (aToken == "invest") {
-            return {Slot::kInvestA, Slot::kInvestB, Slot::kInvestC, Slot::kInvestD,
-                    Slot::kInvestE, Slot::kInvestF, Slot::kInvestG, Slot::kInvestH};
+            return {Slot::kIceLaneA, Slot::kIceLaneB, Slot::kIceLaneC, Slot::kIceLaneD};
+        }
+        if (aToken == "keyrowa") {
+            return {
+                Slot::kKeyRowA0, Slot::kKeyRowA1, Slot::kKeyRowA2, Slot::kKeyRowA3,
+                Slot::kKeyRowA4, Slot::kKeyRowA5, Slot::kKeyRowA6, Slot::kKeyRowA7,
+            };
+        }
+        if (aToken == "keyrowb") {
+            return {
+                Slot::kKeyRowB0, Slot::kKeyRowB1, Slot::kKeyRowB2, Slot::kKeyRowB3,
+                Slot::kKeyRowB4, Slot::kKeyRowB5, Slot::kKeyRowB6, Slot::kKeyRowB7,
+            };
+        }
+        if ((aToken == "keyrow") || (aToken == "keyrows")) {
+            return {
+                Slot::kKeyRowA0, Slot::kKeyRowA1, Slot::kKeyRowA2, Slot::kKeyRowA3,
+                Slot::kKeyRowA4, Slot::kKeyRowA5, Slot::kKeyRowA6, Slot::kKeyRowA7,
+                Slot::kKeyRowB0, Slot::kKeyRowB1, Slot::kKeyRowB2, Slot::kKeyRowB3,
+                Slot::kKeyRowB4, Slot::kKeyRowB5, Slot::kKeyRowB6, Slot::kKeyRowB7,
+            };
         }
         return {};
     }

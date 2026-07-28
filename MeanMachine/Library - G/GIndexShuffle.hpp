@@ -12,23 +12,7 @@
 
 class GIndexShuffle {
 public:
-    static bool BakeA(const GSymbol pIndexList,
-                      const GSymbol pEntropySource,
-                      std::vector<GStatement> *pStatements,
-                      std::string *pErrorMessage) {
-        return Bake("ExecuteA", pIndexList, pEntropySource, pStatements, pErrorMessage);
-    }
-
-    static bool BakeB(const GSymbol pIndexList,
-                      const GSymbol pEntropySource,
-                      std::vector<GStatement> *pStatements,
-                      std::string *pErrorMessage) {
-        return Bake("ExecuteB", pIndexList, pEntropySource, pStatements, pErrorMessage);
-    }
-
-private:
-    static bool Bake(const char *pMethodName,
-                     const GSymbol pIndexList,
+    static bool Bake(const GSymbol pIndexList,
                      const GSymbol pEntropySource,
                      std::vector<GStatement> *pStatements,
                      std::string *pErrorMessage) {
@@ -67,7 +51,7 @@ private:
         }
 
         pStatements->push_back(
-            GStatement::RawLine(std::string("TwistIndexShuffle::") + pMethodName + "(" + aIndexAlias + ", " + aEntropyAlias + ");")
+            GStatement::RawLine("TwistIndexShuffle::Execute(" + aIndexAlias + ", " + aEntropyAlias + ");")
         );
         return true;
     }

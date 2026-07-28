@@ -29,15 +29,6 @@ std::uint64_t ReadU64(const std::vector<std::uint8_t> &pBytes,
     (static_cast<std::uint64_t>(pBytes[pIndex + 7U]) << 56);
 }
 
-void PrintHotPair(int pPairIndex,
-                  std::uint64_t pAdd,
-                  std::uint64_t pMul) {
-    std::printf("Pair %3d: 0x%016llx 0x%016llx\n",
-                pPairIndex,
-                static_cast<unsigned long long>(pAdd),
-                static_cast<unsigned long long>(pMul));
-}
-
 bool ParseFile(const std::string &pPath,
                int *pPackIndex,
                std::vector<GHotPack> *pHotPacks,
@@ -65,8 +56,6 @@ bool ParseFile(const std::string &pPath,
         const GHotPair aPair{ReadU64(aBytes, aIndex),
                              ReadU64(aBytes, aIndex + 8U)};
         
-        //PrintHotPair(aPairIndex, aPair.mAdd, aPair.mMul);
-        
         if (aPairIndex > G_HOT_PACK_SIZE) {
             if (pErrorMessage != nullptr) {
                 *pErrorMessage = "MaginNumberLoader found too many pairs in a pack in " + pPath;
@@ -88,8 +77,6 @@ bool ParseFile(const std::string &pPath,
             
             const GHotPair aPairedPair{ReadU64(aBytes, aIndex),
                                        ReadU64(aBytes, aIndex + 8U)};
-            
-            //PrintHotPair(aPairIndex, aPairedPair.mAdd, aPairedPair.mMul);
             
             if (aPairIndex > G_HOT_PACK_SIZE) {
                 if (pErrorMessage != nullptr) {

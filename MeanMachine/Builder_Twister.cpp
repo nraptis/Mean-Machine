@@ -8,10 +8,8 @@
 #include "Builder_Twister.hpp"
 #include "GTwistExpander.hpp"
 #include "GTwistRunTwist.hpp"
-#include "GDomainSchedule.hpp"
 #include "GRunMatrixDiffusion.hpp"
-
-#include "GSquash.hpp"
+#include "ResidualBucket.hpp"
 
 #include <vector>
 
@@ -19,16 +17,14 @@ namespace {
 
 const char *PhaseConstantsMemberName(const TwistDomain pDomain) {
     switch (pDomain) {
-        case TwistDomain::kPhaseB: return "mPhaseBConstants";
-        case TwistDomain::kPhaseC: return "mPhaseCConstants";
-        case TwistDomain::kPhaseD: return "mPhaseDConstants";
-        case TwistDomain::kPhaseE: return "mPhaseEConstants";
-        case TwistDomain::kPhaseF: return "mPhaseFConstants";
-        case TwistDomain::kPhaseG: return "mPhaseGConstants";
-        case TwistDomain::kPhaseH: return "mPhaseHConstants";
-        case TwistDomain::kPhaseA:
+        case TwistDomain::kKeyRotateA: return "mKeyRotateAConstants";
+        case TwistDomain::kKeyRotateB: return "mKeyRotateBConstants";
+        case TwistDomain::kKeySpawnA: return "mKeySpawnAConstants";
+        case TwistDomain::kKeySpawnB: return "mKeySpawnBConstants";
+        case TwistDomain::kSeed: return "mSeedConstants";
+        case TwistDomain::kTwist: return "mTwistConstants";
         default:
-            return "mPhaseAConstants";
+            return "";
     }
 }
 
@@ -50,11 +46,30 @@ void AddTwistMatrixDomainWordLines(TwistProgramBranch &pBranch,
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgD = " + aConstants + ".mMatrixArgD;");
 }
 
+bool BuildTwistStage(TwistProgramBranch &pBranch,
+                     const GSeedRunStageConfig &pConfig,
+                     const bool pEmitPrologue,
+                     const char *pStageName,
+                     std::string *pErrorMessage) {
+    GTwistRunTwist aRunner(pConfig, pEmitPrologue);
+    if (!aRunner.Plan(pErrorMessage) ||
+        !aRunner.Build(pBranch, pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                std::string("Builder_Twister::Build failed on ") +
+                pStageName + ":\n" + *pErrorMessage;
+        }
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 bool Builder_Twister::Build(GTwistExpander *pExpander,
+                            ResidualBucket &pResidualBucket,
                             std::string *pErrorMessage) {
-    
+
     if (pExpander == nullptr) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "Builder_Twister::Build received null expander";
@@ -62,38 +77,22 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
         return false;
     }
 
-    std::vector<GSeedRunStageConfig> aStageConfigs = {
-        GTwistRunTwistConfig::MakeTwist_AConfig(),
-        GTwistRunTwistConfig::MakeTwist_BConfig(),
-        GTwistRunTwistConfig::MakeTwist_CConfig(),
-        GTwistRunTwistConfig::MakeTwist_DConfig(),
-        GTwistRunTwistConfig::MakeTwist_EConfig(),
-        GTwistRunTwistConfig::MakeTwist_FConfig(),
-        GTwistRunTwistConfig::MakeTwist_GConfig(),
-    };
-
-    std::vector<TwistDomain> aExtraDomains;
-    if (!GDomainSchedule::AssignShuffledRoundRobin(&aStageConfigs,
-                                                   1U,
-                                                   &aExtraDomains)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister failed to assign its domain schedule";
-        }
-        return false;
-    }
-    const TwistDomain aMatrixDomain = aExtraDomains[0];
+    const GTwistRunTwistConfig::TwistStageConfigs aBuiltStageConfigs =
+        GTwistRunTwistConfig::MakeTwistConfig(pResidualBucket);
+    std::vector<GSeedRunStageConfig> aStageConfigs(
+        aBuiltStageConfigs.begin(),
+        aBuiltStageConfigs.end());
 
     pExpander->mTwistStageConfigs = aStageConfigs;
-    pExpander->mTwistMatrixDomain = aMatrixDomain;
-    
-    pExpander->mTwister.AddLine("// [seed]");
-    
-    
-    std::vector<GSymbol> aWorkLanes;
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneA));
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneB));
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneC));
-    aWorkLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWorkLaneD));
+    pExpander->mTwistMatrixDomains.assign(2U, TwistDomain::kTwist);
+
+    pExpander->mTwister.AddLine("// [twist]");
+
+    std::vector<GSymbol> aHeartLanes;
+    aHeartLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kHeartLaneA));
+    aHeartLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kHeartLaneB));
+    aHeartLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kHeartLaneC));
+    aHeartLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kHeartLaneD));
 
     std::vector<GSymbol> aFuseLanes;
     aFuseLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneA));
@@ -107,209 +106,149 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
     aFireLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFireLaneC));
     aFireLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kFireLaneD));
 
-    std::vector<GSymbol> aOperationLanes;
-    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneA));
-    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneB));
-    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneC));
-    aOperationLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kOperationLaneD));
-    
-    std::vector<GStatement> aStatementsSeed6;
-    GTwistRunTwist_A aRunnerTwistA(aStageConfigs[0]);
-    
-    if (!aRunnerTwistA.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GTwistRunTwist_A.Plan for ") + "twist-a" + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    if (!aRunnerTwistA.Build(pExpander->mTwister, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_A:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    for (const GStatement &aStatement : aStatementsSeed6) {
-        if (!aStatement.IsRawLine()) {
-            continue;
-        }
-        pExpander->mTwister.AddLine(aStatement.mRawLine);
-    }
-    
-    std::vector<GStatement> aStatementsHate16;
-    GTwistRunTwist_B aRunnerTwistB(aStageConfigs[1]);
-    
-    if (!aRunnerTwistB.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GTwistRunTwist_B.Plan for ") + "twist-b" + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    if (!aRunnerTwistB.Build(pExpander->mTwister, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_B:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    for (const GStatement &aStatement : aStatementsHate16) {
-        if (!aStatement.IsRawLine()) {
-            continue;
-        }
-        pExpander->mTwister.AddLine(aStatement.mRawLine);
-    }
-    
-    std::vector<GStatement> aStatementsSeed8;
-    GTwistRunTwist_C aRunnerTwistC(aStageConfigs[2]);
-    
-    if (!aRunnerTwistC.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GTwistRunTwist_C.Plan for ") + "twist-c" + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    if (!aRunnerTwistC.Build(pExpander->mTwister, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_C:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    for (const GStatement &aStatement : aStatementsSeed8) {
-        if (!aStatement.IsRawLine()) {
-            continue;
-        }
-        pExpander->mTwister.AddLine(aStatement.mRawLine);
-    }
+    std::vector<GSymbol> aWaterLanes;
+    aWaterLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWaterLaneA));
+    aWaterLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWaterLaneB));
+    aWaterLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWaterLaneC));
+    aWaterLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWaterLaneD));
 
-    std::vector<GStatement> aStatementsTwistD;
-    GTwistRunTwist_D aRunnerTwistD(aStageConfigs[3]);
-    
-    if (!aRunnerTwistD.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GTwistRunTwist_D.Plan for ") + "twist-d" + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    if (!aRunnerTwistD.Build(pExpander->mTwister, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_D:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    for (const GStatement &aStatement : aStatementsTwistD) {
-        if (!aStatement.IsRawLine()) {
-            continue;
-        }
-        pExpander->mTwister.AddLine(aStatement.mRawLine);
-    }
 
-    
-    
-    std::vector<GStatement> aStatementsTwistE;
-    GTwistRunTwist_E aRunnerTwistE(aStageConfigs[4]);
-    
-    if (!aRunnerTwistE.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GTwistRunTwist_E.Plan for ") + "twist-e" + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    if (!aRunnerTwistE.Build(pExpander->mTwister, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_E:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    for (const GStatement &aStatement : aStatementsTwistE) {
-        if (!aStatement.IsRawLine()) {
-            continue;
-        }
-        pExpander->mTwister.AddLine(aStatement.mRawLine);
-    }
+    std::vector<GSymbol> aLightningLanes;
+    aLightningLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kLightningLaneA));
+    aLightningLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kLightningLaneB));
+    aLightningLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kLightningLaneC));
+    aLightningLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kLightningLaneD));
 
-    AddTwistMatrixDomainWordLines(pExpander->mTwister,
-                                  aMatrixDomain);
+    std::vector<GSymbol> aIceLanes;
+    aIceLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kIceLaneA));
+    aIceLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kIceLaneB));
+    aIceLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kIceLaneC));
+    aIceLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kIceLaneD));
 
-    for (int i=0;i<4;i+=2) {
-        GRunMatrixDiffusionConfig aDiffusion;
-        aDiffusion.mInputA = aFuseLanes[i];
-        aDiffusion.mInputB = aFuseLanes[i + 1];
-        aDiffusion.mOutputA = aFireLanes[i];
-        aDiffusion.mOutputB = aFireLanes[i + 1];
+    std::vector<GSymbol> aWoodLanes;
+    aWoodLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWoodLaneA));
+    aWoodLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWoodLaneB));
+    aWoodLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWoodLaneC));
+    aWoodLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWoodLaneD));
 
-        aDiffusion.mShuffleEntropyA = aOperationLanes[(i + 2) % 4];
-        aDiffusion.mShuffleEntropyB = aOperationLanes[(i + 3) % 4];
-        aDiffusion.mOperationSourceA = aOperationLanes[(i + 0) % 4];
-        aDiffusion.mOperationSourceB = aOperationLanes[(i + 1) % 4];
-        aDiffusion.mUseDomainWords = true;
+    std::vector<GSymbol> aPoisonLanes;
+    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneA));
+    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneB));
+    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneC));
+    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneD));
 
-        GBatch aBatchDiffusion;
-        aBatchDiffusion.mExportsAsBlock = false;
 
-        if (!GRunMatrixDiffusion::Bake(aDiffusion, &aBatchDiffusion, pErrorMessage)) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage = std::string("error on matrix diffusion for twist: ") + *pErrorMessage;
-            }
+    for (std::size_t i = 0U; i < 3U; ++i) {
+        const std::string aStageName =
+            "GTwistRunTwist_" + std::string(1, static_cast<char>('A' + i));
+        if (!BuildTwistStage(pExpander->mTwister,
+                             aStageConfigs[i],
+                             i == 0U,
+                             aStageName.c_str(),
+                             pErrorMessage)) {
             return false;
         }
-        pExpander->mTwister.AddBatch(aBatchDiffusion);
     }
 
-    GTwistRunTwist_F aRunnerTwistF(aStageConfigs[5]);
-
-    if (!aRunnerTwistF.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GTwistRunTwist_F.Plan for ") + "twist-f" + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-
-    if (!aRunnerTwistF.Build(pExpander->mTwister, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_F:\n" + *pErrorMessage;
-        }
-        return false;
-    }
-    
-    GTwistRunTwist_G aRunnerTwistG(aStageConfigs[6]);
-
-    if (!aRunnerTwistG.Plan(pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("error on GTwistRunTwist_G.Plan for ") + "twist-g" + "\n" + *pErrorMessage;
-        }
-        return false;
-    }
-
-    if (!aRunnerTwistG.Build(pExpander->mTwister, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "Builder_Twister::Build failed to bake GTwistRunTwist_G:\n" + *pErrorMessage;
-        }
-        return false;
-    }
     pExpander->mTwister.AddLine("//");
-    std::vector<GStatement> aStatementsSquash;
-    GSymbol aIndex = GSymbol::Var(TwistVariable::kIndex);
-    GSquash aSquash;
-    if (!aSquash.Bake(GSymbol::Var(TwistVariable::kParamOutput),
-                      aWorkLanes[0],
-                      aWorkLanes[1],
-                      aWorkLanes[2],
-                      aWorkLanes[3],
-                      
-                      aIndex,
-                      
-                      &aStatementsSquash,
-                      pErrorMessage)) {
+
+    AddTwistMatrixDomainWordLines(pExpander->mTwister,
+                                  TwistDomain::kTwist);
+
+    GRunMatrixDiffusionConfig aDiffusionA;
+    aDiffusionA.mInputA = aFuseLanes[0];
+    aDiffusionA.mInputB = aFuseLanes[1];
+    aDiffusionA.mInputC = aFuseLanes[2];
+    aDiffusionA.mInputD = aFuseLanes[3];
+    aDiffusionA.mOutputA = aHeartLanes[0];
+    aDiffusionA.mOutputB = aHeartLanes[1];
+    aDiffusionA.mOutputC = aHeartLanes[2];
+    aDiffusionA.mOutputD = aHeartLanes[3];
+
+    // Previous six:
+    //   Fire C, Fire D, Water A, Water B, Water C, Water D
+    aDiffusionA.mShuffleEntropyA = aFireLanes[2];
+    aDiffusionA.mShuffleEntropyB = aFireLanes[3];
+    aDiffusionA.mShuffleEntropyC = aWaterLanes[2];
+    aDiffusionA.mShuffleEntropyD = aWaterLanes[3];
+    aDiffusionA.mOperationSourceA = aWaterLanes[0];
+    aDiffusionA.mOperationSourceB = aWaterLanes[1];
+
+    GBatch aBatchDiffusionA;
+    aBatchDiffusionA.mExportsAsBlock = false;
+
+    if (!GRunMatrixDiffusion::Bake(aDiffusionA,
+                                   &aBatchDiffusionA,
+                                   pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = std::string("error on matrix diffusion for twist: ") + *pErrorMessage;
+        }
         return false;
     }
-    
-    GBatch aFinishBatch;
-    aFinishBatch.mExportsAsBlock = false;
-    aFinishBatch.CommitStatements(&aStatementsSquash);
-    pExpander->mTwister.AddBatch(aFinishBatch);
+    pExpander->mTwister.AddBatch(aBatchDiffusionA);
+
+    pExpander->mTwister.AddLine("//");
+
+    for (std::size_t i = 3U; i < 6U; ++i) {
+        const std::string aStageName =
+            "GTwistRunTwist_" + std::string(1, static_cast<char>('A' + i));
+        if (!BuildTwistStage(pExpander->mTwister,
+                             aStageConfigs[i],
+                             false,
+                             aStageName.c_str(),
+                             pErrorMessage)) {
+            return false;
+        }
+    }
+
+    pExpander->mTwister.AddLine("//");
+
+    GRunMatrixDiffusionConfig aDiffusionB;
+    aDiffusionB.mInputA = aFuseLanes[0];
+    aDiffusionB.mInputB = aFuseLanes[1];
+    aDiffusionB.mInputC = aFuseLanes[2];
+    aDiffusionB.mInputD = aFuseLanes[3];
+    aDiffusionB.mOutputA = aWoodLanes[0];
+    aDiffusionB.mOutputB = aWoodLanes[1];
+    aDiffusionB.mOutputC = aWoodLanes[2];
+    aDiffusionB.mOutputD = aWoodLanes[3];
+    // Previous six:
+    //   Lightning C, Lightning D, Ice A, Ice B, Ice C, Ice D
+    aDiffusionB.mShuffleEntropyA = aLightningLanes[2];
+    aDiffusionB.mShuffleEntropyB = aLightningLanes[3];
+    aDiffusionB.mShuffleEntropyC = aIceLanes[2];
+    aDiffusionB.mShuffleEntropyD = aIceLanes[3];
+    aDiffusionB.mOperationSourceA = aIceLanes[0];
+    aDiffusionB.mOperationSourceB = aIceLanes[1];
+
+    GBatch aBatchDiffusionB;
+    aBatchDiffusionB.mExportsAsBlock = false;
+    if (!GRunMatrixDiffusion::Bake(aDiffusionB,
+                                   &aBatchDiffusionB,
+                                   pErrorMessage)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                std::string("error on second matrix diffusion for twist: ") +
+                *pErrorMessage;
+        }
+        return false;
+    }
+    pExpander->mTwister.AddBatch(aBatchDiffusionB);
+
+    pExpander->mTwister.AddLine("//");
+
+    for (std::size_t i = 6U; i < 8U; ++i) {
+        const std::string aStageName =
+            "GTwistRunTwist_" + std::string(1, static_cast<char>('A' + i));
+        if (!BuildTwistStage(pExpander->mTwister,
+                             aStageConfigs[i],
+                             false,
+                             aStageName.c_str(),
+                             pErrorMessage)) {
+            return false;
+        }
+    }
+
     return true;
-    
+
 }

@@ -13,6 +13,7 @@
 #include "GMagicNumbers.hpp"
 #include "GAX.hpp"
 #include "GCache.hpp"
+
 #include <string>
 
 struct CSPRNGV2Slice {

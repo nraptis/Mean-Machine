@@ -15,11 +15,8 @@ class TwistIndexShuffle {
     
 public:
     
-    static void                         ExecuteA(std::size_t *pIndexList256,
-                                                 const std::uint8_t *pBlockSizedEntropySource);
-    
-    static void                         ExecuteB(std::size_t *pIndexList256,
-                                                 const std::uint8_t *pBlockSizedEntropySource);
+    static void                         Execute(std::size_t *pIndexList256,
+                                                const std::uint8_t *pBlockSizedEntropySource);
     
 };
 

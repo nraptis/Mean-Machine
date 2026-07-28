@@ -7,63 +7,32 @@
 #define GSeedRunKDF_B_hpp
 
 #include "GSeedRunStage.hpp"
+
+#include <array>
 #include <string>
+
+class ResidualBucket;
 
 namespace GSeedRunKDF_BConfig {
 
-GSeedRunStageConfig                         MakeKDF_B_AConfig();
-GSeedRunStageConfig                         MakeKDF_B_BConfig();
-GSeedRunStageConfig                         MakeKDF_B_CConfig();
-GSeedRunStageConfig                         MakeKDF_B_DConfig();
+using KDFStageConfigs = std::array<GSeedRunStageConfig, 4>;
+
+KDFStageConfigs                            MakeKDF_BConfig(ResidualBucket &pResidualBucket);
 
 }
 
-class GSeedRunKDF_B_A {
+class GSeedRunKDF_B {
 public:
-    GSeedRunKDF_B_A();
-    ~GSeedRunKDF_B_A();
+    explicit GSeedRunKDF_B(const GSeedRunStageConfig &pConfig,
+                           bool pEmitPrologue = false);
 
     bool                                    Plan(std::string *pErrorMessage);
-    bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
+    bool                                    Build(TwistProgramBranch &pBranch,
+                                                  std::string *pErrorMessage);
 
 private:
     GSeedRunStage                           mStage;
-};
-
-class GSeedRunKDF_B_B {
-public:
-    GSeedRunKDF_B_B();
-    ~GSeedRunKDF_B_B();
-
-    bool                                    Plan(std::string *pErrorMessage);
-    bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
-
-private:
-    GSeedRunStage                           mStage;
-};
-
-class GSeedRunKDF_B_C {
-public:
-    GSeedRunKDF_B_C();
-    ~GSeedRunKDF_B_C();
-
-    bool                                    Plan(std::string *pErrorMessage);
-    bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
-
-private:
-    GSeedRunStage                           mStage;
-};
-
-class GSeedRunKDF_B_D {
-public:
-    GSeedRunKDF_B_D();
-    ~GSeedRunKDF_B_D();
-
-    bool                                    Plan(std::string *pErrorMessage);
-    bool                                    Build(TwistProgramBranch &pBranch, std::string *pErrorMessage);
-
-private:
-    GSeedRunStage                           mStage;
+    bool                                    mEmitPrologue;
 };
 
 #endif /* GSeedRunKDF_B_hpp */

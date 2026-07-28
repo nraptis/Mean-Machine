@@ -11,7 +11,9 @@
 namespace {
 
 int BufferLengthForSymbol(const GSymbol pBuffer) {
-    const int aBufferLength = TwistWorkSpace::GetBufferLength(pBuffer.mSlot);
+    const int aBufferLength = pBuffer.mKey.IsLaneSplit()
+        ? TwistWorkSpace::GetBufferLength(pBuffer.mKey)
+        : TwistWorkSpace::GetBufferLength(pBuffer.mSlot);
     if (aBufferLength > 0) {
         return aBufferLength;
     }
@@ -181,7 +183,7 @@ GStatement GQuick::MakeAssignVariableStatement(const GSymbol pTarget, const GSym
 }
 
 GStatement GQuick::MakeAssignVariableStatementInverted(const GSymbol pTarget, const GSymbol pBuffer, const GSymbol pIndex) {
-    int aBufferLength = TwistWorkSpace::GetBufferLength(pBuffer.mSlot);
+    int aBufferLength = BufferLengthForSymbol(pBuffer);
     if (aBufferLength < 128) { aBufferLength = 128; }
     int aCeiling = aBufferLength - 1;
     GExpr aIndexExpr = GExpr::Sub(GExpr::Const32(aCeiling),
@@ -202,7 +204,7 @@ GStatement GQuick::MakeAssignDestStatement(const GSymbol pDest, const GSymbol pI
 
 GStatement GQuick::MakeAssignDestStatementInverted(const GSymbol pDest, const GSymbol pIndex, const GSymbol pValue) {
     
-    int aBufferLength = TwistWorkSpace::GetBufferLength(pDest.mSlot);
+    int aBufferLength = BufferLengthForSymbol(pDest);
     if (aBufferLength < 128) { aBufferLength = 128; }
     int aCeiling = aBufferLength - 1;
     GExpr aIndexExpr = GExpr::Sub(GExpr::Const32(aCeiling),
@@ -223,7 +225,7 @@ GStatement GQuick::MakeAssignDestStatement(const GSymbol pDest,
 GStatement GQuick::MakeAssignDestStatementInverted(const GSymbol pDest,
                                                   const GSymbol pIndex,
                                                    const GExpr pValue) {
-    int aBufferLength = TwistWorkSpace::GetBufferLength(pDest.mSlot);
+    int aBufferLength = BufferLengthForSymbol(pDest);
     if (aBufferLength < 128) { aBufferLength = 128; }
     int aCeiling = aBufferLength - 1;
     GExpr aIndexExpr = GExpr::Sub(GExpr::Const32(aCeiling),

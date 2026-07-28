@@ -17,16 +17,20 @@ struct GRunMatrixDiffusionConfig {
     
     GSymbol                                 mInputA;
     GSymbol                                 mInputB;
+    GSymbol                                 mInputC;
+    GSymbol                                 mInputD;
     GSymbol                                 mOutputA;
     GSymbol                                 mOutputB;
+    GSymbol                                 mOutputC;
+    GSymbol                                 mOutputD;
 
     GSymbol                                 mShuffleEntropyA;
     GSymbol                                 mShuffleEntropyB;
+    GSymbol                                 mShuffleEntropyC;
+    GSymbol                                 mShuffleEntropyD;
     
     GSymbol                                 mOperationSourceA;
     GSymbol                                 mOperationSourceB;
-    
-    bool                                    mUseDomainWords = true;
 };
 
 class GRunMatrixDiffusion {

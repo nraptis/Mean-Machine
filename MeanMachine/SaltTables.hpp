@@ -20,7 +20,7 @@ public:
 
     static const std::vector<Salt>                              &Get();
 
-    static void                                                 InjectRandomEight(GTwistExpander *pExpander);
+    static void                                                 InjectRandomDomains(GTwistExpander *pExpander);
     
 };
 

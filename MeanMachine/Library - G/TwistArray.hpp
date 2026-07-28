@@ -15,7 +15,6 @@
 
 class TwistArray {
 public:
-    
     template <typename T>
     static bool AllEqual(const std::vector<T>* pItems) {
         if (pItems == nullptr) {

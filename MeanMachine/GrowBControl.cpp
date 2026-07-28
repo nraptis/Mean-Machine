@@ -1,5 +1,7 @@
 #include "GrowBControl.hpp"
 
+#include "ControlOffsetPool.hpp"
+#include "ControlValueFile.hpp"
 #include "FileIO.hpp"
 #include "Library - Twist/TwistWorkSpace.hpp"
 
@@ -7,7 +9,6 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
-#include <filesystem>
 #include <limits>
 #include <sstream>
 #include <vector>
@@ -15,10 +16,10 @@
 namespace {
 
 constexpr std::size_t kWidth = 4U;
-constexpr std::size_t kCandidateCount = 33U;
 constexpr std::size_t kQuarterOffsetCount = 16U;
 constexpr std::size_t kKeyOffsetCount = 20U;
 constexpr std::size_t kRoutedFoldCount = 8U;
+constexpr std::size_t kCandidateValueCount = 113U;
 constexpr std::uint64_t kBaseDistanceWeight = 7ULL;
 constexpr std::uint64_t kShiftDistanceWeight = 6ULL;
 constexpr std::uint64_t kOffsetDistanceWeight = 4ULL;
@@ -34,15 +35,6 @@ constexpr std::uint64_t kMaximumPairDistance =
     kDiffuseDistanceWeight;
 static_assert(kMaximumPairDistance == 674ULL,
               "GrowB diversity denominator must match its effective fields.");
-
-constexpr std::array<const char *, kCandidateCount> kNames = {
-    "Achernar", "Alcor", "Aldebaran", "Alioth", "Alkaid", "Alnitak",
-    "Altair", "Ankaa", "Antares", "Arcturus", "Athebyne", "Bellatrix",
-    "Betelgeuse", "Canopus", "Capella", "Castor", "Mebsuta", "Menkent",
-    "Mimosa", "Miram", "Mirfak", "Mothallah", "Naos", "Polaris",
-    "Pollux", "Procyon", "Regulus", "Gemma", "Rigel", "Saiph",
-    "Sirius", "Suhail", "Vega"
-};
 
 using Order4 = std::array<std::uint8_t, kWidth>;
 
@@ -70,6 +62,108 @@ struct Score {
     std::uint64_t mTotal = 0ULL;
 };
 
+std::vector<std::uint64_t> CandidateValues(const Candidate &pCandidate) {
+    std::vector<std::uint64_t> aValues;
+    aValues.reserve(kCandidateValueCount);
+    auto AppendRoutes = [&aValues](
+        const std::array<Order4, 4U> &pBases,
+        const std::array<Order4, 4U> &pShifts,
+        const std::array<std::array<std::uint16_t, 4U>, 4U> &pOffsets,
+        const std::array<std::uint8_t, 4U> &pDiffusers) {
+        for (std::size_t aLoop = 0U; aLoop < 4U; ++aLoop) {
+            for (std::uint8_t aValue : pBases[aLoop]) {
+                aValues.push_back(aValue);
+            }
+            for (std::uint8_t aValue : pShifts[aLoop]) {
+                aValues.push_back(aValue);
+            }
+            for (std::uint16_t aValue : pOffsets[aLoop]) {
+                aValues.push_back(aValue);
+            }
+            aValues.push_back(pDiffusers[aLoop]);
+        }
+    };
+    AppendRoutes(pCandidate.mQuarterBases,
+                 pCandidate.mQuarterShifts,
+                 pCandidate.mQuarterOffsets,
+                 pCandidate.mQuarterDiffuse);
+    AppendRoutes(pCandidate.mKeyBases,
+                 pCandidate.mKeyShifts,
+                 pCandidate.mKeyOffsets,
+                 pCandidate.mKeyDiffuse);
+    for (std::uint8_t aValue : pCandidate.mFinalShifts) {
+        aValues.push_back(aValue);
+    }
+    for (std::uint16_t aValue : pCandidate.mFinalOffsets) {
+        aValues.push_back(aValue);
+    }
+    aValues.push_back(pCandidate.mFinalDiffuse);
+    return aValues;
+}
+
+Candidate CandidateFromValues(
+    const std::vector<std::uint64_t> &pValues,
+    std::string *pWarningMessage) {
+    Candidate aCandidate;
+    std::size_t aIndex = 0U;
+    std::size_t aInvalidCount = 0U;
+    auto Next = [&](const std::uint64_t pLimit) {
+        const std::uint64_t aRaw =
+            aIndex < pValues.size() ? pValues[aIndex] : 0ULL;
+        ++aIndex;
+        if (aRaw >= pLimit) {
+            ++aInvalidCount;
+            return 0ULL;
+        }
+        return aRaw;
+    };
+    auto ReadRoutes = [&](std::array<Order4, 4U> *pBases,
+                          std::array<Order4, 4U> *pShifts,
+                          std::array<std::array<std::uint16_t, 4U>, 4U> *pOffsets,
+                          std::array<std::uint8_t, 4U> *pDiffusers,
+                          const std::uint64_t pOffsetLimit) {
+        for (std::size_t aLoop = 0U; aLoop < 4U; ++aLoop) {
+            for (std::uint8_t &aValue : (*pBases)[aLoop]) {
+                aValue = static_cast<std::uint8_t>(Next(4ULL));
+            }
+            for (std::uint8_t &aValue : (*pShifts)[aLoop]) {
+                aValue = static_cast<std::uint8_t>(Next(4ULL));
+            }
+            for (std::uint16_t &aValue : (*pOffsets)[aLoop]) {
+                aValue = static_cast<std::uint16_t>(Next(pOffsetLimit));
+            }
+            (*pDiffusers)[aLoop] =
+                static_cast<std::uint8_t>(Next(3ULL));
+        }
+    };
+    ReadRoutes(&aCandidate.mQuarterBases,
+               &aCandidate.mQuarterShifts,
+               &aCandidate.mQuarterOffsets,
+               &aCandidate.mQuarterDiffuse,
+               static_cast<std::uint64_t>(S_QUARTER));
+    ReadRoutes(&aCandidate.mKeyBases,
+               &aCandidate.mKeyShifts,
+               &aCandidate.mKeyOffsets,
+               &aCandidate.mKeyDiffuse,
+               static_cast<std::uint64_t>(W_KEY));
+    for (std::uint8_t &aValue : aCandidate.mFinalShifts) {
+        aValue = static_cast<std::uint8_t>(Next(4ULL));
+    }
+    for (std::uint16_t &aValue : aCandidate.mFinalOffsets) {
+        aValue = static_cast<std::uint16_t>(
+            Next(static_cast<std::uint64_t>(W_KEY))
+        );
+    }
+    aCandidate.mFinalDiffuse =
+        static_cast<std::uint8_t>(Next(3ULL));
+    if ((pWarningMessage != nullptr) && (aInvalidCount != 0U)) {
+        *pWarningMessage =
+            "GrowBControl contained " + std::to_string(aInvalidCount) +
+            " out-of-range value(s).";
+    }
+    return aCandidate;
+}
+
 struct FrequencyTable {
     std::array<std::array<std::uint8_t, 4U>, 32U> mBases{};
     std::array<std::array<std::uint8_t, 4U>, 36U> mShifts{};
@@ -82,6 +176,8 @@ struct FrequencyTable {
 std::vector<Candidate> gCandidates;
 std::vector<std::string> gRendered;
 FrequencyTable gFrequencies;
+std::array<std::uint16_t, kQuarterOffsetCount> gQuarterOffsetPool{};
+std::array<std::uint16_t, kKeyOffsetCount> gKeyOffsetPool{};
 std::uint64_t gRandomState = 0ULL;
 bool gDidReset = false;
 
@@ -145,27 +241,14 @@ std::array<Order4, 4U> RandomRoutes() {
     return aRoutes;
 }
 
-template <std::size_t Count>
-std::array<std::uint16_t, Count> RandomDistinctResidues(
-    const std::size_t pResidueCount) {
-    std::array<std::uint16_t, Count> aResidues{};
-    for (std::size_t i = 0U; i < Count; ++i) {
-        std::uint16_t aResidue = 0U;
-        do {
-            aResidue = static_cast<std::uint16_t>(RandomIndex(pResidueCount));
-        } while (std::find(aResidues.begin(), aResidues.begin() + i, aResidue) !=
-                 (aResidues.begin() + i));
-        aResidues[i] = aResidue;
-    }
-    return aResidues;
-}
-
 Candidate MakeCandidate() {
     Candidate aCandidate;
-    const std::array<std::uint16_t, kQuarterOffsetCount> aQuarterOffsets =
-        RandomDistinctResidues<kQuarterOffsetCount>(S_QUARTER);
-    const std::array<std::uint16_t, kKeyOffsetCount> aKeyOffsets =
-        RandomDistinctResidues<kKeyOffsetCount>(W_KEY);
+    std::array<std::uint16_t, kQuarterOffsetCount> aQuarterOffsets =
+        gQuarterOffsetPool;
+    std::array<std::uint16_t, kKeyOffsetCount> aKeyOffsets =
+        gKeyOffsetPool;
+    Shuffle(&aQuarterOffsets);
+    Shuffle(&aKeyOffsets);
 
     aCandidate.mQuarterBases = RandomRoutes();
     aCandidate.mKeyBases = RandomRoutes();
@@ -360,8 +443,8 @@ void AddToFrequencies(const Candidate &pCandidate) {
 }
 
 bool Better(const Score &a, const Score &b) {
-    return (a.mTotal > b.mTotal) ||
-           ((a.mTotal == b.mTotal) && (a.mMinimum > b.mMinimum));
+    return (a.mMinimum > b.mMinimum) ||
+           ((a.mMinimum == b.mMinimum) && (a.mTotal > b.mTotal));
 }
 
 Candidate Explore(std::uint64_t pCases, Score *pScore) {
@@ -369,9 +452,7 @@ Candidate Explore(std::uint64_t pCases, Score *pScore) {
     Score aBestScore = FamilyScore(aBest);
     for (std::uint64_t i = 1ULL; i < pCases; ++i) {
         Candidate aTrial = MakeCandidate();
-        const std::uint64_t aTrialTotal = TotalDistance(aTrial);
-        if (aTrialTotal < aBestScore.mTotal) { continue; }
-        const Score aTrialScore = {MinimumDistance(aTrial), aTrialTotal};
+        const Score aTrialScore = FamilyScore(aTrial);
         if (Better(aTrialScore, aBestScore)) {
             aBest = aTrial;
             aBestScore = aTrialScore;
@@ -379,6 +460,98 @@ Candidate Explore(std::uint64_t pCases, Score *pScore) {
     }
     if (pScore != nullptr) { *pScore = aBestScore; }
     return aBest;
+}
+
+bool IsPermutation4(const Order4 &pValues) {
+    Order4 aSorted = pValues;
+    std::sort(aSorted.begin(), aSorted.end());
+    return aSorted == Order4{0U, 1U, 2U, 3U};
+}
+
+bool ValidateRoutes(const std::array<Order4, 4U> &pRoutes) {
+    for (std::size_t aSource = 0U; aSource < 4U; ++aSource) {
+        Order4 aSourceRoute{};
+        for (std::size_t aDestination = 0U;
+             aDestination < 4U;
+             ++aDestination) {
+            aSourceRoute[aDestination] =
+                pRoutes[aDestination][aSource];
+        }
+        if (!IsPermutation4(aSourceRoute)) {
+            return false;
+        }
+    }
+    return std::all_of(
+        pRoutes.begin(),
+        pRoutes.end(),
+        [](const Order4 &pRoute) {
+            return HasAtLeastThreeDistinct(pRoute);
+        }
+    );
+}
+
+template <std::size_t Count>
+bool SameValues(std::array<std::uint16_t, Count> pLeft,
+                std::array<std::uint16_t, Count> pRight) {
+    std::sort(pLeft.begin(), pLeft.end());
+    std::sort(pRight.begin(), pRight.end());
+    return pLeft == pRight;
+}
+
+bool Validate(const Candidate &pCandidate,
+              std::string *pErrorMessage) {
+    if (!ValidateRoutes(pCandidate.mQuarterBases) ||
+        !ValidateRoutes(pCandidate.mKeyBases)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                "GrowB routes were not balanced four-lane permutations.";
+        }
+        return false;
+    }
+
+    std::array<std::uint16_t, kQuarterOffsetCount> aQuarterOffsets{};
+    std::array<std::uint16_t, kKeyOffsetCount> aKeyOffsets{};
+    std::size_t aQuarterIndex = 0U;
+    std::size_t aKeyIndex = 0U;
+    for (std::size_t aLoop = 0U; aLoop < 4U; ++aLoop) {
+        if (!IsPermutation4(pCandidate.mQuarterShifts[aLoop]) ||
+            !IsPermutation4(pCandidate.mKeyShifts[aLoop]) ||
+            (pCandidate.mQuarterDiffuse[aLoop] >= 3U) ||
+            (pCandidate.mKeyDiffuse[aLoop] >= 3U)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "GrowB shifts or diffuser selections were invalid.";
+            }
+            return false;
+        }
+        for (const std::uint16_t aOffset :
+             pCandidate.mQuarterOffsets[aLoop]) {
+            aQuarterOffsets[aQuarterIndex++] = aOffset;
+        }
+        for (const std::uint16_t aOffset :
+             pCandidate.mKeyOffsets[aLoop]) {
+            aKeyOffsets[aKeyIndex++] = aOffset;
+        }
+    }
+    for (const std::uint16_t aOffset : pCandidate.mFinalOffsets) {
+        aKeyOffsets[aKeyIndex++] = aOffset;
+    }
+
+    if (!IsPermutation4(pCandidate.mFinalShifts) ||
+        (pCandidate.mFinalDiffuse >= 3U) ||
+        !SameValues(aQuarterOffsets, gQuarterOffsetPool) ||
+        !SameValues(aKeyOffsets, gKeyOffsetPool)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                "GrowB candidate did not use its complete preplanned "
+                "offset and shift pools.";
+        }
+        return false;
+    }
+    if (pErrorMessage != nullptr) {
+        pErrorMessage->clear();
+    }
+    return true;
 }
 
 const char *Diffuse(std::uint8_t pIndex) {
@@ -418,42 +591,41 @@ void RenderLaneFold(std::ostringstream &s,
           << (i == 2U ? ";\n" : " |\n");
     }
     s << "            aFoldWord = TwistMix32::" << Diffuse(pDiffuse) << "(aFoldWord);\n"
-      << "            " << pDest << "[aIndex] = aFoldWord;\n"
+      << "            " << pDest
+      << "[aIndex] = static_cast<std::uint8_t>(aFoldWord);\n"
       << "        }\n    }\n";
 }
 
 std::string Render(const Candidate &c, std::size_t pIndex, const Score &pScore, std::uint64_t pCases) {
     std::ostringstream s;
-    s << "// GrowB candidate " << (pIndex + 1U) << " of 33\n"
-      << "// Exploration cases: " << pCases << "\n";
-    if (pIndex == 0U) s << "// Total structural distance: baseline candidate\n";
-    else s << "// Total structural distance from earlier candidates: "
-           << pScore.mTotal << "; nearest pair: " << pScore.mMinimum
-           << " / " << kMaximumPairDistance << "\n";
-    s << "void TwistExpander_" << kNames[pIndex] << "::GrowKeyB(TwistWorkSpace *pWorkSpace) {\n"
-      << "    if (pWorkSpace == nullptr) { return; }\n"
-      << "    std::uint8_t *aWorkLaneA = pWorkSpace->mWorkLaneA;\n"
-      << "    std::uint8_t *aWorkLaneB = pWorkSpace->mWorkLaneB;\n"
-      << "    std::uint8_t *aWorkLaneC = pWorkSpace->mWorkLaneC;\n"
-      << "    std::uint8_t *aWorkLaneD = pWorkSpace->mWorkLaneD;\n"
-      << "    std::uint8_t *aScrapLaneA = pWorkSpace->mScrapLaneA;\n"
-      << "    std::uint8_t *aScrapLaneB = pWorkSpace->mScrapLaneB;\n"
-      << "    std::uint8_t *aScrapLaneC = pWorkSpace->mScrapLaneC;\n"
-      << "    std::uint8_t *aScrapLaneD = pWorkSpace->mScrapLaneD;\n"
-      << "    std::uint8_t *aMergeLaneA = pWorkSpace->mMergeLaneA;\n"
-      << "    std::uint8_t *aMergeLaneB = pWorkSpace->mMergeLaneB;\n"
-      << "    std::uint8_t *aMergeLaneC = pWorkSpace->mMergeLaneC;\n"
-      << "    std::uint8_t *aMergeLaneD = pWorkSpace->mMergeLaneD;\n"
-      << "    std::uint8_t *aKeyRowWriteB = &(pWorkSpace->mKeyBoxB[0][0]);\n"
-      << "    static_assert((S_BLOCK / S_QUARTER) == 4, \"GrowKeyB expects four work-lane quarters.\");\n"
+    s << "    // GrowBControl candidate " << (pIndex + 1U) << " of 33\n"
+      << "    // Exploration cases: " << pCases << "\n";
+    if (pIndex == 0U) s << "    // Structural distance: baseline candidate\n";
+    else s << "    // Structural maximin " << pScore.mMinimum
+           << " / " << kMaximumPairDistance
+           << "; family total " << pScore.mTotal << "\n";
+    s << "    std::uint8_t *aGrowBCrystalLaneA = pWorkSpace->mCrystalLaneA;\n"
+      << "    std::uint8_t *aGrowBCrystalLaneB = pWorkSpace->mCrystalLaneB;\n"
+      << "    std::uint8_t *aGrowBCrystalLaneC = pWorkSpace->mCrystalLaneC;\n"
+      << "    std::uint8_t *aGrowBCrystalLaneD = pWorkSpace->mCrystalLaneD;\n"
+      << "    std::uint8_t *aGrowBVaporLaneA = pWorkSpace->mVaporLaneA;\n"
+      << "    std::uint8_t *aGrowBVaporLaneB = pWorkSpace->mVaporLaneB;\n"
+      << "    std::uint8_t *aGrowBVaporLaneC = pWorkSpace->mVaporLaneC;\n"
+      << "    std::uint8_t *aGrowBVaporLaneD = pWorkSpace->mVaporLaneD;\n"
+      << "    std::uint8_t *aGrowBShadowLaneA = pWorkSpace->mShadowLaneA;\n"
+      << "    std::uint8_t *aGrowBShadowLaneB = pWorkSpace->mShadowLaneB;\n"
+      << "    std::uint8_t *aGrowBShadowLaneC = pWorkSpace->mShadowLaneC;\n"
+      << "    std::uint8_t *aGrowBShadowLaneD = pWorkSpace->mShadowLaneD;\n"
+      << "    std::uint8_t *aGrowBKeyRowWrite = &(pWorkSpace->mKeyBoxB[0][0]);\n"
+      << "    static_assert((S_BLOCK / S_QUARTER) == 4, \"GrowKeyB expects four operation-lane quarters.\");\n"
       << "    static_assert((S_QUARTER / W_KEY) == 4, \"GrowKeyB expects four key chunks per quarter.\");\n"
       << "    TwistShiftBox::ShiftKeyBoxB(pWorkSpace);\n";
 
     for (std::size_t loop = 0U; loop < 4U; ++loop) {
         const std::string aDestination =
-            std::string("aScrapLane") + Letter(loop);
+            std::string("aGrowBVaporLane") + Letter(loop);
         RenderLaneFold(s,
-                       "aWorkLane",
+                       "aGrowBCrystalLane",
                        aDestination.c_str(),
                        "S_QUARTER1",
                        "S_QUARTER",
@@ -464,9 +636,9 @@ std::string Render(const Candidate &c, std::size_t pIndex, const Score &pScore, 
     }
     for (std::size_t loop = 0U; loop < 4U; ++loop) {
         const std::string aDestination =
-            std::string("aMergeLane") + Letter(loop);
+            std::string("aGrowBShadowLane") + Letter(loop);
         RenderLaneFold(s,
-                       "aScrapLane",
+                       "aGrowBVaporLane",
                        aDestination.c_str(),
                        "W_KEY1",
                        "W_KEY",
@@ -483,14 +655,15 @@ std::string Render(const Candidate &c, std::size_t pIndex, const Score &pScore, 
     }
     s << "            std::uint32_t aFoldWord =\n";
     for (std::size_t i = 0U; i < 4U; i += 2U) {
-        s << "                (static_cast<std::uint32_t>(aMergeLane" << Letter(i)
+        s << "                (static_cast<std::uint32_t>(aGrowBShadowLane" << Letter(i)
           << "[aFoldIndex" << Letter(i) << "]) << " << (static_cast<unsigned>(c.mFinalShifts[i]) * 8U) << "U) | "
-          << "(static_cast<std::uint32_t>(aMergeLane" << Letter(i + 1U)
+          << "(static_cast<std::uint32_t>(aGrowBShadowLane" << Letter(i + 1U)
           << "[aFoldIndex" << Letter(i + 1U) << "]) << " << (static_cast<unsigned>(c.mFinalShifts[i + 1U]) * 8U) << "U)"
           << (i == 2U ? ";\n" : " |\n");
     }
     s << "            aFoldWord = TwistMix32::" << Diffuse(c.mFinalDiffuse) << "(aFoldWord);\n"
-      << "            aKeyRowWriteB[aIndex] = aFoldWord;\n        }\n    }\n}\n";
+      << "            aGrowBKeyRowWrite[aIndex] = static_cast<std::uint8_t>(aFoldWord);\n"
+      << "        }\n    }\n";
     return s.str();
 }
 
@@ -499,6 +672,16 @@ std::string Render(const Candidate &c, std::size_t pIndex, const Score &pScore, 
 void GrowBControl::Reset(std::uint64_t pSeed) {
     gCandidates.clear(); gRendered.clear();
     gFrequencies = FrequencyTable{};
+    gQuarterOffsetPool =
+        ControlOffsetPool::Build<kQuarterOffsetCount>(
+            ControlOffsetPool::kGrowBQuarterStart,
+            static_cast<std::size_t>(S_QUARTER)
+        );
+    gKeyOffsetPool =
+        ControlOffsetPool::Build<kKeyOffsetCount>(
+            ControlOffsetPool::kGrowBKeyStart,
+            static_cast<std::size_t>(W_KEY)
+        );
     gRandomState = pSeed == 0ULL ? 0x47524F57425F3333ULL : pSeed;
     const std::uint64_t aMaximumResidueCount =
         static_cast<std::uint64_t>(std::numeric_limits<std::uint16_t>::max()) + 1ULL;
@@ -508,6 +691,16 @@ void GrowBControl::Reset(std::uint64_t pSeed) {
         (static_cast<std::size_t>(W_KEY) < kKeyOffsetCount)) {
         std::abort();
     }
+    static_assert(
+        ControlOffsetPool::kQuarterAllocationCount <=
+            static_cast<std::size_t>(S_QUARTER),
+        "Preplanned quarter-offset families exceed S_QUARTER."
+    );
+    static_assert(
+        ControlOffsetPool::kKeyAllocationCount <=
+            static_cast<std::size_t>(W_KEY),
+        "Preplanned key-offset families exceed W_KEY."
+    );
     for (std::vector<std::uint8_t> &aCounts :
          gFrequencies.mQuarterOffsets) {
         aCounts.assign(static_cast<std::size_t>(S_QUARTER), 0U);
@@ -523,7 +716,13 @@ std::string GrowBControl::Generate(std::uint64_t pExplorationCases) {
     const std::uint64_t aCases =
         std::max<std::uint64_t>(1ULL, pExplorationCases);
     Score aScore;
-    Candidate aCandidate = Explore(aCases, &aScore);
+    const std::uint64_t aEffectiveCases =
+        gCandidates.empty() ? 1ULL : aCases;
+    Candidate aCandidate = Explore(aEffectiveCases, &aScore);
+    std::string aValidationError;
+    if (!Validate(aCandidate, &aValidationError)) {
+        std::abort();
+    }
     const Score aDirectScore = DirectFamilyScore(aCandidate);
     if ((aScore.mMinimum != aDirectScore.mMinimum) ||
         (aScore.mTotal != aDirectScore.mTotal)) {
@@ -532,29 +731,148 @@ std::string GrowBControl::Generate(std::uint64_t pExplorationCases) {
     const std::size_t aIndex = gCandidates.size();
     AddToFrequencies(aCandidate);
     gCandidates.push_back(aCandidate);
-    gRendered.push_back(Render(aCandidate, aIndex, aScore, aCases));
+    gRendered.push_back(
+        Render(aCandidate, aIndex, aScore, aEffectiveCases)
+    );
     return gRendered.back();
+}
+
+std::string GrowBControl::RenderCandidate(
+    const std::size_t pCandidateIndex) {
+    if (pCandidateIndex >= gCandidates.size()) {
+        return "";
+    }
+    const Score aScore = [&]() {
+        if (pCandidateIndex == 0U) {
+            return Score{
+                std::numeric_limits<std::uint64_t>::max(),
+                0ULL,
+            };
+        }
+        Score aResult{std::numeric_limits<std::uint64_t>::max(), 0ULL};
+        for (std::size_t i = 0U; i < pCandidateIndex; ++i) {
+            const std::uint64_t aDistance =
+                Distance(gCandidates[pCandidateIndex], gCandidates[i]);
+            aResult.mMinimum = std::min(aResult.mMinimum, aDistance);
+            aResult.mTotal += aDistance;
+        }
+        return aResult;
+    }();
+    return Render(gCandidates[pCandidateIndex],
+                  pCandidateIndex,
+                  aScore,
+                  0ULL);
 }
 
 void GrowBControl::Print() {
     for (const std::string &aText : gRendered) std::printf("%s\n", aText.c_str());
 }
 
-bool GrowBControl::SavePreview(const std::string &pPath, std::string *pErrorMessage) {
-    const std::string aPath = FileIO::ProjectRoot(pPath);
-    std::ostringstream combined;
-    for (const std::string &text : gRendered) combined << text << '\n';
-    const std::string all = combined.str();
-    if (!FileIO::Save(aPath, std::vector<std::uint8_t>(all.begin(), all.end()))) {
-        if (pErrorMessage) *pErrorMessage = "GrowBControl failed to save " + aPath;
+bool GrowBControl::SaveValues(const std::string &pFolder,
+                              std::string *pErrorMessage) {
+    if (gCandidates.size() != kCandidateCount) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                "GrowBControl needs all 33 candidates before saving values.";
+        }
         return false;
     }
-    const std::string folder = std::filesystem::path(aPath).parent_path().generic_string();
-    for (std::size_t i = 0U; i < gRendered.size(); ++i) {
-        char name[48]; std::snprintf(name, sizeof(name), "GrowKeyB_Candidate%02zu.cpp", i + 1U);
-        const std::string path = FileIO::Join(folder, name);
-        const std::string &text = gRendered[i];
-        if (!FileIO::Save(path, std::vector<std::uint8_t>(text.begin(), text.end()))) return false;
+    const std::string aFolder = FileIO::ProjectRoot(pFolder);
+    for (std::size_t i = 0U; i < gCandidates.size(); ++i) {
+        std::string aValidationError;
+        if (!Validate(gCandidates[i], &aValidationError)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "GrowBControl refused to save candidate " +
+                    std::to_string(i + 1U) + ": " + aValidationError;
+            }
+            return false;
+        }
+        char aName[48];
+        std::snprintf(aName,
+                      sizeof(aName),
+                      "GrowKeyB_Candidate%02zu.bin",
+                      i + 1U);
+        if (!ControlValueFile::Save(
+                FileIO::Join(aFolder, aName),
+                ControlValueFile::Kind::kGrowB,
+                CandidateValues(gCandidates[i]),
+                pErrorMessage)) {
+            return false;
+        }
     }
     return true;
+}
+
+bool GrowBControl::LoadValues(
+    const std::string &pFolder,
+    std::string *pErrorMessage) {
+    if (!gDidReset || !gCandidates.empty()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                "GrowBControl::Reset must precede value loading.";
+        }
+        return false;
+    }
+    const std::string aFolder = FileIO::ProjectRoot(pFolder);
+    for (std::size_t i = 0U; i < kCandidateCount; ++i) {
+        char aName[48];
+        std::snprintf(aName,
+                      sizeof(aName),
+                      "GrowKeyB_Candidate%02zu.bin",
+                      i + 1U);
+        std::vector<std::uint64_t> aValues;
+        std::string aLoadWarning;
+        if (!ControlValueFile::Load(
+                FileIO::Join(aFolder, aName),
+                ControlValueFile::Kind::kGrowB,
+                kCandidateValueCount,
+                &aValues,
+                &aLoadWarning)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = aLoadWarning;
+            }
+            return false;
+        }
+        std::string aValueWarning;
+        Candidate aCandidate =
+            CandidateFromValues(aValues, &aValueWarning);
+        if (!aValueWarning.empty()) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = aValueWarning;
+            }
+            return false;
+        }
+        std::string aValidationError;
+        if (!Validate(aCandidate, &aValidationError)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "GrowBControl candidate " +
+                    std::to_string(i + 1U) +
+                    " was invalid: " + aValidationError;
+            }
+            return false;
+        }
+        const Score aScore = DirectFamilyScore(aCandidate);
+        AddToFrequencies(aCandidate);
+        gCandidates.push_back(aCandidate);
+        gRendered.push_back(Render(aCandidate, i, aScore, 0ULL));
+    }
+    return true;
+}
+
+bool GrowBControl::ValidateCandidate(
+    const std::size_t pCandidateIndex,
+    std::string *pErrorMessage) {
+    if (pCandidateIndex >= gCandidates.size()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "GrowBControl candidate index was out of range.";
+        }
+        return false;
+    }
+    return Validate(gCandidates[pCandidateIndex], pErrorMessage);
+}
+
+std::size_t GrowBControl::GeneratedCount() {
+    return gCandidates.size();
 }

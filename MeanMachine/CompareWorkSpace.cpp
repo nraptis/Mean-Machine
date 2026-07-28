@@ -23,25 +23,20 @@ const NamedSlot kWorkSpaceSlots[] = {
     {"key_box_a", TwistWorkSpaceSlot::kKeyBoxUnrolledA},
     {"key_box_b", TwistWorkSpaceSlot::kKeyBoxUnrolledB},
     
-    {"expansion_lane_a", TwistWorkSpaceSlot::kExpansionLaneA},
-    {"expansion_lane_b", TwistWorkSpaceSlot::kExpansionLaneB},
-    {"expansion_lane_c", TwistWorkSpaceSlot::kExpansionLaneC},
-    {"expansion_lane_d", TwistWorkSpaceSlot::kExpansionLaneD},
+    {"expansion_lane_a", TwistWorkSpaceSlot::kHeartLaneA},
+    {"expansion_lane_b", TwistWorkSpaceSlot::kHeartLaneB},
+    {"expansion_lane_c", TwistWorkSpaceSlot::kHeartLaneC},
+    {"expansion_lane_d", TwistWorkSpaceSlot::kHeartLaneD},
     
-    {"work_lane_a", TwistWorkSpaceSlot::kWorkLaneA},
-    {"work_lane_b", TwistWorkSpaceSlot::kWorkLaneB},
-    {"work_lane_c", TwistWorkSpaceSlot::kWorkLaneC},
-    {"work_lane_d", TwistWorkSpaceSlot::kWorkLaneD},
+    {"work_lane_a", TwistWorkSpaceSlot::kPoisonLaneA},
+    {"work_lane_b", TwistWorkSpaceSlot::kPoisonLaneB},
+    {"work_lane_c", TwistWorkSpaceSlot::kPoisonLaneC},
+    {"work_lane_d", TwistWorkSpaceSlot::kPoisonLaneD},
     
-    {"operation_lane_a", TwistWorkSpaceSlot::kOperationLaneA},
-    {"operation_lane_b", TwistWorkSpaceSlot::kOperationLaneB},
-    {"operation_lane_c", TwistWorkSpaceSlot::kOperationLaneC},
-    {"operation_lane_d", TwistWorkSpaceSlot::kOperationLaneD},
-    
-    {"snow_lane_a", TwistWorkSpaceSlot::kSnowLaneA},
-    {"snow_lane_b", TwistWorkSpaceSlot::kSnowLaneB},
-    {"snow_lane_c", TwistWorkSpaceSlot::kSnowLaneC},
-    {"snow_lane_d", TwistWorkSpaceSlot::kSnowLaneD},
+    {"operation_lane_a", TwistWorkSpaceSlot::kSpiritLaneA},
+    {"operation_lane_b", TwistWorkSpaceSlot::kSpiritLaneB},
+    {"operation_lane_c", TwistWorkSpaceSlot::kSpiritLaneC},
+    {"operation_lane_d", TwistWorkSpaceSlot::kSpiritLaneD},
     
     {"fire_lane_a", TwistWorkSpaceSlot::kFireLaneA},
     {"fire_lane_b", TwistWorkSpaceSlot::kFireLaneB},
@@ -68,24 +63,75 @@ const NamedSlot kWorkSpaceSlots[] = {
     {"fuse_lane_c", TwistWorkSpaceSlot::kFuseLaneC},
     {"fuse_lane_d", TwistWorkSpaceSlot::kFuseLaneD},
     
-    {"scrap_lane_a", TwistWorkSpaceSlot::kScrapLaneA},
-    {"scrap_lane_b", TwistWorkSpaceSlot::kScrapLaneB},
-    {"scrap_lane_c", TwistWorkSpaceSlot::kScrapLaneC},
-    {"scrap_lane_d", TwistWorkSpaceSlot::kScrapLaneD},
+    {"scrap_lane_a", TwistWorkSpaceSlot::kWoodLaneA},
+    {"scrap_lane_b", TwistWorkSpaceSlot::kWoodLaneB},
+    {"scrap_lane_c", TwistWorkSpaceSlot::kWoodLaneC},
+    {"scrap_lane_d", TwistWorkSpaceSlot::kWoodLaneD},
+
+    {"lightning_lane_a", TwistWorkSpaceSlot::kLightningLaneA},
+    {"lightning_lane_b", TwistWorkSpaceSlot::kLightningLaneB},
+    {"lightning_lane_c", TwistWorkSpaceSlot::kLightningLaneC},
+    {"lightning_lane_d", TwistWorkSpaceSlot::kLightningLaneD},
+
+    {"magma_lane_a", TwistWorkSpaceSlot::kMagmaLaneA},
+    {"magma_lane_b", TwistWorkSpaceSlot::kMagmaLaneB},
+    {"magma_lane_c", TwistWorkSpaceSlot::kMagmaLaneC},
+    {"magma_lane_d", TwistWorkSpaceSlot::kMagmaLaneD},
+
+    {"soil_lane_a", TwistWorkSpaceSlot::kSoilLaneA},
+    {"soil_lane_b", TwistWorkSpaceSlot::kSoilLaneB},
+    {"soil_lane_c", TwistWorkSpaceSlot::kSoilLaneC},
+    {"soil_lane_d", TwistWorkSpaceSlot::kSoilLaneD},
+
+    {"plasma_lane_a", TwistWorkSpaceSlot::kPlasmaLaneA},
+    {"plasma_lane_b", TwistWorkSpaceSlot::kPlasmaLaneB},
+    {"plasma_lane_c", TwistWorkSpaceSlot::kPlasmaLaneC},
+    {"plasma_lane_d", TwistWorkSpaceSlot::kPlasmaLaneD},
+
+    {"shadow_lane_a", TwistWorkSpaceSlot::kShadowLaneA},
+    {"shadow_lane_b", TwistWorkSpaceSlot::kShadowLaneB},
+    {"shadow_lane_c", TwistWorkSpaceSlot::kShadowLaneC},
+    {"shadow_lane_d", TwistWorkSpaceSlot::kShadowLaneD},
+
+    {"crystal_lane_a", TwistWorkSpaceSlot::kCrystalLaneA},
+    {"crystal_lane_b", TwistWorkSpaceSlot::kCrystalLaneB},
+    {"crystal_lane_c", TwistWorkSpaceSlot::kCrystalLaneC},
+    {"crystal_lane_d", TwistWorkSpaceSlot::kCrystalLaneD},
+
+    {"aether_lane_a", TwistWorkSpaceSlot::kAetherLaneA},
+    {"aether_lane_b", TwistWorkSpaceSlot::kAetherLaneB},
+    {"aether_lane_c", TwistWorkSpaceSlot::kAetherLaneC},
+    {"aether_lane_d", TwistWorkSpaceSlot::kAetherLaneD},
+
+    {"celestial_lane_a", TwistWorkSpaceSlot::kCelestialLaneA},
+    {"celestial_lane_b", TwistWorkSpaceSlot::kCelestialLaneB},
+    {"celestial_lane_c", TwistWorkSpaceSlot::kCelestialLaneC},
+    {"celestial_lane_d", TwistWorkSpaceSlot::kCelestialLaneD},
+
+    {"kinetic_lane_a", TwistWorkSpaceSlot::kKineticLaneA},
+    {"kinetic_lane_b", TwistWorkSpaceSlot::kKineticLaneB},
+    {"kinetic_lane_c", TwistWorkSpaceSlot::kKineticLaneC},
+    {"kinetic_lane_d", TwistWorkSpaceSlot::kKineticLaneD},
+
+    {"vapor_lane_a", TwistWorkSpaceSlot::kVaporLaneA},
+    {"vapor_lane_b", TwistWorkSpaceSlot::kVaporLaneB},
+    {"vapor_lane_c", TwistWorkSpaceSlot::kVaporLaneC},
+    {"vapor_lane_d", TwistWorkSpaceSlot::kVaporLaneD},
+
+    {"chance_lane_a", TwistWorkSpaceSlot::kChanceLaneA},
+    {"chance_lane_b", TwistWorkSpaceSlot::kChanceLaneB},
+    {"chance_lane_c", TwistWorkSpaceSlot::kChanceLaneC},
+    {"chance_lane_d", TwistWorkSpaceSlot::kChanceLaneD},
+
+    {"domain_lane_key_rotate", TwistWorkSpaceSlot::kDomainLaneKeyRotateA},
+    {"domain_lane_key_spawn", TwistWorkSpaceSlot::kDomainLaneKeySpawnA},
+    {"domain_lane_seed", TwistWorkSpaceSlot::kDomainLaneSeed},
+    {"domain_lane_twist", TwistWorkSpaceSlot::kDomainLaneTwist},
     
-    {"merge_lane_a", TwistWorkSpaceSlot::kMergeLaneA},
-    {"merge_lane_b", TwistWorkSpaceSlot::kMergeLaneB},
-    {"merge_lane_c", TwistWorkSpaceSlot::kMergeLaneC},
-    {"merge_lane_d", TwistWorkSpaceSlot::kMergeLaneD},
-    
-    {"invest_lane_a", TwistWorkSpaceSlot::kInvestA},
-    {"invest_lane_b", TwistWorkSpaceSlot::kInvestB},
-    {"invest_lane_c", TwistWorkSpaceSlot::kInvestC},
-    {"invest_lane_d", TwistWorkSpaceSlot::kInvestD},
-    {"invest_lane_e", TwistWorkSpaceSlot::kInvestE},
-    {"invest_lane_f", TwistWorkSpaceSlot::kInvestF},
-    {"invest_lane_g", TwistWorkSpaceSlot::kInvestG},
-    {"invest_lane_h", TwistWorkSpaceSlot::kInvestH},
+    {"invest_lane_a", TwistWorkSpaceSlot::kIceLaneA},
+    {"invest_lane_b", TwistWorkSpaceSlot::kIceLaneB},
+    {"invest_lane_c", TwistWorkSpaceSlot::kIceLaneC},
+    {"invest_lane_d", TwistWorkSpaceSlot::kIceLaneD},
 };
 
 void SetError(std::string *pErrorMessage,
@@ -173,9 +219,9 @@ bool CompareWorkSpace::Compare(TwistWorkSpace *pLeft,
     }
     
     return CompareBytes("expander_domain_bundle_ephemeral",
-                        reinterpret_cast<const std::uint8_t *>(&pLeftExpander->mDomainBundleEphemeral),
-                        reinterpret_cast<const std::uint8_t *>(&pRightExpander->mDomainBundleEphemeral),
-                        sizeof(pLeftExpander->mDomainBundleEphemeral),
+                        reinterpret_cast<const std::uint8_t *>(pLeftExpander->GetDomainBundleEphemeral()),
+                        reinterpret_cast<const std::uint8_t *>(pRightExpander->GetDomainBundleEphemeral()),
+                        sizeof(*(pLeftExpander->GetDomainBundleEphemeral())),
                         pErrorMessage);
 }
 

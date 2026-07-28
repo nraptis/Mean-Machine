@@ -10,6 +10,7 @@
 
 #include "GSeedProgram.hpp"
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -24,11 +25,10 @@ class GKDF_A {
 public:
     bool                                Bake(TwistDomain pDomain,
                                              GKDFMaterialBundle pBundle,
-                                             int pIndexKDF,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
     
-    GSymbol                             mKDFSnow;
+    std::array<GSymbol, 3>              mKDFSnowLanes;
     
 };
 
@@ -36,9 +36,30 @@ class GKDF_B {
 public:
     bool                                Bake(TwistDomain pDomain,
                                              GKDFMaterialBundle pBundle,
-                                             int pIndexKDF,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
+
+    std::array<GSymbol, 3>              mKDFSnowLanes;
+};
+
+class GKDF_C {
+public:
+    bool                                Bake(TwistDomain pDomain,
+                                             GKDFMaterialBundle pBundle,
+                                             std::vector<GStatement> *pStatements,
+                                             std::string *pErrorMessage);
+
+    std::array<GSymbol, 3>              mKDFSnowLanes;
+};
+
+class GKDF_D {
+public:
+    bool                                Bake(TwistDomain pDomain,
+                                             GKDFMaterialBundle pBundle,
+                                             std::vector<GStatement> *pStatements,
+                                             std::string *pErrorMessage);
+
+    std::array<GSymbol, 3>              mKDFSnowLanes;
 };
 
 #endif /* GKDF_hpp */

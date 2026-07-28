@@ -17,15 +17,14 @@
 #include <filesystem>
 #include <limits>
 #include <string>
-#include <unordered_set>
 #include <vector>
 #include <unordered_map>
 #include "TwistWorkSpace.hpp"
 #include "TwistFunctional.hpp"
-#include "GTermExpander.hpp"
 #include "Random.hpp"
 #include "GTwistExpander.hpp"
 #include "GSeedRunKDF_A.hpp"
+#include "GSeedRunKeyBox.hpp"
 #include "TwistFarmSalt.hpp"
 #include "TwistSnow.hpp"
 #include "TwistCryptoScoring.hpp"
@@ -34,12 +33,12 @@
 #include "GAXSK.hpp"
 #include "Builder.hpp"
 #include "Avalancher.hpp"
-#include "Rig.hpp"
-#include "SnapShotter.hpp"
 
-#include "SmartSquashControl.hpp"
 #include "GrowAControl.hpp"
 #include "GrowBControl.hpp"
+#include "FoldSeedControl.hpp"
+#include "FoldTwistControl.hpp"
+#include "LaneSplitControl.hpp"
 
 int gCandidateIndex = 0;
 
@@ -78,8 +77,7 @@ int gCandidateIndex = 0;
 #include "TwistExpander_Suhail.hpp"
 #include "TwistExpander_Vega.hpp"
 
- */
-
+*/
 
 #include "TwistExpander_Achernar.hpp"
  
@@ -97,67 +95,190 @@ bool IsRunningUnderXCTest() {
     (std::getenv("XCTestBundlePath") != nullptr);
 }
 
-std::vector<std::uint64_t> GenerateUniqueNonces(const std::size_t pCount) {
-    std::vector<std::uint64_t> aNonces;
-    std::unordered_set<std::uint64_t> aSeen;
-    
-    while (aNonces.size() < pCount) {
-        const std::uint64_t aNonce = Random::Get64();
-        if (aSeen.insert(aNonce).second) {
-            aNonces.push_back(aNonce);
-        }
-    }
-    
-    return aNonces;
+bool AddKeyBoxLaneSplitGroups(std::string *pErrorMessage) {
+    return LaneSplitControl::AddLaneGroup(
+               {
+                   TwistWorkSpaceSlot::kPoisonLaneA,
+                   TwistWorkSpaceSlot::kPoisonLaneB,
+                   TwistWorkSpaceSlot::kPoisonLaneC,
+                   TwistWorkSpaceSlot::kPoisonLaneD,
+               },
+               pErrorMessage) &&
+           LaneSplitControl::AddLaneGroup(
+               {
+                   TwistWorkSpaceSlot::kPlasmaLaneA,
+                   TwistWorkSpaceSlot::kPlasmaLaneB,
+                   TwistWorkSpaceSlot::kPlasmaLaneC,
+                   TwistWorkSpaceSlot::kPlasmaLaneD,
+               },
+               pErrorMessage);
 }
 
-bool RunRigWithWorkSpace(TwistExpander *pExpander,
-                         TwistWorkSpace *pWorkSpace,
-                         Rig *pRig,
-                         const std::vector<std::uint64_t> &pNonces,
-                         std::uint8_t *pPassword,
-                         const int pPasswordLength,
-                         std::string *pErrorMessage) {
-    if ((pExpander == nullptr) || (pWorkSpace == nullptr) || (pRig == nullptr)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "RunRigWithWorkSpace got a null argument";
-        }
+std::string ControlValueAssetFolder(const char *pStem,
+                                    const std::uint64_t pExplorationCases) {
+    char aCaseText[32];
+    std::snprintf(aCaseText,
+                  sizeof(aCaseText),
+                  "%010llu",
+                  static_cast<unsigned long long>(pExplorationCases));
+    return std::string("Assets/") + pStem + "_" + aCaseText;
+}
+
+bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
+                                std::string *pErrorMessage) {
+    const std::string aGrowAFolder =
+        ControlValueAssetFolder("grow_a_pre_planned",
+                                pExplorationCases);
+    const std::string aGrowBFolder =
+        ControlValueAssetFolder("grow_b_pre_planned",
+                                pExplorationCases);
+    const std::string aLaneSplitFolder =
+        ControlValueAssetFolder("lane_split_pre_planned",
+                                pExplorationCases);
+    const std::string aFoldSeedFolder =
+        ControlValueAssetFolder("fold_seed_pre_planned",
+                                pExplorationCases);
+    const std::string aFoldTwistFolder =
+        ControlValueAssetFolder("fold_twist_pre_planned",
+                                pExplorationCases);
+
+    std::printf("\nGenerating control values with %llu exploration cases...\n",
+                static_cast<unsigned long long>(pExplorationCases));
+
+    GrowAControl::Reset();
+    for (std::size_t i = 0U;
+         i < GrowAControl::kCandidateCount;
+         ++i) {
+        GrowAControl::Generate(pExplorationCases);
+    }
+    if (!GrowAControl::SaveValues(aGrowAFolder,
+                                  pErrorMessage)) {
         return false;
     }
-    if (pNonces.empty()) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "RunRigWithWorkSpace got no nonces";
-        }
+    GrowAControl::Reset();
+    if (!GrowAControl::LoadValues(aGrowAFolder,
+                                  pErrorMessage)) {
         return false;
     }
-    
-    pRig->SetBlockCount(32);
-    if (pRig->mData == nullptr) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage = "RunRigWithWorkSpace failed to allocate rig data";
-        }
+
+    GrowBControl::Reset();
+    for (std::size_t i = 0U;
+         i < GrowBControl::kCandidateCount;
+         ++i) {
+        GrowBControl::Generate(pExplorationCases);
+    }
+    if (!GrowBControl::SaveValues(aGrowBFolder,
+                                  pErrorMessage)) {
         return false;
     }
-    
-    TwistFarmSalt aFarmSalt;
-    pExpander->Seed(pWorkSpace,
-                    &aFarmSalt,
-                    pNonces[0],
-                    pPassword,
-                    static_cast<std::size_t>(pPasswordLength),
-                    pRig->mData);
-    
-    for (std::size_t aBlockIndex = 1U; aBlockIndex < pRig->mBlockCount; ++aBlockIndex) {
-        std::uint8_t *aSource = pRig->mData + (aBlockIndex - 1U) * S_BLOCK;
-        std::uint8_t *aDest = pRig->mData + aBlockIndex * S_BLOCK;
-        pExpander->TwistBlock(pWorkSpace,
-                              aSource,
-                              aDest);
+    GrowBControl::Reset();
+    if (!GrowBControl::LoadValues(aGrowBFolder,
+                                  pErrorMessage)) {
+        return false;
     }
-    
+
+    FoldSeedControl::Reset();
+    for (std::size_t i = 0U;
+         i < FoldSeedControl::kCandidateCount;
+         ++i) {
+        FoldSeedControl::Generate(pExplorationCases);
+    }
+    if (!FoldSeedControl::SaveValues(aFoldSeedFolder,
+                                     pErrorMessage)) {
+        return false;
+    }
+    FoldSeedControl::Reset();
+    if (!FoldSeedControl::LoadValues(aFoldSeedFolder,
+                                     pErrorMessage)) {
+        return false;
+    }
+
+    FoldTwistControl::Reset();
+    for (std::size_t i = 0U;
+         i < FoldTwistControl::kCandidateCount;
+         ++i) {
+        FoldTwistControl::Generate(pExplorationCases);
+    }
+    if (!FoldTwistControl::SaveValues(aFoldTwistFolder,
+                                      pErrorMessage)) {
+        return false;
+    }
+    FoldTwistControl::Reset();
+    if (!FoldTwistControl::LoadValues(aFoldTwistFolder,
+                                      pErrorMessage)) {
+        return false;
+    }
+
+    LaneSplitControl::Reset();
+    if (!AddKeyBoxLaneSplitGroups(pErrorMessage)) {
+        return false;
+    }
+    for (std::size_t i = 0U;
+         i < LaneSplitControl::kCandidateCount;
+         ++i) {
+        if (LaneSplitControl::Generate(pExplorationCases).empty()) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "LaneSplitControl failed to generate candidate " +
+                    std::to_string(i + 1U);
+            }
+            return false;
+        }
+    }
+    if (!LaneSplitControl::SaveValues(aLaneSplitFolder,
+                                      pErrorMessage)) {
+        return false;
+    }
+
+    // Verify that this generated family can be consumed from its files.
+    LaneSplitControl::Reset();
+    if (!AddKeyBoxLaneSplitGroups(pErrorMessage)) {
+        return false;
+    }
+    if (!LaneSplitControl::LoadValues(aLaneSplitFolder,
+                                      pErrorMessage)) {
+        return false;
+    }
+
+    std::printf("Saved:\n"
+                "    %s\n"
+                "    %s\n"
+                "    %s\n"
+                "    %s\n"
+                "    %s\n",
+                aGrowAFolder.c_str(),
+                aGrowBFolder.c_str(),
+                aFoldSeedFolder.c_str(),
+                aFoldTwistFolder.c_str(),
+                aLaneSplitFolder.c_str());
     return true;
 }
 
+int RunControlValueExporter() {
+    std::uint64_t aExplorationCases = 100ULL;
+    for (;;) {
+        std::string aError;
+        if (!GenerateControlValueAssets(aExplorationCases, &aError)) {
+            std::printf("Control value generation failed at %llu cases:\n%s\n",
+                        static_cast<unsigned long long>(aExplorationCases),
+                        aError.c_str());
+            return 1;
+        }
+
+        if (aExplorationCases >
+            (std::numeric_limits<std::uint64_t>::max() / 5ULL)) {
+            std::printf("Control value generation reached the largest "
+                        "safe exploration count.\n");
+            return 0;
+        }
+        aExplorationCases *= 5ULL;
+    }
+}
+
+}
+
+extern "C" int MeanMachineRunExporter(void) {
+    return RunControlValueExporter();
 }
 
 @interface AppDelegate ()
@@ -170,105 +291,39 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     (void)aNotification;
-
+    
+    printf("App is awake and running...\n");
+    
     /*
-    std::uint64_t aExplorationCases = 500ULL;
-    while (true) {
-        char aExplorationDigits[32];
-        std::snprintf(aExplorationDigits,
-                      sizeof(aExplorationDigits),
-                      "%016llu",
-                      static_cast<unsigned long long>(aExplorationCases));
-        const std::string aExplorationText(aExplorationDigits);
-        std::printf("Starting control exploration round with %s cases.\n",
-                    aExplorationText.c_str());
-
-        SmartSquashControl::Reset();
-        for (std::size_t i = 0U;
-             i < SmartSquashControl::kCandidateCount;
-             ++i) {
-            SmartSquashControl::GenerateSquashInvestToKeyBoxes(
-                aExplorationCases);
-        }
-
-        SmartSquashControl::Print();
-
-        std::string aError;
-        const std::string aSquashPath =
-            "Assets/squash_pre_planned_" + aExplorationText +
-            "/SmartSquashPreview.cpp";
-        if (!SmartSquashControl::SavePreview(aSquashPath, &aError)) {
-            std::printf("%s\n", aError.c_str());
-        }
-
-        // ------------------
-
-        GrowBControl::Reset();
-        for (std::size_t i = 0U;
-             i < GrowBControl::kCandidateCount;
-             ++i) {
-            GrowBControl::Generate(aExplorationCases);
-        }
-
-        GrowBControl::Print();
-
-        std::string aGrowBError;
-        const std::string aGrowBPath =
-            "Assets/grow_b_pre_planned_" + aExplorationText +
-            "/GrowBPreview.cpp";
-        if (!GrowBControl::SavePreview(aGrowBPath, &aGrowBError)) {
-            std::printf("%s\n", aGrowBError.c_str());
-        }
-
-        // ------------------
-
-        GrowAControl::Reset();
-        for (std::size_t i = 0U;
-             i < GrowAControl::kCandidateCount;
-             ++i) {
-            GrowAControl::Generate(aExplorationCases);
-        }
-
-        GrowAControl::Print();
-
-        std::string aGrowAError;
-        const std::string aGrowAPath =
-            "Assets/grow_a_pre_planned_" + aExplorationText +
-            "/GrowAPreview.cpp";
-        if (!GrowAControl::SavePreview(aGrowAPath, &aGrowAError)) {
-            std::printf("%s\n", aGrowAError.c_str());
-        }
-
-        std::printf("Finished control exploration round with %s cases.\n",
-                    aExplorationText.c_str());
-        const std::uint64_t aMaximumCases =
-            std::numeric_limits<std::uint64_t>::max();
-        aExplorationCases =
-            (aExplorationCases > (aMaximumCases / 10ULL)) ?
-            aMaximumCases :
-            (aExplorationCases * 10ULL);
+    if (IsRunningUnderXCTest()) {
+        printf("skipping app, xc test...\n");
+        return;
     }
-
-    return;
-    
-    //Scanner_MagicNumbers::Check();
-    
-    //return;
     */
     
-    /*
-    if (IsRunningUnderXCTest() == false) {
+    
+    {
+        printf("exporting 1 test expander...\n");
         std::string aError;
-
+        gCandidateIndex = 0;
         if (!Builder::Go("CornTesting/Gen",
                          "Achernar",
-                         26,
-                         8,
-                         true,
                          &aError)) {
-            printf("Builder::Go failed:\n%s\n", aError.c_str());
-            return;
+            std::printf("Builder::Go failed for %s:\n%s\n",
+                        "Achernar",
+                        aError.c_str());
         }
+        ++gCandidateIndex;
+        return;
+    }
+    
+    
+    //Scanner_MagicNumbers::Check();
+    //return;
+    
+    /*
+    if (MeanMachineRunExporter() != 0) {
+        return;
     }
     printf("Done with export block...\n");
     
@@ -276,17 +331,69 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
     */
     
     
-    printf("App is awake and running...\n");
-    
-    
-    if (IsRunningUnderXCTest()) {
-        printf("skipping app, xc test...\n");
-        return;
+    if (IsRunningUnderXCTest() == false) {
+        std::string aError;
+        std::vector<std::string> aNames = {
+            "Achernar",
+            "Alcor",
+            "Aldebaran",
+            "Alioth",
+            "Alkaid",
+            "Alnitak",
+            "Altair",
+            "Ankaa",
+            "Antares",
+            "Arcturus",
+            "Athebyne",
+            "Bellatrix",
+            "Betelgeuse",
+            "Canopus",
+            "Capella",
+            "Castor",
+            "Mebsuta",
+            "Menkent",
+            "Mimosa",
+            "Miram",
+            "Mirfak",
+            "Mothallah",
+            "Naos",
+            "Polaris",
+            "Pollux",
+            "Procyon",
+            "Regulus",
+            "Gemma",
+            "Rigel",
+            "Saiph",
+            "Sirius",
+            "Suhail",
+            "Vega"
+            
+        };
+        
+        printf("name count is %d\n", (int)aNames.size());
+        
+        gCandidateIndex = 0;
+        for (auto aName: aNames) {
+            if (!Builder::Go("CornTesting/Gen",
+                             aName,
+                             &aError)) {
+                printf("Builder::Go failed:\n%s\n", aError.c_str());
+                return;
+            }
+            gCandidateIndex++;
+        }
+
+        printf("done export...\n");
     }
+    
+    
+    return;
+    
+    /*
     printf("Done with optimal combinations...\n");
     
     
-    /*
+    
     TwistExpander_Achernar aExpander;
 
     Rig aRig;
@@ -303,13 +410,11 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
              aPassword,
              30);
 
-    SnapShotter::SaveProjectRoot("dump",
-                                 "EXPORTS");
-
     printf("exported...\n");
-    
+
     return;
     */
+    
     
     
     /*
@@ -332,6 +437,20 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
                 aPassword[0] = static_cast<unsigned char>(aLetter1);
                 aPassword[1] = static_cast<unsigned char>(aLetter2);
                 aPassword[2] = static_cast<unsigned char>(aLetter3);
+
+                std::array<std::uint8_t, S_BLOCK> aSnowSource{};
+                std::array<std::uint8_t, S_BLOCK> aSnowLaneA{};
+                std::array<std::uint8_t, S_BLOCK> aSnowLaneB{};
+                std::array<std::uint8_t, S_BLOCK> aSnowLaneC{};
+                std::array<std::uint8_t, S_BLOCK> aSnowLaneD{};
+                TwistExpander::UnrollPasswordToSource(aSnowSource.data(),
+                                                      aPassword,
+                                                      3U);
+                TwistSnow::BuildLanes(aSnowSource.data(),
+                                      aSnowLaneA.data(),
+                                      aSnowLaneB.data(),
+                                      aSnowLaneC.data(),
+                                      aSnowLaneD.data());
                 
                 const std::vector<std::uint64_t> aNonces = GenerateUniqueNonces(5U);
                 
@@ -344,11 +463,17 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
                 Rig aRigC;
                 
                 std::string aErrorMessage;
-                if (!RunRigWithWorkSpace(&aExpanderA, &aWorkSpaceA, &aRigA, aNonces, aPassword, 3, &aErrorMessage)) {
+                if (!RunRigWithWorkSpace(&aExpanderA, &aWorkSpaceA, &aRigA, aNonces, aPassword, 3,
+                                         aSnowLaneA.data(), aSnowLaneB.data(),
+                                         aSnowLaneC.data(), aSnowLaneD.data(),
+                                         &aErrorMessage)) {
                     printf("rig A failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
                     return;
                 }
-                if (!RunRigWithWorkSpace(&aExpanderB, &aWorkSpaceB, &aRigB, aNonces, aPassword, 3, &aErrorMessage)) {
+                if (!RunRigWithWorkSpace(&aExpanderB, &aWorkSpaceB, &aRigB, aNonces, aPassword, 3,
+                                         aSnowLaneA.data(), aSnowLaneB.data(),
+                                         aSnowLaneC.data(), aSnowLaneD.data(),
+                                         &aErrorMessage)) {
                     printf("rig B failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
                     return;
                 }
@@ -358,7 +483,10 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
                     return;
                 }
                 
-                if (!RunRigWithWorkSpace(&aExpanderA, &aWorkSpaceC, &aRigC, aNonces, aPassword, 3, &aErrorMessage)) {
+                if (!RunRigWithWorkSpace(&aExpanderA, &aWorkSpaceC, &aRigC, aNonces, aPassword, 3,
+                                         aSnowLaneA.data(), aSnowLaneB.data(),
+                                         aSnowLaneC.data(), aSnowLaneD.data(),
+                                         &aErrorMessage)) {
                     printf("rig C failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
                     return;
                 }
@@ -522,69 +650,6 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
         }
     }
     */
-    
-    
-    if (IsRunningUnderXCTest() == false) {
-        std::string aError;
-        std::vector<std::string> aNames = {
-            "Achernar",
-            "Alcor",
-            "Aldebaran",
-            "Alioth",
-            "Alkaid",
-            "Alnitak",
-            "Altair",
-            "Ankaa",
-            "Antares",
-            "Arcturus",
-            "Athebyne",
-            "Bellatrix",
-            "Betelgeuse",
-            "Canopus",
-            "Capella",
-            "Castor",
-            "Mebsuta",
-            "Menkent",
-            "Mimosa",
-            "Miram",
-            "Mirfak",
-            "Mothallah",
-            "Naos",
-            "Polaris",
-            "Pollux",
-            "Procyon",
-            "Regulus",
-            "Gemma",
-            "Rigel",
-            "Saiph",
-            "Sirius",
-            "Suhail",
-            "Vega"
-            
-        };
-        
-        printf("name count is %d\n", (int)aNames.size());
-        
-        for (auto aName: aNames) {
-            if (!Builder::Go("CornTesting/Gen",
-                             aName,
-                             26,
-                             8,
-                             false,
-                             &aError)) {
-                printf("Builder::Go failed:\n%s\n", aError.c_str());
-                return;
-            }
-            gCandidateIndex++;
-        }
-
-        printf("done export...\n");
-    }
-    
-    
-    return;
-    
-
     /*
     if (IsRunningUnderXCTest() == false) {
         
@@ -616,12 +681,18 @@ bool RunRigWithWorkSpace(TwistExpander *pExpander,
      
         
         GRunMatrixDiffusionConfig aDiffusionA;
-        aDiffusionA.mInputA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
-        aDiffusionA.mInputB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
-        aDiffusionA.mOutputA = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
-        aDiffusionA.mOutputB = BufSymbol(TwistWorkSpaceSlot::kWorkLaneA);
+        aDiffusionA.mInputA = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
+        aDiffusionA.mInputB = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
+        aDiffusionA.mInputC = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
+        aDiffusionA.mInputD = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
+        aDiffusionA.mOutputA = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
+        aDiffusionA.mOutputB = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
+        aDiffusionA.mOutputC = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
+        aDiffusionA.mOutputD = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
         aDiffusionA.mShuffleEntropyA = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
         aDiffusionA.mShuffleEntropyB = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
+        aDiffusionA.mShuffleEntropyC = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
+        aDiffusionA.mShuffleEntropyD = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
         aDiffusionA.mOperationSourceA = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
         aDiffusionA.mOperationSourceB = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
 

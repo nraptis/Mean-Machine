@@ -6,12 +6,16 @@
 #include "GTwistExpander.hpp"
 
 #include "FileIO.hpp"
+#include "FoldSeedControl.hpp"
+#include "FoldTwistControl.hpp"
+#include "GrowAControl.hpp"
+#include "GrowBControl.hpp"
 #include "GSeedRunKDF_A.hpp"
 #include "GSeedRunKDF_B.hpp"
-#include "GSeedRunSeed.hpp"
+#include "GSeedRunKDF_C.hpp"
+#include "GSeedRunKDF_D.hpp"
 #include "GSeedRunStage.hpp"
-#include "GTwistRunGrowKeyA.hpp"
-#include "GTwistRunTwist.hpp"
+#include "ResidualBucket.hpp"
 #include "GJson.hpp"
 #include "Random.hpp"
 #include "stdafx.hpp"
@@ -19,11 +23,13 @@
 #include <array>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 using MeanMachine_json::JsonValue;
@@ -46,6 +52,79 @@ bool SaveTextFile(const std::string &pPath,
         return false;
     }
     return true;
+}
+
+bool EnsureControlValues(std::string *pError) {
+    auto LoadGrowA = [&]() {
+        if (GrowAControl::GeneratedCount() ==
+            GrowAControl::kCandidateCount) {
+            return true;
+        }
+        if (GrowAControl::GeneratedCount() != 0U) {
+            SetError(pError,
+                     "GrowAControl had a partial candidate family.");
+            return false;
+        }
+        GrowAControl::Reset();
+        return GrowAControl::LoadValues("Assets/grow_a_pre_planned",
+                                        pError);
+    };
+
+    auto LoadGrowB = [&]() {
+        if (GrowBControl::GeneratedCount() ==
+            GrowBControl::kCandidateCount) {
+            return true;
+        }
+        if (GrowBControl::GeneratedCount() != 0U) {
+            SetError(pError,
+                     "GrowBControl had a partial candidate family.");
+            return false;
+        }
+        GrowBControl::Reset();
+        return GrowBControl::LoadValues("Assets/grow_b_pre_planned",
+                                        pError);
+    };
+
+    auto LoadSeed = [&]() {
+        if (FoldSeedControl::GeneratedCount() ==
+            FoldSeedControl::kCandidateCount) {
+            return true;
+        }
+        if (FoldSeedControl::GeneratedCount() != 0U) {
+            SetError(pError,
+                     "FoldSeedControl had a partial candidate family.");
+            return false;
+        }
+        FoldSeedControl::Reset();
+        if (!FoldSeedControl::LoadValues("Assets/fold_seed_pre_planned",
+                                         pError)) {
+            return false;
+        }
+        return true;
+    };
+
+    auto LoadTwist = [&]() {
+        if (FoldTwistControl::GeneratedCount() ==
+            FoldTwistControl::kCandidateCount) {
+            return true;
+        }
+        if (FoldTwistControl::GeneratedCount() != 0U) {
+            SetError(pError,
+                     "FoldTwistControl had a partial candidate family.");
+            return false;
+        }
+        FoldTwistControl::Reset();
+        if (!FoldTwistControl::LoadValues("Assets/fold_twist_pre_planned",
+                                          pError)) {
+            return false;
+        }
+        return true;
+    };
+
+    return LoadGrowA() &&
+           LoadGrowB() &&
+           LoadSeed() &&
+           LoadTwist();
 }
 
 std::string SanitizeIdentifier(const std::string &pText,
@@ -111,354 +190,23 @@ std::string UInt64Literal(const std::uint64_t pValue) {
     return aStream.str();
 }
 
-std::string SizeLiteral(const int pValue) {
-    return std::to_string(pValue) + "U";
-}
-
 const char *RandomNonceDiffuseName() {
     return kNonceDiffuseNames[static_cast<std::size_t>(Random::Get(static_cast<int>(kNonceDiffuseNames.size())))];
 }
 
-std::string NonceDeclareLine(const GSymbol &pNonceSymbol,
-                             const int pIndex) {
-    (void)pIndex;
+std::string NonceDeclareLine(const GSymbol &pNonceSymbol) {
     const std::uint64_t aMultiplyWord = Random::Get64HighOdd();
     const std::uint64_t aAddWord = Random::Get64High();
     const char *aDiffuseName = RandomNonceDiffuseName();
 
     std::ostringstream aLine;
-    aLine << "std::uint64_t " << pNonceSymbol.mName << " = TwistMix64::"
+    aLine << "[[maybe_unused]] const std::uint64_t " << pNonceSymbol.mName << " = TwistMix64::"
           << aDiffuseName
           << "(pNonce * "
           << UInt64Literal(aMultiplyWord)
           << " + "
           << UInt64Literal(aAddWord) << ");";
     return aLine.str();
-}
-
-const char *InvestLaneAliasName(const int pIndex) {
-    static const char *kNames[8] = {
-        "aInvestLaneA",
-        "aInvestLaneB",
-        "aInvestLaneC",
-        "aInvestLaneD",
-        "aInvestLaneE",
-        "aInvestLaneF",
-        "aInvestLaneG",
-        "aInvestLaneH"
-    };
-    if ((pIndex < 0) || (pIndex >= 8)) {
-        return "aInvestLaneA";
-    }
-    return kNames[pIndex];
-}
-
-const char *FragmentAliasName(const int pIndex) {
-    static const char *kNames[8] = {
-        "aFragmentA",
-        "aFragmentB",
-        "aFragmentC",
-        "aFragmentD",
-        "aFragmentE",
-        "aFragmentF",
-        "aFragmentG",
-        "aFragmentH"
-    };
-    if ((pIndex < 0) || (pIndex >= 8)) {
-        return "aFragmentA";
-    }
-    return kNames[pIndex];
-}
-
-std::string RandomDiffuse64Name() {
-    switch (Random::Get(3)) {
-        case 0: return "DiffuseA";
-        case 1: return "DiffuseB";
-        default: return "DiffuseC";
-    }
-}
-
-std::vector<int> ShuffledInvestOffsetOrder() {
-    const int aOffsetCount = S_BLOCK / W_KEY;
-    std::vector<int> aOffsets;
-    aOffsets.reserve(static_cast<std::size_t>(aOffsetCount));
-    for (int aIndex = 0; aIndex < aOffsetCount; ++aIndex) {
-        aOffsets.push_back(aIndex);
-    }
-    Random::Shuffle(&aOffsets);
-    return aOffsets;
-}
-
-std::string BuildRandomSquashInvestToKeyBoxesMethod(const std::string &pClassName) {
-    constexpr int kLaneCount = 8;
-    constexpr int kFragmentCount = 16;
-
-    std::array<std::vector<int>, kLaneCount> aOffsetOrders;
-    for (int aLane = 0; aLane < kLaneCount; ++aLane) {
-        aOffsetOrders[static_cast<std::size_t>(aLane)] = ShuffledInvestOffsetOrder();
-    }
-
-    std::ostringstream aStream;
-    aStream << "void " << pClassName << "::SquashInvestToKeyBoxes() {\n"
-    << "    static_assert((S_BLOCK / W_KEY) == 16, \"SquashInvestToKeyBoxes expects 16 invest fragments.\");\n"
-    << "    static_assert(H_KEY == 8, \"SquashInvestToKeyBoxes expects 8 key rows per box.\");\n"
-    << "    TwistWorkSpace *pWorkSpace = mWorkspace;\n"
-    << "    if (pWorkSpace == nullptr) { return; }\n"
-    << "    std::uint8_t *aInvestLaneA = pWorkSpace->mInvestLaneA;\n"
-    << "    std::uint8_t *aInvestLaneB = pWorkSpace->mInvestLaneB;\n"
-    << "    std::uint8_t *aInvestLaneC = pWorkSpace->mInvestLaneC;\n"
-    << "    std::uint8_t *aInvestLaneD = pWorkSpace->mInvestLaneD;\n"
-    << "    std::uint8_t *aInvestLaneE = pWorkSpace->mInvestLaneE;\n"
-    << "    std::uint8_t *aInvestLaneF = pWorkSpace->mInvestLaneF;\n"
-    << "    std::uint8_t *aInvestLaneG = pWorkSpace->mInvestLaneG;\n"
-    << "    std::uint8_t *aInvestLaneH = pWorkSpace->mInvestLaneH;\n"
-    << "\n";
-
-    for (int aFragmentIndex = 0; aFragmentIndex < kFragmentCount; ++aFragmentIndex) {
-        const bool aUseKeyBoxA = (aFragmentIndex < H_KEY);
-        const int aRowIndex = aUseKeyBoxA ? aFragmentIndex : (aFragmentIndex - H_KEY);
-        const char *aKeyBoxName = aUseKeyBoxA ? "mKeyBoxA" : "mKeyBoxB";
-        const char *aKeyBoxComment = aUseKeyBoxA ? "key_box_a" : "key_box_b";
-        std::vector<int> aLaneOrder = { 0, 1, 2, 3, 4, 5, 6, 7 };
-        std::vector<int> aShifts = { 0, 8, 16, 24, 32, 40, 48, 56 };
-        std::vector<int> aIndexOffsets;
-        aIndexOffsets.reserve(kLaneCount);
-        for (int aLane = 0; aLane < kLaneCount; ++aLane) {
-            aIndexOffsets.push_back(Random::Get(W_KEY));
-        }
-        Random::Shuffle(&aLaneOrder);
-        Random::Shuffle(&aShifts);
-        const std::string aDiffuseName = RandomDiffuse64Name();
-
-        aStream << "    // " << aKeyBoxComment << " row " << aRowIndex << "\n"
-        << "    // read chunks:";
-        for (int aFragment = 0; aFragment < kLaneCount; ++aFragment) {
-            const int aLane = aLaneOrder[static_cast<std::size_t>(aFragment)];
-            const std::vector<int> &aOffsets = aOffsetOrders[static_cast<std::size_t>(aLane)];
-            const int aOffset = aOffsets[static_cast<std::size_t>(aFragmentIndex % static_cast<int>(aOffsets.size()))];
-            aStream << (aFragment == 0 ? " " : ", ")
-            << InvestLaneAliasName(aLane) << "[" << aOffset << "]";
-        }
-        aStream << "\n"
-        << "    // index offsets: ";
-        for (int aFragment = 0; aFragment < kLaneCount; ++aFragment) {
-            if (aFragment > 0) {
-                aStream << ", ";
-            }
-            aStream << SizeLiteral(aIndexOffsets[static_cast<std::size_t>(aFragment)]);
-        }
-        aStream << "\n"
-        << "    {\n";
-        for (int aFragment = 0; aFragment < kLaneCount; aFragment += 2) {
-            const int aLaneA = aLaneOrder[static_cast<std::size_t>(aFragment)];
-            const int aLaneB = aLaneOrder[static_cast<std::size_t>(aFragment + 1)];
-            const std::vector<int> &aOffsetsA = aOffsetOrders[static_cast<std::size_t>(aLaneA)];
-            const std::vector<int> &aOffsetsB = aOffsetOrders[static_cast<std::size_t>(aLaneB)];
-            const int aOffsetA = aOffsetsA[static_cast<std::size_t>(aFragmentIndex % static_cast<int>(aOffsetsA.size()))];
-            const int aOffsetB = aOffsetsB[static_cast<std::size_t>(aFragmentIndex % static_cast<int>(aOffsetsB.size()))];
-            aStream << "        std::uint8_t *" << FragmentAliasName(aFragment)
-            << " = " << InvestLaneAliasName(aLaneA)
-            << " + (W_KEY * " << aOffsetA << "U), *"
-            << FragmentAliasName(aFragment + 1)
-            << " = " << InvestLaneAliasName(aLaneB)
-            << " + (W_KEY * " << aOffsetB << "U);\n";
-        }
-        aStream << "        std::uint8_t *aKeyRow = &(pWorkSpace->" << aKeyBoxName
-        << "[" << aRowIndex << "][0]);\n"
-        << "        for (std::size_t aIndex = 0U; aIndex < static_cast<std::size_t>(W_KEY); aIndex += 1U) {\n"
-        << "            std::uint64_t aSquash =\n";
-        for (int aLane = 0; aLane < kLaneCount; aLane += 2) {
-            aStream << "                (static_cast<std::uint64_t>(" << FragmentAliasName(aLane)
-            << "[((aIndex + " << SizeLiteral(aIndexOffsets[static_cast<std::size_t>(aLane)])
-            << ") & W_KEY1)]) << " << aShifts[static_cast<std::size_t>(aLane)] << "U) | "
-            << "(static_cast<std::uint64_t>(" << FragmentAliasName(aLane + 1)
-            << "[((aIndex + " << SizeLiteral(aIndexOffsets[static_cast<std::size_t>(aLane + 1)])
-            << ") & W_KEY1)]) << " << aShifts[static_cast<std::size_t>(aLane + 1)] << "U)";
-            if (aLane == (kLaneCount - 2)) {
-                aStream << ";\n";
-            } else {
-                aStream << " |\n";
-            }
-        }
-        aStream << "            aKeyRow[aIndex] = static_cast<std::uint8_t>(TwistMix64::"
-        << aDiffuseName << "(aSquash));\n"
-        << "        }\n"
-        << "    }\n";
-        if (aFragmentIndex != (kFragmentCount - 1)) {
-            aStream << "\n";
-        }
-    }
-
-    aStream << "}\n";
-    return aStream.str();
-}
-
-// The legacy random builder remains available by switching this off.
-constexpr bool kUsePreplannedSquashInvestToKeyBoxes = true;
-constexpr std::size_t kPreplannedSquashCandidateCount = 33U;
-
-bool BuildSquashInvestToKeyBoxesMethod(const std::string &pClassName,
-                                       std::string *pMethod,
-                                       std::string *pError) {
-    if (pMethod == nullptr) {
-        SetError(pError, "SquashInvestToKeyBoxes method output was null.");
-        return false;
-    }
-
-    if (!kUsePreplannedSquashInvestToKeyBoxes) {
-        *pMethod = BuildRandomSquashInvestToKeyBoxesMethod(pClassName);
-        return true;
-    }
-
-    if ((gCandidateIndex < 0) ||
-        (static_cast<std::size_t>(gCandidateIndex) >= kPreplannedSquashCandidateCount)) {
-        SetError(pError,
-                 "Exhausted all 33 preplanned SquashInvestToKeyBoxes candidates.");
-        return false;
-    }
-    const std::size_t aCandidateIndex = static_cast<std::size_t>(gCandidateIndex);
-    char aFileName[64];
-    std::snprintf(aFileName,
-                  sizeof(aFileName),
-                  "SquashInvestToKeyBoxes_Candidate%02zu.cpp",
-                  aCandidateIndex + 1U);
-    const std::string aRelativePath = FileIO::Join("Assets/squash_pre_planned", aFileName);
-    const std::string aSourcePath = FileIO::ProjectRoot(aRelativePath);
-
-    std::vector<std::uint8_t> aBytes;
-    if (!FileIO::Load(aSourcePath, aBytes)) {
-        SetError(pError, "Failed to load preplanned squash candidate: " + aSourcePath);
-        return false;
-    }
-
-    std::string aMethod(aBytes.begin(), aBytes.end());
-    const std::string aExpectedSignature =
-        "void " + pClassName + "::SquashInvestToKeyBoxes()";
-    const std::size_t aSignatureIndex = aMethod.find(aExpectedSignature);
-    if (aSignatureIndex == std::string::npos) {
-        // Exporters outside the named 33-member family keep the legacy path.
-        *pMethod = BuildRandomSquashInvestToKeyBoxesMethod(pClassName);
-        return true;
-    }
-    if (aMethod.find(aExpectedSignature,
-                     aSignatureIndex + aExpectedSignature.size()) != std::string::npos) {
-        SetError(pError,
-                 "Preplanned squash candidate had multiple matching method signatures: " +
-                 aSourcePath);
-        return false;
-    }
-    *pMethod = std::move(aMethod);
-    std::printf("Loaded preplanned SquashInvestToKeyBoxes file: %s for %s\n",
-                aSourcePath.c_str(),
-                pClassName.c_str());
-    return true;
-}
-
-bool LoadPreplannedGrowKeyAMethod(const std::string &pClassName,
-                                  std::string *pMethod,
-                                  bool *pDidLoad,
-                                  std::string *pError) {
-    if ((pMethod == nullptr) || (pDidLoad == nullptr)) {
-        SetError(pError, "GrowKeyA preplanned loader received null output.");
-        return false;
-    }
-    *pDidLoad = false;
-
-    if ((gCandidateIndex < 0) ||
-        (static_cast<std::size_t>(gCandidateIndex) >= kPreplannedSquashCandidateCount)) {
-        SetError(pError, "GrowKeyA candidate index was outside 0...32.");
-        return false;
-    }
-
-    char aFileName[48];
-    std::snprintf(aFileName,
-                  sizeof(aFileName),
-                  "GrowKeyA_Candidate%02d.cpp",
-                  gCandidateIndex + 1);
-    const std::string aRelativePath = FileIO::Join("Assets/grow_a_pre_planned", aFileName);
-    const std::string aSourcePath = FileIO::ProjectRoot(aRelativePath);
-
-    std::vector<std::uint8_t> aBytes;
-    if (!FileIO::Load(aSourcePath, aBytes)) {
-        SetError(pError, "Failed to load preplanned GrowKeyA candidate: " + aSourcePath);
-        return false;
-    }
-
-    std::string aMethod(aBytes.begin(), aBytes.end());
-    const std::string aExpectedSignature =
-        "void " + pClassName + "::GrowKeyA(TwistWorkSpace *pWorkSpace)";
-    const std::size_t aSignatureIndex = aMethod.find(aExpectedSignature);
-    if (aSignatureIndex == std::string::npos) {
-        // Non-family exporters retain the existing generated GrowKeyA path.
-        return true;
-    }
-    if (aMethod.find(aExpectedSignature,
-                     aSignatureIndex + aExpectedSignature.size()) != std::string::npos) {
-        SetError(pError,
-                 "Preplanned GrowKeyA candidate had multiple matching signatures: " +
-                 aSourcePath);
-        return false;
-    }
-
-    *pMethod = std::move(aMethod);
-    *pDidLoad = true;
-    std::printf("Loaded preplanned GrowKeyA file: %s for %s\n",
-                aSourcePath.c_str(),
-                pClassName.c_str());
-    return true;
-}
-
-bool LoadPreplannedGrowKeyBMethod(const std::string &pClassName,
-                                  std::string *pMethod,
-                                  bool *pDidLoad,
-                                  std::string *pError) {
-    if ((pMethod == nullptr) || (pDidLoad == nullptr)) {
-        SetError(pError, "GrowKeyB preplanned loader received null output.");
-        return false;
-    }
-    *pDidLoad = false;
-
-    if ((gCandidateIndex < 0) ||
-        (static_cast<std::size_t>(gCandidateIndex) >= kPreplannedSquashCandidateCount)) {
-        SetError(pError, "GrowKeyB candidate index was outside 0...32.");
-        return false;
-    }
-
-    char aFileName[48];
-    std::snprintf(aFileName,
-                  sizeof(aFileName),
-                  "GrowKeyB_Candidate%02d.cpp",
-                  gCandidateIndex + 1);
-    const std::string aRelativePath = FileIO::Join("Assets/grow_b_pre_planned", aFileName);
-    const std::string aSourcePath = FileIO::ProjectRoot(aRelativePath);
-
-    std::vector<std::uint8_t> aBytes;
-    if (!FileIO::Load(aSourcePath, aBytes)) {
-        SetError(pError, "Failed to load preplanned GrowKeyB candidate: " + aSourcePath);
-        return false;
-    }
-
-    std::string aMethod(aBytes.begin(), aBytes.end());
-    const std::string aExpectedSignature =
-        "void " + pClassName + "::GrowKeyB(TwistWorkSpace *pWorkSpace)";
-    const std::size_t aSignatureIndex = aMethod.find(aExpectedSignature);
-    if (aSignatureIndex == std::string::npos) {
-        return true;
-    }
-    if (aMethod.find(aExpectedSignature,
-                     aSignatureIndex + aExpectedSignature.size()) != std::string::npos) {
-        SetError(pError,
-                 "Preplanned GrowKeyB candidate had multiple matching signatures: " +
-                 aSourcePath);
-        return false;
-    }
-
-    *pMethod = std::move(aMethod);
-    *pDidLoad = true;
-    std::printf("Loaded preplanned GrowKeyB file: %s for %s\n",
-                aSourcePath.c_str(),
-                pClassName.c_str());
-    return true;
 }
 
 [[maybe_unused]] std::string ResolveJsonOutputPath(const std::string &pRootPath,
@@ -670,14 +418,12 @@ void AppendScalarDeclarationLines(const std::vector<std::string> &pNames,
 std::vector<std::string> WorkspaceDomainWordAliasOrder() {
     std::vector<std::string> aResult;
     const TwistDomain aDomains[] = {
-        TwistDomain::kPhaseA,
-        TwistDomain::kPhaseB,
-        TwistDomain::kPhaseC,
-        TwistDomain::kPhaseD,
-        TwistDomain::kPhaseE,
-        TwistDomain::kPhaseF,
-        TwistDomain::kPhaseG,
-        TwistDomain::kPhaseH
+        TwistDomain::kKeyRotateA,
+        TwistDomain::kKeyRotateB,
+        TwistDomain::kKeySpawnA,
+        TwistDomain::kKeySpawnB,
+        TwistDomain::kSeed,
+        TwistDomain::kTwist
     };
     const TwistConstants aConstants[] = {
         TwistConstants::kIngress,
@@ -835,9 +581,9 @@ bool DecodePhaseSaltWorkspaceSlot(const TwistWorkSpaceSlot pSlot,
                                   int *pRoleOut,
                                   int *pLaneOut) {
     const int aValue = static_cast<int>(pSlot);
-    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kPhaseASaltOrbiterAssignA);
+    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA);
     const int aCountPerPhase = 18;
-    const int aPhaseCount = 8;
+    const int aPhaseCount = 6;
     if ((aValue < aBase) || (aValue >= (aBase + aCountPerPhase * aPhaseCount))) {
         return false;
     }
@@ -860,8 +606,8 @@ void AppendPhaseSaltWorkspaceSlots(std::vector<TwistWorkSpaceSlot> *pSlots) {
     if (pSlots == nullptr) {
         return;
     }
-    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kPhaseASaltOrbiterAssignA);
-    const int aCount = 18 * 8;
+    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA);
+    const int aCount = 18 * 6;
     for (int aOffset = 0; aOffset < aCount; ++aOffset) {
         pSlots->push_back(static_cast<TwistWorkSpaceSlot>(aBase + aOffset));
     }
@@ -876,14 +622,12 @@ std::string PhaseSaltWorkspaceDeclaration(const TwistWorkSpaceSlot pSlot) {
     }
 
     static const char *kPhaseMembers[] = {
-        "mPhaseASalts",
-        "mPhaseBSalts",
-        "mPhaseCSalts",
-        "mPhaseDSalts",
-        "mPhaseESalts",
-        "mPhaseFSalts",
-        "mPhaseGSalts",
-        "mPhaseHSalts"
+        "mKeyRotateASalts",
+        "mKeySpawnASalts",
+        "mSeedSalts",
+        "mTwistSalts",
+        "mKeyRotateBSalts",
+        "mKeySpawnBSalts"
     };
     static const char *kRoleMembers[] = {
         "mOrbiterAssign",
@@ -927,20 +671,20 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
 
-        TwistWorkSpaceSlot::kExpansionLaneA,
-        TwistWorkSpaceSlot::kExpansionLaneB,
-        TwistWorkSpaceSlot::kExpansionLaneC,
-        TwistWorkSpaceSlot::kExpansionLaneD,
+        TwistWorkSpaceSlot::kHeartLaneA,
+        TwistWorkSpaceSlot::kHeartLaneB,
+        TwistWorkSpaceSlot::kHeartLaneC,
+        TwistWorkSpaceSlot::kHeartLaneD,
 
-        TwistWorkSpaceSlot::kWorkLaneA,
-        TwistWorkSpaceSlot::kWorkLaneB,
-        TwistWorkSpaceSlot::kWorkLaneC,
-        TwistWorkSpaceSlot::kWorkLaneD,
+        TwistWorkSpaceSlot::kPoisonLaneA,
+        TwistWorkSpaceSlot::kPoisonLaneB,
+        TwistWorkSpaceSlot::kPoisonLaneC,
+        TwistWorkSpaceSlot::kPoisonLaneD,
 
-        TwistWorkSpaceSlot::kOperationLaneA,
-        TwistWorkSpaceSlot::kOperationLaneB,
-        TwistWorkSpaceSlot::kOperationLaneC,
-        TwistWorkSpaceSlot::kOperationLaneD,
+        TwistWorkSpaceSlot::kSpiritLaneA,
+        TwistWorkSpaceSlot::kSpiritLaneB,
+        TwistWorkSpaceSlot::kSpiritLaneC,
+        TwistWorkSpaceSlot::kSpiritLaneD,
 
         TwistWorkSpaceSlot::kSnowLaneA,
         TwistWorkSpaceSlot::kSnowLaneB,
@@ -972,24 +716,77 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kFuseLaneC,
         TwistWorkSpaceSlot::kFuseLaneD,
 
-        TwistWorkSpaceSlot::kScrapLaneA,
-        TwistWorkSpaceSlot::kScrapLaneB,
-        TwistWorkSpaceSlot::kScrapLaneC,
-        TwistWorkSpaceSlot::kScrapLaneD,
+        TwistWorkSpaceSlot::kWoodLaneA,
+        TwistWorkSpaceSlot::kWoodLaneB,
+        TwistWorkSpaceSlot::kWoodLaneC,
+        TwistWorkSpaceSlot::kWoodLaneD,
 
-        TwistWorkSpaceSlot::kMergeLaneA,
-        TwistWorkSpaceSlot::kMergeLaneB,
-        TwistWorkSpaceSlot::kMergeLaneC,
-        TwistWorkSpaceSlot::kMergeLaneD,
+        TwistWorkSpaceSlot::kLightningLaneA,
+        TwistWorkSpaceSlot::kLightningLaneB,
+        TwistWorkSpaceSlot::kLightningLaneC,
+        TwistWorkSpaceSlot::kLightningLaneD,
 
-        TwistWorkSpaceSlot::kInvestA,
-        TwistWorkSpaceSlot::kInvestB,
-        TwistWorkSpaceSlot::kInvestC,
-        TwistWorkSpaceSlot::kInvestD,
-        TwistWorkSpaceSlot::kInvestE,
-        TwistWorkSpaceSlot::kInvestF,
-        TwistWorkSpaceSlot::kInvestG,
-        TwistWorkSpaceSlot::kInvestH,
+        TwistWorkSpaceSlot::kMagmaLaneA,
+        TwistWorkSpaceSlot::kMagmaLaneB,
+        TwistWorkSpaceSlot::kMagmaLaneC,
+        TwistWorkSpaceSlot::kMagmaLaneD,
+
+        TwistWorkSpaceSlot::kSoilLaneA,
+        TwistWorkSpaceSlot::kSoilLaneB,
+        TwistWorkSpaceSlot::kSoilLaneC,
+        TwistWorkSpaceSlot::kSoilLaneD,
+
+        TwistWorkSpaceSlot::kPlasmaLaneA,
+        TwistWorkSpaceSlot::kPlasmaLaneB,
+        TwistWorkSpaceSlot::kPlasmaLaneC,
+        TwistWorkSpaceSlot::kPlasmaLaneD,
+
+        TwistWorkSpaceSlot::kShadowLaneA,
+        TwistWorkSpaceSlot::kShadowLaneB,
+        TwistWorkSpaceSlot::kShadowLaneC,
+        TwistWorkSpaceSlot::kShadowLaneD,
+
+        TwistWorkSpaceSlot::kCrystalLaneA,
+        TwistWorkSpaceSlot::kCrystalLaneB,
+        TwistWorkSpaceSlot::kCrystalLaneC,
+        TwistWorkSpaceSlot::kCrystalLaneD,
+
+        TwistWorkSpaceSlot::kAetherLaneA,
+        TwistWorkSpaceSlot::kAetherLaneB,
+        TwistWorkSpaceSlot::kAetherLaneC,
+        TwistWorkSpaceSlot::kAetherLaneD,
+
+        TwistWorkSpaceSlot::kCelestialLaneA,
+        TwistWorkSpaceSlot::kCelestialLaneB,
+        TwistWorkSpaceSlot::kCelestialLaneC,
+        TwistWorkSpaceSlot::kCelestialLaneD,
+
+        TwistWorkSpaceSlot::kKineticLaneA,
+        TwistWorkSpaceSlot::kKineticLaneB,
+        TwistWorkSpaceSlot::kKineticLaneC,
+        TwistWorkSpaceSlot::kKineticLaneD,
+
+        TwistWorkSpaceSlot::kVaporLaneA,
+        TwistWorkSpaceSlot::kVaporLaneB,
+        TwistWorkSpaceSlot::kVaporLaneC,
+        TwistWorkSpaceSlot::kVaporLaneD,
+
+        TwistWorkSpaceSlot::kChanceLaneA,
+        TwistWorkSpaceSlot::kChanceLaneB,
+        TwistWorkSpaceSlot::kChanceLaneC,
+        TwistWorkSpaceSlot::kChanceLaneD,
+
+        TwistWorkSpaceSlot::kDomainLaneKeyRotateA,
+        TwistWorkSpaceSlot::kDomainLaneKeyRotateB,
+        TwistWorkSpaceSlot::kDomainLaneKeySpawnA,
+        TwistWorkSpaceSlot::kDomainLaneKeySpawnB,
+        TwistWorkSpaceSlot::kDomainLaneSeed,
+        TwistWorkSpaceSlot::kDomainLaneTwist,
+
+        TwistWorkSpaceSlot::kIceLaneA,
+        TwistWorkSpaceSlot::kIceLaneB,
+        TwistWorkSpaceSlot::kIceLaneC,
+        TwistWorkSpaceSlot::kIceLaneD,
 
         TwistWorkSpaceSlot::kIndexList256A,
         TwistWorkSpaceSlot::kIndexList256B,
@@ -1001,7 +798,25 @@ std::vector<TwistWorkSpaceSlot> FixedWorkspaceSlotOrder() {
         TwistWorkSpaceSlot::kKeyRowReadA,
         TwistWorkSpaceSlot::kKeyRowReadB,
         TwistWorkSpaceSlot::kKeyRowWriteA,
-        TwistWorkSpaceSlot::kKeyRowWriteB
+        TwistWorkSpaceSlot::kKeyRowWriteB,
+
+        TwistWorkSpaceSlot::kKeyRowA0,
+        TwistWorkSpaceSlot::kKeyRowA1,
+        TwistWorkSpaceSlot::kKeyRowA2,
+        TwistWorkSpaceSlot::kKeyRowA3,
+        TwistWorkSpaceSlot::kKeyRowA4,
+        TwistWorkSpaceSlot::kKeyRowA5,
+        TwistWorkSpaceSlot::kKeyRowA6,
+        TwistWorkSpaceSlot::kKeyRowA7,
+
+        TwistWorkSpaceSlot::kKeyRowB0,
+        TwistWorkSpaceSlot::kKeyRowB1,
+        TwistWorkSpaceSlot::kKeyRowB2,
+        TwistWorkSpaceSlot::kKeyRowB3,
+        TwistWorkSpaceSlot::kKeyRowB4,
+        TwistWorkSpaceSlot::kKeyRowB5,
+        TwistWorkSpaceSlot::kKeyRowB6,
+        TwistWorkSpaceSlot::kKeyRowB7
     };
     AppendPhaseSaltWorkspaceSlots(&aSlots);
     return aSlots;
@@ -1041,6 +856,22 @@ bool IsKDFExcludedWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kKeyRowReadB:
         case TwistWorkSpaceSlot::kKeyRowWriteA:
         case TwistWorkSpaceSlot::kKeyRowWriteB:
+        case TwistWorkSpaceSlot::kKeyRowA0:
+        case TwistWorkSpaceSlot::kKeyRowA1:
+        case TwistWorkSpaceSlot::kKeyRowA2:
+        case TwistWorkSpaceSlot::kKeyRowA3:
+        case TwistWorkSpaceSlot::kKeyRowA4:
+        case TwistWorkSpaceSlot::kKeyRowA5:
+        case TwistWorkSpaceSlot::kKeyRowA6:
+        case TwistWorkSpaceSlot::kKeyRowA7:
+        case TwistWorkSpaceSlot::kKeyRowB0:
+        case TwistWorkSpaceSlot::kKeyRowB1:
+        case TwistWorkSpaceSlot::kKeyRowB2:
+        case TwistWorkSpaceSlot::kKeyRowB3:
+        case TwistWorkSpaceSlot::kKeyRowB4:
+        case TwistWorkSpaceSlot::kKeyRowB5:
+        case TwistWorkSpaceSlot::kKeyRowB6:
+        case TwistWorkSpaceSlot::kKeyRowB7:
         case TwistWorkSpaceSlot::kSnowLaneA:
         case TwistWorkSpaceSlot::kSnowLaneB:
         case TwistWorkSpaceSlot::kSnowLaneC:
@@ -1049,6 +880,62 @@ bool IsKDFExcludedWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
         default:
             return false;
     }
+}
+
+bool IsSnowSlot(const TwistWorkSpaceSlot pSlot) {
+    switch (pSlot) {
+        case TwistWorkSpaceSlot::kSnowLaneA:
+        case TwistWorkSpaceSlot::kSnowLaneB:
+        case TwistWorkSpaceSlot::kSnowLaneC:
+        case TwistWorkSpaceSlot::kSnowLaneD:
+            return true;
+        default:
+            return false;
+    }
+}
+
+std::string UseSnowParameters(std::string pText) {
+    static const char *kAliases[] = {
+        "aSnowLaneA",
+        "aSnowLaneB",
+        "aSnowLaneC",
+        "aSnowLaneD",
+    };
+    static const char *kParameters[] = {
+        "pSnowLaneA",
+        "pSnowLaneB",
+        "pSnowLaneC",
+        "pSnowLaneD",
+    };
+    for (std::size_t aIndex = 0U; aIndex < 4U; ++aIndex) {
+        std::size_t aOffset = 0U;
+        while ((aOffset = pText.find(kAliases[aIndex], aOffset)) != std::string::npos) {
+            const std::size_t aAliasLength =
+                std::strlen(kAliases[aIndex]);
+            const bool aHasIdentifierBefore =
+                (aOffset > 0U) &&
+                ((std::isalnum(
+                    static_cast<unsigned char>(pText[aOffset - 1U])
+                ) != 0) ||
+                 (pText[aOffset - 1U] == '_'));
+            const std::size_t aAfter = aOffset + aAliasLength;
+            const bool aHasIdentifierAfter =
+                (aAfter < pText.size()) &&
+                ((std::isalnum(
+                    static_cast<unsigned char>(pText[aAfter])
+                ) != 0) ||
+                 (pText[aAfter] == '_'));
+            if (aHasIdentifierBefore || aHasIdentifierAfter) {
+                aOffset += aAliasLength;
+                continue;
+            }
+            pText.replace(aOffset,
+                          aAliasLength,
+                          kParameters[aIndex]);
+            aOffset += std::strlen(kParameters[aIndex]);
+        }
+    }
+    return pText;
 }
 
 bool IsImplicitPointerWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
@@ -1063,7 +950,9 @@ bool IsImplicitPointerWorkspaceSlot(const TwistWorkSpaceSlot pSlot) {
 }
 
 std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
-                                      const bool pUseKDFParameterAliases) {
+                                      const bool pUseKDFParameterAliases,
+                                      const bool pUseSnowParameters) {
+    (void)pUseSnowParameters;
     const std::string aPhaseSaltDeclaration = PhaseSaltWorkspaceDeclaration(pSlot);
     if (!aPhaseSaltDeclaration.empty()) {
         return aPhaseSaltDeclaration;
@@ -1128,25 +1017,25 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF:
             return "std::uint64_t *aWandererUpdateSaltF = pDomainSaltSet->mWandererUpdate.mSaltF;";
 
-        case TwistWorkSpaceSlot::kExpansionLaneA: return aPrefix + "pWorkSpace->mExpansionLaneA;";
-        case TwistWorkSpaceSlot::kExpansionLaneB: return aPrefix + "pWorkSpace->mExpansionLaneB;";
-        case TwistWorkSpaceSlot::kExpansionLaneC: return aPrefix + "pWorkSpace->mExpansionLaneC;";
-        case TwistWorkSpaceSlot::kExpansionLaneD: return aPrefix + "pWorkSpace->mExpansionLaneD;";
+        case TwistWorkSpaceSlot::kHeartLaneA: return aPrefix + "pWorkSpace->mHeartLaneA;";
+        case TwistWorkSpaceSlot::kHeartLaneB: return aPrefix + "pWorkSpace->mHeartLaneB;";
+        case TwistWorkSpaceSlot::kHeartLaneC: return aPrefix + "pWorkSpace->mHeartLaneC;";
+        case TwistWorkSpaceSlot::kHeartLaneD: return aPrefix + "pWorkSpace->mHeartLaneD;";
 
-        case TwistWorkSpaceSlot::kWorkLaneA: return aPrefix + "pWorkSpace->mWorkLaneA;";
-        case TwistWorkSpaceSlot::kWorkLaneB: return aPrefix + "pWorkSpace->mWorkLaneB;";
-        case TwistWorkSpaceSlot::kWorkLaneC: return aPrefix + "pWorkSpace->mWorkLaneC;";
-        case TwistWorkSpaceSlot::kWorkLaneD: return aPrefix + "pWorkSpace->mWorkLaneD;";
+        case TwistWorkSpaceSlot::kPoisonLaneA: return aPrefix + "pWorkSpace->mPoisonLaneA;";
+        case TwistWorkSpaceSlot::kPoisonLaneB: return aPrefix + "pWorkSpace->mPoisonLaneB;";
+        case TwistWorkSpaceSlot::kPoisonLaneC: return aPrefix + "pWorkSpace->mPoisonLaneC;";
+        case TwistWorkSpaceSlot::kPoisonLaneD: return aPrefix + "pWorkSpace->mPoisonLaneD;";
 
-        case TwistWorkSpaceSlot::kOperationLaneA: return aPrefix + "pWorkSpace->mOperationLaneA;";
-        case TwistWorkSpaceSlot::kOperationLaneB: return aPrefix + "pWorkSpace->mOperationLaneB;";
-        case TwistWorkSpaceSlot::kOperationLaneC: return aPrefix + "pWorkSpace->mOperationLaneC;";
-        case TwistWorkSpaceSlot::kOperationLaneD: return aPrefix + "pWorkSpace->mOperationLaneD;";
+        case TwistWorkSpaceSlot::kSpiritLaneA: return aPrefix + "pWorkSpace->mSpiritLaneA;";
+        case TwistWorkSpaceSlot::kSpiritLaneB: return aPrefix + "pWorkSpace->mSpiritLaneB;";
+        case TwistWorkSpaceSlot::kSpiritLaneC: return aPrefix + "pWorkSpace->mSpiritLaneC;";
+        case TwistWorkSpaceSlot::kSpiritLaneD: return aPrefix + "pWorkSpace->mSpiritLaneD;";
 
-        case TwistWorkSpaceSlot::kSnowLaneA: return aPrefix + "pWorkSpace->mSnowLaneA;";
-        case TwistWorkSpaceSlot::kSnowLaneB: return aPrefix + "pWorkSpace->mSnowLaneB;";
-        case TwistWorkSpaceSlot::kSnowLaneC: return aPrefix + "pWorkSpace->mSnowLaneC;";
-        case TwistWorkSpaceSlot::kSnowLaneD: return aPrefix + "pWorkSpace->mSnowLaneD;";
+        case TwistWorkSpaceSlot::kSnowLaneA: return aPrefix + "pWorkSpace->mHeartLaneA;";
+        case TwistWorkSpaceSlot::kSnowLaneB: return aPrefix + "pWorkSpace->mHeartLaneB;";
+        case TwistWorkSpaceSlot::kSnowLaneC: return aPrefix + "pWorkSpace->mHeartLaneC;";
+        case TwistWorkSpaceSlot::kSnowLaneD: return aPrefix + "pWorkSpace->mHeartLaneD;";
         case TwistWorkSpaceSlot::kFireLaneA: return aPrefix + "pWorkSpace->mFireLaneA;";
         case TwistWorkSpaceSlot::kFireLaneB: return aPrefix + "pWorkSpace->mFireLaneB;";
         case TwistWorkSpaceSlot::kFireLaneC: return aPrefix + "pWorkSpace->mFireLaneC;";
@@ -1167,24 +1056,66 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
         case TwistWorkSpaceSlot::kFuseLaneB: return aPrefix + "pWorkSpace->mFuseLaneB;";
         case TwistWorkSpaceSlot::kFuseLaneC: return aPrefix + "pWorkSpace->mFuseLaneC;";
         case TwistWorkSpaceSlot::kFuseLaneD: return aPrefix + "pWorkSpace->mFuseLaneD;";
-        case TwistWorkSpaceSlot::kScrapLaneA: return aPrefix + "pWorkSpace->mScrapLaneA;";
-        case TwistWorkSpaceSlot::kScrapLaneB: return aPrefix + "pWorkSpace->mScrapLaneB;";
-        case TwistWorkSpaceSlot::kScrapLaneC: return aPrefix + "pWorkSpace->mScrapLaneC;";
-        case TwistWorkSpaceSlot::kScrapLaneD: return aPrefix + "pWorkSpace->mScrapLaneD;";
-        case TwistWorkSpaceSlot::kMergeLaneA: return aPrefix + "pWorkSpace->mMergeLaneA;";
-        case TwistWorkSpaceSlot::kMergeLaneB: return aPrefix + "pWorkSpace->mMergeLaneB;";
-        case TwistWorkSpaceSlot::kMergeLaneC: return aPrefix + "pWorkSpace->mMergeLaneC;";
-        case TwistWorkSpaceSlot::kMergeLaneD: return aPrefix + "pWorkSpace->mMergeLaneD;";
+        case TwistWorkSpaceSlot::kWoodLaneA: return aPrefix + "pWorkSpace->mWoodLaneA;";
+        case TwistWorkSpaceSlot::kWoodLaneB: return aPrefix + "pWorkSpace->mWoodLaneB;";
+        case TwistWorkSpaceSlot::kWoodLaneC: return aPrefix + "pWorkSpace->mWoodLaneC;";
+        case TwistWorkSpaceSlot::kWoodLaneD: return aPrefix + "pWorkSpace->mWoodLaneD;";
+        case TwistWorkSpaceSlot::kLightningLaneA: return aPrefix + "pWorkSpace->mLightningLaneA;";
+        case TwistWorkSpaceSlot::kLightningLaneB: return aPrefix + "pWorkSpace->mLightningLaneB;";
+        case TwistWorkSpaceSlot::kLightningLaneC: return aPrefix + "pWorkSpace->mLightningLaneC;";
+        case TwistWorkSpaceSlot::kLightningLaneD: return aPrefix + "pWorkSpace->mLightningLaneD;";
+        case TwistWorkSpaceSlot::kMagmaLaneA: return aPrefix + "pWorkSpace->mMagmaLaneA;";
+        case TwistWorkSpaceSlot::kMagmaLaneB: return aPrefix + "pWorkSpace->mMagmaLaneB;";
+        case TwistWorkSpaceSlot::kMagmaLaneC: return aPrefix + "pWorkSpace->mMagmaLaneC;";
+        case TwistWorkSpaceSlot::kMagmaLaneD: return aPrefix + "pWorkSpace->mMagmaLaneD;";
+        case TwistWorkSpaceSlot::kSoilLaneA: return aPrefix + "pWorkSpace->mSoilLaneA;";
+        case TwistWorkSpaceSlot::kSoilLaneB: return aPrefix + "pWorkSpace->mSoilLaneB;";
+        case TwistWorkSpaceSlot::kSoilLaneC: return aPrefix + "pWorkSpace->mSoilLaneC;";
+        case TwistWorkSpaceSlot::kSoilLaneD: return aPrefix + "pWorkSpace->mSoilLaneD;";
+        case TwistWorkSpaceSlot::kPlasmaLaneA: return aPrefix + "pWorkSpace->mPlasmaLaneA;";
+        case TwistWorkSpaceSlot::kPlasmaLaneB: return aPrefix + "pWorkSpace->mPlasmaLaneB;";
+        case TwistWorkSpaceSlot::kPlasmaLaneC: return aPrefix + "pWorkSpace->mPlasmaLaneC;";
+        case TwistWorkSpaceSlot::kPlasmaLaneD: return aPrefix + "pWorkSpace->mPlasmaLaneD;";
+        case TwistWorkSpaceSlot::kShadowLaneA: return aPrefix + "pWorkSpace->mShadowLaneA;";
+        case TwistWorkSpaceSlot::kShadowLaneB: return aPrefix + "pWorkSpace->mShadowLaneB;";
+        case TwistWorkSpaceSlot::kShadowLaneC: return aPrefix + "pWorkSpace->mShadowLaneC;";
+        case TwistWorkSpaceSlot::kShadowLaneD: return aPrefix + "pWorkSpace->mShadowLaneD;";
+        case TwistWorkSpaceSlot::kCrystalLaneA: return aPrefix + "pWorkSpace->mCrystalLaneA;";
+        case TwistWorkSpaceSlot::kCrystalLaneB: return aPrefix + "pWorkSpace->mCrystalLaneB;";
+        case TwistWorkSpaceSlot::kCrystalLaneC: return aPrefix + "pWorkSpace->mCrystalLaneC;";
+        case TwistWorkSpaceSlot::kCrystalLaneD: return aPrefix + "pWorkSpace->mCrystalLaneD;";
+        case TwistWorkSpaceSlot::kAetherLaneA: return aPrefix + "pWorkSpace->mAetherLaneA;";
+        case TwistWorkSpaceSlot::kAetherLaneB: return aPrefix + "pWorkSpace->mAetherLaneB;";
+        case TwistWorkSpaceSlot::kAetherLaneC: return aPrefix + "pWorkSpace->mAetherLaneC;";
+        case TwistWorkSpaceSlot::kAetherLaneD: return aPrefix + "pWorkSpace->mAetherLaneD;";
+        case TwistWorkSpaceSlot::kCelestialLaneA: return aPrefix + "pWorkSpace->mCelestialLaneA;";
+        case TwistWorkSpaceSlot::kCelestialLaneB: return aPrefix + "pWorkSpace->mCelestialLaneB;";
+        case TwistWorkSpaceSlot::kCelestialLaneC: return aPrefix + "pWorkSpace->mCelestialLaneC;";
+        case TwistWorkSpaceSlot::kCelestialLaneD: return aPrefix + "pWorkSpace->mCelestialLaneD;";
+        case TwistWorkSpaceSlot::kKineticLaneA: return aPrefix + "pWorkSpace->mKineticLaneA;";
+        case TwistWorkSpaceSlot::kKineticLaneB: return aPrefix + "pWorkSpace->mKineticLaneB;";
+        case TwistWorkSpaceSlot::kKineticLaneC: return aPrefix + "pWorkSpace->mKineticLaneC;";
+        case TwistWorkSpaceSlot::kKineticLaneD: return aPrefix + "pWorkSpace->mKineticLaneD;";
+        case TwistWorkSpaceSlot::kVaporLaneA: return aPrefix + "pWorkSpace->mVaporLaneA;";
+        case TwistWorkSpaceSlot::kVaporLaneB: return aPrefix + "pWorkSpace->mVaporLaneB;";
+        case TwistWorkSpaceSlot::kVaporLaneC: return aPrefix + "pWorkSpace->mVaporLaneC;";
+        case TwistWorkSpaceSlot::kVaporLaneD: return aPrefix + "pWorkSpace->mVaporLaneD;";
+        case TwistWorkSpaceSlot::kChanceLaneA: return aPrefix + "pWorkSpace->mChanceLaneA;";
+        case TwistWorkSpaceSlot::kChanceLaneB: return aPrefix + "pWorkSpace->mChanceLaneB;";
+        case TwistWorkSpaceSlot::kChanceLaneC: return aPrefix + "pWorkSpace->mChanceLaneC;";
+        case TwistWorkSpaceSlot::kChanceLaneD: return aPrefix + "pWorkSpace->mChanceLaneD;";
+        case TwistWorkSpaceSlot::kDomainLaneKeyRotateA: return aPrefix + "pWorkSpace->mDomainLaneKeyRotateA;";
+        case TwistWorkSpaceSlot::kDomainLaneKeyRotateB: return aPrefix + "pWorkSpace->mDomainLaneKeyRotateB;";
+        case TwistWorkSpaceSlot::kDomainLaneKeySpawnA: return aPrefix + "pWorkSpace->mDomainLaneKeySpawnA;";
+        case TwistWorkSpaceSlot::kDomainLaneKeySpawnB: return aPrefix + "pWorkSpace->mDomainLaneKeySpawnB;";
+        case TwistWorkSpaceSlot::kDomainLaneSeed: return aPrefix + "pWorkSpace->mDomainLaneSeed;";
+        case TwistWorkSpaceSlot::kDomainLaneTwist: return aPrefix + "pWorkSpace->mDomainLaneTwist;";
         case TwistWorkSpaceSlot::kParamSnow: return aPrefix + "pSnow;";
 
-        case TwistWorkSpaceSlot::kInvestA: return aPrefix + "pWorkSpace->mInvestLaneA;";
-        case TwistWorkSpaceSlot::kInvestB: return aPrefix + "pWorkSpace->mInvestLaneB;";
-        case TwistWorkSpaceSlot::kInvestC: return aPrefix + "pWorkSpace->mInvestLaneC;";
-        case TwistWorkSpaceSlot::kInvestD: return aPrefix + "pWorkSpace->mInvestLaneD;";
-        case TwistWorkSpaceSlot::kInvestE: return aPrefix + "pWorkSpace->mInvestLaneE;";
-        case TwistWorkSpaceSlot::kInvestF: return aPrefix + "pWorkSpace->mInvestLaneF;";
-        case TwistWorkSpaceSlot::kInvestG: return aPrefix + "pWorkSpace->mInvestLaneG;";
-        case TwistWorkSpaceSlot::kInvestH: return aPrefix + "pWorkSpace->mInvestLaneH;";
+        case TwistWorkSpaceSlot::kIceLaneA: return aPrefix + "pWorkSpace->mIceLaneA;";
+        case TwistWorkSpaceSlot::kIceLaneB: return aPrefix + "pWorkSpace->mIceLaneB;";
+        case TwistWorkSpaceSlot::kIceLaneC: return aPrefix + "pWorkSpace->mIceLaneC;";
+        case TwistWorkSpaceSlot::kIceLaneD: return aPrefix + "pWorkSpace->mIceLaneD;";
 
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return aPrefix + "&(pWorkSpace->mKeyBoxA[0][0]);";
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return aPrefix + "&(pWorkSpace->mKeyBoxB[0][0]);";
@@ -1193,11 +1124,48 @@ std::string WorkspaceAliasDeclaration(const TwistWorkSpaceSlot pSlot,
         case TwistWorkSpaceSlot::kKeyRowWriteA: return aPrefix + "&(pWorkSpace->mKeyBoxA[0][0]);";
         case TwistWorkSpaceSlot::kKeyRowWriteB: return aPrefix + "&(pWorkSpace->mKeyBoxB[0][0]);";
 
+        case TwistWorkSpaceSlot::kKeyRowA0: return aPrefix + "&(pWorkSpace->mKeyBoxA[0][0]);";
+        case TwistWorkSpaceSlot::kKeyRowA1: return aPrefix + "&(pWorkSpace->mKeyBoxA[1][0]);";
+        case TwistWorkSpaceSlot::kKeyRowA2: return aPrefix + "&(pWorkSpace->mKeyBoxA[2][0]);";
+        case TwistWorkSpaceSlot::kKeyRowA3: return aPrefix + "&(pWorkSpace->mKeyBoxA[3][0]);";
+        case TwistWorkSpaceSlot::kKeyRowA4: return aPrefix + "&(pWorkSpace->mKeyBoxA[4][0]);";
+        case TwistWorkSpaceSlot::kKeyRowA5: return aPrefix + "&(pWorkSpace->mKeyBoxA[5][0]);";
+        case TwistWorkSpaceSlot::kKeyRowA6: return aPrefix + "&(pWorkSpace->mKeyBoxA[6][0]);";
+        case TwistWorkSpaceSlot::kKeyRowA7: return aPrefix + "&(pWorkSpace->mKeyBoxA[7][0]);";
+
+        case TwistWorkSpaceSlot::kKeyRowB0: return aPrefix + "&(pWorkSpace->mKeyBoxB[0][0]);";
+        case TwistWorkSpaceSlot::kKeyRowB1: return aPrefix + "&(pWorkSpace->mKeyBoxB[1][0]);";
+        case TwistWorkSpaceSlot::kKeyRowB2: return aPrefix + "&(pWorkSpace->mKeyBoxB[2][0]);";
+        case TwistWorkSpaceSlot::kKeyRowB3: return aPrefix + "&(pWorkSpace->mKeyBoxB[3][0]);";
+        case TwistWorkSpaceSlot::kKeyRowB4: return aPrefix + "&(pWorkSpace->mKeyBoxB[4][0]);";
+        case TwistWorkSpaceSlot::kKeyRowB5: return aPrefix + "&(pWorkSpace->mKeyBoxB[5][0]);";
+        case TwistWorkSpaceSlot::kKeyRowB6: return aPrefix + "&(pWorkSpace->mKeyBoxB[6][0]);";
+        case TwistWorkSpaceSlot::kKeyRowB7: return aPrefix + "&(pWorkSpace->mKeyBoxB[7][0]);";
+
         default:
             return aPrefix +
                    "TwistWorkSpace::GetBuffer(pWorkSpace, this, static_cast<TwistWorkSpaceSlot>(" +
                    std::to_string(static_cast<int>(pSlot)) + "));";
     }
+}
+
+std::string LaneSplitAliasDeclaration(
+    const TwistBufferKey pKey,
+    const bool pUseSnowParameters) {
+    if (!pKey.IsLaneSplit()) {
+        return "";
+    }
+    const TwistWorkSpaceSlot aSlot =
+        static_cast<TwistWorkSpaceSlot>(pKey.mSlot);
+    std::string aBaseAlias = BufAliasName(aSlot);
+    if (pUseSnowParameters &&
+        IsSnowSlot(aSlot)) {
+        aBaseAlias = UseSnowParameters(aBaseAlias);
+    }
+    return "std::uint8_t *" + BufAliasName(pKey) + " = " +
+           aBaseAlias + " + (W_KEY * " +
+           std::to_string(static_cast<unsigned int>(pKey.mLaneSplit)) +
+           "U);";
 }
 
 bool ParseBatchJson(const std::string &pBatchJson,
@@ -1228,6 +1196,7 @@ enum class ArxCallKind {
 struct ArxCallExport {
     ArxCallKind mKind = ArxCallKind::kKDF;
     bool mUsesSnow = false;
+    bool mUsesSnowLanes = false;
     bool mUsesNonce = true;
     std::string mBatchName;
     std::string mStartLine;
@@ -1405,7 +1374,8 @@ void AppendExternalArxStateVariables(std::vector<std::string> *pScalarVariables)
 }
 
 void AppendArxCall(const ArxCallExport &pArxCall,
-                   std::ostringstream *pStream) {
+                   std::ostringstream *pStream,
+                   const bool pForwardArxStateParameters = false) {
     if (pStream == nullptr) {
         return;
     }
@@ -1421,21 +1391,29 @@ void AppendArxCall(const ArxCallExport &pArxCall,
         if (pArxCall.mKind == ArxCallKind::kTwist) {
             *pStream << "                 pSource,\n";
         }
+        if (pArxCall.mUsesSnowLanes) {
+            *pStream
+            << "                 pSnowLaneA,\n"
+            << "                 pSnowLaneB,\n"
+            << "                 pSnowLaneC,\n"
+            << "                 pSnowLaneD,\n";
+        }
+        const char *aStatePrefix = pForwardArxStateParameters ? "p" : "&a";
         *pStream
-        << "                 &aPrevious,\n"
-        << "                 &aIngress,\n"
-        << "                 &aCarry,\n"
-        << "                 &aWandererA,\n"
-        << "                 &aWandererB,\n"
-        << "                 &aWandererC,\n"
-        << "                 &aWandererD,\n"
-        << "                 &aWandererE,\n"
-        << "                 &aWandererF,\n"
-        << "                 &aWandererG,\n"
-        << "                 &aWandererH,\n"
-        << "                 &aWandererI,\n"
-        << "                 &aWandererJ,\n"
-        << "                 &aWandererK);\n"
+        << "                 " << aStatePrefix << "Previous,\n"
+        << "                 " << aStatePrefix << "Ingress,\n"
+        << "                 " << aStatePrefix << "Carry,\n"
+        << "                 " << aStatePrefix << "WandererA,\n"
+        << "                 " << aStatePrefix << "WandererB,\n"
+        << "                 " << aStatePrefix << "WandererC,\n"
+        << "                 " << aStatePrefix << "WandererD,\n"
+        << "                 " << aStatePrefix << "WandererE,\n"
+        << "                 " << aStatePrefix << "WandererF,\n"
+        << "                 " << aStatePrefix << "WandererG,\n"
+        << "                 " << aStatePrefix << "WandererH,\n"
+        << "                 " << aStatePrefix << "WandererI,\n"
+        << "                 " << aStatePrefix << "WandererJ,\n"
+        << "                 " << aStatePrefix << "WandererK);\n"
         << "\n";
         return;
     }
@@ -1446,116 +1424,26 @@ void AppendArxCall(const ArxCallExport &pArxCall,
     << "                 pConstants,\n"
     << "                 pDomainSaltSet,\n";
     if (pArxCall.mUsesSnow) {
-        *pStream << "                 pSnow,\n";
+        *pStream << "                 pSnowLaneA,\n";
     }
+    const char *aStatePrefix =
+        pForwardArxStateParameters ? "p" : "&a";
     *pStream
-    << "                 &aPrevious,\n"
-    << "                 &aIngress,\n"
-    << "                 &aCarry,\n"
-    << "                 &aWandererA,\n"
-    << "                 &aWandererB,\n"
-    << "                 &aWandererC,\n"
-    << "                 &aWandererD,\n"
-    << "                 &aWandererE,\n"
-    << "                 &aWandererF,\n"
-    << "                 &aWandererG,\n"
-    << "                 &aWandererH,\n"
-    << "                 &aWandererI,\n"
-    << "                 &aWandererJ,\n"
-    << "                 &aWandererK);\n"
+    << "                 " << aStatePrefix << "Previous,\n"
+    << "                 " << aStatePrefix << "Ingress,\n"
+    << "                 " << aStatePrefix << "Carry,\n"
+    << "                 " << aStatePrefix << "WandererA,\n"
+    << "                 " << aStatePrefix << "WandererB,\n"
+    << "                 " << aStatePrefix << "WandererC,\n"
+    << "                 " << aStatePrefix << "WandererD,\n"
+    << "                 " << aStatePrefix << "WandererE,\n"
+    << "                 " << aStatePrefix << "WandererF,\n"
+    << "                 " << aStatePrefix << "WandererG,\n"
+    << "                 " << aStatePrefix << "WandererH,\n"
+    << "                 " << aStatePrefix << "WandererI,\n"
+    << "                 " << aStatePrefix << "WandererJ,\n"
+    << "                 " << aStatePrefix << "WandererK);\n"
     << "\n";
-}
-
-void AppendSnapShotStart(const std::string &pFunctionName,
-                         const char *pGuardExpression,
-                         std::ostringstream *pStream) {
-    if ((pStream == nullptr) || pFunctionName.empty()) {
-        return;
-    }
-
-    if ((pGuardExpression != nullptr) && (pGuardExpression[0] != '\0')) {
-        *pStream << "    if (" << pGuardExpression << ") {\n"
-                 << "        SnapShotter::" << pFunctionName << "(pWorkSpace, this);\n"
-                 << "    }\n"
-                 << "\n";
-        return;
-    }
-
-    *pStream << "    SnapShotter::" << pFunctionName << "(pWorkSpace, this);\n"
-             << "\n";
-}
-
-void AppendSnapShotUpdate(const std::string &pFunctionName,
-                          const char *pGuardExpression,
-                          const std::string &pName,
-                          std::ostringstream *pStream) {
-    if ((pStream == nullptr) || pFunctionName.empty() || pName.empty()) {
-        return;
-    }
-
-    if ((pGuardExpression != nullptr) && (pGuardExpression[0] != '\0')) {
-        *pStream << "    if (" << pGuardExpression << ") {\n"
-                 << "        SnapShotter::" << pFunctionName << "(pWorkSpace, this, \"" << pName << "\");\n"
-                 << "    }\n"
-                 << "\n";
-        return;
-    }
-
-    *pStream << "    SnapShotter::" << pFunctionName << "(pWorkSpace, this, \"" << pName << "\");\n"
-             << "\n";
-}
-
-void AppendWorkspaceMemsetLines(std::ostringstream *pStream,
-                                const std::vector<const char *> &pFieldNames,
-                                const char *pByteCountText = "S_BLOCK") {
-    if (pStream == nullptr) {
-        return;
-    }
-
-    for (const char *aFieldName : pFieldNames) {
-        *pStream << "    std::memset(pWorkSpace->" << aFieldName << ", 0, " << pByteCountText << ");\n";
-    }
-    *pStream << "\n";
-}
-
-void AppendSeedSnapShotScratchZero(std::ostringstream *pStream) {
-    AppendWorkspaceMemsetLines(pStream, {
-        "mOperationLaneA", "mOperationLaneB", "mOperationLaneC", "mOperationLaneD",
-        "mWorkLaneA", "mWorkLaneB", "mWorkLaneC", "mWorkLaneD",
-        "mExpansionLaneA", "mExpansionLaneB", "mExpansionLaneC", "mExpansionLaneD",
-        "mFireLaneA", "mFireLaneB", "mFireLaneC", "mFireLaneD",
-        "mWaterLaneA", "mWaterLaneB", "mWaterLaneC", "mWaterLaneD",
-        "mEarthLaneA", "mEarthLaneB", "mEarthLaneC", "mEarthLaneD",
-        "mWindLaneA", "mWindLaneB", "mWindLaneC", "mWindLaneD",
-        "mFuseLaneA", "mFuseLaneB", "mFuseLaneC", "mFuseLaneD",
-        "mScrapLaneA", "mScrapLaneB", "mScrapLaneC", "mScrapLaneD",
-        "mSnowLaneA", "mSnowLaneB", "mSnowLaneC", "mSnowLaneD",
-    });
-    AppendWorkspaceMemsetLines(pStream, {
-        "mMergeLaneA", "mMergeLaneB", "mMergeLaneC", "mMergeLaneD",
-    }, "S_QUARTER");
-}
-
-void AppendSeedSnapShotInvestZero(std::ostringstream *pStream) {
-    AppendWorkspaceMemsetLines(pStream, {
-        "mInvestLaneA", "mInvestLaneB", "mInvestLaneC", "mInvestLaneD",
-        "mInvestLaneE", "mInvestLaneF", "mInvestLaneG", "mInvestLaneH",
-    });
-}
-
-std::string SnapShotDiffuseName(const std::string &pPrefix,
-                                const std::size_t pIndex) {
-    if (pPrefix.empty()) {
-        return "";
-    }
-    if (((pPrefix == "KDF_A_DIFFUSE") ||
-         (pPrefix == "KDF_B_DIFFUSE") ||
-         (pPrefix == "TWIST_DIFFUSE")) &&
-        (pIndex == 0U)) {
-        return pPrefix;
-    }
-    const char aSuffix = static_cast<char>('A' + static_cast<int>(pIndex % 26U));
-    return pPrefix + "_" + std::string(1U, aSuffix);
 }
 
 bool IsTwistDiffuseBatch(const GBatch &pBatch) {
@@ -1575,14 +1463,18 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
                       const ArxCallExport *pArxCallE = nullptr,
                       const ArxCallExport *pArxCallF = nullptr,
                       const ArxCallExport *pArxCallG = nullptr,
-                      const char *pSnapShotUpdateFunction = nullptr,
-                      const char *pSnapShotGuardExpression = nullptr,
-                      const char *pDiffuseSnapShotPrefix = nullptr,
-                      const bool pSnapShotSeedCrunch = false,
                       const ArxCallExport *pArxCallH = nullptr,
                       const ArxCallExport *pArxCallI = nullptr,
                       const bool pForceWorkspaceSourceAlias = false,
-                      const bool pSkipTwistDiffuseBatches = false) {
+                      const bool pSkipTwistDiffuseBatches = false,
+                      const bool pUseSnowParameters = false,
+                      const ArxCallExport *pArxCallJ = nullptr,
+                      const ArxCallExport *pArxCallK = nullptr,
+                      const ArxCallExport *pArxCallL = nullptr,
+                      const ArxCallExport *pArxCallM = nullptr,
+                      const ArxCallExport *pArxCallN = nullptr,
+                      const ArxCallExport *pArxCallO = nullptr,
+                      const ArxCallExport *pArxCallP = nullptr) {
     if (pStream == nullptr) {
         SetError(pError, "Branch output stream was null.");
         return false;
@@ -1616,6 +1508,27 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     if (pArxCallI != nullptr) {
         aArxCalls.push_back(pArxCallI);
     }
+    if (pArxCallJ != nullptr) {
+        aArxCalls.push_back(pArxCallJ);
+    }
+    if (pArxCallK != nullptr) {
+        aArxCalls.push_back(pArxCallK);
+    }
+    if (pArxCallL != nullptr) {
+        aArxCalls.push_back(pArxCallL);
+    }
+    if (pArxCallM != nullptr) {
+        aArxCalls.push_back(pArxCallM);
+    }
+    if (pArxCallN != nullptr) {
+        aArxCalls.push_back(pArxCallN);
+    }
+    if (pArxCallO != nullptr) {
+        aArxCalls.push_back(pArxCallO);
+    }
+    if (pArxCallP != nullptr) {
+        aArxCalls.push_back(pArxCallP);
+    }
 
     struct ParsedBatch {
         bool mValid = false;
@@ -1647,6 +1560,12 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     std::vector<std::string> aDeclaredNames;
     for (const std::string &aLine : pBranch.GetStringLines()) {
         const std::string aNormalizedLine = NormalizeLegacyByteTypeLine(aLine);
+        if (aNormalizedLine == "READ_IN_MUTABLE_PARAMS;") {
+            for (const char *aName : kExternalArxStateVariables) {
+                AppendUniqueValue(&aDeclaredNames, std::string(aName));
+            }
+            continue;
+        }
         const std::string aDeclaredName = DeclaredIdentifierFromLine(aNormalizedLine);
         if (!aDeclaredName.empty()) {
             AppendUniqueValue(&aDeclaredNames, aDeclaredName);
@@ -1655,6 +1574,7 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     std::vector<std::string> aLoopVariables;
     std::vector<std::string> aScalarVariables;
     std::vector<TwistWorkSpaceSlot> aReferencedSlots;
+    std::vector<GSymbol> aReferencedLaneSplits;
     for (const ParsedBatch &aParsed : aParsedBatches) {
         if (!aParsed.mValid) {
             continue;
@@ -1677,9 +1597,20 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         for (TwistWorkSpaceSlot aSlot : aBatch.CollectReferencedSlots()) {
             AppendUniqueValue(&aReferencedSlots, aSlot);
         }
+        for (const GSymbol &aBuffer : aBatch.CollectReferencedBuffers()) {
+            if (aBuffer.mKey.IsLaneSplit() &&
+                (std::find(aReferencedLaneSplits.begin(),
+                           aReferencedLaneSplits.end(),
+                           aBuffer) == aReferencedLaneSplits.end())) {
+                aReferencedLaneSplits.push_back(aBuffer);
+            }
+        }
     }
     const std::vector<std::string> aReferencedScalarVariables = aScalarVariables;
-    if (!aArxCalls.empty()) {
+    const bool aForwardsArxStateParameters =
+        UsesArxCallKind(aArxCalls, ArxCallKind::kGrow) ||
+        UsesArxCallKind(aArxCalls, ArxCallKind::kKDF);
+    if (!aArxCalls.empty() && !aForwardsArxStateParameters) {
         AppendExternalArxStateVariables(&aScalarVariables);
     }
 
@@ -1711,7 +1642,7 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
                        }),
         aScalarVariables.end());
     const bool aUsesSeedArxState = UsesArxCallKind(aArxCalls, ArxCallKind::kSeed);
-    if (aUsesSeedArxState) {
+    if (aUsesSeedArxState || aForwardsArxStateParameters) {
         aScalarVariables.erase(
             std::remove_if(aScalarVariables.begin(),
                            aScalarVariables.end(),
@@ -1740,11 +1671,42 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         if (!pIncludeKDFParameterAliases && IsParamDomainSaltWorkspaceSlot(aSlot)) {
             continue;
         }
+        if (pUseSnowParameters && IsSnowSlot(aSlot)) {
+            continue;
+        }
         const std::string aAliasName = BufAliasName(aSlot);
         if (ContainsText(aDeclaredNames, aAliasName)) {
             continue;
         }
-        *pStream << "    " << WorkspaceAliasDeclaration(aSlot, pIncludeKDFParameterAliases) << '\n';
+        *pStream << "    " << WorkspaceAliasDeclaration(aSlot,
+                                                         pIncludeKDFParameterAliases,
+                                                         pUseSnowParameters) << '\n';
+        AppendUniqueValue(&aDeclaredNames, aAliasName);
+        aWroteDeclaration = true;
+    }
+
+    std::sort(aReferencedLaneSplits.begin(),
+              aReferencedLaneSplits.end(),
+              [](const GSymbol &pLeft, const GSymbol &pRight) {
+                  if (pLeft.mKey.mSlot != pRight.mKey.mSlot) {
+                      return pLeft.mKey.mSlot < pRight.mKey.mSlot;
+                  }
+                  return pLeft.mKey.mLaneSplit < pRight.mKey.mLaneSplit;
+              });
+    for (const GSymbol &aBuffer : aReferencedLaneSplits) {
+        const std::string aAliasName = BufAliasName(aBuffer);
+        if (ContainsText(aDeclaredNames, aAliasName)) {
+            continue;
+        }
+        const std::string aDeclaration =
+            LaneSplitAliasDeclaration(
+                aBuffer.mKey,
+                pUseSnowParameters
+            );
+        if (aDeclaration.empty()) {
+            continue;
+        }
+        *pStream << "    " << aDeclaration << '\n';
         AppendUniqueValue(&aDeclaredNames, aAliasName);
         aWroteDeclaration = true;
     }
@@ -1793,29 +1755,20 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
             SetError(pError, "Branch line step index was out of range during export.");
             return false;
         }
-        const std::string aLine = NormalizeLegacyByteTypeLine(pBranch.GetStringLines()[pIndex]);
+        std::string aLine = NormalizeLegacyByteTypeLine(pBranch.GetStringLines()[pIndex]);
+        if (pUseSnowParameters) {
+            aLine = UseSnowParameters(std::move(aLine));
+        }
         if (ShouldSkipExternalArxLine(aArxCalls, aLine)) {
             return true;
         }
         if (ShouldSkipUnusedExternalArxDeclarationLine(aArxCalls, aReferencedScalarVariables, aLine)) {
             return true;
         }
-        if (pSnapShotSeedCrunch && (TrimText(aLine) == "SquashInvestToKeyBoxes();")) {
-            AppendSeedSnapShotScratchZero(pStream);
-            AppendSnapShotStart("SnapStart_SEED", nullptr, pStream);
-            *pStream << IndentBlock(aLine, 1) << '\n'
-                     << "\n";
-            AppendSnapShotUpdate("SnapUpdate_SEED", nullptr, "INVEST_KEY_BOX", pStream);
-            AppendSeedSnapShotInvestZero(pStream);
-            AppendSnapShotUpdate("SnapUpdate_SEED", nullptr, "ZERO_INVEST", pStream);
-            return true;
-        }
         *pStream << IndentBlock(aLine, 1) << '\n';
         return true;
     };
 
-    std::size_t aDiffuseBatchCount = 0U;
-    std::size_t aDiffuseSnapShotIndex = 0U;
     auto AppendBatchByIndex = [&](const std::size_t pIndex) -> bool {
         if (pIndex >= aParsedBatches.size()) {
             SetError(pError, "Branch batch step index was out of range during export.");
@@ -1829,13 +1782,9 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         }
 
         if (const ArxCallExport *aArxCall = FindNextArxCallForBatch(aParsed.mBatch.mName)) {
-            AppendArxCall(*aArxCall, pStream);
-            if (pSnapShotUpdateFunction != nullptr) {
-                AppendSnapShotUpdate(pSnapShotUpdateFunction,
-                                     pSnapShotGuardExpression,
-                                     aArxCall->mMethodName,
-                                     pStream);
-            }
+            AppendArxCall(*aArxCall,
+                          pStream,
+                          aForwardsArxStateParameters);
             return true;
         }
         if (pSkipTwistDiffuseBatches && IsTwistDiffuseBatch(aParsed.mBatch)) {
@@ -1843,7 +1792,10 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         }
 
         std::string aScopeError;
-        const std::string aScopeBlock = aParsed.mBatch.BuildCppScopeBlock(&aScopeError, false);
+        std::string aScopeBlock = aParsed.mBatch.BuildCppScopeBlock(&aScopeError, false);
+        if (pUseSnowParameters) {
+            aScopeBlock = UseSnowParameters(std::move(aScopeBlock));
+        }
         if (aScopeBlock.empty()) {
             if (aScopeError.empty()) {
                 aScopeError = "Batch scope-block export returned empty text.";
@@ -1857,17 +1809,6 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
         }
 
         *pStream << IndentBlock(aScopeBlock, 1) << '\n';
-        if ((pSnapShotUpdateFunction != nullptr) &&
-            (aScopeBlock.find("TwistDiffuse::") != std::string::npos)) {
-            ++aDiffuseBatchCount;
-            if ((aDiffuseBatchCount % 2U) == 0U) {
-                AppendSnapShotUpdate(pSnapShotUpdateFunction,
-                                     pSnapShotGuardExpression,
-                                     SnapShotDiffuseName((pDiffuseSnapShotPrefix == nullptr) ? "" : pDiffuseSnapShotPrefix,
-                                                         aDiffuseSnapShotIndex++),
-                                     pStream);
-            }
-        }
         return true;
     };
 
@@ -1910,6 +1851,30 @@ bool AppendBranchBody(const TwistProgramBranch &pBranch,
     return true;
 }
 
+bool AppendSnowParameterBranchBody(
+    const TwistProgramBranch &pBranch,
+    std::ostringstream *pStream,
+    std::string *pError) {
+    return AppendBranchBody(
+        pBranch,
+        false,
+        pStream,
+        pError,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        false,
+        false,
+        true
+    );
+}
+
 bool ResolveSeedStageConfigs(const std::vector<GSeedRunStageConfig> &pConfigs,
                              std::vector<GSeedRunStageConfig> *pResolved,
                              std::string *pError) {
@@ -1919,32 +1884,58 @@ bool ResolveSeedStageConfigs(const std::vector<GSeedRunStageConfig> &pConfigs,
     }
 
     *pResolved = pConfigs;
-    if (pResolved->empty()) {
-        *pResolved = {
-            GSeedRunSeedConfig::MakeSeed_AConfig(true),
-            GSeedRunSeedConfig::MakeSeed_BConfig(true),
-            GSeedRunSeedConfig::MakeSeed_CConfig(true),
-            GSeedRunSeedConfig::MakeSeed_DConfig(true),
-            GSeedRunSeedConfig::MakeSeed_EConfig(true),
-            GSeedRunSeedConfig::MakeSeed_FConfig(true),
-            GSeedRunSeedConfig::MakeSeed_GConfig(true),
-            GSeedRunSeedConfig::MakeSeed_HConfig(true),
-            GSeedRunSeedConfig::MakeSeed_IConfig(true),
-        };
-    }
-    if (pResolved->size() != 9U) {
-        SetError(pError, "Seed ARX export expected exactly nine stage configs.");
+    if (pResolved->size() != 14U) {
+        SetError(pError,
+                 "Seed ARX export requires exactly fourteen supplied "
+                 "stage configs.");
         return false;
     }
 
-    static const std::array<const char *, 9> kStageNames = {
+    static const std::array<const char *, 14> kStageNames = {
         "GSeedRunSeed_A", "GSeedRunSeed_B", "GSeedRunSeed_C",
         "GSeedRunSeed_D", "GSeedRunSeed_E", "GSeedRunSeed_F",
         "GSeedRunSeed_G", "GSeedRunSeed_H", "GSeedRunSeed_I",
+        "GSeedRunSeed_J", "GSeedRunSeed_K", "GSeedRunSeed_L",
+        "GSeedRunSeed_M", "GSeedRunSeed_N",
     };
     for (std::size_t i = 0U; i < pResolved->size(); ++i) {
         if ((*pResolved)[i].mStageName != kStageNames[i]) {
-            SetError(pError, "Seed ARX stage config order did not match A through I.");
+            SetError(pError, "Seed ARX stage config order did not match A through N.");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ResolveSeedKeyBoxStageConfigs(
+    const std::vector<GSeedRunStageConfig> &pConfigs,
+    std::vector<GSeedRunStageConfig> *pResolved,
+    std::string *pError) {
+    if (pResolved == nullptr) {
+        SetError(pError,
+                 "Seed key-box ARX stage config destination was null.");
+        return false;
+    }
+
+    *pResolved = pConfigs;
+    if (pResolved->size() != 1U) {
+        SetError(pError,
+                 "Seed key-box ARX export requires exactly one supplied "
+                 "KEY stage config.");
+        return false;
+    }
+
+    static const std::array<const char *, 1> kStageNames = {
+        "GSeedRunKEY",
+    };
+    static const std::array<const char *, 1> kBatchNames = {
+        "key_box",
+    };
+    for (std::size_t i = 0U; i < pResolved->size(); ++i) {
+        if (((*pResolved)[i].mStageName != kStageNames[i]) ||
+            ((*pResolved)[i].mBatchName != kBatchNames[i])) {
+            SetError(pError,
+                     "Seed key-box ARX stage config did not match KEY.");
             return false;
         }
     }
@@ -1960,32 +1951,107 @@ bool ResolveTwistStageConfigs(const std::vector<GSeedRunStageConfig> &pConfigs,
     }
 
     *pResolved = pConfigs;
-    if (pResolved->empty()) {
-        *pResolved = {
-            GTwistRunTwistConfig::MakeTwist_AConfig(),
-            GTwistRunTwistConfig::MakeTwist_BConfig(),
-            GTwistRunTwistConfig::MakeTwist_CConfig(),
-            GTwistRunTwistConfig::MakeTwist_DConfig(),
-            GTwistRunTwistConfig::MakeTwist_EConfig(),
-            GTwistRunTwistConfig::MakeTwist_FConfig(),
-            GTwistRunTwistConfig::MakeTwist_GConfig(),
-        };
-    }
-    if (pResolved->size() != 7U) {
-        SetError(pError, "Twist ARX export expected exactly seven stage configs.");
+    if (pResolved->size() != 8U) {
+        SetError(pError,
+                 "Twist ARX export requires exactly eight supplied "
+                 "stage configs.");
         return false;
     }
 
-    static const std::array<const char *, 7> kStageNames = {
+    static const std::array<const char *, 8> kStageNames = {
         "GTwistRunTwist_A", "GTwistRunTwist_B", "GTwistRunTwist_C",
         "GTwistRunTwist_D", "GTwistRunTwist_E", "GTwistRunTwist_F",
-        "GTwistRunTwist_G",
+        "GTwistRunTwist_G", "GTwistRunTwist_H",
     };
     for (std::size_t i = 0U; i < pResolved->size(); ++i) {
         if ((*pResolved)[i].mStageName != kStageNames[i]) {
-            SetError(pError, "Twist ARX stage config order did not match A through G.");
+            SetError(pError, "Twist ARX stage config order did not match A through H.");
             return false;
         }
+    }
+    return true;
+}
+
+bool ResolveGrowStageConfig(const GSeedRunStageConfig &pConfig,
+                            const std::string &pExpectedStageName,
+                            GSeedRunStageConfig *pResolved,
+                            std::string *pError) {
+    if (pResolved == nullptr) {
+        SetError(pError, "Grow ARX stage config destination was null.");
+        return false;
+    }
+
+    *pResolved = pConfig;
+    if (pResolved->mStageName != pExpectedStageName) {
+        SetError(pError, "Grow ARX stage config name did not match " +
+                         pExpectedStageName + ".");
+        return false;
+    }
+    if (!pResolved->mSliceDomains.empty() &&
+        (pResolved->mSliceDomains.size() != pResolved->mSlices.size())) {
+        SetError(pError, pExpectedStageName +
+                         " must retain exactly one domain per slice.");
+        return false;
+    }
+
+    auto IsActiveDomain = [](const TwistDomain pDomain) {
+        return (pDomain == TwistDomain::kKeyRotateA) ||
+               (pDomain == TwistDomain::kKeyRotateB) ||
+               (pDomain == TwistDomain::kKeySpawnA) ||
+               (pDomain == TwistDomain::kKeySpawnB) ||
+               (pDomain == TwistDomain::kSeed) ||
+               (pDomain == TwistDomain::kTwist);
+    };
+    if (!IsActiveDomain(pResolved->mDomain)) {
+        SetError(pError, pExpectedStageName +
+                         " domain must be one of the six active domains.");
+        return false;
+    }
+    for (TwistDomain aDomain : pResolved->mSliceDomains) {
+        if (!IsActiveDomain(aDomain)) {
+            SetError(pError, pExpectedStageName +
+                             " scheduled a retired domain.");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ResolveGrowStageConfigs(
+    const std::vector<GSeedRunStageConfig> &pConfigs,
+    const bool pGrowA,
+    std::vector<GSeedRunStageConfig> *pResolved,
+    std::string *pError) {
+    if (pResolved == nullptr) {
+        SetError(pError, "Grow ARX stage config destination was null.");
+        return false;
+    }
+
+    const std::array<const char *, 4> aExpectedNames = pGrowA ?
+        std::array<const char *, 4>{
+            "GROW_A_A", "GROW_A_B", "GROW_A_C", "GROW_A_D",
+        } :
+        std::array<const char *, 4>{
+            "GROW_B_A", "GROW_B_B", "GROW_B_C", "GROW_B_D",
+        };
+
+    *pResolved = pConfigs;
+    if (pResolved->size() != 4U) {
+        SetError(pError, pGrowA ?
+            "Grow A ARX export requires exactly four supplied stage configs." :
+            "Grow B ARX export requires exactly four supplied stage configs.");
+        return false;
+    }
+
+    for (std::size_t i = 0U; i < pResolved->size(); ++i) {
+        GSeedRunStageConfig aValidated;
+        if (!ResolveGrowStageConfig((*pResolved)[i],
+                                    aExpectedNames[i],
+                                    &aValidated,
+                                    pError)) {
+            return false;
+        }
+        (*pResolved)[i] = std::move(aValidated);
     }
     return true;
 }
@@ -2037,7 +2103,7 @@ void AddExportArxKDFPrologue(TwistProgramBranch *pBranch,
 
     pBranch->AddLine("// [kdf-a arx]");
     for (std::size_t i = 0U; i < kNonceVariableNames.size(); ++i) {
-        pBranch->AddLine(NonceDeclareLine(GSymbol::Var(kNonceVariableNames[i]), static_cast<int>(i)));
+        pBranch->AddLine(NonceDeclareLine(GSymbol::Var(kNonceVariableNames[i])));
     }
     pBranch->AddLine("std::uint64_t aDomainWordIngress = pConstants->mIngress;");
     pBranch->AddLine("std::uint64_t aDomainWordScatter = pConstants->mScatter;");
@@ -2045,20 +2111,7 @@ void AddExportArxKDFPrologue(TwistProgramBranch *pBranch,
     if (pUsesSource) {
         pBranch->AddLine("std::uint8_t *aSource = pWorkSpace->mSource;");
     }
-    pBranch->AddLine("std::uint64_t aPrevious = *pPrevious;");
-    pBranch->AddLine("std::uint64_t aIngress = *pIngress;");
-    pBranch->AddLine("std::uint64_t aCarry = *pCarry;");
-    pBranch->AddLine("std::uint64_t aWandererA = *pWandererA;");
-    pBranch->AddLine("std::uint64_t aWandererB = *pWandererB;");
-    pBranch->AddLine("std::uint64_t aWandererC = *pWandererC;");
-    pBranch->AddLine("std::uint64_t aWandererD = *pWandererD;");
-    pBranch->AddLine("std::uint64_t aWandererE = *pWandererE;");
-    pBranch->AddLine("std::uint64_t aWandererF = *pWandererF;");
-    pBranch->AddLine("std::uint64_t aWandererG = *pWandererG;");
-    pBranch->AddLine("std::uint64_t aWandererH = *pWandererH;");
-    pBranch->AddLine("std::uint64_t aWandererI = *pWandererI;");
-    pBranch->AddLine("std::uint64_t aWandererJ = *pWandererJ;");
-    pBranch->AddLine("std::uint64_t aWandererK = *pWandererK;");
+    pBranch->AddLine("READ_IN_MUTABLE_PARAMS;");
 }
 
 void AddExportArxKDF_A_AEpilogue(TwistProgramBranch *pBranch) {
@@ -2066,20 +2119,7 @@ void AddExportArxKDF_A_AEpilogue(TwistProgramBranch *pBranch) {
         return;
     }
 
-    pBranch->AddLine("*pPrevious = aPrevious;");
-    pBranch->AddLine("*pIngress = aIngress;");
-    pBranch->AddLine("*pCarry = aCarry;");
-    pBranch->AddLine("*pWandererA = aWandererA;");
-    pBranch->AddLine("*pWandererB = aWandererB;");
-    pBranch->AddLine("*pWandererC = aWandererC;");
-    pBranch->AddLine("*pWandererD = aWandererD;");
-    pBranch->AddLine("*pWandererE = aWandererE;");
-    pBranch->AddLine("*pWandererF = aWandererF;");
-    pBranch->AddLine("*pWandererG = aWandererG;");
-    pBranch->AddLine("*pWandererH = aWandererH;");
-    pBranch->AddLine("*pWandererI = aWandererI;");
-    pBranch->AddLine("*pWandererJ = aWandererJ;");
-    pBranch->AddLine("*pWandererK = aWandererK;");
+    pBranch->AddLine("WRITE_OUT_MUTABLE_PARAMS;");
 }
 
 void AddExportArxSeedNonceLines(TwistProgramBranch *pBranch) {
@@ -2107,7 +2147,7 @@ void AddExportArxSeedNonceLines(TwistProgramBranch *pBranch) {
     };
 
     for (std::size_t i = 0U; i < kNonceVariableNames.size(); ++i) {
-        pBranch->AddLine(NonceDeclareLine(GSymbol::Var(kNonceVariableNames[i]), static_cast<int>(i)));
+        pBranch->AddLine(NonceDeclareLine(GSymbol::Var(kNonceVariableNames[i])));
     }
 }
 
@@ -2121,20 +2161,7 @@ void AddExportArxSeedPrologue(TwistProgramBranch *pBranch,
     if (pUsesSource) {
         pBranch->AddLine("std::uint8_t *aSource = pWorkSpace->mSource;");
     }
-    pBranch->AddLine("std::uint64_t aPrevious = *pPrevious;");
-    pBranch->AddLine("std::uint64_t aIngress = *pIngress;");
-    pBranch->AddLine("std::uint64_t aCarry = *pCarry;");
-    pBranch->AddLine("std::uint64_t aWandererA = *pWandererA;");
-    pBranch->AddLine("std::uint64_t aWandererB = *pWandererB;");
-    pBranch->AddLine("std::uint64_t aWandererC = *pWandererC;");
-    pBranch->AddLine("std::uint64_t aWandererD = *pWandererD;");
-    pBranch->AddLine("std::uint64_t aWandererE = *pWandererE;");
-    pBranch->AddLine("std::uint64_t aWandererF = *pWandererF;");
-    pBranch->AddLine("std::uint64_t aWandererG = *pWandererG;");
-    pBranch->AddLine("std::uint64_t aWandererH = *pWandererH;");
-    pBranch->AddLine("std::uint64_t aWandererI = *pWandererI;");
-    pBranch->AddLine("std::uint64_t aWandererJ = *pWandererJ;");
-    pBranch->AddLine("std::uint64_t aWandererK = *pWandererK;");
+    pBranch->AddLine("READ_IN_MUTABLE_PARAMS;");
 }
 
 void AddExportArxSeedEpilogue(TwistProgramBranch *pBranch) {
@@ -2142,20 +2169,7 @@ void AddExportArxSeedEpilogue(TwistProgramBranch *pBranch) {
         return;
     }
 
-    pBranch->AddLine("*pPrevious = aPrevious;");
-    pBranch->AddLine("*pIngress = aIngress;");
-    pBranch->AddLine("*pCarry = aCarry;");
-    pBranch->AddLine("*pWandererA = aWandererA;");
-    pBranch->AddLine("*pWandererB = aWandererB;");
-    pBranch->AddLine("*pWandererC = aWandererC;");
-    pBranch->AddLine("*pWandererD = aWandererD;");
-    pBranch->AddLine("*pWandererE = aWandererE;");
-    pBranch->AddLine("*pWandererF = aWandererF;");
-    pBranch->AddLine("*pWandererG = aWandererG;");
-    pBranch->AddLine("*pWandererH = aWandererH;");
-    pBranch->AddLine("*pWandererI = aWandererI;");
-    pBranch->AddLine("*pWandererJ = aWandererJ;");
-    pBranch->AddLine("*pWandererK = aWandererK;");
+    pBranch->AddLine("WRITE_OUT_MUTABLE_PARAMS;");
 }
 
 void AddExportArxTwistPrologue(TwistProgramBranch *pBranch,
@@ -2168,20 +2182,7 @@ void AddExportArxTwistPrologue(TwistProgramBranch *pBranch,
     if (pUsesSource) {
         pBranch->AddLine("std::uint8_t *aSource = pSource;");
     }
-    pBranch->AddLine("std::uint64_t aPrevious = *pPrevious;");
-    pBranch->AddLine("std::uint64_t aIngress = *pIngress;");
-    pBranch->AddLine("std::uint64_t aCarry = *pCarry;");
-    pBranch->AddLine("std::uint64_t aWandererA = *pWandererA;");
-    pBranch->AddLine("std::uint64_t aWandererB = *pWandererB;");
-    pBranch->AddLine("std::uint64_t aWandererC = *pWandererC;");
-    pBranch->AddLine("std::uint64_t aWandererD = *pWandererD;");
-    pBranch->AddLine("std::uint64_t aWandererE = *pWandererE;");
-    pBranch->AddLine("std::uint64_t aWandererF = *pWandererF;");
-    pBranch->AddLine("std::uint64_t aWandererG = *pWandererG;");
-    pBranch->AddLine("std::uint64_t aWandererH = *pWandererH;");
-    pBranch->AddLine("std::uint64_t aWandererI = *pWandererI;");
-    pBranch->AddLine("std::uint64_t aWandererJ = *pWandererJ;");
-    pBranch->AddLine("std::uint64_t aWandererK = *pWandererK;");
+    pBranch->AddLine("READ_IN_MUTABLE_PARAMS;");
 }
 
 void AddExportArxGrowPrologue(TwistProgramBranch *pBranch) {
@@ -2190,20 +2191,7 @@ void AddExportArxGrowPrologue(TwistProgramBranch *pBranch) {
     }
 
     pBranch->AddLine("// [grow arx]");
-    pBranch->AddLine("std::uint64_t aPrevious = *pPrevious;");
-    pBranch->AddLine("std::uint64_t aIngress = *pIngress;");
-    pBranch->AddLine("std::uint64_t aCarry = *pCarry;");
-    pBranch->AddLine("std::uint64_t aWandererA = *pWandererA;");
-    pBranch->AddLine("std::uint64_t aWandererB = *pWandererB;");
-    pBranch->AddLine("std::uint64_t aWandererC = *pWandererC;");
-    pBranch->AddLine("std::uint64_t aWandererD = *pWandererD;");
-    pBranch->AddLine("std::uint64_t aWandererE = *pWandererE;");
-    pBranch->AddLine("std::uint64_t aWandererF = *pWandererF;");
-    pBranch->AddLine("std::uint64_t aWandererG = *pWandererG;");
-    pBranch->AddLine("std::uint64_t aWandererH = *pWandererH;");
-    pBranch->AddLine("std::uint64_t aWandererI = *pWandererI;");
-    pBranch->AddLine("std::uint64_t aWandererJ = *pWandererJ;");
-    pBranch->AddLine("std::uint64_t aWandererK = *pWandererK;");
+    pBranch->AddLine("READ_IN_MUTABLE_PARAMS;");
 }
 
 bool BuildExportArxKDFBranch(TwistProgramBranch *pBranch,
@@ -2332,18 +2320,20 @@ bool BuildExportArxGrowBranch(TwistProgramBranch *pBranch,
     return true;
 }
 
-bool BuildExportArxGrow_ABranch(TwistProgramBranch *pBranch,
+[[maybe_unused]] bool BuildExportArxGrow_ABranch(TwistProgramBranch *pBranch,
+                                 const GSeedRunStageConfig &pConfig,
                                  std::string *pError) {
     return BuildExportArxGrowBranch(pBranch,
-                                    GTwistRunGrowKeyConfig::MakeGrowAConfig(),
+                                    pConfig,
                                     "GROW_A",
                                     pError);
 }
 
-bool BuildExportArxGrow_BBranch(TwistProgramBranch *pBranch,
+[[maybe_unused]] bool BuildExportArxGrow_BBranch(TwistProgramBranch *pBranch,
+                                const GSeedRunStageConfig &pConfig,
                                 std::string *pError) {
     return BuildExportArxGrowBranch(pBranch,
-                                    GTwistRunGrowKeyConfig::MakeGrowBConfig(),
+                                    pConfig,
                                     "GROW_B",
                                     pError);
 }
@@ -2370,27 +2360,15 @@ void AppendArxKDFSignature(std::ostringstream *pStream,
         *pStream << "                     std::uint8_t *pSnow,\n";
     }
     *pStream
-    << "                     std::uint64_t *pPrevious,\n"
-    << "                     std::uint64_t *pIngress,\n"
-    << "                     std::uint64_t *pCarry,\n"
-    << "                     std::uint64_t *pWandererA,\n"
-    << "                     std::uint64_t *pWandererB,\n"
-    << "                     std::uint64_t *pWandererC,\n"
-    << "                     std::uint64_t *pWandererD,\n"
-    << "                     std::uint64_t *pWandererE,\n"
-    << "                     std::uint64_t *pWandererF,\n"
-    << "                     std::uint64_t *pWandererG,\n"
-    << "                     std::uint64_t *pWandererH,\n"
-    << "                     std::uint64_t *pWandererI,\n"
-    << "                     std::uint64_t *pWandererJ,\n"
-    << "                     std::uint64_t *pWandererK)" << aSuffix;
+    << "                     MUTABLE_PARAMS)" << aSuffix;
 }
 
 void AppendArxSeedSignature(std::ostringstream *pStream,
                             const std::string &pClassName,
                             const std::string &pMethodName,
                             const bool pDefinition,
-                            const bool pUsesNonce = true) {
+                            const bool pUsesNonce = true,
+                            const bool pUsesSnowLanes = false) {
     if (pStream == nullptr) {
         return;
     }
@@ -2404,21 +2382,14 @@ void AppendArxSeedSignature(std::ostringstream *pStream,
     if (pUsesNonce) {
         *pStream << "                     std::uint64_t pNonce,\n";
     }
-    *pStream
-    << "                     std::uint64_t *pPrevious,\n"
-    << "                     std::uint64_t *pIngress,\n"
-    << "                     std::uint64_t *pCarry,\n"
-    << "                     std::uint64_t *pWandererA,\n"
-    << "                     std::uint64_t *pWandererB,\n"
-    << "                     std::uint64_t *pWandererC,\n"
-    << "                     std::uint64_t *pWandererD,\n"
-    << "                     std::uint64_t *pWandererE,\n"
-    << "                     std::uint64_t *pWandererF,\n"
-    << "                     std::uint64_t *pWandererG,\n"
-    << "                     std::uint64_t *pWandererH,\n"
-    << "                     std::uint64_t *pWandererI,\n"
-    << "                     std::uint64_t *pWandererJ,\n"
-    << "                     std::uint64_t *pWandererK)" << aSuffix;
+    if (pUsesSnowLanes) {
+        *pStream
+        << "                     std::uint8_t *pSnowLaneA,\n"
+        << "                     std::uint8_t *pSnowLaneB,\n"
+        << "                     std::uint8_t *pSnowLaneC,\n"
+        << "                     std::uint8_t *pSnowLaneD,\n";
+    }
+    *pStream << "                     MUTABLE_PARAMS)" << aSuffix;
 }
 
 void AppendArxTwistSignature(std::ostringstream *pStream,
@@ -2441,20 +2412,11 @@ void AppendArxTwistSignature(std::ostringstream *pStream,
     }
     *pStream
     << "                     std::uint8_t *pSource,\n"
-    << "                     std::uint64_t *pPrevious,\n"
-    << "                     std::uint64_t *pIngress,\n"
-    << "                     std::uint64_t *pCarry,\n"
-    << "                     std::uint64_t *pWandererA,\n"
-    << "                     std::uint64_t *pWandererB,\n"
-    << "                     std::uint64_t *pWandererC,\n"
-    << "                     std::uint64_t *pWandererD,\n"
-    << "                     std::uint64_t *pWandererE,\n"
-    << "                     std::uint64_t *pWandererF,\n"
-    << "                     std::uint64_t *pWandererG,\n"
-    << "                     std::uint64_t *pWandererH,\n"
-    << "                     std::uint64_t *pWandererI,\n"
-    << "                     std::uint64_t *pWandererJ,\n"
-    << "                     std::uint64_t *pWandererK)" << aSuffix;
+    << "                     std::uint8_t *pSnowLaneA,\n"
+    << "                     std::uint8_t *pSnowLaneB,\n"
+    << "                     std::uint8_t *pSnowLaneC,\n"
+    << "                     std::uint8_t *pSnowLaneD,\n"
+    << "                     MUTABLE_PARAMS)" << aSuffix;
 }
 
 void AppendArxGrowSignature(std::ostringstream *pStream,
@@ -2471,66 +2433,169 @@ void AppendArxGrowSignature(std::ostringstream *pStream,
     const std::string aSuffix = pDefinition ? " {\n" : ";\n";
     *pStream
     << aPrefix << pMethodName << "(TwistWorkSpace *pWorkSpace,\n"
-    << "                     std::uint64_t *pPrevious,\n"
-    << "                     std::uint64_t *pIngress,\n"
-    << "                     std::uint64_t *pCarry,\n"
-    << "                     std::uint64_t *pWandererA,\n"
-    << "                     std::uint64_t *pWandererB,\n"
-    << "                     std::uint64_t *pWandererC,\n"
-    << "                     std::uint64_t *pWandererD,\n"
-    << "                     std::uint64_t *pWandererE,\n"
-    << "                     std::uint64_t *pWandererF,\n"
-    << "                     std::uint64_t *pWandererG,\n"
-    << "                     std::uint64_t *pWandererH,\n"
-    << "                     std::uint64_t *pWandererI,\n"
-    << "                     std::uint64_t *pWandererJ,\n"
-    << "                     std::uint64_t *pWandererK)" << aSuffix;
+    << "                     MUTABLE_PARAMS)" << aSuffix;
+}
+
+void AppendKDFSignature(std::ostringstream *pStream,
+                        const std::string &pClassName,
+                        const std::string &pMethodName,
+                        const bool pDefinition) {
+    if (pStream == nullptr) {
+        return;
+    }
+
+    const std::string aPrefix = pDefinition
+        ? ("void " + pClassName + "::")
+        : "    void ";
+    const std::string aSuffix = pDefinition ? " {\n" : " override;\n";
+    *pStream
+    << aPrefix << pMethodName << "(TwistWorkSpace *pWorkSpace,\n"
+    << "               std::uint64_t pNonce,\n"
+    << "               TwistDomainConstants *pConstants,\n"
+    << "               TwistDomainSaltSet *pDomainSaltSet,\n"
+    << "               std::uint8_t *pSnowLaneA,\n"
+    << "               std::uint8_t *pSnowLaneB,\n"
+    << "               std::uint8_t *pSnowLaneC,\n"
+    << "               MUTABLE_PARAMS)" << aSuffix;
+}
+
+void AppendKDFMethodPrologue(std::ostringstream *pStream,
+                             const std::string &pMethodName) {
+    if (pStream == nullptr) {
+        return;
+    }
+
+    *pStream
+    << "    TwistExpander::" << pMethodName
+    << "(pWorkSpace, pNonce, pConstants, pDomainSaltSet,\n"
+    << "                        pSnowLaneA, pSnowLaneB, pSnowLaneC,\n"
+    << "                        pPrevious, pIngress, pCarry,\n"
+    << "                        pWandererA, pWandererB, pWandererC, pWandererD,\n"
+    << "                        pWandererE, pWandererF, pWandererG, pWandererH,\n"
+    << "                        pWandererI, pWandererJ, pWandererK);\n"
+    << "    if ((pWorkSpace == nullptr) || (pConstants == nullptr) ||\n"
+    << "        (pDomainSaltSet == nullptr) ||\n"
+    << "        (pSnowLaneA == nullptr) || (pSnowLaneB == nullptr) ||\n"
+    << "        (pSnowLaneC == nullptr) || (pPrevious == nullptr) ||\n"
+    << "        (pIngress == nullptr) || (pCarry == nullptr) ||\n"
+    << "        (pWandererA == nullptr) || (pWandererB == nullptr) ||\n"
+    << "        (pWandererC == nullptr) || (pWandererD == nullptr) ||\n"
+    << "        (pWandererE == nullptr) || (pWandererF == nullptr) ||\n"
+    << "        (pWandererG == nullptr) || (pWandererH == nullptr) ||\n"
+    << "        (pWandererI == nullptr) || (pWandererJ == nullptr) ||\n"
+    << "        (pWandererK == nullptr)) { return; }\n";
+}
+
+void AppendGrowKeySignature(std::ostringstream *pStream,
+                            const std::string &pClassName,
+                            const std::string &pMethodName,
+                            const bool pDefinition) {
+    if (pStream == nullptr) {
+        return;
+    }
+
+    const std::string aPrefix = pDefinition ?
+        ("void " + pClassName + "::") :
+        "    void ";
+    const std::string aSuffix = pDefinition ? " {\n" : " override;\n";
+    *pStream
+    << aPrefix << pMethodName << "(TwistWorkSpace *pWorkSpace,\n"
+    << "                  MUTABLE_PARAMS)" << aSuffix;
+}
+
+void AppendGrowKeyCall(std::ostringstream *pStream,
+                       const std::string &pMethodName,
+                       const bool pForwardParameters) {
+    if (pStream == nullptr) {
+        return;
+    }
+
+    const char *aStatePrefix = pForwardParameters ? "p" : "&a";
+    *pStream
+    << "    " << pMethodName << "(pWorkSpace,\n"
+    << "             " << aStatePrefix << "Previous,\n"
+    << "             " << aStatePrefix << "Ingress,\n"
+    << "             " << aStatePrefix << "Carry,\n"
+    << "             " << aStatePrefix << "WandererA,\n"
+    << "             " << aStatePrefix << "WandererB,\n"
+    << "             " << aStatePrefix << "WandererC,\n"
+    << "             " << aStatePrefix << "WandererD,\n"
+    << "             " << aStatePrefix << "WandererE,\n"
+    << "             " << aStatePrefix << "WandererF,\n"
+    << "             " << aStatePrefix << "WandererG,\n"
+    << "             " << aStatePrefix << "WandererH,\n"
+    << "             " << aStatePrefix << "WandererI,\n"
+    << "             " << aStatePrefix << "WandererJ,\n"
+    << "             " << aStatePrefix << "WandererK);\n";
 }
 
 bool ExportArxCompanionFiles(const std::string &pRoot,
                              const std::string &pClassName,
                              const std::vector<GSeedRunStageConfig> &pSeedStageConfigs,
+                             const std::vector<GSeedRunStageConfig> &pSeedKeyBoxStageConfigs,
                              const std::vector<GSeedRunStageConfig> &pTwistStageConfigs,
+                             const std::vector<GSeedRunStageConfig> &pGrowAStageConfigs,
+                             const std::vector<GSeedRunStageConfig> &pGrowBStageConfigs,
                              std::string *pError) {
     const std::string aArxClassName = pClassName + "_Arx";
     const std::string aHeaderPath = FileIO::Join(pRoot, aArxClassName + ".hpp");
     const std::string aCppPath = FileIO::Join(pRoot, aArxClassName + ".cpp");
 
-    using KDFConfigFactory = GSeedRunStageConfig (*)();
-    static const std::array<KDFConfigFactory, 5> kKDFAConfigFactories = {
-        &GSeedRunKDF_AConfig::MakeKDF_A_AConfig,
-        &GSeedRunKDF_AConfig::MakeKDF_A_BConfig,
-        &GSeedRunKDF_AConfig::MakeKDF_A_CConfig,
-        &GSeedRunKDF_AConfig::MakeKDF_A_DConfig,
-        &GSeedRunKDF_AConfig::MakeKDF_A_EConfig,
+    static const std::array<const char *, 4> kKDFAMethodNames = {
+        "KDF_A_A", "KDF_A_B", "KDF_A_C", "KDF_A_D",
     };
-    static const std::array<const char *, 5> kKDFAMethodNames = {
-        "KDF_A_A", "KDF_A_B", "KDF_A_C", "KDF_A_D", "KDF_A_E",
-    };
-    std::array<TwistProgramBranch, 5> aBranchesKDFA;
+    ResidualBucket aKDFResidualBucket;
+
+    const GSeedRunKDF_AConfig::KDFStageConfigs aKDFAConfigs =
+        GSeedRunKDF_AConfig::MakeKDF_AConfig(aKDFResidualBucket);
+    std::array<TwistProgramBranch, 4> aBranchesKDFA;
     for (std::size_t i = 0U; i < aBranchesKDFA.size(); ++i) {
         if (!BuildExportArxKDFBranch(&aBranchesKDFA[i],
-                                     kKDFAConfigFactories[i](),
+                                     aKDFAConfigs[i],
                                      kKDFAMethodNames[i],
                                      pError)) {
             return false;
         }
     }
 
-    static const std::array<KDFConfigFactory, 4> kKDFBConfigFactories = {
-        &GSeedRunKDF_BConfig::MakeKDF_B_AConfig,
-        &GSeedRunKDF_BConfig::MakeKDF_B_BConfig,
-        &GSeedRunKDF_BConfig::MakeKDF_B_CConfig,
-        &GSeedRunKDF_BConfig::MakeKDF_B_DConfig,
-    };
     static const std::array<const char *, 4> kKDFBMethodNames = {
         "KDF_B_A", "KDF_B_B", "KDF_B_C", "KDF_B_D",
     };
+    const GSeedRunKDF_BConfig::KDFStageConfigs aKDFBConfigs =
+        GSeedRunKDF_BConfig::MakeKDF_BConfig(aKDFResidualBucket);
     std::array<TwistProgramBranch, 4> aBranchesKDFB;
     for (std::size_t i = 0U; i < aBranchesKDFB.size(); ++i) {
         if (!BuildExportArxKDFBranch(&aBranchesKDFB[i],
-                                     kKDFBConfigFactories[i](),
+                                     aKDFBConfigs[i],
                                      kKDFBMethodNames[i],
+                                     pError)) {
+            return false;
+        }
+    }
+    static const std::array<const char *, 4> kKDFCMethodNames = {
+        "KDF_C_A", "KDF_C_B", "KDF_C_C", "KDF_C_D",
+    };
+    const GSeedRunKDF_CConfig::KDFStageConfigs aKDFCConfigs =
+        GSeedRunKDF_CConfig::MakeKDF_CConfig(aKDFResidualBucket);
+    std::array<TwistProgramBranch, 4> aBranchesKDFC;
+    for (std::size_t i = 0U; i < aBranchesKDFC.size(); ++i) {
+        if (!BuildExportArxKDFBranch(&aBranchesKDFC[i],
+                                     aKDFCConfigs[i],
+                                     kKDFCMethodNames[i],
+                                     pError)) {
+            return false;
+        }
+    }
+    static const std::array<const char *, 4> kKDFDMethodNames = {
+        "KDF_D_A", "KDF_D_B", "KDF_D_C", "KDF_D_D",
+    };
+    const GSeedRunKDF_DConfig::KDFStageConfigs aKDFDConfigs =
+        GSeedRunKDF_DConfig::MakeKDF_DConfig(aKDFResidualBucket);
+    std::array<TwistProgramBranch, 4> aBranchesKDFD;
+    for (std::size_t i = 0U; i < aBranchesKDFD.size(); ++i) {
+        if (!BuildExportArxKDFBranch(&aBranchesKDFD[i],
+                                     aKDFDConfigs[i],
+                                     kKDFDMethodNames[i],
                                      pError)) {
             return false;
         }
@@ -2539,11 +2604,12 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
     if (!ResolveSeedStageConfigs(pSeedStageConfigs, &aSeedStageConfigs, pError)) {
         return false;
     }
-    static const std::array<const char *, 9> kSeedMethodNames = {
-        "Seed_A", "Seed_B", "Seed_C", "Seed_D", "Seed_E",
-        "Seed_F", "Seed_G", "Seed_H", "Seed_I",
+    static const std::array<const char *, 14> kSeedMethodNames = {
+        "SEED_A", "SEED_B", "SEED_C", "SEED_D", "SEED_E",
+        "SEED_F", "SEED_G", "SEED_H", "SEED_I", "SEED_J",
+        "SEED_K", "SEED_L", "SEED_M", "SEED_N",
     };
-    std::array<TwistProgramBranch, 9> aBranchesSeed;
+    std::array<TwistProgramBranch, 14> aBranchesSeed;
     for (std::size_t i = 0U; i < aBranchesSeed.size(); ++i) {
         if (!BuildExportArxSeedBranch(&aBranchesSeed[i],
                                       aSeedStageConfigs[i],
@@ -2553,15 +2619,29 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
         }
     }
 
+    std::vector<GSeedRunStageConfig> aSeedKeyBoxStageConfigs;
+    if (!ResolveSeedKeyBoxStageConfigs(pSeedKeyBoxStageConfigs,
+                                       &aSeedKeyBoxStageConfigs,
+                                       pError)) {
+        return false;
+    }
+    TwistProgramBranch aBranchKEY;
+    if (!BuildExportArxSeedBranch(&aBranchKEY,
+                                  aSeedKeyBoxStageConfigs[0],
+                                  "KEY",
+                                  pError)) {
+        return false;
+    }
+
     std::vector<GSeedRunStageConfig> aTwistStageConfigs;
     if (!ResolveTwistStageConfigs(pTwistStageConfigs, &aTwistStageConfigs, pError)) {
         return false;
     }
-    static const std::array<const char *, 7> kTwistMethodNames = {
+    static const std::array<const char *, 8> kTwistMethodNames = {
         "Twist_A", "Twist_B", "Twist_C", "Twist_D",
-        "Twist_E", "Twist_F", "Twist_G",
+        "Twist_E", "Twist_F", "Twist_G", "Twist_H",
     };
-    std::array<TwistProgramBranch, 7> aBranchesTwist;
+    std::array<TwistProgramBranch, 8> aBranchesTwist;
     for (std::size_t i = 0U; i < aBranchesTwist.size(); ++i) {
         if (!BuildExportArxTwistBranch(&aBranchesTwist[i],
                                        aTwistStageConfigs[i],
@@ -2570,13 +2650,43 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
             return false;
         }
     }
-    TwistProgramBranch aBranchGrow_A;
-    if (!BuildExportArxGrow_ABranch(&aBranchGrow_A, pError)) {
+    std::vector<GSeedRunStageConfig> aGrowAStageConfigs;
+    if (!ResolveGrowStageConfigs(pGrowAStageConfigs,
+                                 true,
+                                 &aGrowAStageConfigs,
+                                 pError)) {
         return false;
     }
-    TwistProgramBranch aBranchGrow_B;
-    if (!BuildExportArxGrow_BBranch(&aBranchGrow_B, pError)) {
+    static const std::array<const char *, 4> kGrowAMethodNames = {
+        "GROW_A_A", "GROW_A_B", "GROW_A_C", "GROW_A_D",
+    };
+    std::array<TwistProgramBranch, 4> aBranchesGrowA;
+    for (std::size_t i = 0U; i < aBranchesGrowA.size(); ++i) {
+        if (!BuildExportArxGrowBranch(&aBranchesGrowA[i],
+                                      aGrowAStageConfigs[i],
+                                      kGrowAMethodNames[i],
+                                      pError)) {
+            return false;
+        }
+    }
+    std::vector<GSeedRunStageConfig> aGrowBStageConfigs;
+    if (!ResolveGrowStageConfigs(pGrowBStageConfigs,
+                                 false,
+                                 &aGrowBStageConfigs,
+                                 pError)) {
         return false;
+    }
+    static const std::array<const char *, 4> kGrowBMethodNames = {
+        "GROW_B_A", "GROW_B_B", "GROW_B_C", "GROW_B_D",
+    };
+    std::array<TwistProgramBranch, 4> aBranchesGrowB;
+    for (std::size_t i = 0U; i < aBranchesGrowB.size(); ++i) {
+        if (!BuildExportArxGrowBranch(&aBranchesGrowB[i],
+                                      aGrowBStageConfigs[i],
+                                      kGrowBMethodNames[i],
+                                      pError)) {
+            return false;
+        }
     }
 
     std::ostringstream aHeader;
@@ -2590,20 +2700,36 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
     AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_A_B", false, true);
     AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_A_C", false, true);
     AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_A_D", false, true);
-    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_A_E", false, true);
-    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_A", false, false);
-    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_B", false, false);
-    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_C", false, false);
-    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_D", false, false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_A", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_B", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_C", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_D", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_E", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_F", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_G", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_H", false);
-    AppendArxSeedSignature(&aHeader, aArxClassName, "Seed_I", false);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_A", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_B", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_C", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_B_D", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_C_A", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_C_B", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_C_C", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_C_D", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_D_A", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_D_B", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_D_C", false, true);
+    AppendArxKDFSignature(&aHeader, aArxClassName, "KDF_D_D", false, true);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_A", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_B", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_C", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_D", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_E", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_F", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_G", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_H", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_I", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_J", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_K", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_L", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_M", false);
+    AppendArxSeedSignature(&aHeader, aArxClassName, "SEED_N", false);
+    AppendArxSeedSignature(&aHeader,
+                           aArxClassName,
+                           "KEY",
+                           false);
     AppendArxTwistSignature(&aHeader, aArxClassName, "Twist_A", false, false);
     AppendArxTwistSignature(&aHeader, aArxClassName, "Twist_B", false, false);
     AppendArxTwistSignature(&aHeader, aArxClassName, "Twist_C", false, false);
@@ -2611,8 +2737,13 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
     AppendArxTwistSignature(&aHeader, aArxClassName, "Twist_E", false, false);
     AppendArxTwistSignature(&aHeader, aArxClassName, "Twist_F", false, false);
     AppendArxTwistSignature(&aHeader, aArxClassName, "Twist_G", false, false);
-    AppendArxGrowSignature(&aHeader, aArxClassName, "GROW_A", false);
-    AppendArxGrowSignature(&aHeader, aArxClassName, "GROW_B", false);
+    AppendArxTwistSignature(&aHeader, aArxClassName, "Twist_H", false, false);
+    for (const char *aMethodName : kGrowAMethodNames) {
+        AppendArxGrowSignature(&aHeader, aArxClassName, aMethodName, false);
+    }
+    for (const char *aMethodName : kGrowBMethodNames) {
+        AppendArxGrowSignature(&aHeader, aArxClassName, aMethodName, false);
+    }
     aHeader << "};\n";
 
     std::ostringstream aCpp;
@@ -2647,143 +2778,251 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_A_E", true, true);
-    if (!AppendBranchBody(aBranchesKDFA[4], true, &aCpp, pError)) {
-        return false;
-    }
-    aCpp << "}\n";
-    aCpp << "\n";
-    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_A", true, false);
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_A", true, true);
     if (!AppendBranchBody(aBranchesKDFB[0], true, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_B", true, false);
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_B", true, true);
     if (!AppendBranchBody(aBranchesKDFB[1], true, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_C", true, false);
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_C", true, true);
     if (!AppendBranchBody(aBranchesKDFB[2], true, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_D", true, false);
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_B_D", true, true);
     if (!AppendBranchBody(aBranchesKDFB[3], true, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_A", true);
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_C_A", true, true);
+    if (!AppendBranchBody(aBranchesKDFC[0], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_C_B", true, true);
+    if (!AppendBranchBody(aBranchesKDFC[1], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_C_C", true, true);
+    if (!AppendBranchBody(aBranchesKDFC[2], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_C_D", true, true);
+    if (!AppendBranchBody(aBranchesKDFC[3], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_D_A", true, true);
+    if (!AppendBranchBody(aBranchesKDFD[0], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_D_B", true, true);
+    if (!AppendBranchBody(aBranchesKDFD[1], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_D_C", true, true);
+    if (!AppendBranchBody(aBranchesKDFD[2], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxKDFSignature(&aCpp, aArxClassName, "KDF_D_D", true, true);
+    if (!AppendBranchBody(aBranchesKDFD[3], true, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_A", true);
     if (!AppendBranchBody(aBranchesSeed[0], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_B", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_B", true);
     if (!AppendBranchBody(aBranchesSeed[1], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_C", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_C", true);
     if (!AppendBranchBody(aBranchesSeed[2], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_D", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_D", true);
     if (!AppendBranchBody(aBranchesSeed[3], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_E", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_E", true);
     if (!AppendBranchBody(aBranchesSeed[4], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_F", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_F", true);
     if (!AppendBranchBody(aBranchesSeed[5], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_G", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_G", true);
     if (!AppendBranchBody(aBranchesSeed[6], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_H", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_H", true);
     if (!AppendBranchBody(aBranchesSeed[7], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxSeedSignature(&aCpp, aArxClassName, "Seed_I", true);
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_I", true);
     if (!AppendBranchBody(aBranchesSeed[8], false, &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_J", true);
+    if (!AppendBranchBody(aBranchesSeed[9], false, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_K", true);
+    if (!AppendBranchBody(aBranchesSeed[10], false, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_L", true);
+    if (!AppendBranchBody(aBranchesSeed[11], false, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_M", true);
+    if (!AppendBranchBody(aBranchesSeed[12], false, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxSeedSignature(&aCpp, aArxClassName, "SEED_N", true);
+    if (!AppendBranchBody(aBranchesSeed[13], false, &aCpp, pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
+    AppendArxSeedSignature(&aCpp,
+                           aArxClassName,
+                           "KEY",
+                           true);
+    if (!AppendBranchBody(aBranchKEY,
+                          false,
+                          &aCpp,
+                          pError)) {
+        return false;
+    }
+    aCpp << "}\n";
+    aCpp << "\n";
     AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_A", true, false);
-    if (!AppendBranchBody(aBranchesTwist[0], false, &aCpp, pError)) {
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[0], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
     AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_B", true, false);
-    if (!AppendBranchBody(aBranchesTwist[1], false, &aCpp, pError)) {
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[1], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
     AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_C", true, false);
-    if (!AppendBranchBody(aBranchesTwist[2], false, &aCpp, pError)) {
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[2], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
     AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_D", true, false);
-    if (!AppendBranchBody(aBranchesTwist[3], false, &aCpp, pError)) {
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[3], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
     AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_E", true, false);
-    if (!AppendBranchBody(aBranchesTwist[4], false, &aCpp, pError)) {
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[4], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
     AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_F", true, false);
-    if (!AppendBranchBody(aBranchesTwist[5], false, &aCpp, pError)) {
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[5], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
     AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_G", true, false);
-    if (!AppendBranchBody(aBranchesTwist[6], false, &aCpp, pError)) {
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[6], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxGrowSignature(&aCpp, aArxClassName, "GROW_A", true);
-    if (!AppendBranchBody(aBranchGrow_A, false, &aCpp, pError)) {
+    AppendArxTwistSignature(&aCpp, aArxClassName, "Twist_H", true, false);
+    if (!AppendSnowParameterBranchBody(aBranchesTwist[7], &aCpp, pError)) {
         return false;
     }
     aCpp << "}\n";
     aCpp << "\n";
-    AppendArxGrowSignature(&aCpp, aArxClassName, "GROW_B", true);
-    if (!AppendBranchBody(aBranchGrow_B, false, &aCpp, pError)) {
-        return false;
+    for (std::size_t i = 0U; i < aBranchesGrowA.size(); ++i) {
+        AppendArxGrowSignature(&aCpp,
+                               aArxClassName,
+                               kGrowAMethodNames[i],
+                               true);
+        if (!AppendBranchBody(aBranchesGrowA[i],
+                              false,
+                              &aCpp,
+                              pError)) {
+            return false;
+        }
+        aCpp << "}\n\n";
     }
-    aCpp << "}\n";
+    for (std::size_t i = 0U; i < aBranchesGrowB.size(); ++i) {
+        AppendArxGrowSignature(&aCpp,
+                               aArxClassName,
+                               kGrowBMethodNames[i],
+                               true);
+        if (!AppendBranchBody(aBranchesGrowB[i],
+                              false,
+                              &aCpp,
+                              pError)) {
+            return false;
+        }
+        aCpp << "}\n";
+        if ((i + 1U) != aBranchesGrowB.size()) {
+            aCpp << "\n";
+        }
+    }
 
     if (!SaveTextFile(aHeaderPath, aHeader.str(), pError)) {
         return false;
@@ -2799,31 +3038,54 @@ public:
     bool Bake(const std::string &pRoot,
               const std::string &pClassName,
               const std::vector<GSeedRunStageConfig> &pSeedStageConfigs,
+              const std::vector<GSeedRunStageConfig> &pSeedKeyBoxStageConfigs,
               const std::vector<GSeedRunStageConfig> &pTwistStageConfigs,
+              const std::vector<GSeedRunStageConfig> &pGrowAStageConfigs,
+              const std::vector<GSeedRunStageConfig> &pGrowBStageConfigs,
               std::string *pError) {
         std::vector<GSeedRunStageConfig> aSeedStageConfigs;
         if (!ResolveSeedStageConfigs(pSeedStageConfigs, &aSeedStageConfigs, pError)) {
+            return false;
+        }
+        std::vector<GSeedRunStageConfig> aSeedKeyBoxStageConfigs;
+        if (!ResolveSeedKeyBoxStageConfigs(pSeedKeyBoxStageConfigs,
+                                           &aSeedKeyBoxStageConfigs,
+                                           pError)) {
             return false;
         }
         std::vector<GSeedRunStageConfig> aTwistStageConfigs;
         if (!ResolveTwistStageConfigs(pTwistStageConfigs, &aTwistStageConfigs, pError)) {
             return false;
         }
+        std::vector<GSeedRunStageConfig> aGrowAStageConfigs;
+        if (!ResolveGrowStageConfigs(pGrowAStageConfigs,
+                                     true,
+                                     &aGrowAStageConfigs,
+                                     pError)) {
+            return false;
+        }
+        std::vector<GSeedRunStageConfig> aGrowBStageConfigs;
+        if (!ResolveGrowStageConfigs(pGrowBStageConfigs,
+                                     false,
+                                     &aGrowBStageConfigs,
+                                     pError)) {
+            return false;
+        }
 
         mArxClassName = pClassName + "_Arx";
-        const std::array<ArxCallExport *, 5> aKDFACalls = {
-            &mKDF_A_A, &mKDF_A_B, &mKDF_A_C, &mKDF_A_D, &mKDF_A_E,
+        const std::array<ArxCallExport *, 4> aKDFACalls = {
+            &mKDF_A_A, &mKDF_A_B, &mKDF_A_C, &mKDF_A_D,
         };
-        static const std::array<const char *, 5> kKDFAMethodNames = {
-            "KDF_A_A", "KDF_A_B", "KDF_A_C", "KDF_A_D", "KDF_A_E",
+        static const std::array<const char *, 4> kKDFAMethodNames = {
+            "KDF_A_A", "KDF_A_B", "KDF_A_C", "KDF_A_D",
         };
-        static const std::array<const char *, 5> kKDFAStageNames = {
+        static const std::array<const char *, 4> kKDFAStageNames = {
             "GSeedRunKDF_A_A", "GSeedRunKDF_A_B", "GSeedRunKDF_A_C",
-            "GSeedRunKDF_A_D", "GSeedRunKDF_A_E",
+            "GSeedRunKDF_A_D",
         };
-        static const std::array<const char *, 5> kKDFABatchNames = {
+        static const std::array<const char *, 4> kKDFABatchNames = {
             "kdf_a_loop_a", "kdf_a_loop_b", "kdf_a_loop_c",
-            "kdf_a_loop_d", "kdf_a_loop_e",
+            "kdf_a_loop_d",
         };
         for (std::size_t i = 0U; i < aKDFACalls.size(); ++i) {
             ArxCallExport &aCall = *aKDFACalls[i];
@@ -2854,7 +3116,7 @@ public:
         for (std::size_t i = 0U; i < aKDFBCalls.size(); ++i) {
             ArxCallExport &aCall = *aKDFBCalls[i];
             aCall.mKind = ArxCallKind::kKDF;
-            aCall.mUsesSnow = false;
+            aCall.mUsesSnow = true;
             aCall.mBatchName = kKDFBBatchNames[i];
             aCall.mStartLine = std::string("// ") + kKDFBStageNames[i] + " " +
                 kKDFBBatchNames[i] + " (start)";
@@ -2864,13 +3126,67 @@ public:
             aCall.mMethodName = kKDFBMethodNames[i];
         }
 
-        const std::array<ArxCallExport *, 9> aSeedCalls = {
-            &mSeed_A, &mSeed_B, &mSeed_C, &mSeed_D, &mSeed_E,
-            &mSeed_F, &mSeed_G, &mSeed_H, &mSeed_I,
+        const std::array<ArxCallExport *, 4> aKDFCCalls = {
+            &mKDF_C_A, &mKDF_C_B, &mKDF_C_C, &mKDF_C_D,
         };
-        static const std::array<const char *, 9> kSeedMethodNames = {
-            "Seed_A", "Seed_B", "Seed_C", "Seed_D", "Seed_E",
-            "Seed_F", "Seed_G", "Seed_H", "Seed_I",
+        static const std::array<const char *, 4> kKDFCMethodNames = {
+            "KDF_C_A", "KDF_C_B", "KDF_C_C", "KDF_C_D",
+        };
+        static const std::array<const char *, 4> kKDFCStageNames = {
+            "GSeedRunKDF_C_A", "GSeedRunKDF_C_B",
+            "GSeedRunKDF_C_C", "GSeedRunKDF_C_D",
+        };
+        static const std::array<const char *, 4> kKDFCBatchNames = {
+            "kdf_c_loop_a", "kdf_c_loop_b", "kdf_c_loop_c", "kdf_c_loop_d",
+        };
+        for (std::size_t i = 0U; i < aKDFCCalls.size(); ++i) {
+            ArxCallExport &aCall = *aKDFCCalls[i];
+            aCall.mKind = ArxCallKind::kKDF;
+            aCall.mUsesSnow = true;
+            aCall.mBatchName = kKDFCBatchNames[i];
+            aCall.mStartLine = std::string("// ") + kKDFCStageNames[i] + " " +
+                kKDFCBatchNames[i] + " (start)";
+            aCall.mEndLine = std::string("// ") + kKDFCStageNames[i] + " " +
+                kKDFCBatchNames[i] + " (end)";
+            aCall.mClassName = mArxClassName;
+            aCall.mMethodName = kKDFCMethodNames[i];
+        }
+
+        const std::array<ArxCallExport *, 4> aKDFDCalls = {
+            &mKDF_D_A, &mKDF_D_B, &mKDF_D_C, &mKDF_D_D,
+        };
+        static const std::array<const char *, 4> kKDFDMethodNames = {
+            "KDF_D_A", "KDF_D_B", "KDF_D_C", "KDF_D_D",
+        };
+        static const std::array<const char *, 4> kKDFDStageNames = {
+            "GSeedRunKDF_D_A", "GSeedRunKDF_D_B",
+            "GSeedRunKDF_D_C", "GSeedRunKDF_D_D",
+        };
+        static const std::array<const char *, 4> kKDFDBatchNames = {
+            "kdf_d_loop_a", "kdf_d_loop_b", "kdf_d_loop_c", "kdf_d_loop_d",
+        };
+        for (std::size_t i = 0U; i < aKDFDCalls.size(); ++i) {
+            ArxCallExport &aCall = *aKDFDCalls[i];
+            aCall.mKind = ArxCallKind::kKDF;
+            aCall.mUsesSnow = true;
+            aCall.mBatchName = kKDFDBatchNames[i];
+            aCall.mStartLine = std::string("// ") + kKDFDStageNames[i] + " " +
+                kKDFDBatchNames[i] + " (start)";
+            aCall.mEndLine = std::string("// ") + kKDFDStageNames[i] + " " +
+                kKDFDBatchNames[i] + " (end)";
+            aCall.mClassName = mArxClassName;
+            aCall.mMethodName = kKDFDMethodNames[i];
+        }
+
+        const std::array<ArxCallExport *, 14> aSeedCalls = {
+            &mSeed_A, &mSeed_B, &mSeed_C, &mSeed_D, &mSeed_E,
+            &mSeed_F, &mSeed_G, &mSeed_H, &mSeed_I, &mSeed_J,
+            &mSeed_K, &mSeed_L, &mSeed_M, &mSeed_N,
+        };
+        static const std::array<const char *, 14> kSeedMethodNames = {
+            "SEED_A", "SEED_B", "SEED_C", "SEED_D", "SEED_E",
+            "SEED_F", "SEED_G", "SEED_H", "SEED_I", "SEED_J",
+            "SEED_K", "SEED_L", "SEED_M", "SEED_N",
         };
         for (std::size_t i = 0U; i < aSeedCalls.size(); ++i) {
             ArxCallExport &aCall = *aSeedCalls[i];
@@ -2884,19 +3200,31 @@ public:
             aCall.mMethodName = kSeedMethodNames[i];
         }
 
-        const std::array<ArxCallExport *, 7> aTwistCalls = {
+        const GSeedRunStageConfig &aKeyConfig =
+            aSeedKeyBoxStageConfigs[0];
+        mKEY.mKind = ArxCallKind::kSeed;
+        mKEY.mUsesNonce = true;
+        mKEY.mUsesSnowLanes = false;
+        mKEY.mBatchName = aKeyConfig.mBatchName;
+        mKEY.mStartLine = aKeyConfig.mStartLine;
+        mKEY.mEndLine = aKeyConfig.mEndLine;
+        mKEY.mClassName = mArxClassName;
+        mKEY.mMethodName = "KEY";
+
+        const std::array<ArxCallExport *, 8> aTwistCalls = {
             &mTwist_A, &mTwist_B, &mTwist_C, &mTwist_D,
-            &mTwist_E, &mTwist_F, &mTwist_G,
+            &mTwist_E, &mTwist_F, &mTwist_G, &mTwist_H,
         };
-        static const std::array<const char *, 7> kTwistMethodNames = {
+        static const std::array<const char *, 8> kTwistMethodNames = {
             "Twist_A", "Twist_B", "Twist_C", "Twist_D",
-            "Twist_E", "Twist_F", "Twist_G",
+            "Twist_E", "Twist_F", "Twist_G", "Twist_H",
         };
         for (std::size_t i = 0U; i < aTwistCalls.size(); ++i) {
             ArxCallExport &aCall = *aTwistCalls[i];
             const GSeedRunStageConfig &aConfig = aTwistStageConfigs[i];
             aCall.mKind = ArxCallKind::kTwist;
             aCall.mUsesNonce = false;
+            aCall.mUsesSnowLanes = true;
             aCall.mBatchName = aConfig.mBatchName;
             aCall.mStartLine = aConfig.mStartLine;
             aCall.mEndLine = aConfig.mEndLine;
@@ -2904,26 +3232,48 @@ public:
             aCall.mMethodName = kTwistMethodNames[i];
         }
 
-        mGrow_A.mKind = ArxCallKind::kGrow;
-        mGrow_A.mUsesNonce = false;
-        mGrow_A.mBatchName = "grow_key_a";
-        mGrow_A.mStartLine = "// GROW_A grow_key_a (start)";
-        mGrow_A.mEndLine = "// GROW_A grow_key_a (end)";
-        mGrow_A.mClassName = mArxClassName;
-        mGrow_A.mMethodName = "GROW_A";
-
-        mGrow_B.mKind = ArxCallKind::kGrow;
-        mGrow_B.mUsesNonce = false;
-        mGrow_B.mBatchName = "grow_key_b";
-        mGrow_B.mStartLine = "// GROW_B grow_key_b (start)";
-        mGrow_B.mEndLine = "// GROW_B grow_key_b (end)";
-        mGrow_B.mClassName = mArxClassName;
-        mGrow_B.mMethodName = "GROW_B";
+        const std::array<ArxCallExport *, 4> aGrowACalls = {
+            &mGrow_A_A, &mGrow_A_B, &mGrow_A_C, &mGrow_A_D,
+        };
+        static const std::array<const char *, 4> kGrowAMethodNames = {
+            "GROW_A_A", "GROW_A_B", "GROW_A_C", "GROW_A_D",
+        };
+        const std::array<ArxCallExport *, 4> aGrowBCalls = {
+            &mGrow_B_A, &mGrow_B_B, &mGrow_B_C, &mGrow_B_D,
+        };
+        static const std::array<const char *, 4> kGrowBMethodNames = {
+            "GROW_B_A", "GROW_B_B", "GROW_B_C", "GROW_B_D",
+        };
+        for (std::size_t i = 0U; i < aGrowACalls.size(); ++i) {
+            ArxCallExport &aCall = *aGrowACalls[i];
+            const GSeedRunStageConfig &aConfig = aGrowAStageConfigs[i];
+            aCall.mKind = ArxCallKind::kGrow;
+            aCall.mUsesNonce = false;
+            aCall.mBatchName = aConfig.mBatchName;
+            aCall.mStartLine = aConfig.mStartLine;
+            aCall.mEndLine = aConfig.mEndLine;
+            aCall.mClassName = mArxClassName;
+            aCall.mMethodName = kGrowAMethodNames[i];
+        }
+        for (std::size_t i = 0U; i < aGrowBCalls.size(); ++i) {
+            ArxCallExport &aCall = *aGrowBCalls[i];
+            const GSeedRunStageConfig &aConfig = aGrowBStageConfigs[i];
+            aCall.mKind = ArxCallKind::kGrow;
+            aCall.mUsesNonce = false;
+            aCall.mBatchName = aConfig.mBatchName;
+            aCall.mStartLine = aConfig.mStartLine;
+            aCall.mEndLine = aConfig.mEndLine;
+            aCall.mClassName = mArxClassName;
+            aCall.mMethodName = kGrowBMethodNames[i];
+        }
 
         return ExportArxCompanionFiles(pRoot,
                                        pClassName,
                                        aSeedStageConfigs,
+                                       aSeedKeyBoxStageConfigs,
                                        aTwistStageConfigs,
+                                       aGrowAStageConfigs,
+                                       aGrowBStageConfigs,
                                        pError);
     }
 
@@ -2943,10 +3293,6 @@ public:
         return &mKDF_A_D;
     }
 
-    const ArxCallExport* KDF_A_E() const {
-        return &mKDF_A_E;
-    }
-
     const ArxCallExport* KDF_B_A() const {
         return &mKDF_B_A;
     }
@@ -2961,6 +3307,38 @@ public:
 
     const ArxCallExport* KDF_B_D() const {
         return &mKDF_B_D;
+    }
+
+    const ArxCallExport* KDF_C_A() const {
+        return &mKDF_C_A;
+    }
+
+    const ArxCallExport* KDF_C_B() const {
+        return &mKDF_C_B;
+    }
+
+    const ArxCallExport* KDF_C_C() const {
+        return &mKDF_C_C;
+    }
+
+    const ArxCallExport* KDF_C_D() const {
+        return &mKDF_C_D;
+    }
+
+    const ArxCallExport* KDF_D_A() const {
+        return &mKDF_D_A;
+    }
+
+    const ArxCallExport* KDF_D_B() const {
+        return &mKDF_D_B;
+    }
+
+    const ArxCallExport* KDF_D_C() const {
+        return &mKDF_D_C;
+    }
+
+    const ArxCallExport* KDF_D_D() const {
+        return &mKDF_D_D;
     }
 
     const ArxCallExport* Seed_A() const {
@@ -2999,6 +3377,30 @@ public:
         return &mSeed_I;
     }
 
+    const ArxCallExport* Seed_J() const {
+        return &mSeed_J;
+    }
+
+    const ArxCallExport* Seed_K() const {
+        return &mSeed_K;
+    }
+
+    const ArxCallExport* Seed_L() const {
+        return &mSeed_L;
+    }
+
+    const ArxCallExport* Seed_M() const {
+        return &mSeed_M;
+    }
+
+    const ArxCallExport* Seed_N() const {
+        return &mSeed_N;
+    }
+
+    const ArxCallExport* KEY() const {
+        return &mKEY;
+    }
+
     const ArxCallExport* Twist_A() const {
         return &mTwist_A;
     }
@@ -3027,12 +3429,40 @@ public:
         return &mTwist_G;
     }
 
-    const ArxCallExport* Grow_A() const {
-        return &mGrow_A;
+    const ArxCallExport* Twist_H() const {
+        return &mTwist_H;
     }
 
-    const ArxCallExport* Grow_B() const {
-        return &mGrow_B;
+    const ArxCallExport* Grow_A_A() const {
+        return &mGrow_A_A;
+    }
+
+    const ArxCallExport* Grow_A_B() const {
+        return &mGrow_A_B;
+    }
+
+    const ArxCallExport* Grow_A_C() const {
+        return &mGrow_A_C;
+    }
+
+    const ArxCallExport* Grow_A_D() const {
+        return &mGrow_A_D;
+    }
+
+    const ArxCallExport* Grow_B_A() const {
+        return &mGrow_B_A;
+    }
+
+    const ArxCallExport* Grow_B_B() const {
+        return &mGrow_B_B;
+    }
+
+    const ArxCallExport* Grow_B_C() const {
+        return &mGrow_B_C;
+    }
+
+    const ArxCallExport* Grow_B_D() const {
+        return &mGrow_B_D;
     }
 
     const std::string& ClassName() const {
@@ -3045,11 +3475,18 @@ private:
     ArxCallExport mKDF_A_B;
     ArxCallExport mKDF_A_C;
     ArxCallExport mKDF_A_D;
-    ArxCallExport mKDF_A_E;
     ArxCallExport mKDF_B_A;
     ArxCallExport mKDF_B_B;
     ArxCallExport mKDF_B_C;
     ArxCallExport mKDF_B_D;
+    ArxCallExport mKDF_C_A;
+    ArxCallExport mKDF_C_B;
+    ArxCallExport mKDF_C_C;
+    ArxCallExport mKDF_C_D;
+    ArxCallExport mKDF_D_A;
+    ArxCallExport mKDF_D_B;
+    ArxCallExport mKDF_D_C;
+    ArxCallExport mKDF_D_D;
     ArxCallExport mSeed_A;
     ArxCallExport mSeed_B;
     ArxCallExport mSeed_C;
@@ -3059,6 +3496,12 @@ private:
     ArxCallExport mSeed_G;
     ArxCallExport mSeed_H;
     ArxCallExport mSeed_I;
+    ArxCallExport mSeed_J;
+    ArxCallExport mSeed_K;
+    ArxCallExport mSeed_L;
+    ArxCallExport mSeed_M;
+    ArxCallExport mSeed_N;
+    ArxCallExport mKEY;
     ArxCallExport mTwist_A;
     ArxCallExport mTwist_B;
     ArxCallExport mTwist_C;
@@ -3066,8 +3509,15 @@ private:
     ArxCallExport mTwist_E;
     ArxCallExport mTwist_F;
     ArxCallExport mTwist_G;
-    ArxCallExport mGrow_A;
-    ArxCallExport mGrow_B;
+    ArxCallExport mTwist_H;
+    ArxCallExport mGrow_A_A;
+    ArxCallExport mGrow_A_B;
+    ArxCallExport mGrow_A_C;
+    ArxCallExport mGrow_A_D;
+    ArxCallExport mGrow_B_A;
+    ArxCallExport mGrow_B_B;
+    ArxCallExport mGrow_B_C;
+    ArxCallExport mGrow_B_D;
 };
 
 [[maybe_unused]] JsonValue BranchToJsonValue(const TwistProgramBranch &pBranch,
@@ -3175,38 +3625,30 @@ JsonValue ConstantsToJsonValue(const TwistDomainConstants &pConstants) {
 
 [[maybe_unused]] JsonValue DomainBundleToJsonValue(const TwistDomainBundle &pBundle) {
     JsonValue::Object aObject;
-    aObject["mats_phase_a_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseASalts.mOrbiterAssign);
-    aObject["mats_phase_a_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseASalts.mOrbiterUpdate);
-    aObject["mats_phase_a_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseASalts.mWandererUpdate);
-    aObject["mats_phase_b_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseBSalts.mOrbiterAssign);
-    aObject["mats_phase_b_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseBSalts.mOrbiterUpdate);
-    aObject["mats_phase_b_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseBSalts.mWandererUpdate);
-    aObject["mats_phase_c_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mOrbiterAssign);
-    aObject["mats_phase_c_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mOrbiterUpdate);
-    aObject["mats_phase_c_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseCSalts.mWandererUpdate);
-    aObject["mats_phase_d_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseDSalts.mOrbiterAssign);
-    aObject["mats_phase_d_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseDSalts.mOrbiterUpdate);
-    aObject["mats_phase_d_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseDSalts.mWandererUpdate);
-    aObject["mats_phase_e_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseESalts.mOrbiterAssign);
-    aObject["mats_phase_e_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseESalts.mOrbiterUpdate);
-    aObject["mats_phase_e_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseESalts.mWandererUpdate);
-    aObject["mats_phase_f_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseFSalts.mOrbiterAssign);
-    aObject["mats_phase_f_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseFSalts.mOrbiterUpdate);
-    aObject["mats_phase_f_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseFSalts.mWandererUpdate);
-    aObject["mats_phase_g_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseGSalts.mOrbiterAssign);
-    aObject["mats_phase_g_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseGSalts.mOrbiterUpdate);
-    aObject["mats_phase_g_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseGSalts.mWandererUpdate);
-    aObject["mats_phase_h_seeder"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseHSalts.mOrbiterAssign);
-    aObject["mats_phase_h_orbiter"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseHSalts.mOrbiterUpdate);
-    aObject["mats_phase_h_wanderer"] = SeedRoundMaterialToJsonValue(pBundle.mPhaseHSalts.mWandererUpdate);
-    aObject["constants_phase_a"] = ConstantsToJsonValue(pBundle.mPhaseAConstants);
-    aObject["constants_phase_b"] = ConstantsToJsonValue(pBundle.mPhaseBConstants);
-    aObject["constants_phase_c"] = ConstantsToJsonValue(pBundle.mPhaseCConstants);
-    aObject["constants_phase_d"] = ConstantsToJsonValue(pBundle.mPhaseDConstants);
-    aObject["constants_phase_e"] = ConstantsToJsonValue(pBundle.mPhaseEConstants);
-    aObject["constants_phase_f"] = ConstantsToJsonValue(pBundle.mPhaseFConstants);
-    aObject["constants_phase_g"] = ConstantsToJsonValue(pBundle.mPhaseGConstants);
-    aObject["constants_phase_h"] = ConstantsToJsonValue(pBundle.mPhaseHConstants);
+    aObject["mats_key_rotate_a_orbiter_assign"] = SeedRoundMaterialToJsonValue(pBundle.mKeyRotateASalts.mOrbiterAssign);
+    aObject["mats_key_rotate_a_orbiter_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeyRotateASalts.mOrbiterUpdate);
+    aObject["mats_key_rotate_a_wanderer_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeyRotateASalts.mWandererUpdate);
+    aObject["mats_key_rotate_b_orbiter_assign"] = SeedRoundMaterialToJsonValue(pBundle.mKeyRotateBSalts.mOrbiterAssign);
+    aObject["mats_key_rotate_b_orbiter_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeyRotateBSalts.mOrbiterUpdate);
+    aObject["mats_key_rotate_b_wanderer_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeyRotateBSalts.mWandererUpdate);
+    aObject["mats_key_spawn_a_orbiter_assign"] = SeedRoundMaterialToJsonValue(pBundle.mKeySpawnASalts.mOrbiterAssign);
+    aObject["mats_key_spawn_a_orbiter_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeySpawnASalts.mOrbiterUpdate);
+    aObject["mats_key_spawn_a_wanderer_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeySpawnASalts.mWandererUpdate);
+    aObject["mats_key_spawn_b_orbiter_assign"] = SeedRoundMaterialToJsonValue(pBundle.mKeySpawnBSalts.mOrbiterAssign);
+    aObject["mats_key_spawn_b_orbiter_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeySpawnBSalts.mOrbiterUpdate);
+    aObject["mats_key_spawn_b_wanderer_update"] = SeedRoundMaterialToJsonValue(pBundle.mKeySpawnBSalts.mWandererUpdate);
+    aObject["mats_seed_orbiter_assign"] = SeedRoundMaterialToJsonValue(pBundle.mSeedSalts.mOrbiterAssign);
+    aObject["mats_seed_orbiter_update"] = SeedRoundMaterialToJsonValue(pBundle.mSeedSalts.mOrbiterUpdate);
+    aObject["mats_seed_wanderer_update"] = SeedRoundMaterialToJsonValue(pBundle.mSeedSalts.mWandererUpdate);
+    aObject["mats_twist_orbiter_assign"] = SeedRoundMaterialToJsonValue(pBundle.mTwistSalts.mOrbiterAssign);
+    aObject["mats_twist_orbiter_update"] = SeedRoundMaterialToJsonValue(pBundle.mTwistSalts.mOrbiterUpdate);
+    aObject["mats_twist_wanderer_update"] = SeedRoundMaterialToJsonValue(pBundle.mTwistSalts.mWandererUpdate);
+    aObject["constants_key_rotate_a"] = ConstantsToJsonValue(pBundle.mKeyRotateAConstants);
+    aObject["constants_key_rotate_b"] = ConstantsToJsonValue(pBundle.mKeyRotateBConstants);
+    aObject["constants_key_spawn_a"] = ConstantsToJsonValue(pBundle.mKeySpawnAConstants);
+    aObject["constants_key_spawn_b"] = ConstantsToJsonValue(pBundle.mKeySpawnBConstants);
+    aObject["constants_seed"] = ConstantsToJsonValue(pBundle.mSeedConstants);
+    aObject["constants_twist"] = ConstantsToJsonValue(pBundle.mTwistConstants);
     return JsonValue::ObjectValue(std::move(aObject));
 }
 
@@ -3326,38 +3768,48 @@ std::string DomainBundleStaticDefinitions(const std::string &pClassName,
                                           const TwistDomainBundle &pBundle) {
     std::ostringstream aOut;
 
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseASalts", pBundle.mPhaseASalts);
+    AppendSaltSetDefinition(&aOut, pClassName, "kKeyRotateASalts", pBundle.mKeyRotateASalts);
     aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseAConstants", pBundle.mPhaseAConstants);
+    AppendConstantsDefinition(&aOut, pClassName, "kKeyRotateAConstants", pBundle.mKeyRotateAConstants);
     aOut << '\n';
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseBSalts", pBundle.mPhaseBSalts);
+    AppendSaltSetDefinition(&aOut, pClassName, "kKeyRotateBSalts", pBundle.mKeyRotateBSalts);
     aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseBConstants", pBundle.mPhaseBConstants);
+    AppendConstantsDefinition(&aOut, pClassName, "kKeyRotateBConstants", pBundle.mKeyRotateBConstants);
     aOut << '\n';
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseCSalts", pBundle.mPhaseCSalts);
+    AppendSaltSetDefinition(&aOut, pClassName, "kKeySpawnASalts", pBundle.mKeySpawnASalts);
     aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseCConstants", pBundle.mPhaseCConstants);
+    AppendConstantsDefinition(&aOut, pClassName, "kKeySpawnAConstants", pBundle.mKeySpawnAConstants);
     aOut << '\n';
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseDSalts", pBundle.mPhaseDSalts);
+    AppendSaltSetDefinition(&aOut, pClassName, "kKeySpawnBSalts", pBundle.mKeySpawnBSalts);
     aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseDConstants", pBundle.mPhaseDConstants);
+    AppendConstantsDefinition(&aOut, pClassName, "kKeySpawnBConstants", pBundle.mKeySpawnBConstants);
     aOut << '\n';
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseESalts", pBundle.mPhaseESalts);
+    AppendSaltSetDefinition(&aOut, pClassName, "kSeedSalts", pBundle.mSeedSalts);
     aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseEConstants", pBundle.mPhaseEConstants);
+    AppendConstantsDefinition(&aOut, pClassName, "kSeedConstants", pBundle.mSeedConstants);
     aOut << '\n';
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseFSalts", pBundle.mPhaseFSalts);
+    AppendSaltSetDefinition(&aOut, pClassName, "kTwistSalts", pBundle.mTwistSalts);
     aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseFConstants", pBundle.mPhaseFConstants);
-    aOut << '\n';
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseGSalts", pBundle.mPhaseGSalts);
-    aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseGConstants", pBundle.mPhaseGConstants);
-    aOut << '\n';
-    AppendSaltSetDefinition(&aOut, pClassName, "kPhaseHSalts", pBundle.mPhaseHSalts);
-    aOut << '\n';
-    AppendConstantsDefinition(&aOut, pClassName, "kPhaseHConstants", pBundle.mPhaseHConstants);
+    AppendConstantsDefinition(&aOut, pClassName, "kTwistConstants", pBundle.mTwistConstants);
 
+    return aOut.str();
+}
+
+std::string InbuiltDomainBundleAssignmentLines() {
+    std::ostringstream aOut;
+    aOut
+    << "    mDomainBundleInbuilt.mKeyRotateASalts = kKeyRotateASalts;\n"
+    << "    mDomainBundleInbuilt.mKeyRotateAConstants = kKeyRotateAConstants;\n"
+    << "    mDomainBundleInbuilt.mKeyRotateBSalts = kKeyRotateBSalts;\n"
+    << "    mDomainBundleInbuilt.mKeyRotateBConstants = kKeyRotateBConstants;\n"
+    << "    mDomainBundleInbuilt.mKeySpawnASalts = kKeySpawnASalts;\n"
+    << "    mDomainBundleInbuilt.mKeySpawnAConstants = kKeySpawnAConstants;\n"
+    << "    mDomainBundleInbuilt.mKeySpawnBSalts = kKeySpawnBSalts;\n"
+    << "    mDomainBundleInbuilt.mKeySpawnBConstants = kKeySpawnBConstants;\n"
+    << "    mDomainBundleInbuilt.mSeedSalts = kSeedSalts;\n"
+    << "    mDomainBundleInbuilt.mSeedConstants = kSeedConstants;\n"
+    << "    mDomainBundleInbuilt.mTwistSalts = kTwistSalts;\n"
+    << "    mDomainBundleInbuilt.mTwistConstants = kTwistConstants;\n";
     return aOut.str();
 }
 
@@ -3429,84 +3881,136 @@ const std::vector<TwistProgramBranchStep>& TwistProgramBranch::GetSteps() const 
 
 bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
                                           std::string *pError) const {
-    return ExportCPPProjectRoot(pRootPath, false, pError);
-}
-
-bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
-                                          const bool pUseSnapShotter,
-                                          std::string *pError) const {
     const std::string aBaseInput = mNameBase.empty() ? "Generated" : mNameBase;
     const std::string aBaseName = SanitizeIdentifier(aBaseInput, "Generated");
     const std::string aClassName = "TwistExpander_" + aBaseName;
 
-    std::string aSquashInvestToKeyBoxesMethod;
-    if (!BuildSquashInvestToKeyBoxesMethod(aClassName,
-                                            &aSquashInvestToKeyBoxesMethod,
-                                            pError)) {
+    if (!EnsureControlValues(pError)) {
         return false;
     }
-    
+    if ((mControlCandidateIndex >= GrowAControl::GeneratedCount()) ||
+        (mControlCandidateIndex >= GrowBControl::GeneratedCount()) ||
+        (mControlCandidateIndex >= FoldSeedControl::GeneratedCount()) ||
+        (mControlCandidateIndex >= FoldTwistControl::GeneratedCount())) {
+        SetError(pError,
+                 "Control candidate index was out of range.");
+        return false;
+    }
+    const std::string aGrowAKeyFold =
+        GrowAControl::RenderCandidate(mControlCandidateIndex);
+    const std::string aGrowBKeyFold =
+        GrowBControl::RenderCandidate(mControlCandidateIndex);
+    const std::string aFoldSeedMethod =
+        FoldSeedControl::RenderCandidate(mControlCandidateIndex,
+                                         aClassName);
+    const std::string aFoldTwistMethod =
+        FoldTwistControl::RenderCandidate(mControlCandidateIndex,
+                                          aClassName);
+    if (aGrowAKeyFold.empty() ||
+        aGrowBKeyFold.empty() ||
+        aFoldSeedMethod.empty() ||
+        aFoldTwistMethod.empty()) {
+        SetError(pError,
+                 "Controls failed to render their selected candidate.");
+        return false;
+    }
+
     const std::string aRootInput = pRootPath.empty() ? "generated/cpp" : pRootPath;
     const std::string aRoot = ResolveOutputPathFromProjectRoot(aRootInput);
-    
+
     const std::string aHeaderPath = FileIO::Join(aRoot, aClassName + ".hpp");
     const std::string aCppPath = FileIO::Join(aRoot, aClassName + ".cpp");
     GArx aArx;
     if (!aArx.Bake(aRoot,
                    aClassName,
                    mSeedStageConfigs,
+                   mSeedKeyBoxStageConfigs,
                    mTwistStageConfigs,
+                   mGrowAStageConfigs,
+                   mGrowBStageConfigs,
                    pError)) {
         return false;
     }
-    
+
     GTwistExpander aSnapshot = *this;
     aSnapshot.RefreshTablePointers();
     const TwistProgramBranch &aKDF_ABranch = aSnapshot.mKDF_A;
     const TwistProgramBranch &aKDF_BBranch = aSnapshot.mKDF_B;
+    const TwistProgramBranch &aKDF_CBranch = aSnapshot.mKDF_C;
+    const TwistProgramBranch &aKDF_DBranch = aSnapshot.mKDF_D;
 
     std::ostringstream aLegacyGrowKeyA;
-    aLegacyGrowKeyA << "void " << aClassName << "::GrowKeyA(TwistWorkSpace *pWorkSpace) {\n"
-                    << "    TwistExpander::GrowKeyA(pWorkSpace);\n"
-                    << "    if (pWorkSpace == nullptr) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mGrowKeyA, false, &aLegacyGrowKeyA, pError)) {
+    AppendGrowKeySignature(&aLegacyGrowKeyA,
+                           aClassName,
+                           "GrowKeyA",
+                           true);
+    AppendGrowKeyCall(&aLegacyGrowKeyA,
+                      "TwistExpander::GrowKeyA",
+                      true);
+    aLegacyGrowKeyA
+        << "    if ((pWorkSpace == nullptr) || (pPrevious == nullptr) ||\n"
+        << "        (pIngress == nullptr) || (pCarry == nullptr) ||\n"
+        << "        (pWandererA == nullptr) || (pWandererB == nullptr) ||\n"
+        << "        (pWandererC == nullptr) || (pWandererD == nullptr) ||\n"
+        << "        (pWandererE == nullptr) || (pWandererF == nullptr) ||\n"
+        << "        (pWandererG == nullptr) || (pWandererH == nullptr) ||\n"
+        << "        (pWandererI == nullptr) || (pWandererJ == nullptr) ||\n"
+        << "        (pWandererK == nullptr)) { return; }\n";
+    if (!AppendBranchBody(aSnapshot.mGrowKeyA,
+                          false,
+                          &aLegacyGrowKeyA,
+                          pError,
+                          aArx.Grow_A_A(),
+                          aArx.Grow_A_B(),
+                          aArx.Grow_A_C(),
+                          aArx.Grow_A_D())) {
         return false;
     }
     aLegacyGrowKeyA << "}\n";
 
-    std::string aGrowKeyAMethod;
-    bool aDidLoadPreplannedGrowKeyA = false;
-    if (!LoadPreplannedGrowKeyAMethod(aClassName,
-                                      &aGrowKeyAMethod,
-                                      &aDidLoadPreplannedGrowKeyA,
-                                      pError)) {
-        return false;
-    }
-    if (!aDidLoadPreplannedGrowKeyA) {
-        aGrowKeyAMethod = aLegacyGrowKeyA.str();
-    }
+    const std::string aGrowKeyAMethod = aLegacyGrowKeyA.str();
 
     std::ostringstream aLegacyGrowKeyB;
-    aLegacyGrowKeyB << "void " << aClassName << "::GrowKeyB(TwistWorkSpace *pWorkSpace) {\n"
-                    << "    TwistExpander::GrowKeyB(pWorkSpace);\n"
-                    << "    if (pWorkSpace == nullptr) { return; }\n";
-    if (!AppendBranchBody(aSnapshot.mGrowKeyB, false, &aLegacyGrowKeyB, pError)) {
+    AppendGrowKeySignature(&aLegacyGrowKeyB,
+                           aClassName,
+                           "GrowKeyB",
+                           true);
+    AppendGrowKeyCall(&aLegacyGrowKeyB,
+                      "TwistExpander::GrowKeyB",
+                      true);
+    aLegacyGrowKeyB
+        << "    if ((pWorkSpace == nullptr) || (pPrevious == nullptr) ||\n"
+        << "        (pIngress == nullptr) || (pCarry == nullptr) ||\n"
+        << "        (pWandererA == nullptr) || (pWandererB == nullptr) ||\n"
+        << "        (pWandererC == nullptr) || (pWandererD == nullptr) ||\n"
+        << "        (pWandererE == nullptr) || (pWandererF == nullptr) ||\n"
+        << "        (pWandererG == nullptr) || (pWandererH == nullptr) ||\n"
+        << "        (pWandererI == nullptr) || (pWandererJ == nullptr) ||\n"
+        << "        (pWandererK == nullptr)) { return; }\n";
+    if (!AppendBranchBody(aSnapshot.mGrowKeyB,
+                          false,
+                          &aLegacyGrowKeyB,
+                          pError,
+                          aArx.Grow_B_A(),
+                          aArx.Grow_B_B(),
+                          aArx.Grow_B_C(),
+                          aArx.Grow_B_D())) {
         return false;
     }
     aLegacyGrowKeyB << "}\n";
 
-    std::string aGrowKeyBMethod;
-    bool aDidLoadPreplannedGrowKeyB = false;
-    if (!LoadPreplannedGrowKeyBMethod(aClassName,
-                                      &aGrowKeyBMethod,
-                                      &aDidLoadPreplannedGrowKeyB,
-                                      pError)) {
-        return false;
-    }
-    if (!aDidLoadPreplannedGrowKeyB) {
-        aGrowKeyBMethod = aLegacyGrowKeyB.str();
-    }
-    
+    const std::string aGrowKeyBMethod = aLegacyGrowKeyB.str();
+
+    std::ostringstream aFoldKeyRows;
+    aFoldKeyRows << "void " << aClassName << "::FoldKeyRows(TwistWorkSpace *pWorkSpace) {\n"
+                 << "    if (pWorkSpace == nullptr) { return; }\n"
+                 << aGrowAKeyFold
+                 << "    //\n"
+                 << aGrowBKeyFold;
+    aFoldKeyRows << "}\n";
+
+    const std::string aFoldKeyRowsMethod = aFoldKeyRows.str();
+
     std::ostringstream aHeader;
     aHeader << "#pragma once\n"
     << "\n"
@@ -3517,52 +4021,60 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     << "public:\n"
     << "    " << aClassName << "();\n"
     << "    ~" << aClassName << "() override = default;\n"
-    << "\n"
-    << "    void KDF_A(std::uint64_t pNonce,\n"
-    << "               TwistDomainConstants *pConstants,\n"
-    << "               TwistDomainSaltSet *pDomainSaltSet,\n"
-    << "               std::uint8_t *pSnow,\n"
-    << "               int pIndexKDF) override;\n"
-    << "    void KDF_B(std::uint64_t pNonce,\n"
-    << "               TwistDomainConstants *pConstants,\n"
-    << "               TwistDomainSaltSet *pDomainSaltSet,\n"
-    << "               int pIndexKDF) override;\n"
+    << "\n";
+    AppendKDFSignature(&aHeader, aClassName, "KDF_A", false);
+    AppendKDFSignature(&aHeader, aClassName, "KDF_B", false);
+    AppendKDFSignature(&aHeader, aClassName, "KDF_C", false);
+    AppendKDFSignature(&aHeader, aClassName, "KDF_D", false);
+    aHeader
     << "    void Seed(TwistWorkSpace *pWorkSpace,\n"
     << "              TwistFarmSalt *pFarmSalt,\n"
     << "              std::uint64_t pNonce,\n"
     << "              std::uint8_t *pPassword,\n"
     << "              std::size_t pPasswordByteLength,\n"
+    << "              std::uint8_t *pSnowLaneA,\n"
+    << "              std::uint8_t *pSnowLaneB,\n"
+    << "              std::uint8_t *pSnowLaneC,\n"
+    << "              std::uint8_t *pSnowLaneD,\n"
     << "              std::uint8_t *pDestination) override;\n"
     << "    void TwistBlock(TwistWorkSpace *pWorkSpace,\n"
     << "                    std::uint8_t *pSource,\n"
-    << "                    std::uint8_t *pDestination) override;\n"
-    << "    void SquashInvestToKeyBoxes() override;\n"
-    << "    void GrowKeyA(TwistWorkSpace *pWorkSpace) override;\n"
-    << "    void GrowKeyB(TwistWorkSpace *pWorkSpace) override;\n"
-    << "\n"
-    << "private:\n";
-    if (pUseSnapShotter) {
-        aHeader << "    std::size_t mTwistBlockCounter;\n";
-    }
+    << "                    std::uint8_t *pSnowLaneA,\n"
+    << "                    std::uint8_t *pSnowLaneB,\n"
+    << "                    std::uint8_t *pSnowLaneC,\n"
+    << "                    std::uint8_t *pSnowLaneD,\n"
+    << "                    std::uint8_t *pDestination) override;\n";
     aHeader
-    << "    static const TwistDomainSaltSet kPhaseASalts;\n"
-    << "    static const TwistDomainConstants kPhaseAConstants;\n"
-    << "    static const TwistDomainSaltSet kPhaseBSalts;\n"
-    << "    static const TwistDomainConstants kPhaseBConstants;\n"
-    << "    static const TwistDomainSaltSet kPhaseCSalts;\n"
-    << "    static const TwistDomainConstants kPhaseCConstants;\n"
-    << "    static const TwistDomainSaltSet kPhaseDSalts;\n"
-    << "    static const TwistDomainConstants kPhaseDConstants;\n"
-    << "    static const TwistDomainSaltSet kPhaseESalts;\n"
-    << "    static const TwistDomainConstants kPhaseEConstants;\n"
-    << "    static const TwistDomainSaltSet kPhaseFSalts;\n"
-    << "    static const TwistDomainConstants kPhaseFConstants;\n"
-    << "    static const TwistDomainSaltSet kPhaseGSalts;\n"
-    << "    static const TwistDomainConstants kPhaseGConstants;\n"
-    << "    static const TwistDomainSaltSet kPhaseHSalts;\n"
-    << "    static const TwistDomainConstants kPhaseHConstants;\n"
+    << "    void FoldSeed(TwistWorkSpace *pWorkSpace,\n"
+    << "                  std::uint8_t *pDestination) override;\n"
+    << "    void FoldTwist(TwistWorkSpace *pWorkSpace,\n"
+    << "                   std::uint8_t *pDestination) override;\n";
+    AppendGrowKeySignature(&aHeader,
+                           aClassName,
+                           "GrowKeyA",
+                           false);
+    AppendGrowKeySignature(&aHeader,
+                           aClassName,
+                           "GrowKeyB",
+                           false);
+    aHeader << "\n"
+            << "private:\n";
+    aHeader << "    void FoldKeyRows(TwistWorkSpace *pWorkSpace);\n";
+    aHeader
+    << "    static const TwistDomainSaltSet kKeyRotateASalts;\n"
+    << "    static const TwistDomainConstants kKeyRotateAConstants;\n"
+    << "    static const TwistDomainSaltSet kKeyRotateBSalts;\n"
+    << "    static const TwistDomainConstants kKeyRotateBConstants;\n"
+    << "    static const TwistDomainSaltSet kKeySpawnASalts;\n"
+    << "    static const TwistDomainConstants kKeySpawnAConstants;\n"
+    << "    static const TwistDomainSaltSet kKeySpawnBSalts;\n"
+    << "    static const TwistDomainConstants kKeySpawnBConstants;\n"
+    << "    static const TwistDomainSaltSet kSeedSalts;\n"
+    << "    static const TwistDomainConstants kSeedConstants;\n"
+    << "    static const TwistDomainSaltSet kTwistSalts;\n"
+    << "    static const TwistDomainConstants kTwistConstants;\n"
     << "};\n";
-    
+
     std::ostringstream aCpp;
     aCpp << "#include \"" << aClassName << ".hpp\"\n"
     << "#include \"TwistDiffuse.hpp\"\n"
@@ -3572,54 +4084,21 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
     << "#include \"TwistMix64.hpp\"\n"
     << "#include \"TwistFarmSalt.hpp\"\n"
     << "#include \"TwistFarmConstants.hpp\"\n"
-    << "#include \"TwistMemory.hpp\"\n"
+    << "#include \"TwistSquash.hpp\"\n"
     << "#include \"TwistShiftBox.hpp\"\n"
-    << "#include \"TwistSnow.hpp\"\n"
-    << "#include \"TwistSquash.hpp\"\n";
-    if (pUseSnapShotter) {
-        aCpp << "#include \"SnapShotter.hpp\"\n";
-    }
-    aCpp << "\n"
+    << "\n"
     << "#include <cstdint>\n"
     << "#include <cstring>\n"
     << "\n"
     << aClassName << "::" << aClassName << "()\n"
     << ": TwistExpander() {\n";
-    if (pUseSnapShotter) {
-        aCpp << "    mTwistBlockCounter = 0U;\n";
-    }
     aCpp
-    << "    mDomainBundleInbuilt.mPhaseASalts = kPhaseASalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseAConstants = kPhaseAConstants;\n"
-    << "    mDomainBundleInbuilt.mPhaseBSalts = kPhaseBSalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseBConstants = kPhaseBConstants;\n"
-    << "    mDomainBundleInbuilt.mPhaseCSalts = kPhaseCSalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseCConstants = kPhaseCConstants;\n"
-    << "    mDomainBundleInbuilt.mPhaseDSalts = kPhaseDSalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseDConstants = kPhaseDConstants;\n"
-    << "    mDomainBundleInbuilt.mPhaseESalts = kPhaseESalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseEConstants = kPhaseEConstants;\n"
-    << "    mDomainBundleInbuilt.mPhaseFSalts = kPhaseFSalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseFConstants = kPhaseFConstants;\n"
-    << "    mDomainBundleInbuilt.mPhaseGSalts = kPhaseGSalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseGConstants = kPhaseGConstants;\n"
-    << "    mDomainBundleInbuilt.mPhaseHSalts = kPhaseHSalts;\n"
-    << "    mDomainBundleInbuilt.mPhaseHConstants = kPhaseHConstants;\n"
+    << InbuiltDomainBundleAssignmentLines()
     << "    mDomainBundleEphemeral.Zero();\n"
     << "}\n"
-    << "\n"
-    << "void " << aClassName << "::KDF_A(std::uint64_t pNonce,\n"
-    << "                                  TwistDomainConstants *pConstants,\n"
-    << "                                  TwistDomainSaltSet *pDomainSaltSet,\n"
-    << "                                  std::uint8_t *pSnow,\n"
-    << "                                  int pIndexKDF) {\n"
-    << "    TwistExpander::KDF_A(pNonce, pConstants, pDomainSaltSet, pSnow, pIndexKDF);\n"
-    << "    TwistWorkSpace *pWorkSpace = mWorkspace;\n"
-    << "    if ((pWorkSpace == nullptr) || (pConstants == nullptr) ||\n"
-    << "        (pDomainSaltSet == nullptr) || (pSnow == nullptr)) { return; }\n";
-    if (pUseSnapShotter) {
-        AppendSnapShotStart("SnapStart_KDFA", "pIndexKDF == 0", &aCpp);
-    }
+    << "\n";
+    AppendKDFSignature(&aCpp, aClassName, "KDF_A", true);
+    AppendKDFMethodPrologue(&aCpp, "KDF_A");
     if (!AppendBranchBody(aKDF_ABranch,
                           true,
                           &aCpp,
@@ -3627,28 +4106,13 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
                           aArx.KDF_A_A(),
                           aArx.KDF_A_B(),
                           aArx.KDF_A_C(),
-                          aArx.KDF_A_D(),
-                          aArx.KDF_A_E(),
-                          nullptr,
-                          nullptr,
-                          pUseSnapShotter ? "SnapUpdate_KDFA" : nullptr,
-                          "pIndexKDF == 0",
-                          "KDF_A_DIFFUSE")) {
+                          aArx.KDF_A_D())) {
         return false;
     }
     aCpp << "}\n"
-    << "\n"
-    << "void " << aClassName << "::KDF_B(std::uint64_t pNonce,\n"
-    << "                                  TwistDomainConstants *pConstants,\n"
-    << "                                  TwistDomainSaltSet *pDomainSaltSet,\n"
-    << "                                  int pIndexKDF) {\n"
-    << "    TwistExpander::KDF_B(pNonce, pConstants, pDomainSaltSet, pIndexKDF);\n"
-    << "    TwistWorkSpace *pWorkSpace = mWorkspace;\n"
-    << "    if ((pWorkSpace == nullptr) || (pConstants == nullptr) ||\n"
-    << "        (pDomainSaltSet == nullptr)) { return; }\n";
-    if (pUseSnapShotter) {
-        AppendSnapShotStart("SnapStart_KDFB", "pIndexKDF == 0", &aCpp);
-    }
+         << "\n";
+    AppendKDFSignature(&aCpp, aClassName, "KDF_B", true);
+    AppendKDFMethodPrologue(&aCpp, "KDF_B");
     if (!AppendBranchBody(aKDF_BBranch,
                           true,
                           &aCpp,
@@ -3656,28 +4120,58 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
                           aArx.KDF_B_A(),
                           aArx.KDF_B_B(),
                           aArx.KDF_B_C(),
-                          aArx.KDF_B_D(),
-                          nullptr,
-                          nullptr,
-                          nullptr,
-                          pUseSnapShotter ? "SnapUpdate_KDFB" : nullptr,
-                          "pIndexKDF == 0",
-                          "KDF_B_DIFFUSE")) {
+                          aArx.KDF_B_D())) {
         return false;
     }
     aCpp << "}\n"
-    << "\n"
-    << "void " << aClassName << "::Seed(TwistWorkSpace *pWorkSpace,\n"
+         << "\n";
+    AppendKDFSignature(&aCpp, aClassName, "KDF_C", true);
+    AppendKDFMethodPrologue(&aCpp, "KDF_C");
+    if (!AppendBranchBody(aKDF_CBranch,
+                          true,
+                          &aCpp,
+                          pError,
+                          aArx.KDF_C_A(),
+                          aArx.KDF_C_B(),
+                          aArx.KDF_C_C(),
+                          aArx.KDF_C_D())) {
+        return false;
+    }
+    aCpp << "}\n"
+         << "\n";
+    AppendKDFSignature(&aCpp, aClassName, "KDF_D", true);
+    AppendKDFMethodPrologue(&aCpp, "KDF_D");
+    if (!AppendBranchBody(aKDF_DBranch,
+                          true,
+                          &aCpp,
+                          pError,
+                          aArx.KDF_D_A(),
+                          aArx.KDF_D_B(),
+                          aArx.KDF_D_C(),
+                          aArx.KDF_D_D())) {
+        return false;
+    }
+    aCpp << "}\n"
+         << "\n"
+         << "void " << aClassName << "::Seed(TwistWorkSpace *pWorkSpace,\n"
     << "                                 TwistFarmSalt *pFarmSalt,\n"
     << "                                 std::uint64_t pNonce,\n"
     << "                                 std::uint8_t *pPassword,\n"
     << "                                 std::size_t pPasswordByteLength,\n"
+    << "                                 std::uint8_t *pSnowLaneA,\n"
+    << "                                 std::uint8_t *pSnowLaneB,\n"
+    << "                                 std::uint8_t *pSnowLaneC,\n"
+    << "                                 std::uint8_t *pSnowLaneD,\n"
     << "                                 std::uint8_t *pDestination) {\n"
-    << "    TwistExpander::Seed(pWorkSpace, pFarmSalt, pNonce, pPassword, pPasswordByteLength, pDestination);\n"
-    << "    if ((pWorkSpace == nullptr) || (pFarmSalt == nullptr)) { return; }\n";
-    if (pUseSnapShotter) {
-        aCpp << "    mTwistBlockCounter = 0U;\n";
-    }
+    << "    if ((pWorkSpace == nullptr) || (pFarmSalt == nullptr) ||\n"
+    << "        (pSnowLaneA == nullptr) || (pSnowLaneB == nullptr) ||\n"
+    << "        (pSnowLaneC == nullptr) || (pSnowLaneD == nullptr) ||\n"
+    << "        (pDestination == nullptr)) { return; }\n"
+    << "\n"
+    << "    UnrollPasswordToSource(pWorkSpace->mSource, pPassword, pPasswordByteLength);\n"
+    << InbuiltDomainBundleAssignmentLines()
+    << "    mDomainBundleEphemeral.Zero();\n"
+    << "    pWorkSpace->mDomainBundle.Zero();\n";
     if (!AppendBranchBody(aSnapshot.mSeed,
                           false,
                           &aCpp,
@@ -3689,38 +4183,45 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
                           aArx.Seed_E(),
                           aArx.Seed_F(),
                           aArx.Seed_G(),
-                          pUseSnapShotter ? "SnapUpdate_SEED" : nullptr,
-                          nullptr,
-                          "SEED_DIFFUSE",
-                          pUseSnapShotter,
                           aArx.Seed_H(),
                           aArx.Seed_I(),
-                          true)) {
+                          /* pForceWorkspaceSourceAlias = */ false,
+                          /* pSkipTwistDiffuseBatches = */ false,
+                          /* pUseSnowParameters = */ true,
+                          aArx.Seed_J(),
+                          aArx.Seed_K(),
+                          aArx.Seed_L(),
+                          aArx.Seed_M(),
+                          aArx.Seed_N(),
+                          aArx.KEY())) {
         return false;
     }
-    AppendArxCall(*aArx.Grow_A(), &aCpp);
-    aCpp << "    GrowKeyA(pWorkSpace);\n";
-    if (pUseSnapShotter) {
-        AppendSnapShotUpdate("SnapUpdate_SEED", nullptr, "GROW_A", &aCpp);
-    }
-    AppendArxCall(*aArx.Grow_B(), &aCpp);
-    aCpp << "    GrowKeyB(pWorkSpace);\n";
-    if (pUseSnapShotter) {
-        AppendSnapShotUpdate("SnapUpdate_SEED", nullptr, "GROW_B", &aCpp);
-    }
-    aCpp << "    Zero_PostSeed();\n"
+    aCpp << "    FoldSeed(pWorkSpace, pDestination);\n";
+    AppendGrowKeyCall(&aCpp, "GrowKeyA", false);
+    AppendGrowKeyCall(&aCpp, "GrowKeyB", false);
+    aCpp << "    FoldKeyRows(pWorkSpace);\n";
+    aCpp << "    pWorkSpace->Zero_PostSeed();\n"
+    << "    Zero_PostSeed();\n"
     << "}\n"
-    << "\n"
-    << aSquashInvestToKeyBoxesMethod
     << "\n"
     << "void " << aClassName << "::TwistBlock(TwistWorkSpace *pWorkSpace,\n"
     << "                                       std::uint8_t *pSource,\n"
+    << "                                       std::uint8_t *pSnowLaneA,\n"
+    << "                                       std::uint8_t *pSnowLaneB,\n"
+    << "                                       std::uint8_t *pSnowLaneC,\n"
+    << "                                       std::uint8_t *pSnowLaneD,\n"
     << "                                       std::uint8_t *pDestination) {\n"
-    << "    TwistExpander::TwistBlock(pWorkSpace, pSource, pDestination);\n"
-    << "    if ((pWorkSpace == nullptr) || (pDestination == nullptr)) { return; }\n";
-    if (pUseSnapShotter) {
-        AppendSnapShotStart("SnapStart_TWIST", "mTwistBlockCounter == 0U", &aCpp);
-    }
+    << "    TwistExpander::TwistBlock(pWorkSpace,\n"
+    << "                              pSource,\n"
+    << "                              pSnowLaneA,\n"
+    << "                              pSnowLaneB,\n"
+    << "                              pSnowLaneC,\n"
+    << "                              pSnowLaneD,\n"
+    << "                              pDestination);\n"
+    << "    if ((pWorkSpace == nullptr) || (pSource == nullptr) ||\n"
+    << "        (pSnowLaneA == nullptr) || (pSnowLaneB == nullptr) ||\n"
+    << "        (pSnowLaneC == nullptr) || (pSnowLaneD == nullptr) ||\n"
+    << "        (pDestination == nullptr)) { return; }\n";
     if (!AppendBranchBody(aSnapshot.mTwister,
                           false,
                           &aCpp,
@@ -3732,43 +4233,39 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
                           aArx.Twist_E(),
                           aArx.Twist_F(),
                           aArx.Twist_G(),
-                          pUseSnapShotter ? "SnapUpdate_TWIST" : nullptr,
-                          nullptr,
-                          "TWIST_DIFFUSE",
-                          false,
-                          nullptr,
+                          aArx.Twist_H(),
                           nullptr,
                           false,
-                          /* pSkipTwistDiffuseBatches = */ false)) {
+                          /* pSkipTwistDiffuseBatches = */ false,
+                          /* pUseSnowParameters = */ true)) {
         return false;
     }
-    AppendArxCall(*aArx.Grow_A(), &aCpp);
-    aCpp << "    GrowKeyA(pWorkSpace);\n";
-    if (pUseSnapShotter) {
-        AppendSnapShotUpdate("SnapUpdate_TWIST", nullptr, "GROW_A", &aCpp);
-    }
-    AppendArxCall(*aArx.Grow_B(), &aCpp);
-    aCpp << "    GrowKeyB(pWorkSpace);\n";
-    if (pUseSnapShotter) {
-        AppendSnapShotUpdate("SnapUpdate_TWIST", nullptr, "GROW_B", &aCpp);
-        aCpp << "    mTwistBlockCounter += 1U;\n";
-    }
+    aCpp << "    FoldTwist(pWorkSpace, pDestination);\n";
+    AppendGrowKeyCall(&aCpp, "GrowKeyA", false);
+    AppendGrowKeyCall(&aCpp, "GrowKeyB", false);
+    aCpp << "    FoldKeyRows(pWorkSpace);\n";
     aCpp << "}\n"
     << "\n"
     << aGrowKeyAMethod
     << "\n"
     << aGrowKeyBMethod
     << "\n"
+    << aFoldKeyRowsMethod
+    << "\n"
+    << aFoldSeedMethod
+    << "\n"
+    << aFoldTwistMethod
+    << "\n"
     << DomainBundleStaticDefinitions(aClassName, aSnapshot.mDomainBundleInbuilt)
     << "\n";
-    
+
     if (!SaveTextFile(aHeaderPath, aHeader.str(), pError)) {
         return false;
     }
     if (!SaveTextFile(aCppPath, aCpp.str(), pError)) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -3780,10 +4277,10 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
 #if 0
     GTwistExpander aSnapshot = *this;
     aSnapshot.RefreshTablePointers();
-    
+
     const std::string aBaseInput = aSnapshot.mNameBase.empty() ? "Generated" : aSnapshot.mNameBase;
     const std::string aBaseName = SanitizeIdentifier(aBaseInput, "Generated");
-    
+
     JsonValue::Object aRootObject;
     aRootObject["name_base"] = JsonValue::String(aBaseInput);
     const TwistProgramBranch &aKDF_ABranch = aSnapshot.mKDF_A;
@@ -3791,17 +4288,27 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-    
+
     aRootObject["kdf_b"] = BranchToJsonValue(aSnapshot.mKDF_B, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-    
+
+    aRootObject["kdf_c"] = BranchToJsonValue(aSnapshot.mKDF_C, pError);
+    if ((pError != nullptr) && !pError->empty()) {
+        return false;
+    }
+
+    aRootObject["kdf_d"] = BranchToJsonValue(aSnapshot.mKDF_D, pError);
+    if ((pError != nullptr) && !pError->empty()) {
+        return false;
+    }
+
     aRootObject["seed"] = BranchToJsonValue(aSnapshot.mSeed, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-    
+
     aRootObject["twist"] = BranchToJsonValue(aSnapshot.mTwister, pError);
     if ((pError != nullptr) && !pError->empty()) {
         return false;
@@ -3816,15 +4323,15 @@ bool GTwistExpander::ExportJSONProjectRoot(const std::string &pRootPath,
     if ((pError != nullptr) && !pError->empty()) {
         return false;
     }
-    
+
     JsonValue::Object aTables;
     aTables["domain_bundle_inbuilt"] = DomainBundleToJsonValue(aSnapshot.mDomainBundleInbuilt);
     aRootObject["tables"] = JsonValue::ObjectValue(std::move(aTables));
-    
+
     const std::string aJsonText = JsonValue::ObjectValue(std::move(aRootObject)).Serialize();
     const std::string aRoot = pRootPath.empty() ? "generated/json" : pRootPath;
     const std::string aOutputPath = ResolveJsonOutputPath(aRoot, aBaseName);
-    
+
     return SaveTextFile(aOutputPath, aJsonText, pError);
 #endif
 }

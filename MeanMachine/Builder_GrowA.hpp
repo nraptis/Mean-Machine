@@ -11,10 +11,12 @@
 #include <string>
 
 class GTwistExpander;
+class ResidualBucket;
 
 class Builder_GrowA {
 public:
     bool                                    Build(GTwistExpander *pExpander,
+                                                  ResidualBucket &pResidualBucket,
                                                   std::string *pErrorMessage);
 };
 

@@ -18,24 +18,21 @@ struct RoundMaterialSuffixSet {
 
 RoundMaterialSuffixSet DomainRoundMaterialSuffixSet(TwistDomain pDomain) {
     switch (pDomain) {
-        case TwistDomain::kPhaseB:
-            return {"mPhaseBConstants", "mPhaseBSalts"};
-        case TwistDomain::kPhaseC:
-            return {"mPhaseCConstants", "mPhaseCSalts"};
-        case TwistDomain::kPhaseD:
-            return {"mPhaseDConstants", "mPhaseDSalts"};
-        case TwistDomain::kPhaseE:
-            return {"mPhaseEConstants", "mPhaseESalts"};
-        case TwistDomain::kPhaseF:
-            return {"mPhaseFConstants", "mPhaseFSalts"};
-        case TwistDomain::kPhaseG:
-            return {"mPhaseGConstants", "mPhaseGSalts"};
-        case TwistDomain::kPhaseH:
-            return {"mPhaseHConstants", "mPhaseHSalts"};
+        case TwistDomain::kKeyRotateA:
+            return {"mKeyRotateAConstants", "mKeyRotateASalts"};
+        case TwistDomain::kKeyRotateB:
+            return {"mKeyRotateBConstants", "mKeyRotateBSalts"};
+        case TwistDomain::kKeySpawnA:
+            return {"mKeySpawnAConstants", "mKeySpawnASalts"};
+        case TwistDomain::kKeySpawnB:
+            return {"mKeySpawnBConstants", "mKeySpawnBSalts"};
+        case TwistDomain::kSeed:
+            return {"mSeedConstants", "mSeedSalts"};
+        case TwistDomain::kTwist:
+            return {"mTwistConstants", "mTwistSalts"};
         case TwistDomain::kInvalid:
-        case TwistDomain::kPhaseA:
         default:
-            return {"mPhaseAConstants", "mPhaseASalts"};
+            return {"", ""};
     }
 }
 
@@ -54,8 +51,7 @@ std::string BundlePrefix(const GKDFMaterialBundle pBundle) {
 bool BakeKDFCall(const char *pFunctionName,
                  TwistDomain pDomain,
                  GKDFMaterialBundle pBundle,
-                 const GSymbol *pSnow,
-                 int pIndexKDF,
+                 const std::array<GSymbol, 3> &pSnowLanes,
                  std::vector<GStatement> *pStatements,
                  std::string *pErrorMessage) {
     if (pErrorMessage != nullptr) {
@@ -71,19 +67,25 @@ bool BakeKDFCall(const char *pFunctionName,
 
     const RoundMaterialSuffixSet aSet = DomainRoundMaterialSuffixSet(pDomain);
     const std::string aBundle = BundlePrefix(pBundle);
-    std::string aCall = std::string(pFunctionName) + "(pNonce, "
+    std::string aCall = std::string(pFunctionName) + "(pWorkSpace, pNonce, "
         "&(" + aBundle + "." + std::string(aSet.mConstants) + "), "
         "&(" + aBundle + "." + std::string(aSet.mSalts) + ")";
-    if (pSnow != nullptr) {
-        if (!pSnow->IsBuf()) {
+    for (const GSymbol &aSnowLane : pSnowLanes) {
+        if (!aSnowLane.IsBuf()) {
             if (pErrorMessage != nullptr) {
-                *pErrorMessage = std::string(pFunctionName) + "::Bake requires a snow buffer.";
+                *pErrorMessage =
+                    std::string(pFunctionName) +
+                    "::Bake requires three snow buffers.";
             }
             return false;
         }
-        aCall += ", " + BufAliasName(*pSnow);
+        aCall += ", " + BufAliasName(aSnowLane);
     }
-    aCall += ", " + std::to_string(pIndexKDF);
+    aCall +=
+        ", &aPrevious, &aIngress, &aCarry"
+        ", &aWandererA, &aWandererB, &aWandererC, &aWandererD"
+        ", &aWandererE, &aWandererF, &aWandererG, &aWandererH"
+        ", &aWandererI, &aWandererJ, &aWandererK";
     aCall += ");";
     pStatements->push_back(GStatement::RawLine(aCall));
     return true;
@@ -93,28 +95,48 @@ bool BakeKDFCall(const char *pFunctionName,
 
 bool GKDF_A::Bake(TwistDomain pDomain,
                   GKDFMaterialBundle pBundle,
-                  int pIndexKDF,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) {
     return BakeKDFCall("KDF_A",
                        pDomain,
                        pBundle,
-                       &mKDFSnow,
-                       pIndexKDF,
+                       mKDFSnowLanes,
                        pStatements,
                        pErrorMessage);
 }
 
 bool GKDF_B::Bake(TwistDomain pDomain,
                   GKDFMaterialBundle pBundle,
-                  int pIndexKDF,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) {
     return BakeKDFCall("KDF_B",
                        pDomain,
                        pBundle,
-                       nullptr,
-                       pIndexKDF,
+                       mKDFSnowLanes,
+                       pStatements,
+                       pErrorMessage);
+}
+
+bool GKDF_C::Bake(TwistDomain pDomain,
+                  GKDFMaterialBundle pBundle,
+                  std::vector<GStatement> *pStatements,
+                  std::string *pErrorMessage) {
+    return BakeKDFCall("KDF_C",
+                       pDomain,
+                       pBundle,
+                       mKDFSnowLanes,
+                       pStatements,
+                       pErrorMessage);
+}
+
+bool GKDF_D::Bake(TwistDomain pDomain,
+                  GKDFMaterialBundle pBundle,
+                  std::vector<GStatement> *pStatements,
+                  std::string *pErrorMessage) {
+    return BakeKDFCall("KDF_D",
+                       pDomain,
+                       pBundle,
+                       mKDFSnowLanes,
                        pStatements,
                        pErrorMessage);
 }

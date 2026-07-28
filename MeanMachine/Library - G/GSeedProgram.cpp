@@ -119,7 +119,7 @@ std::string CppBufferAlias(const GSymbol &pSymbol) {
         }
         return pSymbol.mName;
     }
-    return BufAliasName(pSymbol.mSlot);
+    return BufAliasName(pSymbol);
 }
 
 void AppendUniqueVariableName(std::vector<std::string> *pNames,
@@ -134,8 +134,8 @@ void AppendUniqueVariableName(std::vector<std::string> *pNames,
 
 bool IsPhaseSaltSlot(const TwistWorkSpaceSlot pSlot) {
     const int aValue = static_cast<int>(pSlot);
-    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kPhaseASaltOrbiterAssignA);
-    const int aCount = 18 * 8;
+    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA);
+    const int aCount = 18 * 6;
     return (aValue >= aBase) && (aValue < (aBase + aCount));
 }
 
@@ -143,8 +143,8 @@ void AppendPhaseSaltSlots(std::vector<TwistWorkSpaceSlot> *pSlots) {
     if (pSlots == nullptr) {
         return;
     }
-    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kPhaseASaltOrbiterAssignA);
-    const int aCount = 18 * 8;
+    const int aBase = static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA);
+    const int aCount = 18 * 6;
     for (int aOffset = 0; aOffset < aCount; ++aOffset) {
         pSlots->push_back(static_cast<TwistWorkSpaceSlot>(aBase + aOffset));
     }
@@ -173,18 +173,18 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
-        TwistWorkSpaceSlot::kExpansionLaneA,
-        TwistWorkSpaceSlot::kExpansionLaneB,
-        TwistWorkSpaceSlot::kExpansionLaneC,
-        TwistWorkSpaceSlot::kExpansionLaneD,
-        TwistWorkSpaceSlot::kWorkLaneA,
-        TwistWorkSpaceSlot::kWorkLaneB,
-        TwistWorkSpaceSlot::kWorkLaneC,
-        TwistWorkSpaceSlot::kWorkLaneD,
-        TwistWorkSpaceSlot::kOperationLaneA,
-        TwistWorkSpaceSlot::kOperationLaneB,
-        TwistWorkSpaceSlot::kOperationLaneC,
-        TwistWorkSpaceSlot::kOperationLaneD,
+        TwistWorkSpaceSlot::kHeartLaneA,
+        TwistWorkSpaceSlot::kHeartLaneB,
+        TwistWorkSpaceSlot::kHeartLaneC,
+        TwistWorkSpaceSlot::kHeartLaneD,
+        TwistWorkSpaceSlot::kPoisonLaneA,
+        TwistWorkSpaceSlot::kPoisonLaneB,
+        TwistWorkSpaceSlot::kPoisonLaneC,
+        TwistWorkSpaceSlot::kPoisonLaneD,
+        TwistWorkSpaceSlot::kSpiritLaneA,
+        TwistWorkSpaceSlot::kSpiritLaneB,
+        TwistWorkSpaceSlot::kSpiritLaneC,
+        TwistWorkSpaceSlot::kSpiritLaneD,
         TwistWorkSpaceSlot::kSnowLaneA,
         TwistWorkSpaceSlot::kSnowLaneB,
         TwistWorkSpaceSlot::kSnowLaneC,
@@ -209,22 +209,64 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kFuseLaneB,
         TwistWorkSpaceSlot::kFuseLaneC,
         TwistWorkSpaceSlot::kFuseLaneD,
-        TwistWorkSpaceSlot::kScrapLaneA,
-        TwistWorkSpaceSlot::kScrapLaneB,
-        TwistWorkSpaceSlot::kScrapLaneC,
-        TwistWorkSpaceSlot::kScrapLaneD,
-        TwistWorkSpaceSlot::kMergeLaneA,
-        TwistWorkSpaceSlot::kMergeLaneB,
-        TwistWorkSpaceSlot::kMergeLaneC,
-        TwistWorkSpaceSlot::kMergeLaneD,
-        TwistWorkSpaceSlot::kInvestA,
-        TwistWorkSpaceSlot::kInvestB,
-        TwistWorkSpaceSlot::kInvestC,
-        TwistWorkSpaceSlot::kInvestD,
-        TwistWorkSpaceSlot::kInvestE,
-        TwistWorkSpaceSlot::kInvestF,
-        TwistWorkSpaceSlot::kInvestG,
-        TwistWorkSpaceSlot::kInvestH,
+        TwistWorkSpaceSlot::kWoodLaneA,
+        TwistWorkSpaceSlot::kWoodLaneB,
+        TwistWorkSpaceSlot::kWoodLaneC,
+        TwistWorkSpaceSlot::kWoodLaneD,
+        TwistWorkSpaceSlot::kLightningLaneA,
+        TwistWorkSpaceSlot::kLightningLaneB,
+        TwistWorkSpaceSlot::kLightningLaneC,
+        TwistWorkSpaceSlot::kLightningLaneD,
+        TwistWorkSpaceSlot::kMagmaLaneA,
+        TwistWorkSpaceSlot::kMagmaLaneB,
+        TwistWorkSpaceSlot::kMagmaLaneC,
+        TwistWorkSpaceSlot::kMagmaLaneD,
+        TwistWorkSpaceSlot::kSoilLaneA,
+        TwistWorkSpaceSlot::kSoilLaneB,
+        TwistWorkSpaceSlot::kSoilLaneC,
+        TwistWorkSpaceSlot::kSoilLaneD,
+        TwistWorkSpaceSlot::kPlasmaLaneA,
+        TwistWorkSpaceSlot::kPlasmaLaneB,
+        TwistWorkSpaceSlot::kPlasmaLaneC,
+        TwistWorkSpaceSlot::kPlasmaLaneD,
+        TwistWorkSpaceSlot::kShadowLaneA,
+        TwistWorkSpaceSlot::kShadowLaneB,
+        TwistWorkSpaceSlot::kShadowLaneC,
+        TwistWorkSpaceSlot::kShadowLaneD,
+        TwistWorkSpaceSlot::kCrystalLaneA,
+        TwistWorkSpaceSlot::kCrystalLaneB,
+        TwistWorkSpaceSlot::kCrystalLaneC,
+        TwistWorkSpaceSlot::kCrystalLaneD,
+        TwistWorkSpaceSlot::kAetherLaneA,
+        TwistWorkSpaceSlot::kAetherLaneB,
+        TwistWorkSpaceSlot::kAetherLaneC,
+        TwistWorkSpaceSlot::kAetherLaneD,
+        TwistWorkSpaceSlot::kCelestialLaneA,
+        TwistWorkSpaceSlot::kCelestialLaneB,
+        TwistWorkSpaceSlot::kCelestialLaneC,
+        TwistWorkSpaceSlot::kCelestialLaneD,
+        TwistWorkSpaceSlot::kKineticLaneA,
+        TwistWorkSpaceSlot::kKineticLaneB,
+        TwistWorkSpaceSlot::kKineticLaneC,
+        TwistWorkSpaceSlot::kKineticLaneD,
+        TwistWorkSpaceSlot::kVaporLaneA,
+        TwistWorkSpaceSlot::kVaporLaneB,
+        TwistWorkSpaceSlot::kVaporLaneC,
+        TwistWorkSpaceSlot::kVaporLaneD,
+        TwistWorkSpaceSlot::kChanceLaneA,
+        TwistWorkSpaceSlot::kChanceLaneB,
+        TwistWorkSpaceSlot::kChanceLaneC,
+        TwistWorkSpaceSlot::kChanceLaneD,
+        TwistWorkSpaceSlot::kDomainLaneKeyRotateA,
+        TwistWorkSpaceSlot::kDomainLaneKeyRotateB,
+        TwistWorkSpaceSlot::kDomainLaneKeySpawnA,
+        TwistWorkSpaceSlot::kDomainLaneKeySpawnB,
+        TwistWorkSpaceSlot::kDomainLaneSeed,
+        TwistWorkSpaceSlot::kDomainLaneTwist,
+        TwistWorkSpaceSlot::kIceLaneA,
+        TwistWorkSpaceSlot::kIceLaneB,
+        TwistWorkSpaceSlot::kIceLaneC,
+        TwistWorkSpaceSlot::kIceLaneD,
         TwistWorkSpaceSlot::kIndexList256A,
         TwistWorkSpaceSlot::kIndexList256B,
         TwistWorkSpaceSlot::kIndexList256C,
@@ -235,6 +277,22 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kKeyRowReadB,
         TwistWorkSpaceSlot::kKeyRowWriteA,
         TwistWorkSpaceSlot::kKeyRowWriteB,
+        TwistWorkSpaceSlot::kKeyRowA0,
+        TwistWorkSpaceSlot::kKeyRowA1,
+        TwistWorkSpaceSlot::kKeyRowA2,
+        TwistWorkSpaceSlot::kKeyRowA3,
+        TwistWorkSpaceSlot::kKeyRowA4,
+        TwistWorkSpaceSlot::kKeyRowA5,
+        TwistWorkSpaceSlot::kKeyRowA6,
+        TwistWorkSpaceSlot::kKeyRowA7,
+        TwistWorkSpaceSlot::kKeyRowB0,
+        TwistWorkSpaceSlot::kKeyRowB1,
+        TwistWorkSpaceSlot::kKeyRowB2,
+        TwistWorkSpaceSlot::kKeyRowB3,
+        TwistWorkSpaceSlot::kKeyRowB4,
+        TwistWorkSpaceSlot::kKeyRowB5,
+        TwistWorkSpaceSlot::kKeyRowB6,
+        TwistWorkSpaceSlot::kKeyRowB7,
         TwistWorkSpaceSlot::kParamSnow,
     };
     AppendPhaseSaltSlots(&aSlots);
@@ -273,18 +331,18 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD: return "param_domain_salt_Wanderer_d";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE: return "param_domain_salt_Wanderer_e";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF: return "param_domain_salt_Wanderer_f";
-        case TwistWorkSpaceSlot::kExpansionLaneA: return "seed_lane_a";
-        case TwistWorkSpaceSlot::kExpansionLaneB: return "seed_lane_b";
-        case TwistWorkSpaceSlot::kExpansionLaneC: return "seed_lane_c";
-        case TwistWorkSpaceSlot::kExpansionLaneD: return "seed_lane_d";
-        case TwistWorkSpaceSlot::kWorkLaneA: return "work_lane_a";
-        case TwistWorkSpaceSlot::kWorkLaneB: return "work_lane_b";
-        case TwistWorkSpaceSlot::kWorkLaneC: return "work_lane_c";
-        case TwistWorkSpaceSlot::kWorkLaneD: return "work_lane_d";
-        case TwistWorkSpaceSlot::kOperationLaneA: return "operation_lane_a";
-        case TwistWorkSpaceSlot::kOperationLaneB: return "operation_lane_b";
-        case TwistWorkSpaceSlot::kOperationLaneC: return "operation_lane_c";
-        case TwistWorkSpaceSlot::kOperationLaneD: return "operation_lane_d";
+        case TwistWorkSpaceSlot::kHeartLaneA: return "seed_lane_a";
+        case TwistWorkSpaceSlot::kHeartLaneB: return "seed_lane_b";
+        case TwistWorkSpaceSlot::kHeartLaneC: return "seed_lane_c";
+        case TwistWorkSpaceSlot::kHeartLaneD: return "seed_lane_d";
+        case TwistWorkSpaceSlot::kPoisonLaneA: return "work_lane_a";
+        case TwistWorkSpaceSlot::kPoisonLaneB: return "work_lane_b";
+        case TwistWorkSpaceSlot::kPoisonLaneC: return "work_lane_c";
+        case TwistWorkSpaceSlot::kPoisonLaneD: return "work_lane_d";
+        case TwistWorkSpaceSlot::kSpiritLaneA: return "operation_lane_a";
+        case TwistWorkSpaceSlot::kSpiritLaneB: return "operation_lane_b";
+        case TwistWorkSpaceSlot::kSpiritLaneC: return "operation_lane_c";
+        case TwistWorkSpaceSlot::kSpiritLaneD: return "operation_lane_d";
         case TwistWorkSpaceSlot::kSnowLaneA: return "snow_lane_a";
         case TwistWorkSpaceSlot::kSnowLaneB: return "snow_lane_b";
         case TwistWorkSpaceSlot::kSnowLaneC: return "snow_lane_c";
@@ -309,23 +367,65 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kFuseLaneB: return "fuse_lane_b";
         case TwistWorkSpaceSlot::kFuseLaneC: return "fuse_lane_c";
         case TwistWorkSpaceSlot::kFuseLaneD: return "fuse_lane_d";
-        case TwistWorkSpaceSlot::kScrapLaneA: return "scrap_lane_a";
-        case TwistWorkSpaceSlot::kScrapLaneB: return "scrap_lane_b";
-        case TwistWorkSpaceSlot::kScrapLaneC: return "scrap_lane_c";
-        case TwistWorkSpaceSlot::kScrapLaneD: return "scrap_lane_d";
-        case TwistWorkSpaceSlot::kMergeLaneA: return "merge_lane_a";
-        case TwistWorkSpaceSlot::kMergeLaneB: return "merge_lane_b";
-        case TwistWorkSpaceSlot::kMergeLaneC: return "merge_lane_c";
-        case TwistWorkSpaceSlot::kMergeLaneD: return "merge_lane_d";
+        case TwistWorkSpaceSlot::kWoodLaneA: return "scrap_lane_a";
+        case TwistWorkSpaceSlot::kWoodLaneB: return "scrap_lane_b";
+        case TwistWorkSpaceSlot::kWoodLaneC: return "scrap_lane_c";
+        case TwistWorkSpaceSlot::kWoodLaneD: return "scrap_lane_d";
+        case TwistWorkSpaceSlot::kLightningLaneA: return "lightning_lane_a";
+        case TwistWorkSpaceSlot::kLightningLaneB: return "lightning_lane_b";
+        case TwistWorkSpaceSlot::kLightningLaneC: return "lightning_lane_c";
+        case TwistWorkSpaceSlot::kLightningLaneD: return "lightning_lane_d";
+        case TwistWorkSpaceSlot::kMagmaLaneA: return "magma_lane_a";
+        case TwistWorkSpaceSlot::kMagmaLaneB: return "magma_lane_b";
+        case TwistWorkSpaceSlot::kMagmaLaneC: return "magma_lane_c";
+        case TwistWorkSpaceSlot::kMagmaLaneD: return "magma_lane_d";
+        case TwistWorkSpaceSlot::kSoilLaneA: return "soil_lane_a";
+        case TwistWorkSpaceSlot::kSoilLaneB: return "soil_lane_b";
+        case TwistWorkSpaceSlot::kSoilLaneC: return "soil_lane_c";
+        case TwistWorkSpaceSlot::kSoilLaneD: return "soil_lane_d";
+        case TwistWorkSpaceSlot::kPlasmaLaneA: return "plasma_lane_a";
+        case TwistWorkSpaceSlot::kPlasmaLaneB: return "plasma_lane_b";
+        case TwistWorkSpaceSlot::kPlasmaLaneC: return "plasma_lane_c";
+        case TwistWorkSpaceSlot::kPlasmaLaneD: return "plasma_lane_d";
+        case TwistWorkSpaceSlot::kShadowLaneA: return "shadow_lane_a";
+        case TwistWorkSpaceSlot::kShadowLaneB: return "shadow_lane_b";
+        case TwistWorkSpaceSlot::kShadowLaneC: return "shadow_lane_c";
+        case TwistWorkSpaceSlot::kShadowLaneD: return "shadow_lane_d";
+        case TwistWorkSpaceSlot::kCrystalLaneA: return "crystal_lane_a";
+        case TwistWorkSpaceSlot::kCrystalLaneB: return "crystal_lane_b";
+        case TwistWorkSpaceSlot::kCrystalLaneC: return "crystal_lane_c";
+        case TwistWorkSpaceSlot::kCrystalLaneD: return "crystal_lane_d";
+        case TwistWorkSpaceSlot::kAetherLaneA: return "aether_lane_a";
+        case TwistWorkSpaceSlot::kAetherLaneB: return "aether_lane_b";
+        case TwistWorkSpaceSlot::kAetherLaneC: return "aether_lane_c";
+        case TwistWorkSpaceSlot::kAetherLaneD: return "aether_lane_d";
+        case TwistWorkSpaceSlot::kCelestialLaneA: return "celestial_lane_a";
+        case TwistWorkSpaceSlot::kCelestialLaneB: return "celestial_lane_b";
+        case TwistWorkSpaceSlot::kCelestialLaneC: return "celestial_lane_c";
+        case TwistWorkSpaceSlot::kCelestialLaneD: return "celestial_lane_d";
+        case TwistWorkSpaceSlot::kKineticLaneA: return "kinetic_lane_a";
+        case TwistWorkSpaceSlot::kKineticLaneB: return "kinetic_lane_b";
+        case TwistWorkSpaceSlot::kKineticLaneC: return "kinetic_lane_c";
+        case TwistWorkSpaceSlot::kKineticLaneD: return "kinetic_lane_d";
+        case TwistWorkSpaceSlot::kVaporLaneA: return "vapor_lane_a";
+        case TwistWorkSpaceSlot::kVaporLaneB: return "vapor_lane_b";
+        case TwistWorkSpaceSlot::kVaporLaneC: return "vapor_lane_c";
+        case TwistWorkSpaceSlot::kVaporLaneD: return "vapor_lane_d";
+        case TwistWorkSpaceSlot::kChanceLaneA: return "chance_lane_a";
+        case TwistWorkSpaceSlot::kChanceLaneB: return "chance_lane_b";
+        case TwistWorkSpaceSlot::kChanceLaneC: return "chance_lane_c";
+        case TwistWorkSpaceSlot::kChanceLaneD: return "chance_lane_d";
+        case TwistWorkSpaceSlot::kDomainLaneKeyRotateA: return "domain_lane_key_rotate_a";
+        case TwistWorkSpaceSlot::kDomainLaneKeyRotateB: return "domain_lane_key_rotate_b";
+        case TwistWorkSpaceSlot::kDomainLaneKeySpawnA: return "domain_lane_key_spawn_a";
+        case TwistWorkSpaceSlot::kDomainLaneKeySpawnB: return "domain_lane_key_spawn_b";
+        case TwistWorkSpaceSlot::kDomainLaneSeed: return "domain_lane_seed";
+        case TwistWorkSpaceSlot::kDomainLaneTwist: return "domain_lane_twist";
         case TwistWorkSpaceSlot::kParamSnow: return "param_snow";
-        case TwistWorkSpaceSlot::kInvestA: return "invest_lane_a";
-        case TwistWorkSpaceSlot::kInvestB: return "invest_lane_b";
-        case TwistWorkSpaceSlot::kInvestC: return "invest_lane_c";
-        case TwistWorkSpaceSlot::kInvestD: return "invest_lane_d";
-        case TwistWorkSpaceSlot::kInvestE: return "invest_lane_e";
-        case TwistWorkSpaceSlot::kInvestF: return "invest_lane_f";
-        case TwistWorkSpaceSlot::kInvestG: return "invest_lane_g";
-        case TwistWorkSpaceSlot::kInvestH: return "invest_lane_h";
+        case TwistWorkSpaceSlot::kIceLaneA: return "invest_lane_a";
+        case TwistWorkSpaceSlot::kIceLaneB: return "invest_lane_b";
+        case TwistWorkSpaceSlot::kIceLaneC: return "invest_lane_c";
+        case TwistWorkSpaceSlot::kIceLaneD: return "invest_lane_d";
         case TwistWorkSpaceSlot::kIndexList256A: return "index_list_256_a";
         case TwistWorkSpaceSlot::kIndexList256B: return "index_list_256_b";
         case TwistWorkSpaceSlot::kIndexList256C: return "index_list_256_c";
@@ -336,6 +436,22 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kKeyRowReadB: return "key_row_read_b";
         case TwistWorkSpaceSlot::kKeyRowWriteA: return "key_row_write_a";
         case TwistWorkSpaceSlot::kKeyRowWriteB: return "key_row_write_b";
+        case TwistWorkSpaceSlot::kKeyRowA0: return "key_row_a_0";
+        case TwistWorkSpaceSlot::kKeyRowA1: return "key_row_a_1";
+        case TwistWorkSpaceSlot::kKeyRowA2: return "key_row_a_2";
+        case TwistWorkSpaceSlot::kKeyRowA3: return "key_row_a_3";
+        case TwistWorkSpaceSlot::kKeyRowA4: return "key_row_a_4";
+        case TwistWorkSpaceSlot::kKeyRowA5: return "key_row_a_5";
+        case TwistWorkSpaceSlot::kKeyRowA6: return "key_row_a_6";
+        case TwistWorkSpaceSlot::kKeyRowA7: return "key_row_a_7";
+        case TwistWorkSpaceSlot::kKeyRowB0: return "key_row_b_0";
+        case TwistWorkSpaceSlot::kKeyRowB1: return "key_row_b_1";
+        case TwistWorkSpaceSlot::kKeyRowB2: return "key_row_b_2";
+        case TwistWorkSpaceSlot::kKeyRowB3: return "key_row_b_3";
+        case TwistWorkSpaceSlot::kKeyRowB4: return "key_row_b_4";
+        case TwistWorkSpaceSlot::kKeyRowB5: return "key_row_b_5";
+        case TwistWorkSpaceSlot::kKeyRowB6: return "key_row_b_6";
+        case TwistWorkSpaceSlot::kKeyRowB7: return "key_row_b_7";
         default:
             return "slot_" + std::to_string(static_cast<int>(pSlot));
     }
@@ -364,10 +480,29 @@ bool SlotFromToken(const std::string &pToken,
         return true;
     }
 
+    std::string aNormalizedToken = pToken;
+    const struct {
+        const char *mLegacyPrefix;
+        const char *mDomainPrefix;
+    } kLegacyDomainPrefixes[] = {
+        {"phase_a_salt_", "key_rotate_salt_"},
+        {"phase_b_salt_", "key_spawn_salt_"},
+        {"phase_c_salt_", "seed_salt_"},
+        {"phase_d_salt_", "twist_salt_"},
+    };
+    for (const auto &aPrefix : kLegacyDomainPrefixes) {
+        if (StartsWithText(aNormalizedToken, aPrefix.mLegacyPrefix)) {
+            aNormalizedToken =
+                std::string(aPrefix.mDomainPrefix) +
+                aNormalizedToken.substr(std::char_traits<char>::length(aPrefix.mLegacyPrefix));
+            break;
+        }
+    }
+
     const std::vector<TwistWorkSpaceSlot> &kSlots = KnownWorkspaceSlots();
 
     for (TwistWorkSpaceSlot aSlot : kSlots) {
-        if (SlotToken(aSlot) == pToken) {
+        if (SlotToken(aSlot) == aNormalizedToken) {
             *pSlot = aSlot;
             return true;
         }
@@ -490,7 +625,7 @@ bool AssignTypeFromToken(const std::string &pToken,
     if (pToken == "add_assign") { *pType = GAssignType::kAddAssign; return true; }
     if (pToken == "xor_assign") { *pType = GAssignType::kXorAssign; return true; }
     if (pToken == "or_assign") { *pType = GAssignType::kOrAssign; return true; }
-    
+
     return false;
 }
 
@@ -979,12 +1114,12 @@ void CollectRuntimeDiffuseSlots(const std::string &pRawLine,
     std::string aMethod;
     std::vector<std::string> aArgs;
     if (!ParseRuntimeDiffuseLine(pRawLine, &aMethod, &aArgs) ||
-        ((aMethod != "Diffuse") && (aMethod != "DiffuseWithDomainWords")) ||
-        (aArgs.size() < 12U)) {
+        (aMethod != "DiffuseWithDomainWords") ||
+        (aArgs.size() < 18U)) {
         return;
     }
 
-    for (std::size_t aArgumentIndex = 0U; aArgumentIndex < 12U; aArgumentIndex += 1U) {
+    for (std::size_t aArgumentIndex = 0U; aArgumentIndex < 18U; aArgumentIndex += 1U) {
         TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
         if (ResolveRuntimeAliasSlot(aArgs[aArgumentIndex], &aSlot)) {
             AppendUnique(pSlots, aSlot);
@@ -997,7 +1132,7 @@ void CollectRuntimeMemorySlots(const std::string &pRawLine,
     if (pSlots == nullptr) {
         return;
     }
-    
+
     std::string aLine = pRawLine;
     const std::size_t aComment = aLine.find("//");
     if (aComment != std::string::npos) {
@@ -1008,24 +1143,24 @@ void CollectRuntimeMemorySlots(const std::string &pRawLine,
         aLine.pop_back();
         aLine = TrimRuntimeLine(aLine);
     }
-    
+
     const std::string aPrefix = "TwistMemory::";
     if (aLine.rfind(aPrefix, 0U) != 0U) {
         return;
     }
-    
+
     const std::size_t aOpen = aLine.find('(', aPrefix.size());
     const std::size_t aClose = aLine.rfind(')');
     if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
         return;
     }
-    
+
     const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
     std::vector<std::string> aArgs;
     if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs)) {
         return;
     }
-    
+
     std::size_t aBufferArgumentCount = 0U;
     if ((aMethod == "ZeroBlock") ||
         (aMethod == "ZeroKeyBoxA") ||
@@ -1034,14 +1169,14 @@ void CollectRuntimeMemorySlots(const std::string &pRawLine,
     } else if (aMethod == "Copy") {
         aBufferArgumentCount = 2U;
     }
-    
+
     for (std::size_t aArgumentIndex = 0U; (aArgumentIndex < aBufferArgumentCount) && (aArgumentIndex < aArgs.size()); aArgumentIndex += 1U) {
         std::string aAlias = TrimRuntimeLine(aArgs[aArgumentIndex]);
         const std::size_t aPlus = aAlias.find('+');
         if (aPlus != std::string::npos) {
             aAlias = TrimRuntimeLine(aAlias.substr(0U, aPlus));
         }
-        
+
         TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
         if (ResolveRuntimeAliasSlot(aAlias, &aSlot)) {
             AppendUnique(pSlots, aSlot);
@@ -1178,16 +1313,7 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
         aLine = TrimRuntimeLine(aLine);
     }
 
-    std::string aPrefix = "TwistIndexShuffle::ExecuteA";
-    bool aUseExecuteB = false;
-    if (aLine.rfind(aPrefix, 0U) != 0U) {
-        aPrefix = "TwistIndexShuffle::ExecuteB";
-        aUseExecuteB = true;
-    }
-    if (aLine.rfind(aPrefix, 0U) != 0U) {
-        aPrefix = "TwistIndexShuffle::Execute256";
-        aUseExecuteB = false;
-    }
+    const std::string aPrefix = "TwistIndexShuffle::Execute";
     if (aLine.rfind(aPrefix, 0U) != 0U) {
         return true;
     }
@@ -1232,11 +1358,7 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
     }
 
     std::size_t *aDest = reinterpret_cast<std::size_t *>(aDestBytes);
-    if (aUseExecuteB) {
-        TwistIndexShuffle::ExecuteB(aDest, aSourceBytes);
-    } else {
-        TwistIndexShuffle::ExecuteA(aDest, aSourceBytes);
-    }
+    TwistIndexShuffle::Execute(aDest, aSourceBytes);
     return true;
 }
 
@@ -1461,13 +1583,12 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
         *pExecuted = true;
     }
 
-    const bool aUseDomainWords = (aMethod == "DiffuseWithDomainWords");
-    if ((aMethod != "Diffuse") && !aUseDomainWords) {
+    if (aMethod != "DiffuseWithDomainWords") {
         SetError(pError, "Diffuse call method was unsupported: " + aMethod);
         return false;
     }
 
-    const std::size_t aExpectedCount = aUseDomainWords ? 21U : 13U;
+    const std::size_t aExpectedCount = 27U;
     if (aArgs.size() != aExpectedCount) {
         SetError(pError, "Diffuse call expected " + std::to_string(aExpectedCount) + " arguments.");
         return false;
@@ -1508,10 +1629,16 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
 
     std::uint8_t *aInputLaneA = nullptr;
     std::uint8_t *aInputLaneB = nullptr;
+    std::uint8_t *aInputLaneC = nullptr;
+    std::uint8_t *aInputLaneD = nullptr;
     std::uint8_t *aOutputLaneA = nullptr;
     std::uint8_t *aOutputLaneB = nullptr;
+    std::uint8_t *aOutputLaneC = nullptr;
+    std::uint8_t *aOutputLaneD = nullptr;
     std::uint8_t *aShuffleEntropyLaneA = nullptr;
     std::uint8_t *aShuffleEntropyLaneB = nullptr;
+    std::uint8_t *aShuffleEntropyLaneC = nullptr;
+    std::uint8_t *aShuffleEntropyLaneD = nullptr;
     std::uint8_t *aOperationSourceLaneA = nullptr;
     std::uint8_t *aOperationSourceLaneB = nullptr;
     std::size_t *aIndexList256A = nullptr;
@@ -1521,39 +1648,28 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
 
     if (!ResolveBufferArg(0U, "input lane A", &aInputLaneA) ||
         !ResolveBufferArg(1U, "input lane B", &aInputLaneB) ||
-        !ResolveBufferArg(2U, "output lane A", &aOutputLaneA) ||
-        !ResolveBufferArg(3U, "output lane B", &aOutputLaneB) ||
-        !ResolveBufferArg(4U, "shuffle entropy lane A", &aShuffleEntropyLaneA) ||
-        !ResolveBufferArg(5U, "shuffle entropy lane B", &aShuffleEntropyLaneB) ||
-        !ResolveBufferArg(6U, "operation source lane A", &aOperationSourceLaneA) ||
-        !ResolveBufferArg(7U, "operation source lane B", &aOperationSourceLaneB) ||
-        !ResolveIndexListArg(8U, "index list 256 A", &aIndexList256A) ||
-        !ResolveIndexListArg(9U, "index list 256 B", &aIndexList256B) ||
-        !ResolveIndexListArg(10U, "index list 256 C", &aIndexList256C) ||
-        !ResolveIndexListArg(11U, "index list 256 D", &aIndexList256D)) {
+        !ResolveBufferArg(2U, "input lane C", &aInputLaneC) ||
+        !ResolveBufferArg(3U, "input lane D", &aInputLaneD) ||
+        !ResolveBufferArg(4U, "output lane A", &aOutputLaneA) ||
+        !ResolveBufferArg(5U, "output lane B", &aOutputLaneB) ||
+        !ResolveBufferArg(6U, "output lane C", &aOutputLaneC) ||
+        !ResolveBufferArg(7U, "output lane D", &aOutputLaneD) ||
+        !ResolveBufferArg(8U, "shuffle entropy lane A", &aShuffleEntropyLaneA) ||
+        !ResolveBufferArg(9U, "shuffle entropy lane B", &aShuffleEntropyLaneB) ||
+        !ResolveBufferArg(10U, "shuffle entropy lane C", &aShuffleEntropyLaneC) ||
+        !ResolveBufferArg(11U, "shuffle entropy lane D", &aShuffleEntropyLaneD) ||
+        !ResolveBufferArg(12U, "operation source lane A", &aOperationSourceLaneA) ||
+        !ResolveBufferArg(13U, "operation source lane B", &aOperationSourceLaneB) ||
+        !ResolveIndexListArg(14U, "index list 256 A", &aIndexList256A) ||
+        !ResolveIndexListArg(15U, "index list 256 B", &aIndexList256B) ||
+        !ResolveIndexListArg(16U, "index list 256 C", &aIndexList256C) ||
+        !ResolveIndexListArg(17U, "index list 256 D", &aIndexList256D)) {
         return false;
     }
 
-    if (TrimRuntimeLine(aArgs[12U]) != "&mMatrix") {
-        SetError(pError, "Diffuse matrix argument was invalid: " + aArgs[12U]);
+    if (TrimRuntimeLine(aArgs[18U]) != "&mMatrix") {
+        SetError(pError, "Diffuse matrix argument was invalid: " + aArgs[18U]);
         return false;
-    }
-
-    if (!aUseDomainWords) {
-        TwistDiffuse::Diffuse(aInputLaneA,
-                              aInputLaneB,
-                              aOutputLaneA,
-                              aOutputLaneB,
-                              aShuffleEntropyLaneA,
-                              aShuffleEntropyLaneB,
-                              aOperationSourceLaneA,
-                              aOperationSourceLaneB,
-                              aIndexList256A,
-                              aIndexList256B,
-                              aIndexList256C,
-                              aIndexList256D,
-                              &(pExpander->mMatrix));
-        return true;
     }
 
     GRuntimeScalar aMatrixSelectA = 0ULL;
@@ -1564,24 +1680,30 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
     int aMatrixArgB = 0;
     int aMatrixArgC = 0;
     int aMatrixArgD = 0;
-    if (!ParseRuntimeScalarToken(aArgs[13U], pVariables, &aMatrixSelectA) ||
-        !ParseRuntimeScalarToken(aArgs[14U], pVariables, &aMatrixSelectB) ||
-        !ParseRuntimeIntToken(aArgs[15U], pVariables, &aMatrixUnrollA) ||
-        !ParseRuntimeIntToken(aArgs[16U], pVariables, &aMatrixUnrollB) ||
-        !ParseRuntimeIntToken(aArgs[17U], pVariables, &aMatrixArgA) ||
-        !ParseRuntimeIntToken(aArgs[18U], pVariables, &aMatrixArgB) ||
-        !ParseRuntimeIntToken(aArgs[19U], pVariables, &aMatrixArgC) ||
-        !ParseRuntimeIntToken(aArgs[20U], pVariables, &aMatrixArgD)) {
+    if (!ParseRuntimeScalarToken(aArgs[19U], pVariables, &aMatrixSelectA) ||
+        !ParseRuntimeScalarToken(aArgs[20U], pVariables, &aMatrixSelectB) ||
+        !ParseRuntimeIntToken(aArgs[21U], pVariables, &aMatrixUnrollA) ||
+        !ParseRuntimeIntToken(aArgs[22U], pVariables, &aMatrixUnrollB) ||
+        !ParseRuntimeIntToken(aArgs[23U], pVariables, &aMatrixArgA) ||
+        !ParseRuntimeIntToken(aArgs[24U], pVariables, &aMatrixArgB) ||
+        !ParseRuntimeIntToken(aArgs[25U], pVariables, &aMatrixArgC) ||
+        !ParseRuntimeIntToken(aArgs[26U], pVariables, &aMatrixArgD)) {
         SetError(pError, "Diffuse domain word argument was invalid.");
         return false;
     }
 
     TwistDiffuse::DiffuseWithDomainWords(aInputLaneA,
                                          aInputLaneB,
+                                         aInputLaneC,
+                                         aInputLaneD,
                                          aOutputLaneA,
                                          aOutputLaneB,
+                                         aOutputLaneC,
+                                         aOutputLaneD,
                                          aShuffleEntropyLaneA,
                                          aShuffleEntropyLaneB,
+                                         aShuffleEntropyLaneC,
+                                         aShuffleEntropyLaneD,
                                          aOperationSourceLaneA,
                                          aOperationSourceLaneB,
                                          aIndexList256A,
@@ -1996,6 +2118,34 @@ void CollectSlotsFromExpr(const GExpr &pExpr,
     }
 }
 
+void AppendUniqueBuffer(std::vector<GSymbol> *pBuffers,
+                        const GSymbol &pSymbol) {
+    if ((pBuffers == nullptr) || !pSymbol.IsBuf()) {
+        return;
+    }
+    if (std::find(pBuffers->begin(), pBuffers->end(), pSymbol) ==
+        pBuffers->end()) {
+        pBuffers->push_back(pSymbol);
+    }
+}
+
+void CollectBuffersFromExpr(const GExpr &pExpr,
+                            std::vector<GSymbol> *pBuffers) {
+    if ((pExpr.mType == GExprType::kSymbol) ||
+        (pExpr.mType == GExprType::kRead)) {
+        AppendUniqueBuffer(pBuffers, pExpr.mSymbol);
+    }
+    if (pExpr.mIndex != nullptr) {
+        CollectBuffersFromExpr(*pExpr.mIndex, pBuffers);
+    }
+    if (pExpr.mA != nullptr) {
+        CollectBuffersFromExpr(*pExpr.mA, pBuffers);
+    }
+    if (pExpr.mB != nullptr) {
+        CollectBuffersFromExpr(*pExpr.mB, pBuffers);
+    }
+}
+
 int CountExprReads(const GExpr &pExpr,
                              const TwistWorkSpaceSlot pSlot) {
     int aCount = 0U;
@@ -2039,7 +2189,7 @@ std::string AssignOperatorText(const GAssignType pType) {
         case GAssignType::kAddAssign: return "+=";
         case GAssignType::kXorAssign: return "^=";
         case GAssignType::kOrAssign: return "|=";
-        
+
         default: return "?=";
     }
 }
@@ -2206,14 +2356,12 @@ std::vector<std::string> ScalarDeclarationLines(const std::vector<std::string> &
 std::vector<std::string> WorkspaceDomainWordAliasOrder() {
     std::vector<std::string> aResult;
     const TwistDomain aDomains[] = {
-        TwistDomain::kPhaseA,
-        TwistDomain::kPhaseB,
-        TwistDomain::kPhaseC,
-        TwistDomain::kPhaseD,
-        TwistDomain::kPhaseE,
-        TwistDomain::kPhaseF,
-        TwistDomain::kPhaseG,
-        TwistDomain::kPhaseH
+        TwistDomain::kKeyRotateA,
+        TwistDomain::kKeyRotateB,
+        TwistDomain::kKeySpawnA,
+        TwistDomain::kKeySpawnB,
+        TwistDomain::kSeed,
+        TwistDomain::kTwist
     };
     const TwistConstants aConstants[] = {
         TwistConstants::kIngress,
@@ -2315,17 +2463,15 @@ TwistDomainConstants *WorkspaceConstantsForDomain(TwistWorkSpace *pWorkSpace,
     }
 
     switch (pDomain) {
-        case TwistDomain::kPhaseB: return &pWorkSpace->mDomainBundle.mPhaseBConstants;
-        case TwistDomain::kPhaseC: return &pWorkSpace->mDomainBundle.mPhaseCConstants;
-        case TwistDomain::kPhaseD: return &pWorkSpace->mDomainBundle.mPhaseDConstants;
-        case TwistDomain::kPhaseE: return &pWorkSpace->mDomainBundle.mPhaseEConstants;
-        case TwistDomain::kPhaseF: return &pWorkSpace->mDomainBundle.mPhaseFConstants;
-        case TwistDomain::kPhaseG: return &pWorkSpace->mDomainBundle.mPhaseGConstants;
-        case TwistDomain::kPhaseH: return &pWorkSpace->mDomainBundle.mPhaseHConstants;
+        case TwistDomain::kKeyRotateA: return &pWorkSpace->mDomainBundle.mKeyRotateAConstants;
+        case TwistDomain::kKeyRotateB: return &pWorkSpace->mDomainBundle.mKeyRotateBConstants;
+        case TwistDomain::kKeySpawnA: return &pWorkSpace->mDomainBundle.mKeySpawnAConstants;
+        case TwistDomain::kKeySpawnB: return &pWorkSpace->mDomainBundle.mKeySpawnBConstants;
+        case TwistDomain::kSeed: return &pWorkSpace->mDomainBundle.mSeedConstants;
+        case TwistDomain::kTwist: return &pWorkSpace->mDomainBundle.mTwistConstants;
         case TwistDomain::kInvalid:
-        case TwistDomain::kPhaseA:
         default:
-            return &pWorkSpace->mDomainBundle.mPhaseAConstants;
+            return nullptr;
     }
 }
 
@@ -2479,7 +2625,7 @@ bool ResolveLegacyWorkspaceDomainWordValue(const std::string &pName,
         *pWasDomainWord = true;
     }
 
-    TwistDomainConstants *aConstants = WorkspaceConstantsForDomain(pWorkSpace, TwistDomain::kPhaseA);
+    TwistDomainConstants *aConstants = WorkspaceConstantsForDomain(pWorkSpace, TwistDomain::kKeyRotateA);
     if (aConstants == nullptr) {
         SetError(pError, "Workspace was null during legacy domain word read.");
         return false;
@@ -2493,7 +2639,7 @@ std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
         return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_SALT1));
     }
     if (IsIndexListSlot(pSlot)) {
-        return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(S_SBOX1));
+        return static_cast<std::size_t>(pIndexValue & static_cast<GRuntimeScalar>(255));
     }
 
     const int aElementCount = TwistWorkSpace::GetBufferLength(pSlot);
@@ -2506,9 +2652,46 @@ std::size_t RuntimeIndexForSlot(const TwistWorkSpaceSlot pSlot,
     return static_cast<std::size_t>(pIndexValue % static_cast<GRuntimeScalar>(aElementCount));
 }
 
+std::size_t RuntimeIndexForSymbol(const GSymbol &pSymbol,
+                                  const GRuntimeScalar pIndexValue) {
+    const TwistBufferKey aKey = ResolveBufferKey(pSymbol);
+    if (!aKey.IsLaneSplit()) {
+        return RuntimeIndexForSlot(pSymbol.mSlot, pIndexValue);
+    }
+
+    const int aElementCount = TwistWorkSpace::GetBufferLength(aKey);
+    if (aElementCount <= 0) {
+        return static_cast<std::size_t>(pIndexValue);
+    }
+    if ((aElementCount & (aElementCount - 1)) == 0) {
+        return static_cast<std::size_t>(
+            pIndexValue & static_cast<GRuntimeScalar>(aElementCount - 1)
+        );
+    }
+    return static_cast<std::size_t>(
+        pIndexValue % static_cast<GRuntimeScalar>(aElementCount)
+    );
+}
+
+std::uint8_t *RuntimeBufferForSymbol(const GSymbol &pSymbol,
+                                     TwistWorkSpace *pWorkSpace,
+                                     TwistExpander *pExpander,
+                                     TwistDomainSaltSet *pParamSaltSet) {
+    const TwistBufferKey aKey = ResolveBufferKey(pSymbol);
+    if (aKey.IsValid()) {
+        return TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aKey);
+    }
+    return TwistWorkSpace::GetBuffer(pWorkSpace,
+                                     pExpander,
+                                     pSymbol.mSlot,
+                                     nullptr,
+                                     nullptr,
+                                     pParamSaltSet);
+}
+
 unsigned int ReadWrapTrimMaskForType(const GReadWrapType pType) {
     switch (pType) {
-        case GReadWrapType::kSBox: return static_cast<unsigned int>(S_SBOX1);
+        case GReadWrapType::kSBox: return static_cast<unsigned int>(255);
         case GReadWrapType::kSalt: return static_cast<unsigned int>(S_SALT1);
         case GReadWrapType::kKeyA: return static_cast<unsigned int>(S_KEY - 1);
         case GReadWrapType::kKeyB: return static_cast<unsigned int>(S_KEY - 1);
@@ -2555,6 +2738,10 @@ JsonValue SymbolToJsonValue(const GSymbol &pSymbol) {
         case GSymbolType::kBuf:
             aObject["kind"] = JsonValue::String("buf");
             aObject["slot"] = JsonValue::String(SlotToken(pSymbol.mSlot));
+            if (pSymbol.mKey.IsValid()) {
+                aObject["buffer_key"] =
+                    JsonValue::String(BufferKeyToken(pSymbol.mKey));
+            }
             break;
         default:
             aObject["kind"] = JsonValue::String("invalid");
@@ -2597,6 +2784,17 @@ bool SymbolFromJsonValue(const JsonValue &pValue,
         return true;
     }
     if (aKindText == "buf") {
+        const JsonValue *aBufferKey = pValue.find("buffer_key");
+        if ((aBufferKey != NULL) && aBufferKey->is_string()) {
+            TwistBufferKey aParsedKey;
+            if (!BufferKeyFromToken(aBufferKey->as_string(), &aParsedKey)) {
+                SetError(pError, "Buffer symbol key token was unknown.");
+                return false;
+            }
+            *pSymbol = GSymbol::Buf(aParsedKey);
+            return true;
+        }
+
         const JsonValue *aSlot = pValue.find("slot");
         if ((aSlot == NULL) || !aSlot->is_string()) {
             SetError(pError, "Buffer symbol was missing a slot.");
@@ -3114,12 +3312,17 @@ void AppendPrettyLoopLines(const GLoop &pLoop,
     pLines->push_back("}");
 }
 
-std::string CppIndexForSlot(const TwistWorkSpaceSlot pSlot,
-                            const GExpr *pIndexExpr,
-                            const std::string &pIndexText) {
+std::string CppIndexForSymbol(const GSymbol &pSymbol,
+                              const GExpr *pIndexExpr,
+                              const std::string &pIndexText) {
     (void)pIndexExpr;
 
+    const TwistWorkSpaceSlot pSlot = pSymbol.mSlot;
+    const TwistBufferKey aKey = ResolveBufferKey(pSymbol);
     const int aElementCount = [&]() -> int {
+        if (aKey.IsLaneSplit()) {
+            return TwistWorkSpace::GetBufferLength(aKey);
+        }
         if (IsSaltSlot(pSlot)) {
             return S_SALT;
         }
@@ -3136,19 +3339,47 @@ std::string CppIndexForSlot(const TwistWorkSpaceSlot pSlot,
         return pIndexText;
     }
 
+    const bool aIsIndividualKeyRow =
+        (pSlot >= TwistWorkSpaceSlot::kKeyRowA0) &&
+        (pSlot <= TwistWorkSpaceSlot::kKeyRowB7);
+    if (aIsIndividualKeyRow &&
+        ((pIndexText == "aIndex") || (pIndexText == "i"))) {
+        return pIndexText;
+    }
+
     std::string aMaskToken;
-    switch (pSlot) {
+    if (aKey.IsLaneSplit()) {
+        aMaskToken = "W_KEY1";
+    } else switch (pSlot) {
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: aMaskToken = "(S_KEY - 1)"; break;
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: aMaskToken = "(S_KEY - 1)"; break;
         case TwistWorkSpaceSlot::kKeyRowReadA:
         case TwistWorkSpaceSlot::kKeyRowWriteA: aMaskToken = "W_KEY1"; break;
         case TwistWorkSpaceSlot::kKeyRowReadB:
         case TwistWorkSpaceSlot::kKeyRowWriteB: aMaskToken = "W_KEY1"; break;
+        case TwistWorkSpaceSlot::kKeyRowA0:
+        case TwistWorkSpaceSlot::kKeyRowA1:
+        case TwistWorkSpaceSlot::kKeyRowA2:
+        case TwistWorkSpaceSlot::kKeyRowA3:
+        case TwistWorkSpaceSlot::kKeyRowA4:
+        case TwistWorkSpaceSlot::kKeyRowA5:
+        case TwistWorkSpaceSlot::kKeyRowA6:
+        case TwistWorkSpaceSlot::kKeyRowA7:
+        case TwistWorkSpaceSlot::kKeyRowB0:
+        case TwistWorkSpaceSlot::kKeyRowB1:
+        case TwistWorkSpaceSlot::kKeyRowB2:
+        case TwistWorkSpaceSlot::kKeyRowB3:
+        case TwistWorkSpaceSlot::kKeyRowB4:
+        case TwistWorkSpaceSlot::kKeyRowB5:
+        case TwistWorkSpaceSlot::kKeyRowB6:
+        case TwistWorkSpaceSlot::kKeyRowB7:
+            aMaskToken = "W_KEY1";
+            break;
         default:
             if (IsSaltSlot(pSlot)) {
                 aMaskToken = "S_SALT1";
             } else if (IsIndexListSlot(pSlot)) {
-                aMaskToken = "S_SBOX1";
+                aMaskToken = "255";
             } else if (aElementCount == S_QUARTER) {
                 aMaskToken = "S_QUARTER1";
             } else if (aElementCount == S_BLOCK) {
@@ -3179,11 +3410,11 @@ std::string CppExpr(const GExpr &pExpr) {
         }
         return "static_cast<std::uint32_t>(" + CppExpr(pInput) + ")";
     };
-    
+
     switch (pExpr.mType) {
         case GExprType::kSymbol:
             if (pExpr.mSymbol.IsBuf()) {
-                return BufAliasName(pExpr.mSymbol.mSlot) + "[0]";
+                return BufAliasName(pExpr.mSymbol) + "[0]";
             }
             return pExpr.mSymbol.mName;
         case GExprType::kConst:
@@ -3202,7 +3433,9 @@ std::string CppExpr(const GExpr &pExpr) {
         case GExprType::kRead: {
             const std::string aIndexText = (pExpr.mIndex != nullptr) ? CppExpr(*pExpr.mIndex) : std::string("0");
             return CppBufferAlias(pExpr.mSymbol) + "[" +
-                   CppIndexForSlot(pExpr.mSymbol.mSlot, pExpr.mIndex.get(), aIndexText) + "]";
+                   CppIndexForSymbol(pExpr.mSymbol,
+                                     pExpr.mIndex.get(),
+                                     aIndexText) + "]";
         }
         case GExprType::kAdd:
         case GExprType::kSub:
@@ -3270,12 +3503,14 @@ std::string CppExpr(const GExpr &pExpr) {
 std::string CppTarget(const GTarget &pTarget) {
     if (!pTarget.HasIndex()) {
         if (pTarget.IsBuf()) {
-            return BufAliasName(pTarget.mSymbol.mSlot) + "[0]";
+            return BufAliasName(pTarget.mSymbol) + "[0]";
         }
         return pTarget.mSymbol.mName;
     }
     return CppBufferAlias(pTarget.mSymbol) + "[" +
-           CppIndexForSlot(pTarget.mSymbol.mSlot, pTarget.mIndex.get(), CppExpr(*pTarget.mIndex)) + "]";
+           CppIndexForSymbol(pTarget.mSymbol,
+                             pTarget.mIndex.get(),
+                             CppExpr(*pTarget.mIndex)) + "]";
 }
 
 struct CppReadWrapMetadata {
@@ -3332,7 +3567,7 @@ void CollectReadWrapMetadataFromExpr(const GExpr &pExpr,
 
 std::string CppSymbolText(const GSymbol &pSymbol) {
     if (pSymbol.IsBuf()) {
-        return BufAliasName(pSymbol.mSlot);
+        return BufAliasName(pSymbol);
     }
     return pSymbol.mName;
 }
@@ -3350,7 +3585,7 @@ std::string CppReadWrapLimitToken(const GReadWrapType pType) {
 
 std::string CppReadWrapTrimMaskToken(const GReadWrapType pType) {
     switch (pType) {
-        case GReadWrapType::kSBox: return "S_SBOX1";
+        case GReadWrapType::kSBox: return "255";
         case GReadWrapType::kSalt: return "S_SALT1";
         case GReadWrapType::kKeyA: return "(S_KEY - 1)";
         case GReadWrapType::kKeyB: return "(S_KEY - 1)";
@@ -3429,7 +3664,7 @@ std::string CppStatement(const GStatement &pStatement) {
         if (pStatement.mAssignType == GAssignType::kOrAssign) {
             return aTargetText + " |= " + aExpressionText + ";";
         }
-        
+
     }
 
     if (pStatement.mTarget.IsVar()) {
@@ -3455,7 +3690,7 @@ void CollectXorTerms(const GExpr &pExpr,
     if (pTerms == nullptr) {
         return;
     }
-    
+
     if ((pExpr.mType == GExprType::kXor) &&
         (pExpr.mA != nullptr) &&
         (pExpr.mB != nullptr)) {
@@ -3463,7 +3698,7 @@ void CollectXorTerms(const GExpr &pExpr,
         CollectXorTerms(*pExpr.mB, pTerms);
         return;
     }
-    
+
     pTerms->push_back(&pExpr);
 }
 
@@ -3473,7 +3708,7 @@ bool IsWrappedContextWordAssignment(const GStatement &pStatement) {
         (pStatement.mAssignType != GAssignType::kSet)) {
         return false;
     }
-    
+
     const std::string &aName = pStatement.mTarget.mSymbol.mName;
     return (aName == "aIngress") || (aName == "aCross");
 }
@@ -3483,19 +3718,19 @@ bool AppendWrappedXorAssignmentLines(const GStatement &pStatement,
     if ((pLines == nullptr) || !IsWrappedContextWordAssignment(pStatement)) {
         return false;
     }
-    
+
     std::vector<const GExpr *> aTerms;
     CollectXorTerms(pStatement.mExpression, &aTerms);
     if (aTerms.size() <= 2U) {
         return false;
     }
-    
+
     const std::string aTargetText = CppTarget(pStatement.mTarget);
-    
+
     for (std::size_t aIndex = 0U; aIndex < aTerms.size(); aIndex += 2U) {
         const bool aHasSecond = ((aIndex + 1U) < aTerms.size());
         const bool aIsFirst = (aIndex == 0U);
-        
+
         std::string aExpressionText;
         if (aHasSecond) {
             aExpressionText = "(" + StripOuterParens(CppExpr(*aTerms[aIndex])) + " ^ " +
@@ -3503,11 +3738,11 @@ bool AppendWrappedXorAssignmentLines(const GStatement &pStatement,
         } else {
             aExpressionText = StripOuterParens(CppExpr(*aTerms[aIndex]));
         }
-        
+
         const std::string aAssignText = aIsFirst ? " = " : " ^= ";
         pLines->push_back(pStatement.mOutputPrefix + aTargetText + aAssignText + aExpressionText + ";");
     }
-    
+
     return true;
 }
 
@@ -3530,6 +3765,7 @@ std::vector<std::string> CppStatementLines(const GStatement &pStatement) {
 bool EvaluateExpr(const GExpr &pExpr,
                   TwistWorkSpace *pWorkSpace,
                   TwistExpander *pExpander,
+                  TwistDomainSaltSet *pParamSaltSet,
                   std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                   GRuntimeScalar *pValue,
                   std::string *pError) {
@@ -3579,7 +3815,11 @@ bool EvaluateExpr(const GExpr &pExpr,
                     SetError(pError, "Workspace was null during buffer read.");
                     return false;
                 }
-                std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pExpr.mSymbol.mSlot);
+                std::uint8_t *aBuffer =
+                    RuntimeBufferForSymbol(pExpr.mSymbol,
+                                           pWorkSpace,
+                                           pExpander,
+                                           pParamSaltSet);
                 if (aBuffer == NULL) {
                     SetError(pError, "Buffer symbol resolved to null.");
                     return false;
@@ -3611,7 +3851,13 @@ bool EvaluateExpr(const GExpr &pExpr,
                     const auto aBaseIterator = pVariables->find(pExpr.mReadWrapIndexSymbol.mName);
                     aBaseIndexValue = (aBaseIterator == pVariables->end()) ? 0ULL : aBaseIterator->second;
                 } else if (pExpr.mReadWrapIndexSymbol.IsBuf()) {
-                    std::uint8_t *aBaseBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pExpr.mReadWrapIndexSymbol.mSlot);
+                    std::uint8_t *aBaseBuffer = TwistWorkSpace::GetBuffer(
+                        pWorkSpace,
+                        pExpander,
+                        pExpr.mReadWrapIndexSymbol.mSlot,
+                        nullptr,
+                        nullptr,
+                        pParamSaltSet);
                     if (aBaseBuffer == NULL) {
                         SetError(pError, "Read wrap index buffer was null.");
                         return false;
@@ -3644,17 +3890,28 @@ bool EvaluateExpr(const GExpr &pExpr,
                 }
             } else {
                 if ((pExpr.mIndex == NULL) ||
-                    !EvaluateExpr(*pExpr.mIndex, pWorkSpace, pExpander, pVariables, &aIndexValue, pError)) {
+                    !EvaluateExpr(*pExpr.mIndex,
+                                  pWorkSpace,
+                                  pExpander,
+                                  pParamSaltSet,
+                                  pVariables,
+                                  &aIndexValue,
+                                  pError)) {
                     SetError(pError, "Read expression index was invalid.");
                     return false;
                 }
             }
-            std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pExpr.mSymbol.mSlot);
+            std::uint8_t *aBuffer =
+                RuntimeBufferForSymbol(pExpr.mSymbol,
+                                       pWorkSpace,
+                                       pExpander,
+                                       pParamSaltSet);
             if (aBuffer == NULL) {
                 SetError(pError, "Read expression buffer was null.");
                 return false;
             }
-            const std::size_t aIndex = RuntimeIndexForSlot(pExpr.mSymbol.mSlot, aIndexValue);
+            const std::size_t aIndex =
+                RuntimeIndexForSymbol(pExpr.mSymbol, aIndexValue);
             if (IsSaltSlot(pExpr.mSymbol.mSlot)) {
                 *pValue = reinterpret_cast<std::uint64_t *>(aBuffer)[aIndex];
             } else if (IsIndexListSlot(pExpr.mSymbol.mSlot)) {
@@ -3679,8 +3936,20 @@ bool EvaluateExpr(const GExpr &pExpr,
             GRuntimeScalar aLeft = 0ULL;
             GRuntimeScalar aRight = 0ULL;
             if ((pExpr.mA == NULL) || (pExpr.mB == NULL) ||
-                !EvaluateExpr(*pExpr.mA, pWorkSpace, pExpander, pVariables, &aLeft, pError) ||
-                !EvaluateExpr(*pExpr.mB, pWorkSpace, pExpander, pVariables, &aRight, pError)) {
+                !EvaluateExpr(*pExpr.mA,
+                              pWorkSpace,
+                              pExpander,
+                              pParamSaltSet,
+                              pVariables,
+                              &aLeft,
+                              pError) ||
+                !EvaluateExpr(*pExpr.mB,
+                              pWorkSpace,
+                              pExpander,
+                              pParamSaltSet,
+                              pVariables,
+                              &aRight,
+                              pError)) {
                 SetError(pError, "Binary expression child was invalid.");
                 return false;
             }
@@ -3710,7 +3979,13 @@ bool EvaluateExpr(const GExpr &pExpr,
         case GExprType::kCast32: {
             GRuntimeScalar aValue = 0ULL;
             if ((pExpr.mA == NULL) ||
-                !EvaluateExpr(*pExpr.mA, pWorkSpace, pExpander, pVariables, &aValue, pError)) {
+                !EvaluateExpr(*pExpr.mA,
+                              pWorkSpace,
+                              pExpander,
+                              pParamSaltSet,
+                              pVariables,
+                              &aValue,
+                              pError)) {
                 SetError(pError, "Diffuse expression child was invalid.");
                 return false;
             }
@@ -3738,6 +4013,7 @@ bool EvaluateExpr(const GExpr &pExpr,
 bool ExecuteStatement(const GStatement &pStatement,
                       TwistWorkSpace *pWorkSpace,
                       TwistExpander *pExpander,
+                      TwistDomainSaltSet *pParamSaltSet,
                       std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                       std::string *pError) {
     if (pStatement.IsRawLine()) {
@@ -3820,7 +4096,13 @@ bool ExecuteStatement(const GStatement &pStatement,
     }
 
     GRuntimeScalar aExpressionValue = 0ULL;
-    if (!EvaluateExpr(pStatement.mExpression, pWorkSpace, pExpander, pVariables, &aExpressionValue, pError)) {
+    if (!EvaluateExpr(pStatement.mExpression,
+                      pWorkSpace,
+                      pExpander,
+                      pParamSaltSet,
+                      pVariables,
+                      &aExpressionValue,
+                      pError)) {
         return false;
     }
 
@@ -3856,18 +4138,29 @@ bool ExecuteStatement(const GStatement &pStatement,
             SetError(pError, "Workspace was null during write.");
             return false;
         }
-        std::uint8_t *aBuffer = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, pStatement.mTarget.mSymbol.mSlot);
+        std::uint8_t *aBuffer =
+            RuntimeBufferForSymbol(pStatement.mTarget.mSymbol,
+                                   pWorkSpace,
+                                   pExpander,
+                                   pParamSaltSet);
         if (aBuffer == NULL) {
             SetError(pError, "Write buffer was null.");
             return false;
         }
         GRuntimeScalar aIndexValue = 0ULL;
         if (pStatement.mTarget.mIndex != nullptr &&
-            !EvaluateExpr(*pStatement.mTarget.mIndex, pWorkSpace, pExpander, pVariables, &aIndexValue, pError)) {
+            !EvaluateExpr(*pStatement.mTarget.mIndex,
+                          pWorkSpace,
+                          pExpander,
+                          pParamSaltSet,
+                          pVariables,
+                          &aIndexValue,
+                          pError)) {
             return false;
         }
 
-        const std::size_t aIndex = RuntimeIndexForSlot(pStatement.mTarget.mSymbol.mSlot, aIndexValue);
+        const std::size_t aIndex =
+            RuntimeIndexForSymbol(pStatement.mTarget.mSymbol, aIndexValue);
         if (IsSaltSlot(pStatement.mTarget.mSymbol.mSlot)) {
             std::uint64_t *aSaltLane = reinterpret_cast<std::uint64_t *>(aBuffer);
             switch (pStatement.mAssignType) {
@@ -3937,6 +4230,7 @@ bool ExecuteStatement(const GStatement &pStatement,
 bool ExecuteStatementSequence(const std::vector<GStatement> &pStatements,
                               TwistWorkSpace *pWorkSpace,
                               TwistExpander *pExpander,
+                              TwistDomainSaltSet *pParamSaltSet,
                               std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                               std::string *pError) {
     bool aInSwitch = false;
@@ -4036,7 +4330,12 @@ bool ExecuteStatementSequence(const std::vector<GStatement> &pStatements,
             continue;
         }
 
-        if (!ExecuteStatement(aStatement, pWorkSpace, pExpander, pVariables, pError)) {
+        if (!ExecuteStatement(aStatement,
+                              pWorkSpace,
+                              pExpander,
+                              pParamSaltSet,
+                              pVariables,
+                              pError)) {
             return false;
         }
     }
@@ -4521,6 +4820,28 @@ static void CollectSlotsFromLoop(const GLoop &pLoop,
     }
 }
 
+static void CollectBuffersFromStatement(const GStatement &pStatement,
+                                        std::vector<GSymbol> *pBuffers) {
+    if (pStatement.IsRawLine()) {
+        return;
+    }
+    AppendUniqueBuffer(pBuffers, pStatement.mTarget.mSymbol);
+    if (pStatement.mTarget.mIndex != nullptr) {
+        CollectBuffersFromExpr(*pStatement.mTarget.mIndex, pBuffers);
+    }
+    CollectBuffersFromExpr(pStatement.mExpression, pBuffers);
+}
+
+static void CollectBuffersFromLoop(const GLoop &pLoop,
+                                   std::vector<GSymbol> *pBuffers) {
+    for (const GStatement &aStatement : pLoop.mInitializationStatements) {
+        CollectBuffersFromStatement(aStatement, pBuffers);
+    }
+    for (const GStatement &aStatement : pLoop.mBodyStatements) {
+        CollectBuffersFromStatement(aStatement, pBuffers);
+    }
+}
+
 bool GBatch::IsInvalid() const {
     if (mChunks.empty() && mLoops.empty()) {
         return true;
@@ -4655,6 +4976,26 @@ std::vector<TwistWorkSpaceSlot> GBatch::CollectReferencedSlots() const {
         CollectSlotsFromLoop(aLoop, &aSlots);
     }
     return aSlots;
+}
+
+std::vector<GSymbol> GBatch::CollectReferencedBuffers() const {
+    std::vector<GSymbol> aBuffers;
+    if (!mChunks.empty()) {
+        for (const GBatchChunk &aChunk : mChunks) {
+            if (aChunk.mType == GBatchChunkType::kLoop) {
+                CollectBuffersFromLoop(aChunk.mLoop, &aBuffers);
+            } else if (aChunk.mType == GBatchChunkType::kStatements) {
+                for (const GStatement &aStatement : aChunk.mStatements) {
+                    CollectBuffersFromStatement(aStatement, &aBuffers);
+                }
+            }
+        }
+        return aBuffers;
+    }
+    for (const GLoop &aLoop : mLoops) {
+        CollectBuffersFromLoop(aLoop, &aBuffers);
+    }
+    return aBuffers;
 }
 
 std::string GBatch::ToPrettyString() const {
@@ -4930,6 +5271,39 @@ std::string GBatch::BuildCpp(const std::string &pFunctionName,
             }
         }
 
+        std::vector<GSymbol> aLaneSplitBuffers;
+        for (const GSymbol &aBuffer : CollectReferencedBuffers()) {
+            if (aBuffer.mKey.IsLaneSplit() &&
+                (std::find(aLaneSplitBuffers.begin(),
+                           aLaneSplitBuffers.end(),
+                           aBuffer) == aLaneSplitBuffers.end())) {
+                aLaneSplitBuffers.push_back(aBuffer);
+            }
+        }
+        std::sort(aLaneSplitBuffers.begin(),
+                  aLaneSplitBuffers.end(),
+                  [](const GSymbol &pLeft, const GSymbol &pRight) {
+                      if (pLeft.mKey.mSlot != pRight.mKey.mSlot) {
+                          return pLeft.mKey.mSlot < pRight.mKey.mSlot;
+                      }
+                      return pLeft.mKey.mLaneSplit <
+                             pRight.mKey.mLaneSplit;
+                  });
+        for (const GSymbol &aBuffer : aLaneSplitBuffers) {
+            const TwistWorkSpaceSlot aBaseSlot =
+                static_cast<TwistWorkSpaceSlot>(aBuffer.mKey.mSlot);
+            aLines.push_back(
+                Indent(1) + "std::uint8_t *" +
+                BufAliasName(aBuffer) + " = " +
+                BufAliasName(aBaseSlot) + " + (W_KEY * " +
+                std::to_string(
+                    static_cast<unsigned int>(
+                        aBuffer.mKey.mLaneSplit
+                    )
+                ) + "U);"
+            );
+        }
+
         const std::vector<std::string> aWorkspaceDomainWordLines =
             WorkspaceDomainWordDeclarationLines(aWorkspaceDomainWords, 1);
         if (!aSlots.empty() &&
@@ -5081,6 +5455,19 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkSpace,
                                   TwistExpander *pExpander,
                                   std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                   std::string *pError) const {
+    return ExecuteWithRuntimeVariables(pWorkSpace,
+                                       pExpander,
+                                       nullptr,
+                                       pVariables,
+                                       pError);
+}
+
+bool GBatch::ExecuteWithRuntimeVariables(
+    TwistWorkSpace *pWorkSpace,
+    TwistExpander *pExpander,
+    TwistDomainSaltSet *pParamSaltSet,
+    std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+    std::string *pError) const {
     if (IsInvalid()) {
         SetError(pError, "Batch was invalid and could not be executed.");
         return false;
@@ -5106,7 +5493,12 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkSpace,
 
     auto ExecuteLoop = [&](const GLoop &pLoop) -> bool {
         for (const GStatement &aStatement : pLoop.mInitializationStatements) {
-            if (!ExecuteStatement(aStatement, pWorkSpace, pExpander, &aLocalVariables, pError)) {
+            if (!ExecuteStatement(aStatement,
+                                  pWorkSpace,
+                                  pExpander,
+                                  pParamSaltSet,
+                                  &aLocalVariables,
+                                  pError)) {
                 return false;
             }
         }
@@ -5119,6 +5511,7 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkSpace,
             if (!ExecuteStatementSequence(pLoop.mBodyStatements,
                                           pWorkSpace,
                                           pExpander,
+                                          pParamSaltSet,
                                           &aLocalVariables,
                                           pError)) {
                 return false;
@@ -5137,6 +5530,7 @@ bool GBatch::ExecuteWithVariables(TwistWorkSpace *pWorkSpace,
                 if (!ExecuteStatementSequence(aChunk.mStatements,
                                               pWorkSpace,
                                               pExpander,
+                                              pParamSaltSet,
                                               &aLocalVariables,
                                               pError)) {
                     return false;

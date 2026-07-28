@@ -54,34 +54,69 @@ public:
                                             TwistDomainConstants *pDomainConstants,
                                             TwistDomainSaltSet *pDomainSaltSet) override;
 
-    void                                KDF_A(std::uint64_t pNonce,
+    void                                KDF_A(TwistWorkSpace *pWorkSpace,
+                                              std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
                                               TwistDomainSaltSet *pDomainSaltSet,
-                                              std::uint8_t *pSnow,
-                                              int pIndexKDF) override;
+                                              std::uint8_t *pSnowLaneA,
+                                              std::uint8_t *pSnowLaneB,
+                                              std::uint8_t *pSnowLaneC,
+                                              MUTABLE_PARAMS) override;
 
-    void                                KDF_B(std::uint64_t pNonce,
+    void                                KDF_B(TwistWorkSpace *pWorkSpace,
+                                              std::uint64_t pNonce,
                                               TwistDomainConstants *pDomainConstants,
                                               TwistDomainSaltSet *pDomainSaltSet,
-                                              int pIndexKDF) override;
+                                              std::uint8_t *pSnowLaneA,
+                                              std::uint8_t *pSnowLaneB,
+                                              std::uint8_t *pSnowLaneC,
+                                              MUTABLE_PARAMS) override;
+
+    void                                KDF_C(TwistWorkSpace *pWorkSpace,
+                                              std::uint64_t pNonce,
+                                              TwistDomainConstants *pDomainConstants,
+                                              TwistDomainSaltSet *pDomainSaltSet,
+                                              std::uint8_t *pSnowLaneA,
+                                              std::uint8_t *pSnowLaneB,
+                                              std::uint8_t *pSnowLaneC,
+                                              MUTABLE_PARAMS) override;
+
+    void                                KDF_D(TwistWorkSpace *pWorkSpace,
+                                              std::uint64_t pNonce,
+                                              TwistDomainConstants *pDomainConstants,
+                                              TwistDomainSaltSet *pDomainSaltSet,
+                                              std::uint8_t *pSnowLaneA,
+                                              std::uint8_t *pSnowLaneB,
+                                              std::uint8_t *pSnowLaneC,
+                                              MUTABLE_PARAMS) override;
 
     void                                Seed(TwistWorkSpace *pWorkSpace,
                                              TwistFarmSalt *pFarmSalt,
                                              std::uint64_t pNonce,
                                              std::uint8_t *pPassword,
                                              std::size_t pPasswordByteLength,
+                                             std::uint8_t *pSnowLaneA,
+                                             std::uint8_t *pSnowLaneB,
+                                             std::uint8_t *pSnowLaneC,
+                                             std::uint8_t *pSnowLaneD,
                                              std::uint8_t *pDestination) override;
     void                                TwistBlock(TwistWorkSpace *pWorkSpace,
                                                    std::uint8_t *pSource,
+                                                   std::uint8_t *pSnowLaneA,
+                                                   std::uint8_t *pSnowLaneB,
+                                                   std::uint8_t *pSnowLaneC,
+                                                   std::uint8_t *pSnowLaneD,
                                                    std::uint8_t *pDestination) override;
-    void                                SquashInvestToKeyBoxes() override;
-    void                                GrowKeyA(TwistWorkSpace *pWorkSpace) override;
-    void                                GrowKeyB(TwistWorkSpace *pWorkSpace) override;
+    void                                FoldSeed(TwistWorkSpace *pWorkSpace,
+                                                 std::uint8_t *pDestination) override;
+    void                                FoldTwist(TwistWorkSpace *pWorkSpace,
+                                                  std::uint8_t *pDestination) override;
+    void                                GrowKeyA(TwistWorkSpace *pWorkSpace,
+                                                 MUTABLE_PARAMS) override;
+    void                                GrowKeyB(TwistWorkSpace *pWorkSpace,
+                                                 MUTABLE_PARAMS) override;
 
     bool                                ExportCPPProjectRoot(const std::string &pRootPath,
-                                                             std::string *pErrorMessage = nullptr) const;
-    bool                                ExportCPPProjectRoot(const std::string &pRootPath,
-                                                             bool pUseSnapShotter,
                                                              std::string *pErrorMessage = nullptr) const;
     bool                                ExportJSONProjectRoot(const std::string &pRootPath,
                                                               std::string *pErrorMessage = nullptr) const;
@@ -93,18 +128,22 @@ public:
     std::string                         mNameBase;
     TwistProgramBranch                  mKDF_A; // KDF-A branch
     TwistProgramBranch                  mKDF_B; // KDF-B branch
+    TwistProgramBranch                  mKDF_C; // KDF-C branch
+    TwistProgramBranch                  mKDF_D; // KDF-D branch
     TwistProgramBranch                  mSeed; // Seed branch
     TwistProgramBranch                  mTwister; // Twist branch
     TwistProgramBranch                  mGrowKeyA; // Grow key A branch
     TwistProgramBranch                  mGrowKeyB; // Grow key B branch
     std::vector<GSeedRunStageConfig>    mSeedStageConfigs;
+    std::vector<GSeedRunStageConfig>    mSeedKeyBoxStageConfigs;
     std::vector<TwistDomain>            mSeedMatrixDomains;
     std::vector<GSeedRunStageConfig>    mTwistStageConfigs;
-    TwistDomain                         mTwistMatrixDomain = TwistDomain::kInvalid;
-
-    unsigned char                       mInitialValue_Carry;
-    unsigned char                       mInitialValue_Value;
-    unsigned char                       mInitialValue_Permute;
+    std::vector<TwistDomain>            mTwistMatrixDomains;
+    std::vector<GSeedRunStageConfig>    mGrowAStageConfigs;
+    std::vector<GSeedRunStageConfig>    mGrowBStageConfigs;
+    TwistDomain                         mGrowAMatrixDomain = TwistDomain::kInvalid;
+    TwistDomain                         mGrowBMatrixDomain = TwistDomain::kInvalid;
+    std::size_t                         mControlCandidateIndex = 0U;
 
 };
 

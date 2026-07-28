@@ -11,6 +11,7 @@
 #include "GPrintTool.hpp"
 #include "GSeedRunStageConfig.hpp"
 #include "GTwistExpander.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <sstream>
@@ -124,9 +125,19 @@ public:
             aSlice.mLoopBeginText = mConfig.mLoopBeginText;
             aSlice.mLoopCeiling = mConfig.mLoopCeiling;
             aSlice.mLoopEndText = mConfig.mLoopEndText;
+            aSlice.mSourceRangesLo = mConfig.mSourceOffsetRangeLo;
+            aSlice.mSourceRangesHi = mConfig.mSourceOffsetRangeHi;
 
             for (TwistWorkSpaceSlot aSlot : aBinding.mSourceSlots) {
-                aSlice.mSources.push_back(GSymbol::Buf(aSlot));
+                std::uint8_t aLaneSplit = 255U;
+                if (aSpec.SourceLaneSplit(aSlot, &aLaneSplit)) {
+                    aSlice.mSources.push_back(
+                        GSymbol::Buf(TwistBufferKey::LaneSplit(aSlot,
+                                                               aLaneSplit))
+                    );
+                } else {
+                    aSlice.mSources.push_back(GSymbol::Buf(aSlot));
+                }
             }
 
             if (aIndex < mConfig.mSliceDomains.size()) {
@@ -135,13 +146,13 @@ public:
                     using Slot = TwistWorkSpaceSlot;
                     aSlice.mDomain = aSliceDomain;
                     aSlice.mSaltsOrbiterAssign = SymbolsForSlots(PhaseSalts(aSliceDomain,
-                                                                             Slot::kPhaseASaltOrbiterAssignA,
+                                                                             Slot::kKeyRotateASaltOrbiterAssignA,
                                                                              6));
                     aSlice.mSaltsOrbiterUpdate = SymbolsForSlots(PhaseSalts(aSliceDomain,
-                                                                            Slot::kPhaseASaltOrbiterUpdateA,
+                                                                            Slot::kKeyRotateASaltOrbiterUpdateA,
                                                                             6));
                     aSlice.mSaltsWandererUpdate = SymbolsForSlots(PhaseSalts(aSliceDomain,
-                                                                              Slot::kPhaseASaltWandererUpdateA,
+                                                                              Slot::kKeyRotateASaltWandererUpdateA,
                                                                               6));
                 }
             }
@@ -218,14 +229,12 @@ private:
 
     static int PhaseIndex(const TwistDomain pDomain) {
         switch (pDomain) {
-            case TwistDomain::kPhaseB: return 1;
-            case TwistDomain::kPhaseC: return 2;
-            case TwistDomain::kPhaseD: return 3;
-            case TwistDomain::kPhaseE: return 4;
-            case TwistDomain::kPhaseF: return 5;
-            case TwistDomain::kPhaseG: return 6;
-            case TwistDomain::kPhaseH: return 7;
-            case TwistDomain::kPhaseA:
+            case TwistDomain::kKeySpawnA: return 1;
+            case TwistDomain::kSeed: return 2;
+            case TwistDomain::kTwist: return 3;
+            case TwistDomain::kKeyRotateB: return 4;
+            case TwistDomain::kKeySpawnB: return 5;
+            case TwistDomain::kKeyRotateA:
             default:
                 return 0;
         }
@@ -293,6 +302,48 @@ private:
         return true;
     }
 
+    static bool ValidateLaneSplitLinks(
+        const GSeedRunStageSliceSpec &pSpec,
+        const std::string &pStageName,
+        const std::string &pBatchName,
+        const std::size_t pSliceIndex,
+        std::string *pErrorMessage) {
+        std::vector<TwistWorkSpaceSlot> aLinkedSlots;
+        for (const GSeedRunStageLaneSplit &aLink :
+             pSpec.mSourceLaneSplits) {
+            if (!pSpec.HasSource(aLink.mSlot)) {
+                SetError(pErrorMessage,
+                         pStageName + " " + pBatchName +
+                         " slice " +
+                         std::to_string(pSliceIndex + 1U) +
+                         " linked a lane split that was not a source");
+                return false;
+            }
+            if ((aLink.mLaneSplit >= 16U) ||
+                (TwistWorkSpace::GetBufferLength(aLink.mSlot) !=
+                 S_BLOCK)) {
+                SetError(pErrorMessage,
+                         pStageName + " " + pBatchName +
+                         " slice " +
+                         std::to_string(pSliceIndex + 1U) +
+                         " had an invalid lane split link");
+                return false;
+            }
+            if (std::find(aLinkedSlots.begin(),
+                          aLinkedSlots.end(),
+                          aLink.mSlot) != aLinkedSlots.end()) {
+                SetError(pErrorMessage,
+                         pStageName + " " + pBatchName +
+                         " slice " +
+                         std::to_string(pSliceIndex + 1U) +
+                         " linked the same lane split source twice");
+                return false;
+            }
+            aLinkedSlots.push_back(aLink.mSlot);
+        }
+        return true;
+    }
+
     static bool SourceKindForSlot(const std::vector<TwistWorkSpaceSlot> &pBoundSlots,
                                   const TwistWorkSpaceSlot pSlot,
                                   GAXSKSourceKind *pResult,
@@ -335,6 +386,14 @@ private:
 
         const std::vector<TwistWorkSpaceSlot> aIngressSources = pSpec.IngressSources();
         const std::vector<TwistWorkSpaceSlot> aCrossSources = pSpec.CrossSources();
+
+        if (!ValidateLaneSplitLinks(pSpec,
+                                    mConfig.mStageName,
+                                    mConfig.mBatchName,
+                                    pSliceIndex,
+                                    pErrorMessage)) {
+            return false;
+        }
 
         if (!ValidateContextSources(aIngressSources,
                                     "ingress",

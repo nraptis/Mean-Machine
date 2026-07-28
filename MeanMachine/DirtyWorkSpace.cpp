@@ -52,25 +52,20 @@ void DirtyWorkSpace::Scramble(TwistWorkSpace *pWorkSpace,
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
         
-        TwistWorkSpaceSlot::kExpansionLaneA,
-        TwistWorkSpaceSlot::kExpansionLaneB,
-        TwistWorkSpaceSlot::kExpansionLaneC,
-        TwistWorkSpaceSlot::kExpansionLaneD,
+        TwistWorkSpaceSlot::kHeartLaneA,
+        TwistWorkSpaceSlot::kHeartLaneB,
+        TwistWorkSpaceSlot::kHeartLaneC,
+        TwistWorkSpaceSlot::kHeartLaneD,
         
-        TwistWorkSpaceSlot::kWorkLaneA,
-        TwistWorkSpaceSlot::kWorkLaneB,
-        TwistWorkSpaceSlot::kWorkLaneC,
-        TwistWorkSpaceSlot::kWorkLaneD,
+        TwistWorkSpaceSlot::kPoisonLaneA,
+        TwistWorkSpaceSlot::kPoisonLaneB,
+        TwistWorkSpaceSlot::kPoisonLaneC,
+        TwistWorkSpaceSlot::kPoisonLaneD,
         
-        TwistWorkSpaceSlot::kOperationLaneA,
-        TwistWorkSpaceSlot::kOperationLaneB,
-        TwistWorkSpaceSlot::kOperationLaneC,
-        TwistWorkSpaceSlot::kOperationLaneD,
-        
-        TwistWorkSpaceSlot::kSnowLaneA,
-        TwistWorkSpaceSlot::kSnowLaneB,
-        TwistWorkSpaceSlot::kSnowLaneC,
-        TwistWorkSpaceSlot::kSnowLaneD,
+        TwistWorkSpaceSlot::kSpiritLaneA,
+        TwistWorkSpaceSlot::kSpiritLaneB,
+        TwistWorkSpaceSlot::kSpiritLaneC,
+        TwistWorkSpaceSlot::kSpiritLaneD,
         
         TwistWorkSpaceSlot::kFireLaneA,
         TwistWorkSpaceSlot::kFireLaneB,
@@ -97,24 +92,75 @@ void DirtyWorkSpace::Scramble(TwistWorkSpace *pWorkSpace,
         TwistWorkSpaceSlot::kFuseLaneC,
         TwistWorkSpaceSlot::kFuseLaneD,
         
-        TwistWorkSpaceSlot::kScrapLaneA,
-        TwistWorkSpaceSlot::kScrapLaneB,
-        TwistWorkSpaceSlot::kScrapLaneC,
-        TwistWorkSpaceSlot::kScrapLaneD,
+        TwistWorkSpaceSlot::kWoodLaneA,
+        TwistWorkSpaceSlot::kWoodLaneB,
+        TwistWorkSpaceSlot::kWoodLaneC,
+        TwistWorkSpaceSlot::kWoodLaneD,
+
+        TwistWorkSpaceSlot::kLightningLaneA,
+        TwistWorkSpaceSlot::kLightningLaneB,
+        TwistWorkSpaceSlot::kLightningLaneC,
+        TwistWorkSpaceSlot::kLightningLaneD,
+
+        TwistWorkSpaceSlot::kMagmaLaneA,
+        TwistWorkSpaceSlot::kMagmaLaneB,
+        TwistWorkSpaceSlot::kMagmaLaneC,
+        TwistWorkSpaceSlot::kMagmaLaneD,
+
+        TwistWorkSpaceSlot::kSoilLaneA,
+        TwistWorkSpaceSlot::kSoilLaneB,
+        TwistWorkSpaceSlot::kSoilLaneC,
+        TwistWorkSpaceSlot::kSoilLaneD,
+
+        TwistWorkSpaceSlot::kPlasmaLaneA,
+        TwistWorkSpaceSlot::kPlasmaLaneB,
+        TwistWorkSpaceSlot::kPlasmaLaneC,
+        TwistWorkSpaceSlot::kPlasmaLaneD,
+
+        TwistWorkSpaceSlot::kShadowLaneA,
+        TwistWorkSpaceSlot::kShadowLaneB,
+        TwistWorkSpaceSlot::kShadowLaneC,
+        TwistWorkSpaceSlot::kShadowLaneD,
+
+        TwistWorkSpaceSlot::kCrystalLaneA,
+        TwistWorkSpaceSlot::kCrystalLaneB,
+        TwistWorkSpaceSlot::kCrystalLaneC,
+        TwistWorkSpaceSlot::kCrystalLaneD,
+
+        TwistWorkSpaceSlot::kAetherLaneA,
+        TwistWorkSpaceSlot::kAetherLaneB,
+        TwistWorkSpaceSlot::kAetherLaneC,
+        TwistWorkSpaceSlot::kAetherLaneD,
+
+        TwistWorkSpaceSlot::kCelestialLaneA,
+        TwistWorkSpaceSlot::kCelestialLaneB,
+        TwistWorkSpaceSlot::kCelestialLaneC,
+        TwistWorkSpaceSlot::kCelestialLaneD,
+
+        TwistWorkSpaceSlot::kKineticLaneA,
+        TwistWorkSpaceSlot::kKineticLaneB,
+        TwistWorkSpaceSlot::kKineticLaneC,
+        TwistWorkSpaceSlot::kKineticLaneD,
+
+        TwistWorkSpaceSlot::kVaporLaneA,
+        TwistWorkSpaceSlot::kVaporLaneB,
+        TwistWorkSpaceSlot::kVaporLaneC,
+        TwistWorkSpaceSlot::kVaporLaneD,
+
+        TwistWorkSpaceSlot::kChanceLaneA,
+        TwistWorkSpaceSlot::kChanceLaneB,
+        TwistWorkSpaceSlot::kChanceLaneC,
+        TwistWorkSpaceSlot::kChanceLaneD,
+
+        TwistWorkSpaceSlot::kDomainLaneKeyRotateA,
+        TwistWorkSpaceSlot::kDomainLaneKeySpawnA,
+        TwistWorkSpaceSlot::kDomainLaneSeed,
+        TwistWorkSpaceSlot::kDomainLaneTwist,
         
-        TwistWorkSpaceSlot::kMergeLaneA,
-        TwistWorkSpaceSlot::kMergeLaneB,
-        TwistWorkSpaceSlot::kMergeLaneC,
-        TwistWorkSpaceSlot::kMergeLaneD,
-        
-        TwistWorkSpaceSlot::kInvestA,
-        TwistWorkSpaceSlot::kInvestB,
-        TwistWorkSpaceSlot::kInvestC,
-        TwistWorkSpaceSlot::kInvestD,
-        TwistWorkSpaceSlot::kInvestE,
-        TwistWorkSpaceSlot::kInvestF,
-        TwistWorkSpaceSlot::kInvestG,
-        TwistWorkSpaceSlot::kInvestH,
+        TwistWorkSpaceSlot::kIceLaneA,
+        TwistWorkSpaceSlot::kIceLaneB,
+        TwistWorkSpaceSlot::kIceLaneC,
+        TwistWorkSpaceSlot::kIceLaneD,
     };
     
     for (const TwistWorkSpaceSlot aSlot : aSlots) {
@@ -124,6 +170,7 @@ void DirtyWorkSpace::Scramble(TwistWorkSpace *pWorkSpace,
     FillRandomBytes(&pWorkSpace->mDomainBundle, sizeof(pWorkSpace->mDomainBundle));
     
     if (pExpander != nullptr) {
-        FillRandomBytes(&pExpander->mDomainBundleEphemeral, sizeof(pExpander->mDomainBundleEphemeral));
+        FillRandomBytes(pExpander->GetDomainBundleEphemeral(),
+                        sizeof(*(pExpander->GetDomainBundleEphemeral())));
     }
 }

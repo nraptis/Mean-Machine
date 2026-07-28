@@ -6,10 +6,17 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#include <string.h>
+
+extern int MeanMachineRunExporter(void);
 
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
-        // Setup code that might create autoreleased objects goes here.
+        if ((argc > 1) &&
+            ((strcmp(argv[1], "--export-control-values") == 0) ||
+             (strcmp(argv[1], "--export-lane-splits") == 0))) {
+            return MeanMachineRunExporter();
+        }
     }
     return NSApplicationMain(argc, argv);
 }

@@ -32,6 +32,12 @@ public:
                                                                             std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
                                                                             bool pIsSpecialTwelvePassLoop,
                                                                             std::string *pErrorMessage);
+
+    static bool                                             ValidateStarterWithResiduals(const GSeedRunStageConfig &pConfig,
+                                                                                         std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                         std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                         std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+                                                                                         std::string *pErrorMessage);
     
     // entry point #2
     // always calls ValidateDestinations, ValidateList, ValidateSequencing
@@ -110,7 +116,9 @@ private:
     //      If source count is 0 or 1, immediately fail
     //      If source count is 2, there must be this exact pattern: ingress = [a, b], cross = [b, a]
     //      If source count is 3, there must be this exact pattern: ingress = [a, b], cross = [a, c]
-    //      If source count is 4 or greater, there must be no duplicate. for example ingress = [a, b], cross = [c, a] <= invalid, because 2 a
+    //      If source count is 4 or greater, there must be no duplicate unless
+    //      mBindDuplicateSourceSlots explicitly requests separately bound
+    //      duplicate reads.
     static bool                                             ValidateSourceGraph(const GSeedRunStageConfig &pConfig,
                                                                                 std::vector<TwistWorkSpaceSlot> pSources,
                                                                                           std::string *pErrorMessage);

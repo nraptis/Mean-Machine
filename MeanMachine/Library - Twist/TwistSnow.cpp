@@ -978,3 +978,21 @@ void TwistSnow::Aria256Counter(std::uint8_t *pSource,
         IncrementCounter128BE(aCounter);
     }
 }
+void TwistSnow::BuildLanes(std::uint8_t *pSource,
+                           std::uint8_t *pSnowLaneA,
+                           std::uint8_t *pSnowLaneB,
+                           std::uint8_t *pSnowLaneC,
+                           std::uint8_t *pSnowLaneD) {
+    if ((pSource == nullptr) ||
+        (pSnowLaneA == nullptr) ||
+        (pSnowLaneB == nullptr) ||
+        (pSnowLaneC == nullptr) ||
+        (pSnowLaneD == nullptr)) {
+        return;
+    }
+
+    AES256Counter(pSource, pSnowLaneA);
+    ChaCha20Counter(pSource, pSnowLaneB);
+    Sha256Counter(pSource, pSnowLaneC);
+    Aria256Counter(pSource, pSnowLaneD);
+}

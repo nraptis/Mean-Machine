@@ -45,24 +45,6 @@ std::uint64_t ReadU64LittleEndian(const std::uint8_t *pSource) {
            (static_cast<std::uint64_t>(pSource[7]) << 56U);
 }
 
-SaltTables::Salt BuildDefaultSalt(const std::uint8_t pSeed,
-                                  const std::uint8_t pMultiplier,
-                                  const std::uint8_t pXorBias) {
-    SaltTables::Salt aResult{};
-    std::array<std::uint8_t, kSaltByteCount> aBytes{};
-    for (std::size_t i = 0U; i < aBytes.size(); ++i) {
-        const std::uint8_t aIndex = static_cast<std::uint8_t>(i & 0xFFU);
-        std::uint8_t aValue = static_cast<std::uint8_t>(pSeed + static_cast<std::uint8_t>(aIndex * pMultiplier));
-        aValue = static_cast<std::uint8_t>(aValue ^ static_cast<std::uint8_t>((aIndex * 13U) + pXorBias));
-        aValue = static_cast<std::uint8_t>(aValue + static_cast<std::uint8_t>((i >> 1U) & 0xFFU));
-        aBytes[i] = aValue;
-    }
-    for (std::size_t i = 0U; i < aResult.size(); ++i) {
-        aResult[i] = ReadU64LittleEndian(aBytes.data() + (i * sizeof(std::uint64_t)));
-    }
-    return aResult;
-}
-
 } // namespace
 
 const std::vector<SaltTables::Salt> &SaltTables::Get() {
@@ -111,7 +93,7 @@ const std::vector<SaltTables::Salt> &SaltTables::Get() {
     return gSaltTables;
 }
 
-void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
+void SaltTables::InjectRandomDomains(GTwistExpander *pExpander) {
     if (pExpander == nullptr) {
         return;
     }
@@ -119,9 +101,9 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
     const std::vector<Salt> &aLoadedTables = Get();
     std::vector<Salt> aUniqueTables;
 
-    // Eight domains use 13 tables for constants and 24 seed materials use
-    // six full salts each: 104 + 144 = 248 records per expander.
-    constexpr std::size_t kTablesPerExpander = (8U * 13U) + (24U * 6U);
+    // Six domains use 13 tables for constants and 18 seed materials use
+    // six full salts each: 78 + 108 = 186 records per expander.
+    constexpr std::size_t kTablesPerExpander = (6U * 13U) + (18U * 6U);
     aUniqueTables.reserve(kTablesPerExpander);
     if (!aLoadedTables.empty()) {
         for (std::size_t i = 0U; i < kTablesPerExpander; ++i) {
@@ -143,7 +125,7 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
     }
 
     const Salt aFallbackTable = aUniqueTables.front();
-    while (aUniqueTables.size() < 8U) {
+    while (aUniqueTables.size() < 4U) {
         aUniqueTables.push_back(aFallbackTable);
     }
 
@@ -228,41 +210,33 @@ void SaltTables::InjectRandomEight(GTwistExpander *pExpander) {
     };
 
     TwistDomainSeedRoundMaterial *aMaterials[] = {
-        &pExpander->mDomainBundleInbuilt.mPhaseASalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseESalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseESalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseESalts.mOrbiterUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mOrbiterUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mOrbiterUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mWandererUpdate,
-        &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mOrbiterAssign,
-        &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mOrbiterUpdate
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts.mWandererUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts.mOrbiterAssign,
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts.mOrbiterUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateBSalts.mWandererUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateBSalts.mOrbiterAssign,
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateBSalts.mOrbiterUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts.mWandererUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts.mOrbiterAssign,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts.mOrbiterUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnBSalts.mWandererUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnBSalts.mOrbiterAssign,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnBSalts.mOrbiterUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mTwistSalts.mWandererUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mTwistSalts.mOrbiterAssign,
+        &pExpander->GetDomainBundleInbuilt()->mTwistSalts.mOrbiterUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mSeedSalts.mWandererUpdate,
+        &pExpander->GetDomainBundleInbuilt()->mSeedSalts.mOrbiterAssign,
+        &pExpander->GetDomainBundleInbuilt()->mSeedSalts.mOrbiterUpdate
     };
 
     TwistDomainConstants *aConstants[] = {
-        &pExpander->mDomainBundleInbuilt.mPhaseAConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseBConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseCConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseDConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseEConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseFConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseGConstants,
-        &pExpander->mDomainBundleInbuilt.mPhaseHConstants
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateAConstants,
+        &pExpander->GetDomainBundleInbuilt()->mKeyRotateBConstants,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnAConstants,
+        &pExpander->GetDomainBundleInbuilt()->mKeySpawnBConstants,
+        &pExpander->GetDomainBundleInbuilt()->mTwistConstants,
+        &pExpander->GetDomainBundleInbuilt()->mSeedConstants
     };
 
     std::size_t aDomainTableCursor = 0U;

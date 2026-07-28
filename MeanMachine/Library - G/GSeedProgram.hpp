@@ -204,6 +204,11 @@ struct GBatch {
                                                              TwistExpander *pExpander,
                                                              std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                                              std::string *pErrorMessage = nullptr) const;
+    bool                                ExecuteWithRuntimeVariables(TwistWorkSpace *pWorkSpace,
+                                                                    TwistExpander *pExpander,
+                                                                    TwistDomainSaltSet *pParamSaltSet,
+                                                                    std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                                                                    std::string *pErrorMessage = nullptr) const;
 };
 
 #endif /* GSeedProgram_hpp */

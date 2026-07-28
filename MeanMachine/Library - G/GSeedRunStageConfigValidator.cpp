@@ -488,6 +488,92 @@ bool GSeedRunStageConfigValidator::ValidateStarter(const GSeedRunStageConfig &pC
     return true;
 }
 
+bool GSeedRunStageConfigValidator::ValidateStarterWithResiduals(
+    const GSeedRunStageConfig &pConfig,
+    std::vector<TwistWorkSpaceSlot> pPrimarySources,
+    std::vector<TwistWorkSpaceSlot> pResidualSources,
+    std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+    std::string *pErrorMessage) {
+    std::vector<TwistWorkSpaceSlot> aSources;
+    for (TwistWorkSpaceSlot aSlot : pPrimarySources) {
+        AppendUniqueSlot(&aSources, aSlot);
+    }
+    for (TwistWorkSpaceSlot aSlot : pResidualSources) {
+        AppendUniqueSlot(&aSources, aSlot);
+    }
+
+    if (!ValidateBasicShape(pConfig, pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateSpecialTwelvePassLoopShape(pConfig,
+                                            false,
+                                            pErrorMessage)) {
+        return false;
+    }
+
+    if (pPrimarySources.size() >
+        static_cast<std::size_t>(pConfig.mMaxContextSourceCount)) {
+        SetError(pErrorMessage,
+                 pConfig.mStageName +
+                 " starter validation received too many primary sources");
+        return false;
+    }
+
+    if (!ValidateDestinations(pConfig,
+                              pExpectedDestinations,
+                              pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateList(pConfig,
+                      aSources,
+                      pExpectedDestinations,
+                      pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateSequencing(pConfig, aSources, pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateSourceGraph(pConfig, aSources, pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidatePreviousWriteForward(pConfig, pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateImmediatelyUsePreviousDest(pConfig, pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateSufficientDestUsage(pConfig,
+                                     true,
+                                     pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateNonRedundancy(pConfig, pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateResidualGraph(pConfig,
+                               pResidualSources,
+                               pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidatePrimaryCombinations(pConfig,
+                                     pPrimarySources,
+                                     pErrorMessage)) {
+        return false;
+    }
+
+    return true;
+}
+
 bool GSeedRunStageConfigValidator::ValidateMidstage(const GSeedRunStageConfig &pConfig,
                                                     std::vector<TwistWorkSpaceSlot> pPrimarySources,
                                                     std::vector<TwistWorkSpaceSlot> pResidualSources,
@@ -926,7 +1012,8 @@ bool GSeedRunStageConfigValidator::ValidateSourceGraph(const GSeedRunStageConfig
         } else {
             std::vector<TwistWorkSpaceSlot> aSeenSources;
             for (TwistWorkSpaceSlot aSlot : aIngressSources) {
-                if (HasSlot(aSeenSources, aSlot)) {
+                if (!pConfig.mBindDuplicateSourceSlots &&
+                    HasSlot(aSeenSources, aSlot)) {
                     SetError(pErrorMessage,
                              StagePrefix(pConfig, aSliceIndex) +
                              " source graph used a duplicate source with 4 or more available sources");
@@ -936,7 +1023,8 @@ bool GSeedRunStageConfigValidator::ValidateSourceGraph(const GSeedRunStageConfig
             }
 
             for (TwistWorkSpaceSlot aSlot : aCrossSources) {
-                if (HasSlot(aSeenSources, aSlot)) {
+                if (!pConfig.mBindDuplicateSourceSlots &&
+                    HasSlot(aSeenSources, aSlot)) {
                     SetError(pErrorMessage,
                              StagePrefix(pConfig, aSliceIndex) +
                              " source graph used a duplicate source with 4 or more available sources");
@@ -978,11 +1066,10 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
         return true;
     }
 
-    std::size_t aMaxResidualCount = pConfig.mSlices.size() * 4U;
-    if (aMaxResidualCount > 18U) {
-        aMaxResidualCount = 18U;
-    }
-    if (pResiduals.size() > aMaxResidualCount) {
+    // ValidateBasicShape already enforces the actual ingress/cross capacity
+    // for every slice. Keep only the workspace-wide residual ceiling here so
+    // a compact graph may use spare capacity unevenly across its passes.
+    if (pResiduals.size() > 24U) {
         SetError(pErrorMessage,
                  pConfig.mStageName +
                  " residual graph had more than the supported residual source capacity");

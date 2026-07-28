@@ -5,8 +5,6 @@
 
 #include "GTwistExpander.hpp"
 
-#include "FileIO.hpp"
-#include "GJson.hpp"
 #include "Random.hpp"
 #include "SaltTables.hpp"
 #include "TwistFarmConstants.hpp"
@@ -14,13 +12,10 @@
 #include "TwistSnow.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdlib>
 #include <cstdio>
-#include <cstring>
-#include <filesystem>
-
-using MeanMachine_json::JsonValue;
 
 namespace {
 
@@ -29,151 +24,6 @@ void SetError(std::string *pErrorMessage,
     if (pErrorMessage != nullptr) {
         *pErrorMessage = pMessage;
     }
-}
-
-[[maybe_unused]] std::string ResolveInputPath(const std::string &pPath) {
-    if (pPath.empty()) {
-        return "";
-    }
-
-    const std::filesystem::path aInputPath(pPath);
-    if (aInputPath.is_absolute()) {
-        return aInputPath.lexically_normal().generic_string();
-    }
-
-    const std::filesystem::path aProjectRoot(FileIO::ProjectRoot());
-    return (aProjectRoot / aInputPath).lexically_normal().generic_string();
-}
-
-[[maybe_unused]] bool LoadTextFile(const std::string &pPath,
-                                   std::string *pText,
-                                   std::string *pErrorMessage) {
-    if (pText == nullptr) {
-        SetError(pErrorMessage, "output text pointer was null.");
-        return false;
-    }
-
-    std::vector<std::uint8_t> aBytes;
-    if (!FileIO::Load(pPath, aBytes)) {
-        SetError(pErrorMessage, "failed to read JSON file: " + pPath);
-        return false;
-    }
-
-    pText->assign(aBytes.begin(), aBytes.end());
-    return true;
-}
-
-template <typename T>
-void EnsureTableSize(std::vector<T> *pTable,
-                     const int pLength,
-                     const bool pIdentityFallback) {
-    if (pTable == nullptr) {
-        return;
-    }
-
-    if (pTable->size() > static_cast<std::size_t>(pLength)) {
-        pTable->resize(static_cast<std::size_t>(pLength));
-    }
-
-    while (pTable->size() < static_cast<std::size_t>(pLength)) {
-        T aValue = static_cast<T>(0);
-        if (pIdentityFallback) {
-            aValue = static_cast<T>(pTable->size() & 0xFFU);
-        }
-        pTable->push_back(aValue);
-    }
-}
-
-bool ParseByteArray(const JsonValue *pArrayValue,
-                    std::vector<std::uint8_t> *pOut,
-                    std::string *pErrorMessage) {
-    if (pOut == nullptr) {
-        SetError(pErrorMessage, "byte-array output argument was null.");
-        return false;
-    }
-    if (pArrayValue == nullptr) {
-        pOut->clear();
-        return true;
-    }
-    if (!pArrayValue->is_array()) {
-        SetError(pErrorMessage, "expected byte table to be an array.");
-        return false;
-    }
-
-    std::vector<std::uint8_t> aOut;
-    aOut.reserve(pArrayValue->as_array().size());
-    for (const JsonValue &aValue : pArrayValue->as_array()) {
-        int aByte = -1;
-        if (aValue.is_number()) {
-            aByte = static_cast<int>(aValue.as_number());
-        } else if (aValue.is_string()) {
-            try {
-                aByte = std::stoi(aValue.as_string());
-            } catch (...) {
-                SetError(pErrorMessage, "byte table had invalid string value.");
-                return false;
-            }
-        } else {
-            SetError(pErrorMessage, "byte table had non-numeric entry.");
-            return false;
-        }
-
-        if ((aByte < 0) || (aByte > 255)) {
-            SetError(pErrorMessage, "byte table entry outside [0,255].");
-            return false;
-        }
-        aOut.push_back(static_cast<std::uint8_t>(aByte));
-    }
-
-    *pOut = std::move(aOut);
-    return true;
-}
-
-bool ParseUInt64Array(const JsonValue *pArrayValue,
-                      std::vector<std::uint64_t> *pOut,
-                      std::string *pErrorMessage) {
-    if (pOut == nullptr) {
-        SetError(pErrorMessage, "uint64-array output argument was null.");
-        return false;
-    }
-    if (pArrayValue == nullptr) {
-        pOut->clear();
-        return true;
-    }
-    if (!pArrayValue->is_array()) {
-        SetError(pErrorMessage, "expected uint64 table to be an array.");
-        return false;
-    }
-
-    std::vector<std::uint64_t> aOut;
-    aOut.reserve(pArrayValue->as_array().size());
-    for (const JsonValue &aValue : pArrayValue->as_array()) {
-        std::uint64_t aWideValue = 0ULL;
-        if (aValue.is_number()) {
-            const double aNumber = aValue.as_number();
-            if (aNumber < 0.0) {
-                SetError(pErrorMessage, "uint64 table had a negative numeric entry.");
-                return false;
-            }
-            aWideValue = static_cast<std::uint64_t>(aNumber);
-        } else if (aValue.is_string()) {
-            const std::string aText = aValue.as_string();
-            char *aEnd = nullptr;
-            const unsigned long long aParsed = std::strtoull(aText.c_str(), &aEnd, 0);
-            if ((aEnd == nullptr) || (*aEnd != '\0')) {
-                SetError(pErrorMessage, "uint64 table had invalid string value.");
-                return false;
-            }
-            aWideValue = static_cast<std::uint64_t>(aParsed);
-        } else {
-            SetError(pErrorMessage, "uint64 table had non-numeric entry.");
-            return false;
-        }
-        aOut.push_back(aWideValue);
-    }
-
-    *pOut = std::move(aOut);
-    return true;
 }
 
 std::uint8_t NonZeroRandomByte() {
@@ -212,480 +62,18 @@ void RandomizeDomainBundleConstants(TwistDomainBundle *pBundle) {
         return;
     }
 
-    RandomizeDomainConstants(&pBundle->mPhaseAConstants);
-    RandomizeDomainConstants(&pBundle->mPhaseBConstants);
-    RandomizeDomainConstants(&pBundle->mPhaseCConstants);
-    RandomizeDomainConstants(&pBundle->mPhaseDConstants);
-    RandomizeDomainConstants(&pBundle->mPhaseEConstants);
-    RandomizeDomainConstants(&pBundle->mPhaseFConstants);
-    RandomizeDomainConstants(&pBundle->mPhaseGConstants);
-    RandomizeDomainConstants(&pBundle->mPhaseHConstants);
-}
-
-[[maybe_unused]] bool ParseBranch(const JsonValue &pRoot,
-                                  const std::string &pBranchName,
-                                  TwistProgramBranch *pBranch,
-                                  std::string *pErrorMessage) {
-    if (pBranch == nullptr) {
-        SetError(pErrorMessage, "branch output was null.");
-        return false;
-    }
-
-    const JsonValue *aBranchValue = pRoot.find(pBranchName);
-    if ((aBranchValue == nullptr) || !aBranchValue->is_object()) {
-        return false;
-    }
-
-    pBranch->Clear();
-
-    std::vector<GBatch> aParsedBatches;
-    const JsonValue *aBatchesValue = aBranchValue->find("batches");
-    if ((aBatchesValue != nullptr) && aBatchesValue->is_array()) {
-        for (const JsonValue &aBatchValue : aBatchesValue->as_array()) {
-            if (!aBatchValue.is_object()) {
-                SetError(pErrorMessage, "branch '" + pBranchName + "' has non-object batch entry.");
-                return false;
-            }
-
-            GBatch aBatch;
-            std::string aBatchError;
-            if (!GBatch::FromJson(aBatchValue.Serialize(), &aBatch, &aBatchError)) {
-                SetError(pErrorMessage, "failed to parse branch batch JSON: " + aBatchError);
-                return false;
-            }
-            aParsedBatches.push_back(aBatch);
-        }
-    }
-
-    std::vector<std::string> aParsedLines;
-    const JsonValue *aStringLinesValue = aBranchValue->find("string_lines");
-    if ((aStringLinesValue != nullptr) && aStringLinesValue->is_array()) {
-        for (const JsonValue &aLineValue : aStringLinesValue->as_array()) {
-            if (!aLineValue.is_string()) {
-                SetError(pErrorMessage, "branch '" + pBranchName + "' has non-string line entry.");
-                return false;
-            }
-            aParsedLines.push_back(aLineValue.as_string());
-        }
-    }
-
-    const JsonValue *aSequenceValue = aBranchValue->find("sequence");
-    if ((aSequenceValue != nullptr) && aSequenceValue->is_array()) {
-        for (const JsonValue &aStepValue : aSequenceValue->as_array()) {
-            if (!aStepValue.is_object()) {
-                SetError(pErrorMessage, "branch '" + pBranchName + "' has non-object sequence step.");
-                return false;
-            }
-
-            const JsonValue *aTypeValue = aStepValue.find("type");
-            const JsonValue *aIndexValue = aStepValue.find("index");
-            if ((aTypeValue == nullptr) || (aIndexValue == nullptr) ||
-                !aTypeValue->is_string() || !aIndexValue->is_number()) {
-                SetError(pErrorMessage, "branch '" + pBranchName + "' has malformed sequence step.");
-                return false;
-            }
-
-            const std::string aType = aTypeValue->as_string();
-            const std::size_t aIndex = static_cast<std::size_t>(aIndexValue->as_number());
-            if (aType == "line") {
-                if (aIndex >= aParsedLines.size()) {
-                    SetError(pErrorMessage, "branch '" + pBranchName + "' line sequence index out of range.");
-                    return false;
-                }
-                pBranch->AddLine(aParsedLines[aIndex]);
-            } else if (aType == "batch") {
-                if (aIndex >= aParsedBatches.size()) {
-                    SetError(pErrorMessage, "branch '" + pBranchName + "' batch sequence index out of range.");
-                    return false;
-                }
-                pBranch->AddBatch(aParsedBatches[aIndex]);
-            } else {
-                SetError(pErrorMessage, "branch '" + pBranchName + "' has unknown sequence step type.");
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // Legacy seed JSON used separate arrays before branch steps existed. Seed
-    // setup batches must run before the KDF call lines.
-    if (pBranchName == "seed") {
-        for (const GBatch &aBatch : aParsedBatches) {
-            pBranch->AddBatch(aBatch);
-        }
-        for (const std::string &aLine : aParsedLines) {
-            pBranch->AddLine(aLine);
-        }
-        return true;
-    }
-
-    // Legacy branch JSON used separate arrays with implicit order: lines, then batches.
-    for (const std::string &aLine : aParsedLines) {
-        pBranch->AddLine(aLine);
-    }
-    for (const GBatch &aBatch : aParsedBatches) {
-        pBranch->AddBatch(aBatch);
-    }
-
-    return true;
-}
-
-[[maybe_unused]] bool ParseTables(const JsonValue &pRoot,
-                                  GTwistExpander *pExpander,
-                                  std::string *pErrorMessage) {
-    if (pExpander == nullptr) {
-        SetError(pErrorMessage, "expander output was null.");
-        return false;
-    }
-
-    const JsonValue *aTables = pRoot.find("tables");
-    if ((aTables == nullptr) || !aTables->is_object()) {
-        return true;
-    }
-    const JsonValue *aDomainBundleInbuilt = aTables->find("domain_bundle_inbuilt");
-
-    auto ResolveTableValue = [&](const char *pKey) -> const JsonValue * {
-        if (pKey == nullptr) {
-            return nullptr;
-        }
-        if ((aDomainBundleInbuilt != nullptr) && aDomainBundleInbuilt->is_object()) {
-            const JsonValue *aValue = aDomainBundleInbuilt->find(pKey);
-            if (aValue != nullptr) {
-                return aValue;
-            }
-        }
-        return aTables->find(pKey);
-    };
-
-    auto ParseSaltWithLegacyFallback = [&](const char *pKey,
-                                           std::vector<std::uint64_t> *pSaltOut) -> bool {
-        const JsonValue *aSaltValue = ResolveTableValue(pKey);
-        if (!ParseUInt64Array(aSaltValue, pSaltOut, pErrorMessage)) {
-            return false;
-        }
-        if (!pSaltOut->empty()) {
-            return true;
-        }
-
-        std::vector<std::uint8_t> aLegacyBytes;
-        if (!ParseByteArray(aSaltValue, &aLegacyBytes, pErrorMessage)) {
-            return false;
-        }
-        pSaltOut->reserve(aLegacyBytes.size());
-        for (std::uint8_t aByte : aLegacyBytes) {
-            pSaltOut->push_back(static_cast<std::uint64_t>(aByte));
-        }
-        return true;
-    };
-
-    auto ParseLegacySaltOnly = [&](const char *pKey) -> bool {
-        std::vector<std::uint64_t> aDiscardedSalt;
-        return ParseSaltWithLegacyFallback(pKey, &aDiscardedSalt);
-    };
-
-    if (!ParseLegacySaltOnly("salt_a")) { return false; }
-    if (!ParseLegacySaltOnly("salt_b")) { return false; }
-    if (!ParseLegacySaltOnly("salt_c")) { return false; }
-    if (!ParseLegacySaltOnly("salt_d")) { return false; }
-    if (!ParseLegacySaltOnly("salt_e")) { return false; }
-    if (!ParseLegacySaltOnly("salt_f")) { return false; }
-    if (!ParseLegacySaltOnly("salt_g")) { return false; }
-    if (!ParseLegacySaltOnly("salt_h")) { return false; }
-
-    auto ParseMaterialObject = [&](const char *pKey,
-                                   TwistDomainSeedRoundMaterial *pDest) -> bool {
-        if ((pKey == nullptr) || (pDest == nullptr)) {
-            return true;
-        }
-        const JsonValue *aObject = ResolveTableValue(pKey);
-        if (aObject == nullptr) {
-            return true;
-        }
-        if (!aObject->is_object()) {
-            SetError(pErrorMessage, "domain material entry was not an object: " + std::string(pKey));
-            return false;
-        }
-
-        auto ParseLane = [&](const char *pLaneKey, std::uint64_t *pLaneDest) -> bool {
-            if ((pLaneKey == nullptr) || (pLaneDest == nullptr)) {
-                return true;
-            }
-            std::vector<std::uint64_t> aWide;
-            if (!ParseUInt64Array(aObject->find(pLaneKey), &aWide, pErrorMessage)) {
-                return false;
-            }
-            if (aWide.empty()) {
-                std::vector<std::uint8_t> aLegacyBytes;
-                if (!ParseByteArray(aObject->find(pLaneKey), &aLegacyBytes, pErrorMessage)) {
-                    return false;
-                }
-                for (std::uint8_t aByte : aLegacyBytes) {
-                    aWide.push_back(static_cast<std::uint64_t>(aByte));
-                }
-            }
-            if (aWide.empty()) {
-                return true;
-            }
-            if (aWide.size() < static_cast<std::size_t>(S_SALT)) {
-                aWide.resize(static_cast<std::size_t>(S_SALT), 0ULL);
-            }
-            if (aWide.size() > static_cast<std::size_t>(S_SALT)) {
-                aWide.resize(static_cast<std::size_t>(S_SALT));
-            }
-            std::memcpy(pLaneDest,
-                        aWide.data(),
-                        sizeof(std::uint64_t) * static_cast<std::size_t>(S_SALT));
-            return true;
-        };
-
-        if (!ParseLane("salt_a", pDest->mSaltA)) { return false; }
-        if (!ParseLane("salt_b", pDest->mSaltB)) { return false; }
-        if (!ParseLane("salt_c", pDest->mSaltC)) { return false; }
-        if (!ParseLane("salt_d", pDest->mSaltD)) { return false; }
-        if (!ParseLane("salt_e", pDest->mSaltE)) { return false; }
-        if (!ParseLane("salt_f", pDest->mSaltF)) { return false; }
-        return true;
-    };
-
-    if (!ParseMaterialObject("mats_phase_a_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_a_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_a_seeder", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_phase_b_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_b_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_b_seeder", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_phase_c_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_c_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_c_seeder", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_phase_d_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_d_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_d_seeder", &pExpander->mDomainBundleInbuilt.mPhaseDSalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_phase_e_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseESalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_e_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseESalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_e_seeder", &pExpander->mDomainBundleInbuilt.mPhaseESalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_phase_f_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_f_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_f_seeder", &pExpander->mDomainBundleInbuilt.mPhaseFSalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_phase_g_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_g_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_g_seeder", &pExpander->mDomainBundleInbuilt.mPhaseGSalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_phase_h_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_h_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_phase_h_seeder", &pExpander->mDomainBundleInbuilt.mPhaseHSalts.mOrbiterAssign)) { return false; }
-
-    if (!ParseMaterialObject("mats_key_a_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_key_a_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_key_a_seeder", &pExpander->mDomainBundleInbuilt.mPhaseASalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_key_b_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_key_b_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_key_b_seeder", &pExpander->mDomainBundleInbuilt.mPhaseBSalts.mOrbiterAssign)) { return false; }
-    if (!ParseMaterialObject("mats_operation_lane_wanderer", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mWandererUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_operation_lane_orbiter", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterUpdate)) { return false; }
-    if (!ParseMaterialObject("mats_operation_lane_seeder", &pExpander->mDomainBundleInbuilt.mPhaseCSalts.mOrbiterAssign)) { return false; }
-
-    auto ParseDomainConstantOptional = [&](const char *pKey,
-                                           std::uint64_t *pDest) -> bool {
-        if ((pKey == nullptr) || (pDest == nullptr)) {
-            return true;
-        }
-
-        const JsonValue *aValue = ResolveTableValue(pKey);
-        if (aValue == nullptr) {
-            return true;
-        }
-
-        if (aValue->is_number()) {
-            const double aNumber = aValue->as_number();
-            if (aNumber < 0.0) {
-                SetError(pErrorMessage, "domain constant was negative: " + std::string(pKey));
-                return false;
-            }
-            *pDest = static_cast<std::uint64_t>(aNumber);
-            return true;
-        }
-
-        if (aValue->is_string()) {
-            const std::string aText = aValue->as_string();
-            char *aEnd = nullptr;
-            const unsigned long long aParsed = std::strtoull(aText.c_str(), &aEnd, 0);
-            if ((aEnd == nullptr) || (*aEnd != '\0')) {
-                SetError(pErrorMessage, "domain constant had invalid string value: " + std::string(pKey));
-                return false;
-            }
-            *pDest = static_cast<std::uint64_t>(aParsed);
-            return true;
-        }
-
-        SetError(pErrorMessage, "domain constant had invalid type: " + std::string(pKey));
-        return false;
-    };
-
-    std::uint64_t aDiscardedDomainConstant = 0ULL;
-    if (!ParseDomainConstantOptional("domain_constant_public_ingress", &aDiscardedDomainConstant)) { return false; }
-    if (!ParseDomainConstantOptional("domain_constant_private_ingress", &aDiscardedDomainConstant)) { return false; }
-    if (!ParseDomainConstantOptional("domain_constant_cross_ingress", &aDiscardedDomainConstant)) { return false; }
-    
-    auto ParseDomainConstantFromObject = [&](const JsonValue *pObject,
-                                             const char *pFieldKey,
-                                             std::uint64_t *pDest) -> bool {
-        if ((pObject == nullptr) || (pFieldKey == nullptr) || (pDest == nullptr)) {
-            return true;
-        }
-        const JsonValue *aField = pObject->find(pFieldKey);
-        if (aField == nullptr) {
-            return true;
-        }
-        if (aField->is_number()) {
-            const double aNumber = aField->as_number();
-            if (aNumber < 0.0) {
-                SetError(pErrorMessage, "domain constant field was negative: " + std::string(pFieldKey));
-                return false;
-            }
-            *pDest = static_cast<std::uint64_t>(aNumber);
-            return true;
-        }
-        if (aField->is_string()) {
-            const std::string aText = aField->as_string();
-            char *aEnd = nullptr;
-            const unsigned long long aParsed = std::strtoull(aText.c_str(), &aEnd, 0);
-            if ((aEnd == nullptr) || (*aEnd != '\0')) {
-                SetError(pErrorMessage, "domain constant field had invalid string value: " + std::string(pFieldKey));
-                return false;
-            }
-            *pDest = static_cast<std::uint64_t>(aParsed);
-            return true;
-        }
-        SetError(pErrorMessage, "domain constant field had invalid type: " + std::string(pFieldKey));
-        return false;
-    };
-    
-    auto ParseDomainConstantsObject = [&](const char *pKey,
-                                          TwistDomainConstants *pDest) -> bool {
-        if ((pKey == nullptr) || (pDest == nullptr)) {
-            return true;
-        }
-        
-        const JsonValue *aObject = ResolveTableValue(pKey);
-        if (aObject == nullptr) {
-            return true;
-        }
-        if (!aObject->is_object()) {
-            SetError(pErrorMessage, "domain constants entry was not an object: " + std::string(pKey));
-            return false;
-        }
-        auto ParseDomainConstantByteFromObject = [&](const char *pFieldKey,
-                                                     std::uint8_t *pByteDest) -> bool {
-            if ((pFieldKey == nullptr) || (pByteDest == nullptr)) {
-                return true;
-            }
-            std::uint64_t aParsed = static_cast<std::uint64_t>(*pByteDest);
-            if (!ParseDomainConstantFromObject(aObject, pFieldKey, &aParsed)) {
-                return false;
-            }
-            if (aParsed > 255ULL) {
-                SetError(pErrorMessage, "domain constant byte field was outside [0,255]: " + std::string(pFieldKey));
-                return false;
-            }
-            *pByteDest = static_cast<std::uint8_t>(aParsed);
-            return true;
-        };
-
-        if (!ParseDomainConstantFromObject(aObject, "ingress", &pDest->mIngress)) { return false; }
-        if (!ParseDomainConstantFromObject(aObject, "scatter", &pDest->mScatter)) { return false; }
-        if (!ParseDomainConstantFromObject(aObject, "cross", &pDest->mCross)) { return false; }
-        if (!ParseDomainConstantFromObject(aObject, "public_ingress", &pDest->mDomainConstantPublicIngress)) { return false; }
-        if (!ParseDomainConstantFromObject(aObject, "private_ingress", &pDest->mDomainConstantPrivateIngress)) { return false; }
-        if (!ParseDomainConstantFromObject(aObject, "cross_ingress", &pDest->mDomainConstantCrossIngress)) { return false; }
-        if (!ParseDomainConstantFromObject(aObject, "matrix_select_a", &pDest->mMatrixSelectA)) { return false; }
-        if (!ParseDomainConstantFromObject(aObject, "matrix_select_b", &pDest->mMatrixSelectB)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_unroll_a", &pDest->mMatrixUnrollA)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_unroll_b", &pDest->mMatrixUnrollB)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_arg_aa", &pDest->mMatrixArgA)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_arg_ab", &pDest->mMatrixArgB)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_arg_ba", &pDest->mMatrixArgC)) { return false; }
-        if (!ParseDomainConstantByteFromObject("matrix_arg_bb", &pDest->mMatrixArgD)) { return false; }
-        if (!ParseDomainConstantByteFromObject("mask_mutate_a", &pDest->mMaskMutateA)) { return false; }
-        if (!ParseDomainConstantByteFromObject("mask_mutate_b", &pDest->mMaskMutateB)) { return false; }
-        return true;
-    };
-    
-    if (!ParseDomainConstantsObject("constants_phase_a", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_phase_b", &pExpander->mDomainBundleInbuilt.mPhaseBConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_phase_c", &pExpander->mDomainBundleInbuilt.mPhaseCConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_phase_d", &pExpander->mDomainBundleInbuilt.mPhaseDConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_phase_e", &pExpander->mDomainBundleInbuilt.mPhaseEConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_phase_f", &pExpander->mDomainBundleInbuilt.mPhaseFConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_phase_g", &pExpander->mDomainBundleInbuilt.mPhaseGConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_phase_h", &pExpander->mDomainBundleInbuilt.mPhaseHConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_key_a", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_key_b", &pExpander->mDomainBundleInbuilt.mPhaseBConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_work_lane", &pExpander->mDomainBundleInbuilt.mPhaseAConstants)) { return false; }
-    if (!ParseDomainConstantsObject("constants_operation_lane", &pExpander->mDomainBundleInbuilt.mPhaseCConstants)) { return false; }
-    
-    auto ParseDomainSaltOptional = [&](const char *pKey,
-                                       std::uint64_t *pDest) -> bool {
-        if ((pKey == nullptr) || (pDest == nullptr)) {
-            return true;
-        }
-
-        const JsonValue *aDomainValue = ResolveTableValue(pKey);
-        if (aDomainValue == nullptr) {
-            return true;
-        }
-
-        std::vector<std::uint64_t> aWideSalt;
-        if (!ParseUInt64Array(aDomainValue, &aWideSalt, pErrorMessage)) {
-            return false;
-        }
-
-        if (aWideSalt.empty()) {
-            std::vector<std::uint8_t> aLegacyBytes;
-            if (!ParseByteArray(aDomainValue, &aLegacyBytes, pErrorMessage)) {
-                return false;
-            }
-            for (const std::uint8_t aByte : aLegacyBytes) {
-                aWideSalt.push_back(static_cast<std::uint64_t>(aByte));
-            }
-        }
-
-        if (aWideSalt.empty()) {
-            return true;
-        }
-
-        if (aWideSalt.size() < static_cast<std::size_t>(S_SALT)) {
-            aWideSalt.resize(static_cast<std::size_t>(S_SALT), 0ULL);
-        }
-        if (aWideSalt.size() > static_cast<std::size_t>(S_SALT)) {
-            aWideSalt.resize(static_cast<std::size_t>(S_SALT));
-        }
-
-        std::memcpy(pDest,
-                    aWideSalt.data(),
-                    sizeof(std::uint64_t) * static_cast<std::size_t>(S_SALT));
-        return true;
-    };
-
-    std::uint64_t aDiscardedSalt[S_SALT];
-    std::memset(aDiscardedSalt, 0, sizeof(aDiscardedSalt));
-    if (!ParseDomainSaltOptional("domain_salt_keybox_a", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_b", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_c", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_d", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_e", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_keybox_f", aDiscardedSalt)) { return false; }
-
-    if (!ParseDomainSaltOptional("domain_salt_source_a", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_b", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_c", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_d", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_e", aDiscardedSalt)) { return false; }
-    if (!ParseDomainSaltOptional("domain_salt_source_f", aDiscardedSalt)) { return false; }
-
-    return true;
+    RandomizeDomainConstants(&pBundle->mKeyRotateAConstants);
+    RandomizeDomainConstants(&pBundle->mKeyRotateBConstants);
+    RandomizeDomainConstants(&pBundle->mKeySpawnAConstants);
+    RandomizeDomainConstants(&pBundle->mKeySpawnBConstants);
+    RandomizeDomainConstants(&pBundle->mSeedConstants);
+    RandomizeDomainConstants(&pBundle->mTwistConstants);
 }
 
 bool ExecuteBatchJsonText(const std::vector<std::string> &pBatchJsonText,
                           TwistWorkSpace *pWorkSpace,
                           TwistExpander *pExpander,
+                          TwistDomainSaltSet *pParamSaltSet,
                           std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                           std::string *pErrorMessage) {
     if (pVariables == nullptr) {
@@ -702,7 +90,11 @@ bool ExecuteBatchJsonText(const std::vector<std::string> &pBatchJsonText,
             return false;
         }
 
-        if (!aBatch.ExecuteWithVariables(pWorkSpace, pExpander, pVariables, pErrorMessage)) {
+        if (!aBatch.ExecuteWithRuntimeVariables(pWorkSpace,
+                                                pExpander,
+                                                pParamSaltSet,
+                                                pVariables,
+                                                pErrorMessage)) {
             if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
                 *pErrorMessage = "batch execution failed.";
             }
@@ -792,29 +184,23 @@ const TwistDomainConstants *WorkspaceDomainConstantsForMember(TwistWorkSpace *pW
     if (pWorkSpace == nullptr) {
         return nullptr;
     }
-    if (pMemberName == "mPhaseBConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseBConstants;
+    if (pMemberName == "mKeySpawnAConstants") {
+        return &pWorkSpace->mDomainBundle.mKeySpawnAConstants;
     }
-    if (pMemberName == "mPhaseCConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseCConstants;
+    if (pMemberName == "mKeySpawnBConstants") {
+        return &pWorkSpace->mDomainBundle.mKeySpawnBConstants;
     }
-    if (pMemberName == "mPhaseDConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseDConstants;
+    if (pMemberName == "mSeedConstants") {
+        return &pWorkSpace->mDomainBundle.mSeedConstants;
     }
-    if (pMemberName == "mPhaseEConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseEConstants;
+    if (pMemberName == "mTwistConstants") {
+        return &pWorkSpace->mDomainBundle.mTwistConstants;
     }
-    if (pMemberName == "mPhaseFConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseFConstants;
+    if (pMemberName == "mKeyRotateAConstants") {
+        return &pWorkSpace->mDomainBundle.mKeyRotateAConstants;
     }
-    if (pMemberName == "mPhaseGConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseGConstants;
-    }
-    if (pMemberName == "mPhaseHConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseHConstants;
-    }
-    if (pMemberName == "mPhaseAConstants") {
-        return &pWorkSpace->mDomainBundle.mPhaseAConstants;
+    if (pMemberName == "mKeyRotateBConstants") {
+        return &pWorkSpace->mDomainBundle.mKeyRotateBConstants;
     }
     return nullptr;
 }
@@ -845,7 +231,7 @@ bool DomainConstantMemberValue(const TwistDomainConstants *pConstants,
 
 bool ResolveDomainWordAssignmentValue(const std::string &pRight,
                                       TwistWorkSpace *pWorkSpace,
-                                      TwistExpander *pExpander,
+                                      const TwistDomainConstants *pParamConstants,
                                       const std::unordered_map<std::string, GRuntimeScalar> &pVariables,
                                       GRuntimeScalar *pValueOut) {
     if (pValueOut == nullptr) {
@@ -864,8 +250,7 @@ bool ResolveDomainWordAssignmentValue(const std::string &pRight,
     const std::string aConstantsPrefix = "pConstants->";
     if (pRight.rfind(aConstantsPrefix, 0U) == 0U) {
         const std::string aMemberName = pRight.substr(aConstantsPrefix.size());
-        const TwistDomainConstants *aConstants = (pExpander == nullptr) ? nullptr : pExpander->mActiveConstants;
-        return DomainConstantMemberValue(aConstants,
+        return DomainConstantMemberValue(pParamConstants,
                                          aMemberName,
                                          pValueOut);
     }
@@ -990,30 +375,26 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD},
         {"mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
         {"mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
-        {"mMatsWorkLaneOrbiterInit.mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA},
-        {"mMatsWorkLaneOrbiterInit.mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB},
-        {"mMatsWorkLaneOrbiterInit.mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC},
-        {"mMatsWorkLaneOrbiterInit.mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD},
-        {"mMatsWorkLaneOrbiterInit.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
-        {"mMatsWorkLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
-        {"mMatsWorkLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
-        {"mMatsWorkLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
-        {"mExpansionLaneA", TwistWorkSpaceSlot::kExpansionLaneA},
-        {"mExpansionLaneB", TwistWorkSpaceSlot::kExpansionLaneB},
-        {"mExpansionLaneC", TwistWorkSpaceSlot::kExpansionLaneC},
-        {"mExpansionLaneD", TwistWorkSpaceSlot::kExpansionLaneD},
-        {"mWorkLaneA", TwistWorkSpaceSlot::kWorkLaneA},
-        {"mWorkLaneB", TwistWorkSpaceSlot::kWorkLaneB},
-        {"mWorkLaneC", TwistWorkSpaceSlot::kWorkLaneC},
-        {"mWorkLaneD", TwistWorkSpaceSlot::kWorkLaneD},
-        {"mOperationLaneA", TwistWorkSpaceSlot::kOperationLaneA},
-        {"mOperationLaneB", TwistWorkSpaceSlot::kOperationLaneB},
-        {"mOperationLaneC", TwistWorkSpaceSlot::kOperationLaneC},
-        {"mOperationLaneD", TwistWorkSpaceSlot::kOperationLaneD},
-        {"mSnowLaneA", TwistWorkSpaceSlot::kSnowLaneA},
-        {"mSnowLaneB", TwistWorkSpaceSlot::kSnowLaneB},
-        {"mSnowLaneC", TwistWorkSpaceSlot::kSnowLaneC},
-        {"mSnowLaneD", TwistWorkSpaceSlot::kSnowLaneD},
+        {"mMatsPoisonLaneOrbiterInit.mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA},
+        {"mMatsPoisonLaneOrbiterInit.mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB},
+        {"mMatsPoisonLaneOrbiterInit.mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC},
+        {"mMatsPoisonLaneOrbiterInit.mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD},
+        {"mMatsPoisonLaneOrbiterInit.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
+        {"mMatsPoisonLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
+        {"mMatsPoisonLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
+        {"mMatsPoisonLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
+        {"mHeartLaneA", TwistWorkSpaceSlot::kHeartLaneA},
+        {"mHeartLaneB", TwistWorkSpaceSlot::kHeartLaneB},
+        {"mHeartLaneC", TwistWorkSpaceSlot::kHeartLaneC},
+        {"mHeartLaneD", TwistWorkSpaceSlot::kHeartLaneD},
+        {"mPoisonLaneA", TwistWorkSpaceSlot::kPoisonLaneA},
+        {"mPoisonLaneB", TwistWorkSpaceSlot::kPoisonLaneB},
+        {"mPoisonLaneC", TwistWorkSpaceSlot::kPoisonLaneC},
+        {"mPoisonLaneD", TwistWorkSpaceSlot::kPoisonLaneD},
+        {"mSpiritLaneA", TwistWorkSpaceSlot::kSpiritLaneA},
+        {"mSpiritLaneB", TwistWorkSpaceSlot::kSpiritLaneB},
+        {"mSpiritLaneC", TwistWorkSpaceSlot::kSpiritLaneC},
+        {"mSpiritLaneD", TwistWorkSpaceSlot::kSpiritLaneD},
         {"mFireLaneA", TwistWorkSpaceSlot::kFireLaneA},
         {"mFireLaneB", TwistWorkSpaceSlot::kFireLaneB},
         {"mFireLaneC", TwistWorkSpaceSlot::kFireLaneC},
@@ -1034,28 +415,84 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mFuseLaneB", TwistWorkSpaceSlot::kFuseLaneB},
         {"mFuseLaneC", TwistWorkSpaceSlot::kFuseLaneC},
         {"mFuseLaneD", TwistWorkSpaceSlot::kFuseLaneD},
-        {"mScrapLaneA", TwistWorkSpaceSlot::kScrapLaneA},
-        {"mScrapLaneB", TwistWorkSpaceSlot::kScrapLaneB},
-        {"mScrapLaneC", TwistWorkSpaceSlot::kScrapLaneC},
-        {"mScrapLaneD", TwistWorkSpaceSlot::kScrapLaneD},
-        {"mMergeLaneA", TwistWorkSpaceSlot::kMergeLaneA},
-        {"mMergeLaneB", TwistWorkSpaceSlot::kMergeLaneB},
-        {"mMergeLaneC", TwistWorkSpaceSlot::kMergeLaneC},
-        {"mMergeLaneD", TwistWorkSpaceSlot::kMergeLaneD},
-        {"mInvestLaneA", TwistWorkSpaceSlot::kInvestA},
-        {"mInvestLaneB", TwistWorkSpaceSlot::kInvestB},
-        {"mInvestLaneC", TwistWorkSpaceSlot::kInvestC},
-        {"mInvestLaneD", TwistWorkSpaceSlot::kInvestD},
-        {"mInvestLaneE", TwistWorkSpaceSlot::kInvestE},
-        {"mInvestLaneF", TwistWorkSpaceSlot::kInvestF},
-        {"mInvestLaneG", TwistWorkSpaceSlot::kInvestG},
-        {"mInvestLaneH", TwistWorkSpaceSlot::kInvestH},
+        {"mWoodLaneA", TwistWorkSpaceSlot::kWoodLaneA},
+        {"mWoodLaneB", TwistWorkSpaceSlot::kWoodLaneB},
+        {"mWoodLaneC", TwistWorkSpaceSlot::kWoodLaneC},
+        {"mWoodLaneD", TwistWorkSpaceSlot::kWoodLaneD},
+        {"mLightningLaneA", TwistWorkSpaceSlot::kLightningLaneA},
+        {"mLightningLaneB", TwistWorkSpaceSlot::kLightningLaneB},
+        {"mLightningLaneC", TwistWorkSpaceSlot::kLightningLaneC},
+        {"mLightningLaneD", TwistWorkSpaceSlot::kLightningLaneD},
+        {"mMagmaLaneA", TwistWorkSpaceSlot::kMagmaLaneA},
+        {"mMagmaLaneB", TwistWorkSpaceSlot::kMagmaLaneB},
+        {"mMagmaLaneC", TwistWorkSpaceSlot::kMagmaLaneC},
+        {"mMagmaLaneD", TwistWorkSpaceSlot::kMagmaLaneD},
+        {"mSoilLaneA", TwistWorkSpaceSlot::kSoilLaneA},
+        {"mSoilLaneB", TwistWorkSpaceSlot::kSoilLaneB},
+        {"mSoilLaneC", TwistWorkSpaceSlot::kSoilLaneC},
+        {"mSoilLaneD", TwistWorkSpaceSlot::kSoilLaneD},
+        {"mPlasmaLaneA", TwistWorkSpaceSlot::kPlasmaLaneA},
+        {"mPlasmaLaneB", TwistWorkSpaceSlot::kPlasmaLaneB},
+        {"mPlasmaLaneC", TwistWorkSpaceSlot::kPlasmaLaneC},
+        {"mPlasmaLaneD", TwistWorkSpaceSlot::kPlasmaLaneD},
+        {"mShadowLaneA", TwistWorkSpaceSlot::kShadowLaneA},
+        {"mShadowLaneB", TwistWorkSpaceSlot::kShadowLaneB},
+        {"mShadowLaneC", TwistWorkSpaceSlot::kShadowLaneC},
+        {"mShadowLaneD", TwistWorkSpaceSlot::kShadowLaneD},
+        {"mCrystalLaneA", TwistWorkSpaceSlot::kCrystalLaneA},
+        {"mCrystalLaneB", TwistWorkSpaceSlot::kCrystalLaneB},
+        {"mCrystalLaneC", TwistWorkSpaceSlot::kCrystalLaneC},
+        {"mCrystalLaneD", TwistWorkSpaceSlot::kCrystalLaneD},
+        {"mAetherLaneA", TwistWorkSpaceSlot::kAetherLaneA},
+        {"mAetherLaneB", TwistWorkSpaceSlot::kAetherLaneB},
+        {"mAetherLaneC", TwistWorkSpaceSlot::kAetherLaneC},
+        {"mAetherLaneD", TwistWorkSpaceSlot::kAetherLaneD},
+        {"mCelestialLaneA", TwistWorkSpaceSlot::kCelestialLaneA},
+        {"mCelestialLaneB", TwistWorkSpaceSlot::kCelestialLaneB},
+        {"mCelestialLaneC", TwistWorkSpaceSlot::kCelestialLaneC},
+        {"mCelestialLaneD", TwistWorkSpaceSlot::kCelestialLaneD},
+        {"mKineticLaneA", TwistWorkSpaceSlot::kKineticLaneA},
+        {"mKineticLaneB", TwistWorkSpaceSlot::kKineticLaneB},
+        {"mKineticLaneC", TwistWorkSpaceSlot::kKineticLaneC},
+        {"mKineticLaneD", TwistWorkSpaceSlot::kKineticLaneD},
+        {"mVaporLaneA", TwistWorkSpaceSlot::kVaporLaneA},
+        {"mVaporLaneB", TwistWorkSpaceSlot::kVaporLaneB},
+        {"mVaporLaneC", TwistWorkSpaceSlot::kVaporLaneC},
+        {"mVaporLaneD", TwistWorkSpaceSlot::kVaporLaneD},
+        {"mChanceLaneA", TwistWorkSpaceSlot::kChanceLaneA},
+        {"mChanceLaneB", TwistWorkSpaceSlot::kChanceLaneB},
+        {"mChanceLaneC", TwistWorkSpaceSlot::kChanceLaneC},
+        {"mChanceLaneD", TwistWorkSpaceSlot::kChanceLaneD},
+        {"mDomainLaneKeyRotateA", TwistWorkSpaceSlot::kDomainLaneKeyRotateA},
+        {"mDomainLaneKeySpawnA", TwistWorkSpaceSlot::kDomainLaneKeySpawnA},
+        {"mDomainLaneSeed", TwistWorkSpaceSlot::kDomainLaneSeed},
+        {"mDomainLaneTwist", TwistWorkSpaceSlot::kDomainLaneTwist},
+        {"mIceLaneA", TwistWorkSpaceSlot::kIceLaneA},
+        {"mIceLaneB", TwistWorkSpaceSlot::kIceLaneB},
+        {"mIceLaneC", TwistWorkSpaceSlot::kIceLaneC},
+        {"mIceLaneD", TwistWorkSpaceSlot::kIceLaneD},
         {"mKeyBoxUnrolledA", TwistWorkSpaceSlot::kKeyBoxUnrolledA},
         {"mKeyBoxUnrolledB", TwistWorkSpaceSlot::kKeyBoxUnrolledB},
         {"mKeyRowReadA", TwistWorkSpaceSlot::kKeyRowReadA},
         {"mKeyRowReadB", TwistWorkSpaceSlot::kKeyRowReadB},
         {"mKeyRowWriteA", TwistWorkSpaceSlot::kKeyRowWriteA},
         {"mKeyRowWriteB", TwistWorkSpaceSlot::kKeyRowWriteB},
+        {"mKeyRowA0", TwistWorkSpaceSlot::kKeyRowA0},
+        {"mKeyRowA1", TwistWorkSpaceSlot::kKeyRowA1},
+        {"mKeyRowA2", TwistWorkSpaceSlot::kKeyRowA2},
+        {"mKeyRowA3", TwistWorkSpaceSlot::kKeyRowA3},
+        {"mKeyRowA4", TwistWorkSpaceSlot::kKeyRowA4},
+        {"mKeyRowA5", TwistWorkSpaceSlot::kKeyRowA5},
+        {"mKeyRowA6", TwistWorkSpaceSlot::kKeyRowA6},
+        {"mKeyRowA7", TwistWorkSpaceSlot::kKeyRowA7},
+        {"mKeyRowB0", TwistWorkSpaceSlot::kKeyRowB0},
+        {"mKeyRowB1", TwistWorkSpaceSlot::kKeyRowB1},
+        {"mKeyRowB2", TwistWorkSpaceSlot::kKeyRowB2},
+        {"mKeyRowB3", TwistWorkSpaceSlot::kKeyRowB3},
+        {"mKeyRowB4", TwistWorkSpaceSlot::kKeyRowB4},
+        {"mKeyRowB5", TwistWorkSpaceSlot::kKeyRowB5},
+        {"mKeyRowB6", TwistWorkSpaceSlot::kKeyRowB6},
+        {"mKeyRowB7", TwistWorkSpaceSlot::kKeyRowB7},
         {"mIndexList256A", TwistWorkSpaceSlot::kIndexList256A},
         {"mIndexList256B", TwistWorkSpaceSlot::kIndexList256B},
         {"mIndexList256C", TwistWorkSpaceSlot::kIndexList256C},
@@ -1306,111 +743,89 @@ bool ResolveConstantsToken(const std::string &pToken,
         return true;
     };
 
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseCConstants", &pWorkSpace->mDomainBundle.mPhaseCConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseDConstants", &pWorkSpace->mDomainBundle.mPhaseDConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseEConstants", &pWorkSpace->mDomainBundle.mPhaseEConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseFConstants", &pWorkSpace->mDomainBundle.mPhaseFConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseGConstants", &pWorkSpace->mDomainBundle.mPhaseGConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPhaseHConstants", &pWorkSpace->mDomainBundle.mPhaseHConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mKeyAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mKeyBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mMaskAConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mMaskBConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mWorkLaneConstants", &pWorkSpace->mDomainBundle.mPhaseAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mMaskLaneConstants", &pWorkSpace->mDomainBundle.mPhaseBConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mOperationLaneConstants", &pWorkSpace->mDomainBundle.mPhaseCConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeyRotateAConstants", &pWorkSpace->mDomainBundle.mKeyRotateAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeyRotateBConstants", &pWorkSpace->mDomainBundle.mKeyRotateBConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeySpawnAConstants", &pWorkSpace->mDomainBundle.mKeySpawnAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeySpawnBConstants", &pWorkSpace->mDomainBundle.mKeySpawnBConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mSeedConstants", &pWorkSpace->mDomainBundle.mSeedConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mTwistConstants", &pWorkSpace->mDomainBundle.mTwistConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeyAConstants", &pWorkSpace->mDomainBundle.mKeyRotateAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mKeyBConstants", &pWorkSpace->mDomainBundle.mKeySpawnAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mMaskAConstants", &pWorkSpace->mDomainBundle.mKeyRotateAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mMaskBConstants", &pWorkSpace->mDomainBundle.mKeySpawnAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mPoisonLaneConstants", &pWorkSpace->mDomainBundle.mKeyRotateAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mMaskLaneConstants", &pWorkSpace->mDomainBundle.mKeySpawnAConstants)) { return true; }
+    if (TryWorkspaceConstants("mDomainBundle.mSpiritLaneConstants", &pWorkSpace->mDomainBundle.mSeedConstants)) { return true; }
 
     if (pExpander == nullptr) {
         return false;
     }
 
-    if (aToken == "mDomainBundleEphemeral.mPhaseAConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseAConstants);
+    if (aToken == "mDomainBundleEphemeral.mKeyRotateAConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleEphemeral()->mKeyRotateAConstants);
         return true;
     }
-    if (aToken == "mDomainBundleEphemeral.mPhaseBConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseBConstants);
+    if (aToken == "mDomainBundleEphemeral.mKeyRotateBConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleEphemeral()->mKeyRotateBConstants);
         return true;
     }
-    if (aToken == "mDomainBundleEphemeral.mPhaseCConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseCConstants);
+    if (aToken == "mDomainBundleEphemeral.mKeySpawnAConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleEphemeral()->mKeySpawnAConstants);
         return true;
     }
-    if (aToken == "mDomainBundleEphemeral.mPhaseDConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseDConstants);
+    if (aToken == "mDomainBundleEphemeral.mKeySpawnBConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleEphemeral()->mKeySpawnBConstants);
         return true;
     }
-    if (aToken == "mDomainBundleEphemeral.mPhaseEConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseEConstants);
+    if (aToken == "mDomainBundleEphemeral.mSeedConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleEphemeral()->mSeedConstants);
         return true;
     }
-    if (aToken == "mDomainBundleEphemeral.mPhaseFConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseFConstants);
-        return true;
-    }
-    if (aToken == "mDomainBundleEphemeral.mPhaseGConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseGConstants);
-        return true;
-    }
-    if (aToken == "mDomainBundleEphemeral.mPhaseHConstants") {
-        *pConstantsResolved = &(pExpander->mDomainBundleEphemeral.mPhaseHConstants);
+    if (aToken == "mDomainBundleEphemeral.mTwistConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleEphemeral()->mTwistConstants);
         return true;
     }
 
     if ((aToken == "mConstantsPhaseA") ||
         (aToken == "mConstantsKeyA") ||
         (aToken == "mConstantsMaskA") ||
-        (aToken == "mConstantsWorkLane") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseAConstants") ||
+        (aToken == "mConstantsPoisonLane") ||
+        (aToken == "mDomainBundleInbuilt.mKeyRotateAConstants") ||
         (aToken == "mDomainBundleInbuilt.mKeyAConstants") ||
         (aToken == "mDomainBundleInbuilt.mMaskAConstants") ||
-        (aToken == "mDomainBundleInbuilt.mWorkLaneConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseAConstants);
+        (aToken == "mDomainBundleInbuilt.mPoisonLaneConstants")) {
+        *pConstantsResolved = &(pExpander->GetDomainBundleInbuilt()->mKeyRotateAConstants);
         return true;
     }
     if ((aToken == "mConstantsPhaseB") ||
         (aToken == "mConstantsKeyB") ||
         (aToken == "mConstantsMaskB") ||
         (aToken == "mConstantsMaskLane") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseBConstants") ||
+        (aToken == "mDomainBundleInbuilt.mKeySpawnAConstants") ||
         (aToken == "mDomainBundleInbuilt.mKeyBConstants") ||
         (aToken == "mDomainBundleInbuilt.mMaskBConstants") ||
         (aToken == "mDomainBundleInbuilt.mMaskLaneConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseBConstants);
+        *pConstantsResolved = &(pExpander->GetDomainBundleInbuilt()->mKeySpawnAConstants);
+        return true;
+    }
+    if (aToken == "mDomainBundleInbuilt.mKeyRotateBConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleInbuilt()->mKeyRotateBConstants);
+        return true;
+    }
+    if (aToken == "mDomainBundleInbuilt.mKeySpawnBConstants") {
+        *pConstantsResolved = &(pExpander->GetDomainBundleInbuilt()->mKeySpawnBConstants);
         return true;
     }
     if ((aToken == "mConstantsPhaseC") ||
-        (aToken == "mConstantsOperationLane") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseCConstants") ||
-        (aToken == "mDomainBundleInbuilt.mOperationLaneConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseCConstants);
+        (aToken == "mConstantsSpiritLane") ||
+        (aToken == "mDomainBundleInbuilt.mSeedConstants") ||
+        (aToken == "mDomainBundleInbuilt.mSpiritLaneConstants")) {
+        *pConstantsResolved = &(pExpander->GetDomainBundleInbuilt()->mSeedConstants);
         return true;
     }
     if ((aToken == "mConstantsPhaseD") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseDConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseDConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsPhaseE") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseEConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseEConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsPhaseF") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseFConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseFConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsPhaseG") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseGConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseGConstants);
-        return true;
-    }
-    if ((aToken == "mConstantsPhaseH") ||
-        (aToken == "mDomainBundleInbuilt.mPhaseHConstants")) {
-        *pConstantsResolved = &(pExpander->mDomainBundleInbuilt.mPhaseHConstants);
+        (aToken == "mDomainBundleInbuilt.mTwistConstants")) {
+        *pConstantsResolved = &(pExpander->GetDomainBundleInbuilt()->mTwistConstants);
         return true;
     }
     return false;
@@ -1441,44 +856,42 @@ bool ResolveSaltSetToken(const std::string &pToken,
         return true;
     };
 
-    if (TryWorkspaceSet("mDomainBundle.mPhaseASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseCSalts", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseDSalts", &pWorkSpace->mDomainBundle.mPhaseDSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseESalts", &pWorkSpace->mDomainBundle.mPhaseESalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseFSalts", &pWorkSpace->mDomainBundle.mPhaseFSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseGSalts", &pWorkSpace->mDomainBundle.mPhaseGSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPhaseHSalts", &pWorkSpace->mDomainBundle.mPhaseHSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mWorkLaneSalts", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mOperationLaneSalts", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyRotateASalts", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyRotateBSalts", &pWorkSpace->mDomainBundle.mKeyRotateBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeySpawnASalts", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeySpawnBSalts", &pWorkSpace->mDomainBundle.mKeySpawnBSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mSeedSalts", &pWorkSpace->mDomainBundle.mSeedSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mTwistSalts", &pWorkSpace->mDomainBundle.mTwistSalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyASalts", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mPoisonLaneSalts", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mDomainBundle.mSpiritLaneSalts", &pWorkSpace->mDomainBundle.mSeedSalts)) { return true; }
 
     // Legacy compatibility tokens.
-    if (TryWorkspaceSet("mMatsKeyAOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyAOrbiter", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyAWanderer", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBOrbiter", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsKeyBWanderer", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAOrbiter", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskAWanderer", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskBWanderer", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneOrbiter", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsWorkLaneWanderer", &pWorkSpace->mDomainBundle.mPhaseASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsMaskLaneWanderer", &pWorkSpace->mDomainBundle.mPhaseBSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneOrbiterInit", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneOrbiter", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
-    if (TryWorkspaceSet("mMatsOperationLaneWanderer", &pWorkSpace->mDomainBundle.mPhaseCSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAOrbiterInit", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAOrbiter", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyAWanderer", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiterInit", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBOrbiter", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsKeyBWanderer", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiterInit", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAOrbiter", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskAWanderer", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskBWanderer", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsPoisonLaneOrbiterInit", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsPoisonLaneOrbiter", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsPoisonLaneWanderer", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsMaskLaneWanderer", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
+    if (TryWorkspaceSet("mMatsSpiritLaneOrbiterInit", &pWorkSpace->mDomainBundle.mSeedSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsSpiritLaneOrbiter", &pWorkSpace->mDomainBundle.mSeedSalts)) { return true; }
+    if (TryWorkspaceSet("mMatsSpiritLaneWanderer", &pWorkSpace->mDomainBundle.mSeedSalts)) { return true; }
 
     if (pExpander != nullptr) {
         auto TryExpanderSet = [&](const std::string &pName,
@@ -1493,37 +906,42 @@ bool ResolveSaltSetToken(const std::string &pToken,
             return true;
         };
 
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseCSalts", &pExpander->mDomainBundleInbuilt.mPhaseCSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseDSalts", &pExpander->mDomainBundleInbuilt.mPhaseDSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseESalts", &pExpander->mDomainBundleInbuilt.mPhaseESalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseFSalts", &pExpander->mDomainBundleInbuilt.mPhaseFSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseGSalts", &pExpander->mDomainBundleInbuilt.mPhaseGSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPhaseHSalts", &pExpander->mDomainBundleInbuilt.mPhaseHSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseASalts", &pExpander->mDomainBundleEphemeral.mPhaseASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseBSalts", &pExpander->mDomainBundleEphemeral.mPhaseBSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseCSalts", &pExpander->mDomainBundleEphemeral.mPhaseCSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseDSalts", &pExpander->mDomainBundleEphemeral.mPhaseDSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseESalts", &pExpander->mDomainBundleEphemeral.mPhaseESalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseFSalts", &pExpander->mDomainBundleEphemeral.mPhaseFSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseGSalts", &pExpander->mDomainBundleEphemeral.mPhaseGSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleEphemeral.mPhaseHSalts", &pExpander->mDomainBundleEphemeral.mPhaseHSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mWorkLaneSalts", &pExpander->mDomainBundleInbuilt.mPhaseASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSalts", &pExpander->mDomainBundleInbuilt.mPhaseBSalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mOperationLaneSalts", &pExpander->mDomainBundleInbuilt.mPhaseCSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyRotateASalts", &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyRotateBSalts", &pExpander->GetDomainBundleInbuilt()->mKeyRotateBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeySpawnASalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeySpawnBSalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mSeedSalts", &pExpander->GetDomainBundleInbuilt()->mSeedSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mTwistSalts", &pExpander->GetDomainBundleInbuilt()->mTwistSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleEphemeral.mKeyRotateASalts", &pExpander->GetDomainBundleEphemeral()->mKeyRotateASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleEphemeral.mKeyRotateBSalts", &pExpander->GetDomainBundleEphemeral()->mKeyRotateBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleEphemeral.mKeySpawnASalts", &pExpander->GetDomainBundleEphemeral()->mKeySpawnASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleEphemeral.mKeySpawnBSalts", &pExpander->GetDomainBundleEphemeral()->mKeySpawnBSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleEphemeral.mSeedSalts", &pExpander->GetDomainBundleEphemeral()->mSeedSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleEphemeral.mTwistSalts", &pExpander->GetDomainBundleEphemeral()->mTwistSalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyASalts", &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskASalts", &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mPoisonLaneSalts", &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts)) { return true; }
+        if (TryExpanderSet("mDomainBundleInbuilt.mSpiritLaneSalts", &pExpander->GetDomainBundleInbuilt()->mSeedSalts)) { return true; }
     }
 
     return false;
 }
 
+struct BranchRuntimePointers {
+    std::uint8_t *pSource = nullptr;
+    std::uint8_t *pDestination = nullptr;
+    TwistFarmSalt *pFarmSalt = nullptr;
+    TwistDomainConstants *pDomainConstants = nullptr;
+    TwistDomainSaltSet *pDomainSaltSet = nullptr;
+};
+
 bool ResolveBufferPointerToken(const std::string &pToken,
                                TwistWorkSpace *pWorkSpace,
                                TwistExpander *pExpander,
+                               const BranchRuntimePointers *pPointers,
                                std::uint8_t **pBufferResolved) {
     if ((pWorkSpace == nullptr) || (pExpander == nullptr) || (pBufferResolved == nullptr)) {
         return false;
@@ -1541,11 +959,11 @@ bool ResolveBufferPointerToken(const std::string &pToken,
     StripOuterParens(&aToken);
 
     if ((aToken == "mSource") || (aToken == "this->mSource") || (aToken == "pExpander->mSource")) {
-        *pBufferResolved = pExpander->mSource;
+        *pBufferResolved = (pPointers == nullptr) ? nullptr : pPointers->pSource;
         return *pBufferResolved != nullptr;
     }
     if ((aToken == "mDest") || (aToken == "this->mDest") || (aToken == "pExpander->mDest")) {
-        *pBufferResolved = pExpander->mDest;
+        *pBufferResolved = (pPointers == nullptr) ? nullptr : pPointers->pDestination;
         return *pBufferResolved != nullptr;
     }
     TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
@@ -1553,7 +971,13 @@ bool ResolveBufferPointerToken(const std::string &pToken,
         return false;
     }
 
-    *pBufferResolved = TwistWorkSpace::GetBuffer(pWorkSpace, pExpander, aSlot);
+    *pBufferResolved = TwistWorkSpace::GetBuffer(
+        pWorkSpace,
+        pExpander,
+        aSlot,
+        (pPointers == nullptr) ? nullptr : pPointers->pSource,
+        (pPointers == nullptr) ? nullptr : pPointers->pDestination,
+        (pPointers == nullptr) ? nullptr : pPointers->pDomainSaltSet);
     return *pBufferResolved != nullptr;
 }
 
@@ -1644,6 +1068,7 @@ bool ResolveSaltLaneToken(const std::string &pToken,
 bool ExecuteKDFBufferAssignmentLine(const std::string &pLine,
                                     TwistWorkSpace *pWorkSpace,
                                     TwistExpander *pExpander,
+                                    BranchRuntimePointers *pPointers,
                                     std::string *pErrorMessage) {
     std::string aLine = pLine;
     const std::size_t aComment = aLine.find("//");
@@ -1667,15 +1092,19 @@ bool ExecuteKDFBufferAssignmentLine(const std::string &pLine,
     }
 
     std::uint8_t *aBuffer = nullptr;
-    if (!ResolveBufferPointerToken(aRight, pWorkSpace, pExpander, &aBuffer)) {
+    if (!ResolveBufferPointerToken(aRight, pWorkSpace, pExpander, pPointers, &aBuffer)) {
         SetError(pErrorMessage, "KDF buffer assignment resolved null or unknown source: " + aRight);
         return false;
     }
 
+    if (pPointers == nullptr) {
+        SetError(pErrorMessage, "KDF buffer assignment had no runtime pointer context.");
+        return false;
+    }
     if (aLeft == "mSource") {
-        pExpander->mSource = aBuffer;
+        pPointers->pSource = aBuffer;
     } else {
-        pExpander->mDest = aBuffer;
+        pPointers->pDestination = aBuffer;
     }
     return true;
 }
@@ -1683,6 +1112,7 @@ bool ExecuteKDFBufferAssignmentLine(const std::string &pLine,
 bool ExecuteSnowLine(const std::string &pLine,
                      TwistWorkSpace *pWorkSpace,
                      TwistExpander *pExpander,
+                     const BranchRuntimePointers *pPointers,
                      std::string *pErrorMessage) {
     enum class SnowMethod : std::uint8_t {
         kAES256 = 0,
@@ -1716,11 +1146,11 @@ bool ExecuteSnowLine(const std::string &pLine,
 
     std::uint8_t *aSource = nullptr;
     std::uint8_t *aDest = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, &aSource)) {
+    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, pPointers, &aSource)) {
         SetError(pErrorMessage, "Snow source alias resolved to null or unknown: " + aArgs[0]);
         return false;
     }
-    if (!ResolveBufferPointerToken(aArgs[1], pWorkSpace, pExpander, &aDest)) {
+    if (!ResolveBufferPointerToken(aArgs[1], pWorkSpace, pExpander, pPointers, &aDest)) {
         SetError(pErrorMessage, "Snow destination alias resolved to null or unknown: " + aArgs[1]);
         return false;
     }
@@ -1749,6 +1179,7 @@ bool ExecuteSnowLine(const std::string &pLine,
 bool ExecuteFarmSaltLine(const std::string &pLine,
                          TwistWorkSpace *pWorkSpace,
                          TwistExpander *pExpander,
+                         const BranchRuntimePointers *pPointers,
                          std::string *pErrorMessage) {
     if (pLine.find("pFarmSalt") == std::string::npos) {
         return false;
@@ -1763,14 +1194,14 @@ bool ExecuteFarmSaltLine(const std::string &pLine,
         return false;
     }
 
-    TwistFarmSalt *aFarmSalt = (pExpander != nullptr) ? pExpander->GetFarmSalt() : nullptr;
+    TwistFarmSalt *aFarmSalt = (pPointers == nullptr) ? nullptr : pPointers->pFarmSalt;
     if (aFarmSalt == nullptr) {
         SetError(pErrorMessage, "pFarmSalt->Derive execution had no active farm.");
         return false;
     }
 
     std::uint8_t *aSource = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, &aSource)) {
+    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, pPointers, &aSource)) {
         SetError(pErrorMessage, "pFarmSalt->Derive source alias was invalid: " + aArgs[0]);
         return false;
     }
@@ -1794,6 +1225,7 @@ bool ExecuteFarmSaltLine(const std::string &pLine,
 bool ExecuteFarmConstantsLine(const std::string &pLine,
                               TwistWorkSpace *pWorkSpace,
                               TwistExpander *pExpander,
+                              const BranchRuntimePointers *pPointers,
                               std::string *pErrorMessage) {
     if (pLine.find("TwistFarmConstants") == std::string::npos) {
         return false;
@@ -1809,7 +1241,7 @@ bool ExecuteFarmConstantsLine(const std::string &pLine,
     }
 
     std::uint8_t *aSource = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, &aSource)) {
+    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, pPointers, &aSource)) {
         SetError(pErrorMessage, "TwistFarmConstants::Derive source alias was invalid: " + aArgs[0]);
         return false;
     }
@@ -1827,7 +1259,8 @@ bool ExecuteFarmConstantsLine(const std::string &pLine,
 bool ExecuteKDFLine(const std::string &pLine,
                     TwistWorkSpace *pWorkSpace,
                     TwistExpander *pExpander,
-                    const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
+                    BranchRuntimePointers *pPointers,
+                    std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                     std::string *pErrorMessage) {
     std::vector<std::string> aArgs;
     std::string aFunctionName;
@@ -1835,20 +1268,27 @@ bool ExecuteKDFLine(const std::string &pLine,
         aFunctionName = "KDF_A";
     } else if (ParseCryptoCallArguments(pLine, "KDF_B", &aArgs)) {
         aFunctionName = "KDF_B";
+    } else if (ParseCryptoCallArguments(pLine, "KDF_C", &aArgs)) {
+        aFunctionName = "KDF_C";
+    } else if (ParseCryptoCallArguments(pLine, "KDF_D", &aArgs)) {
+        aFunctionName = "KDF_D";
     } else if (ParseCryptoCallArguments(pLine, "KDF", &aArgs)) {
         aFunctionName = "KDF";
     } else {
         return false;
     }
 
-    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
-        SetError(pErrorMessage, "KDF call execution was missing required runtime inputs.");
-        return false;
+    if ((aFunctionName == "KDF_A") ||
+        (aFunctionName == "KDF_B") ||
+        (aFunctionName == "KDF_C") ||
+        (aFunctionName == "KDF_D")) {
+        if (!aArgs.empty() && (TrimCopy(aArgs.front()) == "pWorkSpace")) {
+            aArgs.erase(aArgs.begin());
+        }
     }
 
-    if ((aArgs.size() != 2U) && (aArgs.size() != 3U) &&
-        (aArgs.size() != 4U) && (aArgs.size() != 5U)) {
-        SetError(pErrorMessage, "KDF call expects exactly 2, 3, 4, or 5 arguments.");
+    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
+        SetError(pErrorMessage, "KDF call execution was missing required runtime inputs.");
         return false;
     }
 
@@ -1859,18 +1299,13 @@ bool ExecuteKDFLine(const std::string &pLine,
         }
         const std::string aNonceToken = TrimCopy(pToken);
         if (aNonceToken == "pNonce") {
+            *pNonceOut = 0ULL;
             if (pVariables != nullptr) {
                 const auto aIterator = pVariables->find("pNonce");
-                *pNonceOut = (aIterator == pVariables->end())
-                    ? pExpander->GetSessionNonce()
-                    : static_cast<std::uint64_t>(aIterator->second);
-            } else {
-                *pNonceOut = pExpander->GetSessionNonce();
+                if (aIterator != pVariables->end()) {
+                    *pNonceOut = static_cast<std::uint64_t>(aIterator->second);
+                }
             }
-            return true;
-        }
-        if (aNonceToken == "mKDFSessionNonce") {
-            *pNonceOut = pExpander->GetSessionNonce();
             return true;
         }
         if (pVariables != nullptr) {
@@ -1890,66 +1325,41 @@ bool ExecuteKDFLine(const std::string &pLine,
         return true;
     };
 
-    auto ResolveIndexToken = [&](const std::string &pToken,
-                                 int *pIndexOut) -> bool {
-        if (pIndexOut == nullptr) {
-            return false;
-        }
-        const std::string aIndexToken = TrimCopy(pToken);
-        if (pVariables != nullptr) {
-            const auto aIterator = pVariables->find(aIndexToken);
-            if (aIterator != pVariables->end()) {
-                *pIndexOut = static_cast<int>(aIterator->second);
-                return true;
-            }
-        }
-
-        char *aEnd = nullptr;
-        const long aParsed = std::strtol(aIndexToken.c_str(), &aEnd, 0);
-        if ((aEnd == nullptr) || (*aEnd != '\0')) {
-            return false;
-        }
-        *pIndexOut = static_cast<int>(aParsed);
-        return true;
-    };
-
-    auto LooksLikeNonceToken = [&](const std::string &pToken) -> bool {
-        std::uint64_t aUnused = 0U;
-        return ResolveNonceToken(pToken, &aUnused);
-    };
-
-    bool aUsesKDF_ASnowArgument = false;
+    bool aUsesKDFSnowArgument = false;
     bool aUsesExplicitBuffers = false;
     bool aHasExplicitNonce = false;
-    bool aHasKDFIndex = false;
 
-    if (aFunctionName == "KDF_A") {
-        if ((aArgs.size() < 3U) || (aArgs.size() > 5U)) {
-            SetError(pErrorMessage, "KDF_A call expects constants, salts, snow, optional nonce, and optional index.");
+    if ((aFunctionName == "KDF_A") ||
+        (aFunctionName == "KDF_B") ||
+        (aFunctionName == "KDF_C") ||
+        (aFunctionName == "KDF_D")) {
+        if (aArgs.size() != 20U) {
+            SetError(pErrorMessage,
+                     aFunctionName +
+                     " call expects nonce, constants, salts, three snow "
+                     "lanes, and fourteen ARX state pointers.");
             return false;
         }
-        aUsesKDF_ASnowArgument = true;
-        aHasExplicitNonce = (aArgs.size() >= 4U);
-        aHasKDFIndex = (aArgs.size() == 5U);
-    } else if (aFunctionName == "KDF_B") {
-        if ((aArgs.size() < 2U) || (aArgs.size() > 5U)) {
-            SetError(pErrorMessage, "KDF_B call expects constants, salts, optional nonce, optional index, or explicit buffers.");
-            return false;
-        }
-        if ((aArgs.size() == 4U) && LooksLikeNonceToken(aArgs[0])) {
-            aHasExplicitNonce = true;
-            aHasKDFIndex = true;
-        } else {
-            aUsesExplicitBuffers = (aArgs.size() == 4U) || (aArgs.size() == 5U);
-            aHasExplicitNonce = (aArgs.size() == 3U) || (aArgs.size() == 5U);
-        }
+        aUsesKDFSnowArgument = true;
+        aHasExplicitNonce = true;
     } else {
+        if ((aArgs.size() != 2U) && (aArgs.size() != 3U) &&
+            (aArgs.size() != 4U) && (aArgs.size() != 5U)) {
+            SetError(pErrorMessage,
+                     "KDF call expects exactly 2, 3, 4, or 5 arguments.");
+            return false;
+        }
         aUsesExplicitBuffers = (aArgs.size() == 4U) || (aArgs.size() == 5U);
         aHasExplicitNonce = (aArgs.size() == 3U) || (aArgs.size() == 5U);
     }
 
-    std::uint64_t aNonce = pExpander->GetSessionNonce();
-    int aIndexKDF = 0;
+    std::uint64_t aNonce = 0ULL;
+    if (pVariables != nullptr) {
+        const auto aNonceIterator = pVariables->find("pNonce");
+        if (aNonceIterator != pVariables->end()) {
+            aNonce = static_cast<std::uint64_t>(aNonceIterator->second);
+        }
+    }
     std::size_t aOffset = 0U;
     if (aHasExplicitNonce) {
         aOffset = 1U;
@@ -1958,24 +1368,21 @@ bool ExecuteKDFLine(const std::string &pLine,
             return false;
         }
     }
-    if (aHasKDFIndex && !ResolveIndexToken(aArgs.back(), &aIndexKDF)) {
-        SetError(pErrorMessage, "KDF index token was invalid: " + aArgs.back());
-        return false;
-    }
-
     if (aUsesExplicitBuffers) {
         std::uint8_t *aSource = nullptr;
-        if (!ResolveBufferPointerToken(aArgs[aOffset + 0U], pWorkSpace, pExpander, &aSource)) {
+        if (!ResolveBufferPointerToken(aArgs[aOffset + 0U], pWorkSpace, pExpander, pPointers, &aSource)) {
             SetError(pErrorMessage, "KDF source alias resolved to null or unknown: " + aArgs[aOffset + 0U]);
             return false;
         }
         std::uint8_t *aDest = nullptr;
-        if (!ResolveBufferPointerToken(aArgs[aOffset + 1U], pWorkSpace, pExpander, &aDest)) {
+        if (!ResolveBufferPointerToken(aArgs[aOffset + 1U], pWorkSpace, pExpander, pPointers, &aDest)) {
             SetError(pErrorMessage, "KDF destination alias resolved to null or unknown: " + aArgs[aOffset + 1U]);
             return false;
         }
-        pExpander->mSource = aSource;
-        pExpander->mDest = aDest;
+        if (pPointers != nullptr) {
+            pPointers->pSource = aSource;
+            pPointers->pDestination = aDest;
+        }
         aOffset += 2U;
     }
 
@@ -1990,26 +1397,133 @@ bool ExecuteKDFLine(const std::string &pLine,
         return false;
     }
 
+    std::uint8_t *aSnowLaneA = nullptr;
+    std::uint8_t *aSnowLaneB = nullptr;
+    std::uint8_t *aSnowLaneC = nullptr;
+    if (aUsesKDFSnowArgument &&
+        !ResolveBufferPointerToken(aArgs[aOffset + 2U],
+                                   pWorkSpace,
+                                   pExpander,
+                                   pPointers,
+                                   &aSnowLaneA)) {
+        SetError(pErrorMessage,
+                 aFunctionName +
+                 " snow alias resolved to null or unknown: " +
+                 aArgs[aOffset + 2U]);
+        return false;
+    }
+    if (aUsesKDFSnowArgument &&
+        (!ResolveBufferPointerToken(aArgs[aOffset + 3U],
+                                    pWorkSpace,
+                                    pExpander,
+                                    pPointers,
+                                    &aSnowLaneB) ||
+         !ResolveBufferPointerToken(aArgs[aOffset + 4U],
+                                    pWorkSpace,
+                                    pExpander,
+                                    pPointers,
+                                    &aSnowLaneC))) {
+        SetError(pErrorMessage,
+                 aFunctionName +
+                 " second or third snow alias resolved to null or unknown.");
+        return false;
+    }
+
+    static const std::array<const char *, 14> kStateNames = {
+        "aPrevious", "aIngress", "aCarry",
+        "aWandererA", "aWandererB", "aWandererC", "aWandererD",
+        "aWandererE", "aWandererF", "aWandererG", "aWandererH",
+        "aWandererI", "aWandererJ", "aWandererK",
+    };
+    std::array<std::uint64_t, kStateNames.size()> aState{};
+    if (aUsesKDFSnowArgument) {
+        for (std::size_t i = 0U; i < kStateNames.size(); ++i) {
+            std::string aStateToken = TrimCopy(aArgs[aOffset + 5U + i]);
+            while (!aStateToken.empty() &&
+                   ((aStateToken.front() == '&') ||
+                    (aStateToken.front() == '*'))) {
+                aStateToken.erase(aStateToken.begin());
+                aStateToken = TrimCopy(aStateToken);
+            }
+            if (aStateToken != kStateNames[i]) {
+                SetError(pErrorMessage,
+                         aFunctionName +
+                         " ARX state pointer order was invalid at " +
+                         std::string(kStateNames[i]) + ".");
+                return false;
+            }
+            if (pVariables != nullptr) {
+                const auto aIterator = pVariables->find(kStateNames[i]);
+                if (aIterator != pVariables->end()) {
+                    aState[i] =
+                        static_cast<std::uint64_t>(aIterator->second);
+                }
+            }
+        }
+    }
+
+    auto StoreState = [&]() {
+        if (pVariables == nullptr) {
+            return;
+        }
+        for (std::size_t i = 0U; i < kStateNames.size(); ++i) {
+            (*pVariables)[kStateNames[i]] =
+                static_cast<GRuntimeScalar>(aState[i]);
+        }
+    };
+
     if (aFunctionName == "KDF_A") {
-        if (!aUsesKDF_ASnowArgument) {
-            SetError(pErrorMessage, "KDF_A call expects a snow argument.");
-            return false;
-        }
-        std::uint8_t *aSnow = nullptr;
-        if (!ResolveBufferPointerToken(aArgs[aOffset + 2U], pWorkSpace, pExpander, &aSnow)) {
-            SetError(pErrorMessage, "KDF_A snow alias resolved to null or unknown: " + aArgs[aOffset + 2U]);
-            return false;
-        }
-        pExpander->KDF_A(aNonce,
+        pExpander->KDF_A(pWorkSpace,
+                         aNonce,
                          aConstants,
                          aSaltSet,
-                         aSnow,
-                         aIndexKDF);
+                         aSnowLaneA,
+                         aSnowLaneB,
+                         aSnowLaneC,
+                         &aState[0], &aState[1], &aState[2],
+                         &aState[3], &aState[4], &aState[5], &aState[6],
+                         &aState[7], &aState[8], &aState[9], &aState[10],
+                         &aState[11], &aState[12], &aState[13]);
+        StoreState();
     } else if (aFunctionName == "KDF_B") {
-        pExpander->KDF_B(aNonce,
+        pExpander->KDF_B(pWorkSpace,
+                         aNonce,
                          aConstants,
                          aSaltSet,
-                         aIndexKDF);
+                         aSnowLaneA,
+                         aSnowLaneB,
+                         aSnowLaneC,
+                         &aState[0], &aState[1], &aState[2],
+                         &aState[3], &aState[4], &aState[5], &aState[6],
+                         &aState[7], &aState[8], &aState[9], &aState[10],
+                         &aState[11], &aState[12], &aState[13]);
+        StoreState();
+    } else if (aFunctionName == "KDF_C") {
+        pExpander->KDF_C(pWorkSpace,
+                         aNonce,
+                         aConstants,
+                         aSaltSet,
+                         aSnowLaneA,
+                         aSnowLaneB,
+                         aSnowLaneC,
+                         &aState[0], &aState[1], &aState[2],
+                         &aState[3], &aState[4], &aState[5], &aState[6],
+                         &aState[7], &aState[8], &aState[9], &aState[10],
+                         &aState[11], &aState[12], &aState[13]);
+        StoreState();
+    } else if (aFunctionName == "KDF_D") {
+        pExpander->KDF_D(pWorkSpace,
+                         aNonce,
+                         aConstants,
+                         aSaltSet,
+                         aSnowLaneA,
+                         aSnowLaneB,
+                         aSnowLaneC,
+                         &aState[0], &aState[1], &aState[2],
+                         &aState[3], &aState[4], &aState[5], &aState[6],
+                         &aState[7], &aState[8], &aState[9], &aState[10],
+                         &aState[11], &aState[12], &aState[13]);
+        StoreState();
     } else {
         pExpander->KDF(aNonce,
                        aConstants,
@@ -2021,6 +1535,7 @@ bool ExecuteKDFLine(const std::string &pLine,
 bool ApplyBranchStringLine(const std::string &pRawLine,
                            TwistWorkSpace *pWorkSpace,
                            TwistExpander *pExpander,
+                           BranchRuntimePointers *pPointers,
                            std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                            std::string *pErrorMessage) {
     if ((pWorkSpace == nullptr) || (pVariables == nullptr)) {
@@ -2047,7 +1562,12 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedKDFBufferAssignment = ExecuteKDFBufferAssignmentLine(pRawLine, pWorkSpace, pExpander, &aLineError);
+    const bool aExecutedKDFBufferAssignment = ExecuteKDFBufferAssignmentLine(
+        pRawLine,
+        pWorkSpace,
+        pExpander,
+        pPointers,
+        &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -2056,7 +1576,12 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedSnow = ExecuteSnowLine(pRawLine, pWorkSpace, pExpander, &aLineError);
+    const bool aExecutedSnow = ExecuteSnowLine(
+        pRawLine,
+        pWorkSpace,
+        pExpander,
+        pPointers,
+        &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -2065,7 +1590,13 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedKDF = ExecuteKDFLine(pRawLine, pWorkSpace, pExpander, pVariables, &aLineError);
+    const bool aExecutedKDF = ExecuteKDFLine(
+        pRawLine,
+        pWorkSpace,
+        pExpander,
+        pPointers,
+        pVariables,
+        &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -2074,7 +1605,12 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedFarmSalt = ExecuteFarmSaltLine(pRawLine, pWorkSpace, pExpander, &aLineError);
+    const bool aExecutedFarmSalt = ExecuteFarmSaltLine(
+        pRawLine,
+        pWorkSpace,
+        pExpander,
+        pPointers,
+        &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -2083,7 +1619,12 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedFarmConstants = ExecuteFarmConstantsLine(pRawLine, pWorkSpace, pExpander, &aLineError);
+    const bool aExecutedFarmConstants = ExecuteFarmConstantsLine(
+        pRawLine,
+        pWorkSpace,
+        pExpander,
+        pPointers,
+        &aLineError);
     if (!aLineError.empty()) {
         SetError(pErrorMessage, aLineError);
         return false;
@@ -2102,13 +1643,6 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         aHookLine.pop_back();
         aHookLine = TrimCopy(aHookLine);
     }
-    if (aHookLine == "SquashInvestToKeyBoxes()") {
-        if (pExpander != nullptr) {
-            pExpander->SquashInvestToKeyBoxes();
-        }
-        return true;
-    }
-
     std::string aRuntimeRawLine = pRawLine;
     const std::size_t aRuntimeComment = aRuntimeRawLine.find("//");
     if (aRuntimeComment != std::string::npos) {
@@ -2185,7 +1719,9 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
     GRuntimeScalar aDomainAssignmentValue = 0ULL;
     if (ResolveDomainWordAssignmentValue(aRight,
                                          pWorkSpace,
-                                         pExpander,
+                                         (pPointers == nullptr)
+                                             ? nullptr
+                                             : pPointers->pDomainConstants,
                                          *pVariables,
                                          &aDomainAssignmentValue)) {
         (*pVariables)[aName] = aDomainAssignmentValue;
@@ -2204,10 +1740,16 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
 bool ApplyBranchStringLines(const std::vector<std::string> &pLines,
                             TwistWorkSpace *pWorkSpace,
                             TwistExpander *pExpander,
+                            BranchRuntimePointers *pPointers,
                             std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                             std::string *pErrorMessage) {
     for (const std::string &aRawLine : pLines) {
-        if (!ApplyBranchStringLine(aRawLine, pWorkSpace, pExpander, pVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLine(aRawLine,
+                                   pWorkSpace,
+                                   pExpander,
+                                   pPointers,
+                                   pVariables,
+                                   pErrorMessage)) {
             return false;
         }
     }
@@ -2218,6 +1760,7 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
                              std::size_t pBatchIndex,
                              TwistWorkSpace *pWorkSpace,
                              TwistExpander *pExpander,
+                             TwistDomainSaltSet *pParamSaltSet,
                              std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                              std::string *pErrorMessage) {
     if (pBatchIndex >= pBranch.GetBatchJsonText().size()) {
@@ -2233,7 +1776,11 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
         return false;
     }
 
-    if (!aBatch.ExecuteWithVariables(pWorkSpace, pExpander, pVariables, pErrorMessage)) {
+    if (!aBatch.ExecuteWithRuntimeVariables(pWorkSpace,
+                                            pExpander,
+                                            pParamSaltSet,
+                                            pVariables,
+                                            pErrorMessage)) {
         if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
             *pErrorMessage = "Branch batch execution failed.";
         }
@@ -2246,6 +1793,11 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
 [[maybe_unused]] bool ExecuteBranch(const TwistProgramBranch &pBranch,
                                     TwistWorkSpace *pWorkSpace,
                                     TwistExpander *pExpander,
+                                    TwistFarmSalt *pFarmSalt,
+                                    std::uint8_t *pSource,
+                                    std::uint8_t *pDestination,
+                                    TwistDomainConstants *pDomainConstants,
+                                    TwistDomainSaltSet *pDomainSaltSet,
                                     const std::unordered_map<std::string, GRuntimeScalar> *pInitialVariables,
                                     std::string *pErrorMessage) {
     if (pWorkSpace == nullptr) {
@@ -2257,12 +1809,28 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
     if (pInitialVariables != nullptr) {
         aVariables = *pInitialVariables;
     }
+    BranchRuntimePointers aPointers;
+    aPointers.pSource = pSource;
+    aPointers.pDestination = pDestination;
+    aPointers.pFarmSalt = pFarmSalt;
+    aPointers.pDomainConstants = pDomainConstants;
+    aPointers.pDomainSaltSet = pDomainSaltSet;
     const std::vector<TwistProgramBranchStep> &aSteps = pBranch.GetSteps();
     if (aSteps.empty()) {
-        if (!ApplyBranchStringLines(pBranch.GetStringLines(), pWorkSpace, pExpander, &aVariables, pErrorMessage)) {
+        if (!ApplyBranchStringLines(pBranch.GetStringLines(),
+                                    pWorkSpace,
+                                    pExpander,
+                                    &aPointers,
+                                    &aVariables,
+                                    pErrorMessage)) {
             return false;
         }
-        return ExecuteBatchJsonText(pBranch.GetBatchJsonText(), pWorkSpace, pExpander, &aVariables, pErrorMessage);
+        return ExecuteBatchJsonText(pBranch.GetBatchJsonText(),
+                                    pWorkSpace,
+                                    pExpander,
+                                    pDomainSaltSet,
+                                    &aVariables,
+                                    pErrorMessage);
     }
 
     for (const TwistProgramBranchStep &aStep : aSteps) {
@@ -2274,6 +1842,7 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
             if (!ApplyBranchStringLine(pBranch.GetStringLines()[aStep.mIndex],
                                        pWorkSpace,
                                        pExpander,
+                                       &aPointers,
                                        &aVariables,
                                        pErrorMessage)) {
                 return false;
@@ -2286,6 +1855,7 @@ bool ExecuteBatchJsonByIndex(const TwistProgramBranch &pBranch,
                                          aStep.mIndex,
                                          pWorkSpace,
                                          pExpander,
+                                         pDomainSaltSet,
                                          &aVariables,
                                          pErrorMessage)) {
                 return false;
@@ -2306,17 +1876,13 @@ GTwistExpander::GTwistExpander()
 : TwistExpander() {
     mNameBase = "Generated";
 
-    mInitialValue_Carry = static_cast<unsigned char>(Random::Get(256));
-    mInitialValue_Value = static_cast<unsigned char>(Random::Get(256));
-    mInitialValue_Permute = static_cast<unsigned char>(Random::Get(256));
-
     RandomizeDomainBundleConstants(&mDomainBundleInbuilt);
-    SaltTables::InjectRandomEight(this);
+    SaltTables::InjectRandomDomains(this);
     RefreshTablePointers();
 }
 
 GTwistExpander::~GTwistExpander() {
-    
+
 }
 
 void GTwistExpander::RefreshTablePointers() {
@@ -2330,26 +1896,128 @@ void GTwistExpander::KDF(std::uint64_t pNonce,
                        pDomainSaltSet);
 }
 
-void GTwistExpander::KDF_A(std::uint64_t pNonce,
+void GTwistExpander::KDF_A(TwistWorkSpace *pWorkSpace,
+                           std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
                            TwistDomainSaltSet *pDomainSaltSet,
-                           std::uint8_t *pSnow,
-                           int pIndexKDF) {
-    TwistExpander::KDF_A(pNonce,
+                           std::uint8_t *pSnowLaneA,
+                           std::uint8_t *pSnowLaneB,
+                           std::uint8_t *pSnowLaneC,
+                           MUTABLE_PARAMS) {
+    TwistExpander::KDF_A(pWorkSpace,
+                         pNonce,
                          pDomainConstants,
                          pDomainSaltSet,
-                         pSnow,
-                         pIndexKDF);
+                         pSnowLaneA,
+                         pSnowLaneB,
+                         pSnowLaneC,
+                         pPrevious,
+                         pIngress,
+                         pCarry,
+                         pWandererA,
+                         pWandererB,
+                         pWandererC,
+                         pWandererD,
+                         pWandererE,
+                         pWandererF,
+                         pWandererG,
+                         pWandererH,
+                         pWandererI,
+                         pWandererJ,
+                         pWandererK);
 }
 
-void GTwistExpander::KDF_B(std::uint64_t pNonce,
+void GTwistExpander::KDF_B(TwistWorkSpace *pWorkSpace,
+                           std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
                            TwistDomainSaltSet *pDomainSaltSet,
-                           int pIndexKDF) {
-    TwistExpander::KDF_B(pNonce,
+                           std::uint8_t *pSnowLaneA,
+                           std::uint8_t *pSnowLaneB,
+                           std::uint8_t *pSnowLaneC,
+                           MUTABLE_PARAMS) {
+    TwistExpander::KDF_B(pWorkSpace,
+                         pNonce,
                          pDomainConstants,
                          pDomainSaltSet,
-                         pIndexKDF);
+                         pSnowLaneA,
+                         pSnowLaneB,
+                         pSnowLaneC,
+                         pPrevious,
+                         pIngress,
+                         pCarry,
+                         pWandererA,
+                         pWandererB,
+                         pWandererC,
+                         pWandererD,
+                         pWandererE,
+                         pWandererF,
+                         pWandererG,
+                         pWandererH,
+                         pWandererI,
+                         pWandererJ,
+                         pWandererK);
+}
+
+void GTwistExpander::KDF_C(TwistWorkSpace *pWorkSpace,
+                           std::uint64_t pNonce,
+                           TwistDomainConstants *pDomainConstants,
+                           TwistDomainSaltSet *pDomainSaltSet,
+                           std::uint8_t *pSnowLaneA,
+                           std::uint8_t *pSnowLaneB,
+                           std::uint8_t *pSnowLaneC,
+                           MUTABLE_PARAMS) {
+    TwistExpander::KDF_C(pWorkSpace,
+                         pNonce,
+                         pDomainConstants,
+                         pDomainSaltSet,
+                         pSnowLaneA,
+                         pSnowLaneB,
+                         pSnowLaneC,
+                         pPrevious,
+                         pIngress,
+                         pCarry,
+                         pWandererA,
+                         pWandererB,
+                         pWandererC,
+                         pWandererD,
+                         pWandererE,
+                         pWandererF,
+                         pWandererG,
+                         pWandererH,
+                         pWandererI,
+                         pWandererJ,
+                         pWandererK);
+}
+
+void GTwistExpander::KDF_D(TwistWorkSpace *pWorkSpace,
+                           std::uint64_t pNonce,
+                           TwistDomainConstants *pDomainConstants,
+                           TwistDomainSaltSet *pDomainSaltSet,
+                           std::uint8_t *pSnowLaneA,
+                           std::uint8_t *pSnowLaneB,
+                           std::uint8_t *pSnowLaneC,
+                           MUTABLE_PARAMS) {
+    TwistExpander::KDF_D(pWorkSpace,
+                         pNonce,
+                         pDomainConstants,
+                         pDomainSaltSet,
+                         pSnowLaneA,
+                         pSnowLaneB,
+                         pSnowLaneC,
+                         pPrevious,
+                         pIngress,
+                         pCarry,
+                         pWandererA,
+                         pWandererB,
+                         pWandererC,
+                         pWandererD,
+                         pWandererE,
+                         pWandererF,
+                         pWandererG,
+                         pWandererH,
+                         pWandererI,
+                         pWandererJ,
+                         pWandererK);
 }
 
 void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
@@ -2357,6 +2025,10 @@ void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                           std::uint64_t pNonce,
                           std::uint8_t *pPassword,
                           std::size_t pPasswordByteLength,
+                          std::uint8_t *pSnowLaneA,
+                          std::uint8_t *pSnowLaneB,
+                          std::uint8_t *pSnowLaneC,
+                          std::uint8_t *pSnowLaneD,
                           std::uint8_t *pDestination) {
     RefreshTablePointers();
     TwistExpander::Seed(pWorkSpace,
@@ -2364,28 +2036,76 @@ void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                         pNonce,
                         pPassword,
                         pPasswordByteLength,
+                        pSnowLaneA,
+                        pSnowLaneB,
+                        pSnowLaneC,
+                        pSnowLaneD,
                         pDestination);
 
 }
 
 void GTwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
                                 std::uint8_t *pSource,
+                                std::uint8_t *pSnowLaneA,
+                                std::uint8_t *pSnowLaneB,
+                                std::uint8_t *pSnowLaneC,
+                                std::uint8_t *pSnowLaneD,
                                 std::uint8_t *pDestination) {
     TwistExpander::TwistBlock(pWorkSpace,
                               pSource,
+                              pSnowLaneA,
+                              pSnowLaneB,
+                              pSnowLaneC,
+                              pSnowLaneD,
                               pDestination);
 }
 
-void GTwistExpander::SquashInvestToKeyBoxes() {
-    TwistExpander::SquashInvestToKeyBoxes();
+void GTwistExpander::FoldSeed(TwistWorkSpace *pWorkSpace,
+                              std::uint8_t *pDestination) {
+    TwistExpander::FoldSeed(pWorkSpace, pDestination);
 }
 
-void GTwistExpander::GrowKeyA(TwistWorkSpace *pWorkSpace) {
-    TwistExpander::GrowKeyA(pWorkSpace);
+void GTwistExpander::FoldTwist(TwistWorkSpace *pWorkSpace,
+                               std::uint8_t *pDestination) {
+    TwistExpander::FoldTwist(pWorkSpace, pDestination);
 }
 
-void GTwistExpander::GrowKeyB(TwistWorkSpace *pWorkSpace) {
-    TwistExpander::GrowKeyB(pWorkSpace);
+void GTwistExpander::GrowKeyA(TwistWorkSpace *pWorkSpace,
+                              MUTABLE_PARAMS) {
+    TwistExpander::GrowKeyA(pWorkSpace,
+                            pPrevious,
+                            pIngress,
+                            pCarry,
+                            pWandererA,
+                            pWandererB,
+                            pWandererC,
+                            pWandererD,
+                            pWandererE,
+                            pWandererF,
+                            pWandererG,
+                            pWandererH,
+                            pWandererI,
+                            pWandererJ,
+                            pWandererK);
+}
+
+void GTwistExpander::GrowKeyB(TwistWorkSpace *pWorkSpace,
+                              MUTABLE_PARAMS) {
+    TwistExpander::GrowKeyB(pWorkSpace,
+                            pPrevious,
+                            pIngress,
+                            pCarry,
+                            pWandererA,
+                            pWandererB,
+                            pWandererC,
+                            pWandererD,
+                            pWandererE,
+                            pWandererF,
+                            pWandererG,
+                            pWandererH,
+                            pWandererI,
+                            pWandererJ,
+                            pWandererK);
 }
 
 bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,
@@ -2393,48 +2113,4 @@ bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,
     (void)pJsonPath;
     SetError(pErrorMessage, "GTwistExpander JSON loading has been removed; export and use generated C++ instead.");
     return false;
-#if 0
-    const std::string aResolvedPath = ResolveInputPath(pJsonPath);
-    if (aResolvedPath.empty()) {
-        SetError(pErrorMessage, "JSON path was empty.");
-        return false;
-    }
-
-    std::string aJsonText;
-    if (!LoadTextFile(aResolvedPath, &aJsonText, pErrorMessage)) {
-        return false;
-    }
-
-    auto aRoot = JsonValue::Parse(aJsonText, pErrorMessage);
-    if (!aRoot.has_value() || !aRoot->is_object()) {
-        if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
-            *pErrorMessage = "program JSON root was invalid.";
-        }
-        return false;
-    }
-
-    if (const JsonValue *aNameBase = aRoot->find("name_base"); (aNameBase != nullptr) && aNameBase->is_string()) {
-        mNameBase = aNameBase->as_string();
-    }
-
-    mKDF_A.Clear();
-    mKDF_B.Clear();
-    mSeed.Clear();
-    mTwister.Clear();
-    mGrowKeyA.Clear();
-    mGrowKeyB.Clear();
-    (void)ParseBranch(*aRoot, "kdf_a", &mKDF_A, pErrorMessage);
-    (void)ParseBranch(*aRoot, "kdf_b", &mKDF_B, pErrorMessage);
-    (void)ParseBranch(*aRoot, "seed", &mSeed, pErrorMessage);
-    (void)ParseBranch(*aRoot, "twist", &mTwister, pErrorMessage);
-    (void)ParseBranch(*aRoot, "grow_key_a", &mGrowKeyA, pErrorMessage);
-    (void)ParseBranch(*aRoot, "grow_key_b", &mGrowKeyB, pErrorMessage);
-    
-    if (!ParseTables(*aRoot, this, pErrorMessage)) {
-        return false;
-    }
-
-    RefreshTablePointers();
-    return true;
-#endif
 }

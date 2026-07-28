@@ -8,34 +8,25 @@
 
 #include "GSeedRunStage.hpp"
 
+#include <array>
 #include <string>
 
-namespace GTwistRunGrowKeyConfig {
+class ResidualBucket;
 
-GSeedRunStageConfig                         MakeGrowAConfig();
-GSeedRunStageConfig                         MakeGrowBConfig();
+namespace GTwistRunGrowKeyAConfig {
+
+using GrowStageConfigs = std::array<GSeedRunStageConfig, 4>;
+
+GrowStageConfigs                            MakeGrowAConfig(ResidualBucket &pResidualBucket);
 
 }
 
 class GTwistRunGrowKeyA {
 public:
-    GTwistRunGrowKeyA();
+    explicit GTwistRunGrowKeyA(ResidualBucket &pResidualBucket);
+    GTwistRunGrowKeyA(const GSeedRunStageConfig &pConfig,
+                      ResidualBucket &pResidualBucket);
     ~GTwistRunGrowKeyA();
-
-    bool                                    Plan(std::string *pErrorMessage);
-    bool                                    Build(TwistProgramBranch &pBranch,
-                                                  std::string *pErrorMessage);
-
-private:
-    void                                    Reset();
-
-    GSeedRunStage                           mStage;
-};
-
-class GTwistRunGrowKeyB {
-public:
-    GTwistRunGrowKeyB();
-    ~GTwistRunGrowKeyB();
 
     bool                                    Plan(std::string *pErrorMessage);
     bool                                    Build(TwistProgramBranch &pBranch,

@@ -14,6 +14,12 @@
 class TwistSnow {
 public:
 
+    static void                         BuildLanes(std::uint8_t *pSource,
+                                                   std::uint8_t *pSnowLaneA,
+                                                   std::uint8_t *pSnowLaneB,
+                                                   std::uint8_t *pSnowLaneC,
+                                                   std::uint8_t *pSnowLaneD);
+
     static void                         Sha256Counter(std::uint8_t *pSource,
                                                       std::uint8_t *pDest);
     

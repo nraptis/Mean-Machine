@@ -39,7 +39,9 @@ public:
 
         const std::string aPhaseMember = NormalizePhaseSubWord(pPhaseSubWord);
         if (aPhaseMember.empty()) {
-            SetError(pErrorMessage, "GFarm::Bake requires phase sub-word PhaseA, PhaseB, PhaseC, PhaseD, PhaseE, PhaseF, PhaseG, or PhaseH.");
+            SetError(pErrorMessage,
+                     "GFarm::Bake requires KeyRotateA, KeyRotateB, "
+                     "KeySpawnA, KeySpawnB, Seed, or Twist.");
             return false;
         }
 
@@ -161,28 +163,37 @@ private:
         StripSuffix(&pPhaseSubWord, "Salts");
         pPhaseSubWord = Trim(pPhaseSubWord);
 
-        if ((pPhaseSubWord == "A") ||
-            (pPhaseSubWord == "B") ||
-            (pPhaseSubWord == "C") ||
-            (pPhaseSubWord == "D") ||
-            (pPhaseSubWord == "E") ||
-            (pPhaseSubWord == "F") ||
-            (pPhaseSubWord == "G")) {
-            pPhaseSubWord = "Phase" + pPhaseSubWord;
+        if ((pPhaseSubWord == "A") || (pPhaseSubWord == "PhaseA") ||
+            (pPhaseSubWord == "mPhaseA") || (pPhaseSubWord == "KeyRotate") ||
+            (pPhaseSubWord == "mKeyRotate") ||
+            (pPhaseSubWord == "KeyRotateA") ||
+            (pPhaseSubWord == "mKeyRotateA")) {
+            return "mKeyRotateA";
         }
-        if (pPhaseSubWord.rfind("m", 0U) != 0U) {
-            pPhaseSubWord = "m" + pPhaseSubWord;
+        if ((pPhaseSubWord == "B") || (pPhaseSubWord == "PhaseB") ||
+            (pPhaseSubWord == "mPhaseB") || (pPhaseSubWord == "KeySpawn") ||
+            (pPhaseSubWord == "mKeySpawn") ||
+            (pPhaseSubWord == "KeySpawnA") ||
+            (pPhaseSubWord == "mKeySpawnA")) {
+            return "mKeySpawnA";
         }
-
-        if ((pPhaseSubWord == "mPhaseA") ||
-            (pPhaseSubWord == "mPhaseB") ||
-            (pPhaseSubWord == "mPhaseC") ||
-            (pPhaseSubWord == "mPhaseD") ||
-            (pPhaseSubWord == "mPhaseE") ||
-            (pPhaseSubWord == "mPhaseF") ||
-            (pPhaseSubWord == "mPhaseG") ||
-            (pPhaseSubWord == "mPhaseH")) {
-            return pPhaseSubWord;
+        if ((pPhaseSubWord == "KeyRotateB") ||
+            (pPhaseSubWord == "mKeyRotateB")) {
+            return "mKeyRotateB";
+        }
+        if ((pPhaseSubWord == "KeySpawnB") ||
+            (pPhaseSubWord == "mKeySpawnB")) {
+            return "mKeySpawnB";
+        }
+        if ((pPhaseSubWord == "C") || (pPhaseSubWord == "PhaseC") ||
+            (pPhaseSubWord == "mPhaseC") || (pPhaseSubWord == "Seed") ||
+            (pPhaseSubWord == "mSeed")) {
+            return "mSeed";
+        }
+        if ((pPhaseSubWord == "D") || (pPhaseSubWord == "PhaseD") ||
+            (pPhaseSubWord == "mPhaseD") || (pPhaseSubWord == "Twist") ||
+            (pPhaseSubWord == "mTwist")) {
+            return "mTwist";
         }
         return "";
     }
