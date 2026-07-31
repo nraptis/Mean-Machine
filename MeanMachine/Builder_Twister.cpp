@@ -196,8 +196,6 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
         }
     }
 
-    pExpander->mTwister.AddLine("//");
-
     GRunMatrixDiffusionConfig aDiffusionB;
     aDiffusionB.mInputA = aFuseLanes[0];
     aDiffusionB.mInputB = aFuseLanes[1];

@@ -2363,7 +2363,8 @@ bool BuildExportArxSeedBranch(TwistProgramBranch *pBranch,
                               const GSeedRunStageConfig &pConfig,
                               const std::string &pStageName,
                               std::string *pError,
-                              const char *pArxKind = "seed") {
+                              const char *pArxKind = "seed",
+                              const bool pWriteOutMutableParams = true) {
     if (pBranch == nullptr) {
         SetError(pError, "Seed ARX branch output was null.");
         return false;
@@ -2394,7 +2395,9 @@ bool BuildExportArxSeedBranch(TwistProgramBranch *pBranch,
         return false;
     }
 
-    AddExportArxSeedEpilogue(pBranch);
+    if (pWriteOutMutableParams) {
+        AddExportArxSeedEpilogue(pBranch);
+    }
     return true;
 }
 
@@ -2745,7 +2748,8 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
                                       aSeedKeyBoxStageConfigs[i],
                                       kKeyMethodNames[i],
                                       pError,
-                                      "key")) {
+                                      "key",
+                                      (i != 7U) && (i != 15U))) {
             return false;
         }
     }

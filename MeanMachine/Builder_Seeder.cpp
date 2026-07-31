@@ -501,7 +501,6 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
 
     pExpander->mSeed.AddLine("//");
     AddSeedMatrixDomainWordLines(pExpander->mSeed);
-    pExpander->mSeed.AddLine("//");
 
     GRunMatrixDiffusionConfig aDiffusionA;
     aDiffusionA.mInputA = aFuseLanes[0];
@@ -546,8 +545,6 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         }
     }
 
-    pExpander->mSeed.AddLine("//");
-
     GRunMatrixDiffusionConfig aDiffusionB;
     aDiffusionB.mInputA = aFuseLanes[0];
     aDiffusionB.mInputB = aFuseLanes[1];
@@ -591,8 +588,6 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         }
     }
 
-    pExpander->mSeed.AddLine("//");
-
     GRunMatrixDiffusionConfig aDiffusionC;
     aDiffusionC.mInputA = aFuseLanes[0];
     aDiffusionC.mInputB = aFuseLanes[1];
@@ -635,8 +630,6 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
             return false;
         }
     }
-
-    pExpander->mSeed.AddLine("//");
 
     GRunMatrixDiffusionConfig aDiffusionD;
     aDiffusionD.mInputA = aFuseLanes[0];
@@ -706,10 +699,42 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         aKeyBoxConfigs.end()
     );
 
+    pExpander->mSeed.AddLine("// Store the arx state");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotIngress = aIngress;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotCarry = aCarry;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererA = aWandererA;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererB = aWandererB;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererC = aWandererC;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererD = aWandererD;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererE = aWandererE;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererF = aWandererF;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererG = aWandererG;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererH = aWandererH;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererI = aWandererI;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererJ = aWandererJ;");
+    pExpander->mSeed.AddLine("const std::uint64_t aSnapShotWandererK = aWandererK;");
+    pExpander->mSeed.AddLine("");
     pExpander->mSeed.AddLine("//");
     pExpander->mSeed.AddLine("// [KEY — sixteen key-row functions, lane splits A-P]");
     pExpander->mSeed.AddLine("//");
     for (std::size_t i = 0U; i < aKeyBoxConfigs.size(); ++i) {
+        if (i == 8U) {
+            pExpander->mSeed.AddLine("// Restore the arx state");
+            pExpander->mSeed.AddLine("aIngress = aSnapShotIngress;");
+            pExpander->mSeed.AddLine("aCarry = aSnapShotCarry;");
+            pExpander->mSeed.AddLine("aWandererA = aSnapShotWandererA;");
+            pExpander->mSeed.AddLine("aWandererB = aSnapShotWandererB;");
+            pExpander->mSeed.AddLine("aWandererC = aSnapShotWandererC;");
+            pExpander->mSeed.AddLine("aWandererD = aSnapShotWandererD;");
+            pExpander->mSeed.AddLine("aWandererE = aSnapShotWandererE;");
+            pExpander->mSeed.AddLine("aWandererF = aSnapShotWandererF;");
+            pExpander->mSeed.AddLine("aWandererG = aSnapShotWandererG;");
+            pExpander->mSeed.AddLine("aWandererH = aSnapShotWandererH;");
+            pExpander->mSeed.AddLine("aWandererI = aSnapShotWandererI;");
+            pExpander->mSeed.AddLine("aWandererJ = aSnapShotWandererJ;");
+            pExpander->mSeed.AddLine("aWandererK = aSnapShotWandererK;");
+            pExpander->mSeed.AddLine("");
+        }
         GSeedRunKEY aKeyBox(aKeyBoxConfigs[i]);
         if (!aKeyBox.Plan(pErrorMessage) ||
             !aKeyBox.Build(pExpander->mSeed, pErrorMessage)) {

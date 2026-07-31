@@ -68,7 +68,6 @@ bool Builder_GrowA::Build(GTwistExpander *pExpander,
 
     pExpander->mGrowKeyA.AddLine("//");
     AddGrowAMatrixDomainWordLines(pExpander->mGrowKeyA);
-    pExpander->mGrowKeyA.AddLine("//");
 
     const std::vector<GSymbol> aFuseLanes = {
         GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneA),
