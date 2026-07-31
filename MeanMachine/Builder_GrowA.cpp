@@ -44,7 +44,9 @@ bool Builder_GrowA::Build(GTwistExpander *pExpander,
     pExpander->mGrowKeyA.AddLine("// [grow key a]");
 
     const GTwistRunGrowKeyAConfig::GrowStageConfigs aBuiltStageConfigs =
-        GTwistRunGrowKeyAConfig::MakeGrowAConfig(pResidualBucket);
+        GTwistRunGrowKeyAConfig::MakeGrowAConfig(
+            pResidualBucket,
+            pExpander->mControlCandidateIndex);
     std::vector<GSeedRunStageConfig> aStageConfigs(
         aBuiltStageConfigs.begin(),
         aBuiltStageConfigs.end());
@@ -127,15 +129,17 @@ bool Builder_GrowA::Build(GTwistExpander *pExpander,
     pExpander->mGrowKeyA.AddBatch(aDiffusionBatch);
     pExpander->mGrowKeyA.AddLine("//");
 
-    GTwistRunGrowKeyA aFinalRunner(aStageConfigs[3], pResidualBucket);
-    if (!aFinalRunner.Plan(pErrorMessage) ||
-        !aFinalRunner.Build(pExpander->mGrowKeyA, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage =
-                "Builder_GrowA::Build failed on grow A stage D:\n" +
-                *pErrorMessage;
+    for (std::size_t i = 3U; i < aStageConfigs.size(); ++i) {
+        GTwistRunGrowKeyA aRunner(aStageConfigs[i], pResidualBucket);
+        if (!aRunner.Plan(pErrorMessage) ||
+            !aRunner.Build(pExpander->mGrowKeyA, pErrorMessage)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "Builder_GrowA::Build failed on grow A stage " +
+                    std::to_string(i) + ":\n" + *pErrorMessage;
+            }
+            return false;
         }
-        return false;
     }
 
     return true;

@@ -20,7 +20,7 @@ struct ResidualLaneFamily {
     const char                              *mName;
 };
 
-constexpr std::array<ResidualLaneFamily, 22> kResidualLaneFamilies = {{
+constexpr std::array<ResidualLaneFamily, 21> kResidualLaneFamilies = {{
     {TwistWorkSpaceSlot::kEarthLaneA, "earth"},
     {TwistWorkSpaceSlot::kFireLaneA, "fire"},
     {TwistWorkSpaceSlot::kWindLaneA, "wind"},
@@ -38,11 +38,8 @@ constexpr std::array<ResidualLaneFamily, 22> kResidualLaneFamilies = {{
     {TwistWorkSpaceSlot::kCelestialLaneA, "celestial"},
     {TwistWorkSpaceSlot::kKineticLaneA, "kinetic"},
     {TwistWorkSpaceSlot::kVaporLaneA, "vapor"},
-    {TwistWorkSpaceSlot::kChanceLaneA, "chance"},
-    {TwistWorkSpaceSlot::kPoisonLaneA, "poison"},
     {TwistWorkSpaceSlot::kSpiritLaneA, "spirit"},
     {TwistWorkSpaceSlot::kFuseLaneA, "fuse"},
-    {TwistWorkSpaceSlot::kSnowLaneA, "snow"},
 }};
 
 std::string ResidualName(const TwistWorkSpaceSlot pResidual) {
@@ -59,20 +56,14 @@ std::string ResidualName(const TwistWorkSpaceSlot pResidual) {
     }
 
     switch (pResidual) {
-        case TwistWorkSpaceSlot::kSource:
+        case TwistWorkSpaceSlot::kSourceLane:
             return "source";
+        case TwistWorkSpaceSlot::kNonceLane:
+            return "nonce";
         case TwistWorkSpaceSlot::kKeyRowReadA:
             return "key_a";
         case TwistWorkSpaceSlot::kKeyRowReadB:
             return "key_b";
-        case TwistWorkSpaceSlot::kDomainLaneKeyRotateA:
-            return "domain_key_rotate";
-        case TwistWorkSpaceSlot::kDomainLaneKeySpawnA:
-            return "domain_key_spawn";
-        case TwistWorkSpaceSlot::kDomainLaneSeed:
-            return "domain_seed";
-        case TwistWorkSpaceSlot::kDomainLaneTwist:
-            return "domain_twist";
         default:
             return "slot_" + std::to_string(aResidualValue);
     }
@@ -182,7 +173,9 @@ void ResidualBucket::AddResidualsInternal(
             }
         );
         if (aMatch == mEntries.end()) {
-            mEntries.push_back({aResidual, pInitialUsageCount});
+            mEntries.push_back(
+                {aResidual, pInitialUsageCount}
+            );
             aAddedResiduals.push_back(aResidual);
         }
     }
@@ -299,7 +292,10 @@ std::vector<TwistWorkSpaceSlot> ResidualBucket::Withdraw(
         }
     }
 
-    for (std::vector<std::size_t> &aTier : aUsageTiers) {
+    for (std::size_t aUsageCount = 0U;
+         aUsageCount < aUsageTiers.size();
+         ++aUsageCount) {
+        std::vector<std::size_t> &aTier = aUsageTiers[aUsageCount];
         Random::Shuffle(&aTier);
     }
 
@@ -323,62 +319,4 @@ std::vector<TwistWorkSpaceSlot> ResidualBucket::Withdraw(
     printf("%s\n", kReportRule);
 
     return aResult;
-}
-
-GrowResidualBuckets MakeGrowResidualBuckets() {
-    using Slot = TwistWorkSpaceSlot;
-
-    GrowResidualBuckets aBuckets;
-
-    //
-    // GrowKeyA receives the A/B half of every residual family.
-    //
-    aBuckets.mGrowKeyA.AddResiduals("GrowKeyA — zero uses", {
-        Slot::kMagmaLaneA, Slot::kMagmaLaneB,
-    }, 0U);
-
-    aBuckets.mGrowKeyA.AddResiduals("GrowKeyA — one use", {
-        Slot::kPlasmaLaneA, Slot::kPlasmaLaneB,
-        Slot::kWoodLaneA, Slot::kWoodLaneB,
-    }, 1U);
-
-    aBuckets.mGrowKeyA.AddResiduals("GrowKeyA — two uses", {
-        Slot::kLightningLaneA, Slot::kLightningLaneB,
-        Slot::kIceLaneA, Slot::kIceLaneB,
-    }, 2U);
-
-    aBuckets.mGrowKeyA.AddResiduals("GrowKeyA — three uses", {
-        Slot::kFireLaneA, Slot::kFireLaneB,
-        Slot::kEarthLaneA, Slot::kEarthLaneB,
-        Slot::kWaterLaneA, Slot::kWaterLaneB,
-        Slot::kHeartLaneA, Slot::kHeartLaneB,
-        Slot::kSoilLaneA, Slot::kSoilLaneB,
-    }, 3U);
-
-    //
-    // GrowKeyB receives the C/D half of every residual family.
-    //
-    aBuckets.mGrowKeyB.AddResiduals("GrowKeyB — zero uses", {
-        Slot::kMagmaLaneC, Slot::kMagmaLaneD,
-    }, 0U);
-
-    aBuckets.mGrowKeyB.AddResiduals("GrowKeyB — one use", {
-        Slot::kPlasmaLaneC, Slot::kPlasmaLaneD,
-        Slot::kWoodLaneC, Slot::kWoodLaneD,
-    }, 1U);
-
-    aBuckets.mGrowKeyB.AddResiduals("GrowKeyB — two uses", {
-        Slot::kLightningLaneC, Slot::kLightningLaneD,
-        Slot::kIceLaneC, Slot::kIceLaneD,
-    }, 2U);
-
-    aBuckets.mGrowKeyB.AddResiduals("GrowKeyB — three uses", {
-        Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kEarthLaneC, Slot::kEarthLaneD,
-        Slot::kWaterLaneC, Slot::kWaterLaneD,
-        Slot::kHeartLaneC, Slot::kHeartLaneD,
-        Slot::kSoilLaneC, Slot::kSoilLaneD,
-    }, 3U);
-
-    return aBuckets;
 }

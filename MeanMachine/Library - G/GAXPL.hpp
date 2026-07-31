@@ -19,9 +19,10 @@
 #include <unordered_map>
 
 struct GAXPLSaltBag {
-    std::vector<GSymbol>                                mOrbiterAssign; // 2 salts
-    std::vector<GSymbol>                                mOrbiterUpdate; // 4 salts
-    std::vector<GSymbol>                                mWandererUpdate; // 2 salts
+    // All eight salts remain eligible; each loop independently chooses taps.
+    std::vector<GSymbol>                                mOrbiterAssign;
+    std::vector<GSymbol>                                mOrbiterUpdate;
+    std::vector<GSymbol>                                mWandererUpdate;
 };
 
 struct SaltBehavior {

@@ -16,6 +16,7 @@ namespace {
 
 constexpr std::size_t kLaneSplitCount = LaneSplitControl::kLaneSplitCount;
 constexpr std::size_t kCandidateCount = LaneSplitControl::kCandidateCount;
+constexpr std::size_t kLaneCount = LaneSplitControl::kLaneCount;
 
 constexpr std::array<const char *, kCandidateCount> kNames = {
     "Achernar", "Alcor", "Aldebaran", "Alioth", "Alkaid", "Alnitak",
@@ -62,6 +63,17 @@ void SetError(std::string *pErrorMessage,
     if (pErrorMessage != nullptr) {
         *pErrorMessage = pMessage;
     }
+}
+
+bool HasEightLaneSystem(std::string *pErrorMessage) {
+    if (gLanes.size() != kLaneCount) {
+        SetError(
+            pErrorMessage,
+            "LaneSplitControl requires exactly eight registered lanes"
+        );
+        return false;
+    }
+    return true;
 }
 
 std::uint64_t NextRandom() {
@@ -139,9 +151,9 @@ Candidate MakeCandidate() {
         }
     }
 
-    // Every logical loop uses every registered base lane exactly once.
-    // Shuffling this order independently lets any Poison or Plasma lane
-    // occupy any ingress or cross role while retaining a four/four split.
+    // Every logical loop uses all eight registered base lanes exactly once.
+    // Shuffling this order independently lets any lane occupy any ingress or
+    // cross role.
     for (std::size_t aLogical = 0U;
          aLogical < kLaneSplitCount;
          ++aLogical) {
@@ -636,7 +648,8 @@ bool LaneSplitControl::AddLaneGroup(
 std::string LaneSplitControl::Generate(
     const std::uint64_t pExplorationCases) {
     if (!gDidReset || gGroups.empty() ||
-        (gCandidates.size() >= kCandidateCount)) {
+        (gCandidates.size() >= kCandidateCount) ||
+        !HasEightLaneSystem(nullptr)) {
         return "";
     }
 
@@ -698,6 +711,9 @@ bool LaneSplitControl::LinkStageSlice(
     if (pStageSlice == nullptr) {
         SetError(pErrorMessage,
                  "Stage slice was null");
+        return false;
+    }
+    if (!HasEightLaneSystem(pErrorMessage)) {
         return false;
     }
 
@@ -841,6 +857,9 @@ void LaneSplitControl::Print() {
 
 bool LaneSplitControl::SaveValues(const std::string &pFolder,
                                   std::string *pErrorMessage) {
+    if (!HasEightLaneSystem(pErrorMessage)) {
+        return false;
+    }
     if (gCandidates.size() != kCandidateCount) {
         SetError(pErrorMessage,
                  "LaneSplitControl needs all 33 candidates before "
@@ -881,6 +900,9 @@ bool LaneSplitControl::LoadValues(
         SetError(pErrorMessage,
                  "LaneSplitControl::Reset and AddLaneGroup must precede "
                  "value loading.");
+        return false;
+    }
+    if (!HasEightLaneSystem(pErrorMessage)) {
         return false;
     }
 

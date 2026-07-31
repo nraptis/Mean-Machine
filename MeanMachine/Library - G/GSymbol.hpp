@@ -24,7 +24,6 @@ enum class TwistVariable: std::uint8_t {
     kParamNonce = 12, // pNonce
     kParamInput = 13, // pSource
     kParamOutput = 14, // pDestination
-    kParamSnow = 15, // pSnow
 
     kDomainWordIngress = 20, // aDomainWordIngress
     kDomainWordScatter = 21, // aDomainWordScatter
@@ -41,9 +40,6 @@ enum class TwistVariable: std::uint8_t {
     
     kDomainWordMatrixArgC,
     kDomainWordMatrixArgD,
-    
-    kDomainWordMaskMutateA,
-    kDomainWordMaskMutateB,
 
     kIngress = 40, // aIngress
     kPrevious = 41, // aPrevious
@@ -82,8 +78,6 @@ enum class TwistVariable: std::uint8_t {
     kMatrixArgB = 216, // mMatrixArgB
     kMatrixArgC = 217, // mMatrixArgC
     kMatrixArgD = 218, // mMatrixArgD
-    kMaskMutateA = 219, // mMaskMutateA
-    kMaskMutateB = 220, // mMaskMutateB
 };
 
 enum class TwistConstants : std::uint8_t {
@@ -95,10 +89,6 @@ enum class TwistConstants : std::uint8_t {
     kIngress = kPublicIngress,
     kCross = kCrossIngress,
 
-    kDomainConstantPublicIngress = 20,
-    kDomainConstantPrivateIngress = 21,
-    kDomainConstantCrossIngress = 22,
-
     kMatrixSelectA = 30,
     kMatrixSelectB = 31,
 
@@ -109,9 +99,6 @@ enum class TwistConstants : std::uint8_t {
     kMatrixArgB = 61,
     kMatrixArgC = 62,
     kMatrixArgD = 63,
-
-    kMaskMutateA = 70,
-    kMaskMutateB = 71,
 };
 
 struct GSymbol {

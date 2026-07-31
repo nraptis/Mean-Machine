@@ -15,14 +15,16 @@ public:
     using LaneGroup = std::vector<Slot>;
 
     static constexpr std::size_t kCandidateCount = 33U;
+    static constexpr std::size_t kLaneCount = 8U;
     static constexpr std::size_t kLaneSplitCount = 16U;
 
     static void Reset(std::uint64_t pSeed = 0x4C414E4553504C54ULL);
 
-    // A group defines one contiguous fragment-distance family. A-P are
-    // adjacent within a lane, and the end of one lane continues into the
-    // next lane in the same group. Non-adjacent lanes and other groups use
-    // the infinite-distance score.
+    // Exactly eight lanes must be registered before generating, saving,
+    // loading, or linking candidates. A group defines one contiguous
+    // fragment-distance family. A-P are adjacent within a lane, and the end
+    // of one lane continues into the next lane in the same group.
+    // Non-adjacent lanes and other groups use the infinite-distance score.
     static bool AddLaneGroup(const LaneGroup &pLanes,
                              std::string *pErrorMessage = nullptr);
     static bool AddLaneGroup(std::initializer_list<Slot> pLanes,
@@ -62,6 +64,7 @@ public:
                            std::string *pErrorMessage = nullptr);
     static bool LoadValues(const std::string &pFolder,
                            std::string *pErrorMessage = nullptr);
+
     static std::size_t GeneratedCount();
 };
 

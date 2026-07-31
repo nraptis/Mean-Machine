@@ -27,9 +27,6 @@ public:
                                              GKDFMaterialBundle pBundle,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
-    
-    std::array<GSymbol, 3>              mKDFSnowLanes;
-    
 };
 
 class GKDF_B {
@@ -38,8 +35,6 @@ public:
                                              GKDFMaterialBundle pBundle,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
-
-    std::array<GSymbol, 3>              mKDFSnowLanes;
 };
 
 class GKDF_C {
@@ -48,8 +43,6 @@ public:
                                              GKDFMaterialBundle pBundle,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
-
-    std::array<GSymbol, 3>              mKDFSnowLanes;
 };
 
 class GKDF_D {
@@ -58,8 +51,6 @@ public:
                                              GKDFMaterialBundle pBundle,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage);
-
-    std::array<GSymbol, 3>              mKDFSnowLanes;
 };
 
 #endif /* GKDF_hpp */

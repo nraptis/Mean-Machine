@@ -5,6 +5,7 @@
 
 #include "TwistExpander.hpp"
 #include "TwistFarmSalt.hpp"
+#include "TwistMix64.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -12,10 +13,6 @@
 TwistExpander::TwistExpander() {
     std::memset(&mDomainBundleInbuilt, 0, sizeof(mDomainBundleInbuilt));
     std::memset(&mDomainBundleEphemeral, 0, sizeof(mDomainBundleEphemeral));
-    std::memset(mIndexList256A, 0, sizeof(mIndexList256A));
-    std::memset(mIndexList256B, 0, sizeof(mIndexList256B));
-    std::memset(mIndexList256C, 0, sizeof(mIndexList256C));
-    std::memset(mIndexList256D, 0, sizeof(mIndexList256D));
 }
 
 TwistExpander::~TwistExpander() {
@@ -34,15 +31,8 @@ void TwistExpander::KDF_A(TwistWorkSpace *pWorkSpace,
                           std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
                           TwistDomainSaltSet *pDomainSaltSet,
-                          std::uint8_t *pSnowLaneA,
-                          std::uint8_t *pSnowLaneB,
-                          std::uint8_t *pSnowLaneC,
                           MUTABLE_PARAMS) {
     (void)pWorkSpace;
-    (void)pSnowLaneA;
-    (void)pSnowLaneB;
-    (void)pSnowLaneC;
-    (void)pPrevious;
     (void)pIngress;
     (void)pCarry;
     (void)pWandererA;
@@ -65,48 +55,27 @@ void TwistExpander::KDF_B(TwistWorkSpace *pWorkSpace,
                           std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
                           TwistDomainSaltSet *pDomainSaltSet,
-                          std::uint8_t *pSnowLaneA,
-                          std::uint8_t *pSnowLaneB,
-                          std::uint8_t *pSnowLaneC,
                           MUTABLE_PARAMS) {
     TwistExpander::KDF_A(pWorkSpace, pNonce, pDomainConstants, pDomainSaltSet,
-                         pSnowLaneA, pSnowLaneB, pSnowLaneC,
-                         pPrevious, pIngress, pCarry,
-                         pWandererA, pWandererB, pWandererC, pWandererD,
-                         pWandererE, pWandererF, pWandererG, pWandererH,
-                         pWandererI, pWandererJ, pWandererK);
+                         MUTABLE_PARAMS_PASSED);
 }
 
 void TwistExpander::KDF_C(TwistWorkSpace *pWorkSpace,
                           std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
                           TwistDomainSaltSet *pDomainSaltSet,
-                          std::uint8_t *pSnowLaneA,
-                          std::uint8_t *pSnowLaneB,
-                          std::uint8_t *pSnowLaneC,
                           MUTABLE_PARAMS) {
     TwistExpander::KDF_A(pWorkSpace, pNonce, pDomainConstants, pDomainSaltSet,
-                         pSnowLaneA, pSnowLaneB, pSnowLaneC,
-                         pPrevious, pIngress, pCarry,
-                         pWandererA, pWandererB, pWandererC, pWandererD,
-                         pWandererE, pWandererF, pWandererG, pWandererH,
-                         pWandererI, pWandererJ, pWandererK);
+                         MUTABLE_PARAMS_PASSED);
 }
 
 void TwistExpander::KDF_D(TwistWorkSpace *pWorkSpace,
                           std::uint64_t pNonce,
                           TwistDomainConstants *pDomainConstants,
                           TwistDomainSaltSet *pDomainSaltSet,
-                          std::uint8_t *pSnowLaneA,
-                          std::uint8_t *pSnowLaneB,
-                          std::uint8_t *pSnowLaneC,
                           MUTABLE_PARAMS) {
     TwistExpander::KDF_A(pWorkSpace, pNonce, pDomainConstants, pDomainSaltSet,
-                         pSnowLaneA, pSnowLaneB, pSnowLaneC,
-                         pPrevious, pIngress, pCarry,
-                         pWandererA, pWandererB, pWandererC, pWandererD,
-                         pWandererE, pWandererF, pWandererG, pWandererH,
-                         pWandererI, pWandererJ, pWandererK);
+                         MUTABLE_PARAMS_PASSED);
 }
 
 void TwistExpander::Seed(TwistWorkSpace *pWorkSpace,
@@ -114,12 +83,7 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                          std::uint64_t pNonce,
                          std::uint8_t *pPassword,
                          std::size_t pPasswordByteLength,
-                         std::uint8_t *pSnowLaneA,
-                         std::uint8_t *pSnowLaneB,
-                         std::uint8_t *pSnowLaneC,
-                         std::uint8_t *pSnowLaneD,
                          std::uint8_t *pDestination) {
-    (void)pNonce;
     if (pWorkSpace == nullptr) {
         std::printf("fatal: TwistExpander::Seed requires workspace\n");
         return;
@@ -129,57 +93,37 @@ void TwistExpander::Seed(TwistWorkSpace *pWorkSpace,
         return;
     }
     if (pFarmSalt == nullptr) {
-        std::printf("fatal: TwistExpander::Seed requires farm salt PoisonLane\n");
+        std::printf("fatal: TwistExpander::Seed requires farm salt\n");
         return;
     }
-    if ((pSnowLaneA == nullptr) ||
-        (pSnowLaneB == nullptr) ||
-        (pSnowLaneC == nullptr) ||
-        (pSnowLaneD == nullptr)) {
-        std::printf("fatal: TwistExpander::Seed requires four snow lanes\n");
-        return;
-    }
-
-    UnrollPasswordToSource(pWorkSpace->mSource, pPassword, pPasswordByteLength);
+    UnrollPassword(pWorkSpace->mSourceLane, pPassword, pPasswordByteLength);
+    UnrollNonce(pWorkSpace->mNonceLane, pNonce);
     mDomainBundleEphemeral.Zero();
     pWorkSpace->mDomainBundle.Zero();
 }
 
 void TwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
                                std::uint8_t *pSource,
-                               std::uint8_t *pSnowLaneA,
-                               std::uint8_t *pSnowLaneB,
-                               std::uint8_t *pSnowLaneC,
-                               std::uint8_t *pSnowLaneD,
+                               std::uint8_t *pCrossLaneA,
+                               std::uint8_t *pCrossLaneB,
+                               std::uint8_t *pCrossLaneC,
+                               std::uint8_t *pCrossLaneD,
                                std::uint8_t *pDestination) {
     if ((pWorkSpace == nullptr) ||
         (pSource == nullptr) ||
-        (pSnowLaneA == nullptr) ||
-        (pSnowLaneB == nullptr) ||
-        (pSnowLaneC == nullptr) ||
-        (pSnowLaneD == nullptr) ||
+        (pCrossLaneA == nullptr) ||
+        (pCrossLaneB == nullptr) ||
+        (pCrossLaneC == nullptr) ||
+        (pCrossLaneD == nullptr) ||
         (pDestination == nullptr)) {
         return;
     }
 
 }
 
-void TwistExpander::FoldSeed(TwistWorkSpace *pWorkSpace,
-                             std::uint8_t *pDestination) {
-    (void)pWorkSpace;
-    (void)pDestination;
-}
-
-void TwistExpander::FoldTwist(TwistWorkSpace *pWorkSpace,
-                              std::uint8_t *pDestination) {
-    (void)pWorkSpace;
-    (void)pDestination;
-}
-
 void TwistExpander::GrowKeyA(TwistWorkSpace *pWorkSpace,
                              MUTABLE_PARAMS) {
     (void)pWorkSpace;
-    (void)pPrevious;
     (void)pIngress;
     (void)pCarry;
     (void)pWandererA;
@@ -198,7 +142,6 @@ void TwistExpander::GrowKeyA(TwistWorkSpace *pWorkSpace,
 void TwistExpander::GrowKeyB(TwistWorkSpace *pWorkSpace,
                              MUTABLE_PARAMS) {
     (void)pWorkSpace;
-    (void)pPrevious;
     (void)pIngress;
     (void)pCarry;
     (void)pWandererA;
@@ -216,20 +159,20 @@ void TwistExpander::GrowKeyB(TwistWorkSpace *pWorkSpace,
 
 void TwistExpander::Twist(TwistWorkSpace *pWorkSpace,
                           std::uint8_t *pSource,
-                          std::uint8_t *pSnowLaneA,
-                          std::uint8_t *pSnowLaneB,
-                          std::uint8_t *pSnowLaneC,
-                          std::uint8_t *pSnowLaneD,
+                          std::uint8_t *pCrossLaneA,
+                          std::uint8_t *pCrossLaneB,
+                          std::uint8_t *pCrossLaneC,
+                          std::uint8_t *pCrossLaneD,
                           std::uint8_t *pDestination,
                           std::size_t pDestinationByteLength) {
     if ((pWorkSpace == nullptr) ||
         (pSource == nullptr) ||
-        (pSnowLaneA == nullptr) ||
-        (pSnowLaneB == nullptr) ||
-        (pSnowLaneC == nullptr) ||
-        (pSnowLaneD == nullptr) ||
+        (pCrossLaneA == nullptr) ||
+        (pCrossLaneB == nullptr) ||
+        (pCrossLaneC == nullptr) ||
+        (pCrossLaneD == nullptr) ||
         (pDestination == nullptr)) {
-        std::printf("fatal: TwistExpander::Twist requires workspace/source/snow lanes/destination\n");
+        std::printf("fatal: TwistExpander::Twist requires workspace/source/cross lanes/destination\n");
         return;
     }
     if ((pDestinationByteLength % S_BLOCK) != 0U) {
@@ -242,10 +185,10 @@ void TwistExpander::Twist(TwistWorkSpace *pWorkSpace,
          aStartByte += static_cast<std::size_t>(S_BLOCK)) {
         TwistBlock(pWorkSpace,
                    pSource + aStartByte,
-                   pSnowLaneA,
-                   pSnowLaneB,
-                   pSnowLaneC,
-                   pSnowLaneD,
+                   pCrossLaneA,
+                   pCrossLaneB,
+                   pCrossLaneC,
+                   pCrossLaneD,
                    pDestination + aStartByte);
     }
     
@@ -256,10 +199,10 @@ void TwistExpander::AutoSeedThenTwist(TwistWorkSpace *pWorkSpace,
                                       std::uint64_t pNonce,
                                       std::uint8_t *pPassword,
                                       std::size_t pPasswordByteLength,
-                                      std::uint8_t *pSnowLaneA,
-                                      std::uint8_t *pSnowLaneB,
-                                      std::uint8_t *pSnowLaneC,
-                                      std::uint8_t *pSnowLaneD,
+                                      std::uint8_t *pCrossLaneA,
+                                      std::uint8_t *pCrossLaneB,
+                                      std::uint8_t *pCrossLaneC,
+                                      std::uint8_t *pCrossLaneD,
                                       std::uint8_t *pDestination,
                                       std::size_t pDestinationByteLength) {
     
@@ -273,20 +216,16 @@ void TwistExpander::AutoSeedThenTwist(TwistWorkSpace *pWorkSpace,
          pNonce,
          pPassword, // password
          pPasswordByteLength, // password length
-         pSnowLaneA,
-         pSnowLaneB,
-         pSnowLaneC,
-         pSnowLaneD,
          pDestination);
     
     std::size_t aDestinationIndex = S_BLOCK;
     while (aDestinationIndex < pDestinationByteLength) {
         TwistBlock(pWorkSpace,
                    &pDestination[aDestinationIndex - S_BLOCK], // source
-                   pSnowLaneA,
-                   pSnowLaneB,
-                   pSnowLaneC,
-                   pSnowLaneD,
+                   pCrossLaneA,
+                   pCrossLaneB,
+                   pCrossLaneC,
+                   pCrossLaneD,
                    &pDestination[aDestinationIndex]); // dest
         aDestinationIndex += S_BLOCK;
     }
@@ -296,43 +235,43 @@ void TwistExpander::AutoSeedThenTwist(TwistWorkSpace *pWorkSpace,
 // Assumes the work space is seeded...
 void TwistExpander::AutoTwist(TwistWorkSpace *pWorkSpace,
                               std::uint8_t *pSource,
-                              std::uint8_t *pSnowLaneA,
-                              std::uint8_t *pSnowLaneB,
-                              std::uint8_t *pSnowLaneC,
-                              std::uint8_t *pSnowLaneD,
+                              std::uint8_t *pCrossLaneA,
+                              std::uint8_t *pCrossLaneB,
+                              std::uint8_t *pCrossLaneC,
+                              std::uint8_t *pCrossLaneD,
                               std::uint8_t *pDestination,
                               std::size_t pDestinationByteLength) {
     
     TwistBlock(pWorkSpace,
                pSource,
-               pSnowLaneA,
-               pSnowLaneB,
-               pSnowLaneC,
-               pSnowLaneD,
+               pCrossLaneA,
+               pCrossLaneB,
+               pCrossLaneC,
+               pCrossLaneD,
                pDestination); // dest
     
     std::size_t aDestinationIndex = S_BLOCK;
     while (aDestinationIndex < pDestinationByteLength) {
         TwistBlock(pWorkSpace,
                    &pDestination[aDestinationIndex - S_BLOCK], // source
-                   pSnowLaneA,
-                   pSnowLaneB,
-                   pSnowLaneC,
-                   pSnowLaneD,
+                   pCrossLaneA,
+                   pCrossLaneB,
+                   pCrossLaneC,
+                   pCrossLaneD,
                    &pDestination[aDestinationIndex]); // dest
         aDestinationIndex += S_BLOCK;
     }
     
 }
 
-void TwistExpander::UnrollPasswordToSource(std::uint8_t *pSource,
-                            std::uint8_t *pPassword,
-                            std::size_t pPasswordByteLength) {
-    if (pSource == nullptr) {
+void TwistExpander::UnrollPassword(std::uint8_t *pSourceLane,
+                                   std::uint8_t *pPassword,
+                                   std::size_t pPasswordByteLength) {
+    if (pSourceLane == nullptr) {
         return;
     }
 
-    std::memset(pSource, 0, static_cast<std::size_t>(S_BLOCK));
+    std::memset(pSourceLane, 0, static_cast<std::size_t>(S_BLOCK));
     if ((pPassword == nullptr) || (pPasswordByteLength == 0U)) {
         return;
     }
@@ -342,12 +281,12 @@ void TwistExpander::UnrollPasswordToSource(std::uint8_t *pSource,
         aInitialCopy = static_cast<std::size_t>(S_BLOCK);
     }
 
-    std::memcpy(pSource, pPassword, static_cast<std::size_t>(aInitialCopy));
+    std::memcpy(pSourceLane, pPassword, static_cast<std::size_t>(aInitialCopy));
     if (aInitialCopy < static_cast<std::size_t>(S_BLOCK)) {
-        pSource[aInitialCopy++] = 0;
+        pSourceLane[aInitialCopy++] = 0;
     }
     if (aInitialCopy < static_cast<std::size_t>(S_BLOCK)) {
-        pSource[aInitialCopy++] = 0;
+        pSourceLane[aInitialCopy++] = 0;
     }
 
     std::size_t aFilled = aInitialCopy;
@@ -356,61 +295,117 @@ void TwistExpander::UnrollPasswordToSource(std::uint8_t *pSource,
         if ((aFilled + aChunk) > static_cast<std::size_t>(S_BLOCK)) {
             aChunk = static_cast<std::size_t>(S_BLOCK) - aFilled;
         }
-        std::memcpy(pSource + aFilled, pSource, static_cast<std::size_t>(aChunk));
+        std::memcpy(pSourceLane + aFilled,
+                    pSourceLane,
+                    static_cast<std::size_t>(aChunk));
         aFilled += aChunk;
     }
 }
 
-void TwistExpander::UnrollPasswordToSource(std::uint8_t *pSource,
-                                           std::uint8_t *pPassword,
-                                           std::size_t pPasswordByteLength,
-                                           std::size_t pSourceByteLength) {
-    if (pSource == nullptr) {
+void TwistExpander::UnrollPassword(std::uint8_t *pSourceLane,
+                                   std::uint8_t *pPassword,
+                                   std::size_t pPasswordByteLength,
+                                   std::size_t pSourceLaneByteLength) {
+    if (pSourceLane == nullptr) {
         return;
     }
 
-    if (pSourceByteLength == 0U) {
+    if (pSourceLaneByteLength == 0U) {
         return;
     }
 
-    std::memset(pSource, 0, static_cast<std::size_t>(pSourceByteLength));
+    std::memset(pSourceLane, 0, static_cast<std::size_t>(pSourceLaneByteLength));
 
     if ((pPassword == nullptr) || (pPasswordByteLength == 0U)) {
         return;
     }
 
     std::size_t aInitialCopy = pPasswordByteLength;
-    if (aInitialCopy > pSourceByteLength) {
-        aInitialCopy = pSourceByteLength;
+    if (aInitialCopy > pSourceLaneByteLength) {
+        aInitialCopy = pSourceLaneByteLength;
     }
 
-    std::memcpy(pSource, pPassword, static_cast<std::size_t>(aInitialCopy));
+    std::memcpy(pSourceLane, pPassword, static_cast<std::size_t>(aInitialCopy));
 
-    if (aInitialCopy < pSourceByteLength) {
-        pSource[aInitialCopy++] = 0;
+    if (aInitialCopy < pSourceLaneByteLength) {
+        pSourceLane[aInitialCopy++] = 0;
     }
 
-    if (aInitialCopy < pSourceByteLength) {
-        pSource[aInitialCopy++] = 0;
+    if (aInitialCopy < pSourceLaneByteLength) {
+        pSourceLane[aInitialCopy++] = 0;
     }
 
     std::size_t aFilled = aInitialCopy;
 
-    while (aFilled < pSourceByteLength) {
+    while (aFilled < pSourceLaneByteLength) {
         std::size_t aChunk = aFilled;
 
         if (aChunk == 0U) {
             break;
         }
 
-        if ((aFilled + aChunk) > pSourceByteLength) {
-            aChunk = pSourceByteLength - aFilled;
+        if ((aFilled + aChunk) > pSourceLaneByteLength) {
+            aChunk = pSourceLaneByteLength - aFilled;
         }
 
-        std::memcpy(pSource + aFilled,
-                    pSource,
+        std::memcpy(pSourceLane + aFilled,
+                    pSourceLane,
                     static_cast<std::size_t>(aChunk));
 
+        aFilled += aChunk;
+    }
+}
+
+void TwistExpander::UnrollNonce(std::uint8_t *pNonceLane,
+                                std::uint64_t pNonce) {
+    if (pNonceLane == nullptr) {
+        return;
+    }
+
+    const std::uint64_t aNonceWordA = TwistMix64::DiffuseA(pNonce);
+    const std::uint64_t aNonceWordB = TwistMix64::DiffuseB(pNonce);
+    const std::uint64_t aNonceWordC = TwistMix64::DiffuseC(pNonce);
+
+    const std::uint8_t aNonceBytes[24] = {
+        static_cast<std::uint8_t>(aNonceWordA >>  0U),
+        static_cast<std::uint8_t>(aNonceWordA >>  8U),
+        static_cast<std::uint8_t>(aNonceWordA >> 16U),
+        static_cast<std::uint8_t>(aNonceWordA >> 24U),
+        static_cast<std::uint8_t>(aNonceWordA >> 32U),
+        static_cast<std::uint8_t>(aNonceWordA >> 40U),
+        static_cast<std::uint8_t>(aNonceWordA >> 48U),
+        static_cast<std::uint8_t>(aNonceWordA >> 56U),
+
+        static_cast<std::uint8_t>(aNonceWordB >>  0U),
+        static_cast<std::uint8_t>(aNonceWordB >>  8U),
+        static_cast<std::uint8_t>(aNonceWordB >> 16U),
+        static_cast<std::uint8_t>(aNonceWordB >> 24U),
+        static_cast<std::uint8_t>(aNonceWordB >> 32U),
+        static_cast<std::uint8_t>(aNonceWordB >> 40U),
+        static_cast<std::uint8_t>(aNonceWordB >> 48U),
+        static_cast<std::uint8_t>(aNonceWordB >> 56U),
+
+        static_cast<std::uint8_t>(aNonceWordC >>  0U),
+        static_cast<std::uint8_t>(aNonceWordC >>  8U),
+        static_cast<std::uint8_t>(aNonceWordC >> 16U),
+        static_cast<std::uint8_t>(aNonceWordC >> 24U),
+        static_cast<std::uint8_t>(aNonceWordC >> 32U),
+        static_cast<std::uint8_t>(aNonceWordC >> 40U),
+        static_cast<std::uint8_t>(aNonceWordC >> 48U),
+        static_cast<std::uint8_t>(aNonceWordC >> 56U),
+    };
+
+    std::memcpy(pNonceLane, aNonceBytes, sizeof(aNonceBytes));
+
+    std::size_t aFilled = sizeof(aNonceBytes);
+    while (aFilled < static_cast<std::size_t>(S_BLOCK)) {
+        std::size_t aChunk = aFilled;
+        if ((aFilled + aChunk) > static_cast<std::size_t>(S_BLOCK)) {
+            aChunk = static_cast<std::size_t>(S_BLOCK) - aFilled;
+        }
+        std::memcpy(pNonceLane + aFilled,
+                    pNonceLane,
+                    aChunk);
         aFilled += aChunk;
     }
 }
@@ -421,9 +416,5 @@ void TwistExpander::Zero() {
 }
 
 void TwistExpander::Zero_PostSeed() {
-    memset(mIndexList256A, 0, sizeof(mIndexList256A));
-    memset(mIndexList256B, 0, sizeof(mIndexList256B));
-    memset(mIndexList256C, 0, sizeof(mIndexList256C));
-    memset(mIndexList256D, 0, sizeof(mIndexList256D));
     mDomainBundleEphemeral.Zero();
 }

@@ -15,7 +15,6 @@
 #include "M88.hpp"
 
 #define MUTABLE_PARAMS \
-    std::uint64_t *pPrevious, \
     std::uint64_t *pIngress, \
     std::uint64_t *pCarry, \
     std::uint64_t *pWandererA, \
@@ -30,8 +29,63 @@
     std::uint64_t *pWandererJ, \
     std::uint64_t *pWandererK
 
+#define MUTABLE_PARAMS_PASSED \
+    pIngress, \
+    pCarry, \
+    pWandererA, \
+    pWandererB, \
+    pWandererC, \
+    pWandererD, \
+    pWandererE, \
+    pWandererF, \
+    pWandererG, \
+    pWandererH, \
+    pWandererI, \
+    pWandererJ, \
+    pWandererK
+
+#define ARX_STATE_VARS \
+    &aIngress, \
+    &aCarry, \
+    &aWandererA, \
+    &aWandererB, \
+    &aWandererC, \
+    &aWandererD, \
+    &aWandererE, \
+    &aWandererF, \
+    &aWandererG, \
+    &aWandererH, \
+    &aWandererI, \
+    &aWandererJ, \
+    &aWandererK
+
+#define PARAMS_KDF \
+    pWorkSpace, \
+    pNonce, \
+    pConstants, \
+    pDomainSaltSet, \
+    MUTABLE_PARAMS_PASSED
+
+#define PARAMS_SEED \
+    pWorkSpace, \
+    pNonce, \
+    ARX_STATE_VARS
+
+#define PARAMS_TWIST \
+    pWorkSpace, \
+    pSource, \
+    pCrossLaneA, \
+    pCrossLaneB, \
+    pCrossLaneC, \
+    pCrossLaneD, \
+    ARX_STATE_VARS
+
+#define PARAMS_GROW \
+    pWorkSpace, \
+    MUTABLE_PARAMS_PASSED
+
 #define READ_IN_MUTABLE_PARAMS \
-    std::uint64_t aPrevious = *pPrevious; \
+    std::uint64_t aPrevious = 0U; \
     std::uint64_t aIngress = *pIngress; \
     std::uint64_t aCarry = *pCarry; \
     std::uint64_t aWandererA = *pWandererA; \
@@ -47,7 +101,6 @@
     std::uint64_t aWandererK = *pWandererK
 
 #define WRITE_OUT_MUTABLE_PARAMS \
-    *pPrevious = aPrevious; \
     *pIngress = aIngress; \
     *pCarry = aCarry; \
     *pWandererA = aWandererA; \
@@ -73,13 +126,15 @@ public:
     
     virtual ~TwistExpander();
     
-    static void                             UnrollPasswordToSource(std::uint8_t *pSource,
-                                                                   std::uint8_t *pPassword,
-                                                                   std::size_t pPasswordByteLength);
-    static void                             UnrollPasswordToSource(std::uint8_t *pSource,
-                                                                   std::uint8_t *pPassword,
-                                                                   std::size_t pPasswordByteLength,
-                                                                   std::size_t pSourceByteLength);
+    static void                             UnrollPassword(std::uint8_t *pSourceLane,
+                                                           std::uint8_t *pPassword,
+                                                           std::size_t pPasswordByteLength);
+    static void                             UnrollPassword(std::uint8_t *pSourceLane,
+                                                           std::uint8_t *pPassword,
+                                                           std::size_t pPasswordByteLength,
+                                                           std::size_t pSourceLaneByteLength);
+    static void                             UnrollNonce(std::uint8_t *pNonceLane,
+                                                        std::uint64_t pNonce);
     
     virtual void                            KDF(std::uint64_t pNonce,
                                                 TwistDomainConstants *pDomainConstants,
@@ -89,36 +144,24 @@ public:
                                                   std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
                                                   TwistDomainSaltSet *pDomainSaltSet,
-                                                  std::uint8_t *pSnowLaneA,
-                                                  std::uint8_t *pSnowLaneB,
-                                                  std::uint8_t *pSnowLaneC,
                                                   MUTABLE_PARAMS);
     
     virtual void                            KDF_B(TwistWorkSpace *pWorkSpace,
                                                   std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
                                                   TwistDomainSaltSet *pDomainSaltSet,
-                                                  std::uint8_t *pSnowLaneA,
-                                                  std::uint8_t *pSnowLaneB,
-                                                  std::uint8_t *pSnowLaneC,
                                                   MUTABLE_PARAMS);
 
     virtual void                            KDF_C(TwistWorkSpace *pWorkSpace,
                                                   std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
                                                   TwistDomainSaltSet *pDomainSaltSet,
-                                                  std::uint8_t *pSnowLaneA,
-                                                  std::uint8_t *pSnowLaneB,
-                                                  std::uint8_t *pSnowLaneC,
                                                   MUTABLE_PARAMS);
 
     virtual void                            KDF_D(TwistWorkSpace *pWorkSpace,
                                                   std::uint64_t pNonce,
                                                   TwistDomainConstants *pDomainConstants,
                                                   TwistDomainSaltSet *pDomainSaltSet,
-                                                  std::uint8_t *pSnowLaneA,
-                                                  std::uint8_t *pSnowLaneB,
-                                                  std::uint8_t *pSnowLaneC,
                                                   MUTABLE_PARAMS);
     
     virtual void                            Seed(TwistWorkSpace *pWorkSpace,
@@ -126,25 +169,16 @@ public:
                                                  std::uint64_t pNonce,
                                                  std::uint8_t *pPassword,
                                                  std::size_t pPasswordByteLength,
-                                                 std::uint8_t *pSnowLaneA,
-                                                 std::uint8_t *pSnowLaneB,
-                                                 std::uint8_t *pSnowLaneC,
-                                                 std::uint8_t *pSnowLaneD,
                                                  std::uint8_t *pDestination);
     
     virtual void                            TwistBlock(TwistWorkSpace *pWorkSpace,
                                                        std::uint8_t *pSource,
-                                                       std::uint8_t *pSnowLaneA,
-                                                       std::uint8_t *pSnowLaneB,
-                                                       std::uint8_t *pSnowLaneC,
-                                                       std::uint8_t *pSnowLaneD,
+                                                       std::uint8_t *pCrossLaneA,
+                                                       std::uint8_t *pCrossLaneB,
+                                                       std::uint8_t *pCrossLaneC,
+                                                       std::uint8_t *pCrossLaneD,
                                                        std::uint8_t *pDestination);
 
-    virtual void                            FoldSeed(TwistWorkSpace *pWorkSpace,
-                                                     std::uint8_t *pDestination);
-    virtual void                            FoldTwist(TwistWorkSpace *pWorkSpace,
-                                                      std::uint8_t *pDestination);
-    
     virtual void                            GrowKeyA(TwistWorkSpace *pWorkSpace,
                                                      MUTABLE_PARAMS);
     virtual void                            GrowKeyB(TwistWorkSpace *pWorkSpace,
@@ -154,10 +188,10 @@ public:
     // this is not virtual, it calls TwistBlock on every block
     void                                    Twist(TwistWorkSpace *pWorkSpace,
                                                   std::uint8_t *pSource,
-                                                  std::uint8_t *pSnowLaneA,
-                                                  std::uint8_t *pSnowLaneB,
-                                                  std::uint8_t *pSnowLaneC,
-                                                  std::uint8_t *pSnowLaneD,
+                                                  std::uint8_t *pCrossLaneA,
+                                                  std::uint8_t *pCrossLaneB,
+                                                  std::uint8_t *pCrossLaneC,
+                                                  std::uint8_t *pCrossLaneD,
                                                   std::uint8_t *pDestination,
                                                   std::size_t pDestinationByteLength);
     
@@ -166,10 +200,10 @@ public:
                                                               std::uint64_t pNonce,
                                                               std::uint8_t *pPassword,
                                                               std::size_t pPasswordByteLength,
-                                                              std::uint8_t *pSnowLaneA,
-                                                              std::uint8_t *pSnowLaneB,
-                                                              std::uint8_t *pSnowLaneC,
-                                                              std::uint8_t *pSnowLaneD,
+                                                              std::uint8_t *pCrossLaneA,
+                                                              std::uint8_t *pCrossLaneB,
+                                                              std::uint8_t *pCrossLaneC,
+                                                              std::uint8_t *pCrossLaneD,
                                                               std::uint8_t *pDestination,
                                                               std::size_t pDestinationByteLength);
     
@@ -177,17 +211,12 @@ public:
     // Assumes pSource has at least S_BLOCK bytes...
     void                                    AutoTwist(TwistWorkSpace *pWorkSpace,
                                                       std::uint8_t *pSource,
-                                                      std::uint8_t *pSnowLaneA,
-                                                      std::uint8_t *pSnowLaneB,
-                                                      std::uint8_t *pSnowLaneC,
-                                                      std::uint8_t *pSnowLaneD,
+                                                      std::uint8_t *pCrossLaneA,
+                                                      std::uint8_t *pCrossLaneB,
+                                                      std::uint8_t *pCrossLaneC,
+                                                      std::uint8_t *pCrossLaneD,
                                                       std::uint8_t *pDestination,
                                                       std::size_t pDestinationByteLength);
-    
-    std::size_t                             mIndexList256A[256];
-    std::size_t                             mIndexList256B[256];
-    std::size_t                             mIndexList256C[256];
-    std::size_t                             mIndexList256D[256];
     
     M88                                     mMatrix;
     

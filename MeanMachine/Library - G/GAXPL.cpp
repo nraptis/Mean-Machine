@@ -12,6 +12,18 @@
 
 namespace {
 
+constexpr int kSaltTapMinOrbiterAssign = 3;
+constexpr int kSaltTapMaxOrbiterAssign = 5;
+constexpr int kSaltTapMinOrbiterUpdate = 4;
+constexpr int kSaltTapMaxOrbiterUpdate = 6;
+constexpr int kSaltTapMinWandererUpdate = 3;
+constexpr int kSaltTapMaxWandererUpdate = 5;
+constexpr int kSaltBehaviorCount =
+    kSaltTapMaxOrbiterAssign +
+    kSaltTapMaxOrbiterUpdate +
+    kSaltTapMaxWandererUpdate;
+constexpr std::size_t kRequiredSaltLaneCount = 8U;
+
 void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
     if (pErrorMessage != nullptr) {
@@ -516,15 +528,17 @@ bool GAXPL::BuildRandomNonceMixExpr(int pMinCount,
 bool GAXPL::BuildSaltExprMap(std::string *pErrorMessage) {
     mSaltExprMap.clear();
 
-    static constexpr int kSaltCountOrbiterAssign = 2;
-    static constexpr int kSaltCountOrbiterUpdate = 4;
-    static constexpr int kSaltCountWandererUpdate = 2;
-    
+    const int aSaltCountOrbiterAssign =
+        Random::Get(kSaltTapMinOrbiterAssign, kSaltTapMaxOrbiterAssign);
+    const int aSaltCountOrbiterUpdate =
+        Random::Get(kSaltTapMinOrbiterUpdate, kSaltTapMaxOrbiterUpdate);
+    const int aSaltCountWandererUpdate =
+        Random::Get(kSaltTapMinWandererUpdate, kSaltTapMaxWandererUpdate);
 
     int aBehaviorIndex = 0;
 
     if (!BuildSaltExprMapForRole(GAXSKSaltRole::kOrbiterAssign,
-                                 kSaltCountOrbiterAssign,
+                                 aSaltCountOrbiterAssign,
                                  mSaltsOrbiterAssign,
                                  &aBehaviorIndex,
                                  pErrorMessage)) {
@@ -532,7 +546,7 @@ bool GAXPL::BuildSaltExprMap(std::string *pErrorMessage) {
     }
 
     if (!BuildSaltExprMapForRole(GAXSKSaltRole::kOrbiterUpdate,
-                                 kSaltCountOrbiterUpdate,
+                                 aSaltCountOrbiterUpdate,
                                  mSaltsOrbiterUpdate,
                                  &aBehaviorIndex,
                                  pErrorMessage)) {
@@ -540,7 +554,7 @@ bool GAXPL::BuildSaltExprMap(std::string *pErrorMessage) {
     }
 
     if (!BuildSaltExprMapForRole(GAXSKSaltRole::kWandererUpdate,
-                                 kSaltCountWandererUpdate,
+                                 aSaltCountWandererUpdate,
                                  mSaltsWandererUpdate,
                                  &aBehaviorIndex,
                                  pErrorMessage)) {
@@ -752,25 +766,26 @@ bool GAXPL::MakeSaltBehaviors(std::vector<SaltBehavior> *pResult,
         return false;
     }
 
-    static constexpr int kBehaviorCount = 16;
-    static constexpr int kReverseCount = 8;
+    static constexpr int kReverseCount = kSaltBehaviorCount / 2;
 
     pResult->clear();
-    pResult->reserve(kBehaviorCount);
+    pResult->reserve(kSaltBehaviorCount);
 
-    std::vector<int> aOddOffsets = {
-        3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29
-    };
+    std::vector<int> aOddOffsets;
+    std::vector<int> aEvenOffsets;
 
-    std::vector<int> aEvenOffsets = {
-        4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28
-    };
+    for (int i = 1; i < S_SALT; i += 2) {
+        aOddOffsets.push_back(i);
+    }
+    for (int i = 2; i < S_SALT; i += 2) {
+        aEvenOffsets.push_back(i);
+    }
 
     Random::Shuffle(&aOddOffsets);
     Random::Shuffle(&aEvenOffsets);
 
     std::vector<int> aOffsets;
-    aOffsets.reserve(kBehaviorCount);
+    aOffsets.reserve(kSaltBehaviorCount);
 
     for (int i = 0; i < 10; i++) {
         aOffsets.push_back(aOddOffsets[i]);
@@ -783,15 +798,15 @@ bool GAXPL::MakeSaltBehaviors(std::vector<SaltBehavior> *pResult,
     Random::Shuffle(&aOffsets);
 
     std::vector<int> aReverseFlags;
-    aReverseFlags.reserve(kBehaviorCount);
+    aReverseFlags.reserve(kSaltBehaviorCount);
 
-    for (int i = 0; i < kBehaviorCount; ++i) {
+    for (int i = 0; i < kSaltBehaviorCount; ++i) {
         aReverseFlags.push_back(i < kReverseCount ? 1 : 0);
     }
 
     Random::Shuffle(&aReverseFlags);
 
-    for (int i = 0; i < kBehaviorCount; ++i) {
+    for (int i = 0; i < kSaltBehaviorCount; ++i) {
         SaltBehavior aBehavior;
         aBehavior.mReversed = (aReverseFlags[i] != 0);
         aBehavior.mOffset = aOffsets[i];
@@ -858,6 +873,13 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
 
     if (pLoop == nullptr) {
         SetError(pErrorMessage, "GAXPL::Configure received null loop");
+        return false;
+    }
+
+    if ((pSaltBag.mOrbiterAssign.size() != kRequiredSaltLaneCount) ||
+        (pSaltBag.mOrbiterUpdate.size() != kRequiredSaltLaneCount) ||
+        (pSaltBag.mWandererUpdate.size() != kRequiredSaltLaneCount)) {
+        SetError(pErrorMessage, "GAXPL::Configure requires exactly eight salts for every role");
         return false;
     }
     
@@ -1543,21 +1565,19 @@ bool GAXPL::GenerateContextWordStatement(int pOffsetRangeLo,
         return false;
     }
     
-    if (aPlan.mHasDomainMix) {
-        GSymbol aDomainWord;
-        
-        if (aPlan.mIsIngress == true) {
-            aDomainWord = DomainWordSymbol(TwistConstants::kIngress);
-        } else {
-            aDomainWord = DomainWordSymbol(TwistConstants::kCross);
-        }
-        
-        aFinalizeExpr = GExpr::Xor(aFinalizeExpr, GExpr::Symbol(aDomainWord));
-        if (aFinalizeExpr.IsInvalid()) {
-            SetError(pErrorMessage,
-                     "GAXPL::GenerateContextWordStatement failed to mix context word domain");
-            return false;
-        }
+    GSymbol aDomainWord;
+
+    if (aPlan.mIsIngress == true) {
+        aDomainWord = DomainWordSymbol(TwistConstants::kIngress);
+    } else {
+        aDomainWord = DomainWordSymbol(TwistConstants::kCross);
+    }
+
+    aFinalizeExpr = GExpr::Xor(aFinalizeExpr, GExpr::Symbol(aDomainWord));
+    if (aFinalizeExpr.IsInvalid()) {
+        SetError(pErrorMessage,
+                 "GAXPL::GenerateContextWordStatement failed to mix context word domain");
+        return false;
     }
     
     if (mNonceMap.size() > 0) {
@@ -1733,19 +1753,17 @@ bool GAXPL::GenerateScatterMixStatement(const GAXSKStatement &pStatement,
         return false;
     }
 
-    if (aPlan.mHasDomainMix) {
-        GSymbol aDomainWord = DomainWordSymbol(TwistConstants::kScatter);
+    GSymbol aDomainWord = DomainWordSymbol(TwistConstants::kScatter);
 
-        if (aDomainWord.IsInvalid()) {
-            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement produced invalid domain word");
-            return false;
-        }
+    if (aDomainWord.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement produced invalid domain word");
+        return false;
+    }
 
-        aFinalizeExpr = GExpr::Xor(aFinalizeExpr, GExpr::Symbol(aDomainWord));
-        if (aFinalizeExpr.IsInvalid()) {
-            SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to apply scatter domain mix");
-            return false;
-        }
+    aFinalizeExpr = GExpr::Xor(aFinalizeExpr, GExpr::Symbol(aDomainWord));
+    if (aFinalizeExpr.IsInvalid()) {
+        SetError(pErrorMessage, "GAXPL::GenerateScatterMixStatement failed to apply scatter domain mix");
+        return false;
     }
 
     if (!mNonceBytes.empty()) {

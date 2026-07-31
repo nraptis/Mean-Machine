@@ -11,8 +11,6 @@
 #include "FileIO.hpp"
 #include "TwistExpander.hpp"
 #include "TwistFunctional.hpp"
-#include "TwistMemory.hpp"
-#include "TwistSnow.hpp"
 
 class Rig {
     

@@ -7,9 +7,8 @@
 
 #include "Random.hpp"
 #include "SaltTables.hpp"
-#include "TwistFarmConstants.hpp"
+#include "TwistFarm.hpp"
 #include "TwistFarmSalt.hpp"
-#include "TwistSnow.hpp"
 
 #include <algorithm>
 #include <array>
@@ -42,9 +41,6 @@ void RandomizeDomainConstants(TwistDomainConstants *pConstants) {
     pConstants->mIngress = Random::Get64High();
     pConstants->mScatter = Random::Get64High();
     pConstants->mCross = Random::Get64High();
-    pConstants->mDomainConstantPublicIngress = pConstants->mIngress;
-    pConstants->mDomainConstantPrivateIngress = pConstants->mScatter;
-    pConstants->mDomainConstantCrossIngress = pConstants->mCross;
     pConstants->mMatrixSelectA = Random::Get64High();
     pConstants->mMatrixSelectB = Random::Get64High();
     pConstants->mMatrixUnrollA = NonZeroRandomByte();
@@ -53,8 +49,6 @@ void RandomizeDomainConstants(TwistDomainConstants *pConstants) {
     pConstants->mMatrixArgB = NonZeroRandomByte();
     pConstants->mMatrixArgC = NonZeroRandomByte();
     pConstants->mMatrixArgD = NonZeroRandomByte();
-    pConstants->mMaskMutateA = NonZeroRandomByte();
-    pConstants->mMaskMutateB = NonZeroRandomByte();
 }
 
 void RandomizeDomainBundleConstants(TwistDomainBundle *pBundle) {
@@ -223,8 +217,6 @@ bool DomainConstantMemberValue(const TwistDomainConstants *pConstants,
     if (pMemberName == "mMatrixArgB") { *pValueOut = static_cast<GRuntimeScalar>(pConstants->mMatrixArgB); return true; }
     if (pMemberName == "mMatrixArgC") { *pValueOut = static_cast<GRuntimeScalar>(pConstants->mMatrixArgC); return true; }
     if (pMemberName == "mMatrixArgD") { *pValueOut = static_cast<GRuntimeScalar>(pConstants->mMatrixArgD); return true; }
-    if (pMemberName == "mMaskMutateA") { *pValueOut = static_cast<GRuntimeScalar>(pConstants->mMaskMutateA); return true; }
-    if (pMemberName == "mMaskMutateB") { *pValueOut = static_cast<GRuntimeScalar>(pConstants->mMaskMutateB); return true; }
 
     return false;
 }
@@ -360,8 +352,10 @@ bool ResolveAliasSlot(const std::string &pAlias,
     };
 
     static const AliasSlotPair kWorkspaceFieldAliases[] = {
-        {"aSource", TwistWorkSpaceSlot::kSource},
-        {"mSource", TwistWorkSpaceSlot::kSource},
+        {"aSource", TwistWorkSpaceSlot::kSourceLane},
+        {"mSourceLane", TwistWorkSpaceSlot::kSourceLane},
+        {"aNonceLane", TwistWorkSpaceSlot::kNonceLane},
+        {"mNonceLane", TwistWorkSpaceSlot::kNonceLane},
         {"pSource", TwistWorkSpaceSlot::kParamSource},
         {"pSourceInput", TwistWorkSpaceSlot::kParamSource},
         {"aDestination", TwistWorkSpaceSlot::kParamDestination},
@@ -375,22 +369,12 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD},
         {"mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
         {"mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
-        {"mMatsPoisonLaneOrbiterInit.mSaltA", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA},
-        {"mMatsPoisonLaneOrbiterInit.mSaltB", TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignB},
-        {"mMatsPoisonLaneOrbiterInit.mSaltC", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC},
-        {"mMatsPoisonLaneOrbiterInit.mSaltD", TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD},
-        {"mMatsPoisonLaneOrbiterInit.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
-        {"mMatsPoisonLaneOrbiterInit.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
-        {"mMatsPoisonLaneOrbiter.mSaltE", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE},
-        {"mMatsPoisonLaneOrbiter.mSaltF", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF},
+        {"mSaltG", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateG},
+        {"mSaltH", TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateH},
         {"mHeartLaneA", TwistWorkSpaceSlot::kHeartLaneA},
         {"mHeartLaneB", TwistWorkSpaceSlot::kHeartLaneB},
         {"mHeartLaneC", TwistWorkSpaceSlot::kHeartLaneC},
         {"mHeartLaneD", TwistWorkSpaceSlot::kHeartLaneD},
-        {"mPoisonLaneA", TwistWorkSpaceSlot::kPoisonLaneA},
-        {"mPoisonLaneB", TwistWorkSpaceSlot::kPoisonLaneB},
-        {"mPoisonLaneC", TwistWorkSpaceSlot::kPoisonLaneC},
-        {"mPoisonLaneD", TwistWorkSpaceSlot::kPoisonLaneD},
         {"mSpiritLaneA", TwistWorkSpaceSlot::kSpiritLaneA},
         {"mSpiritLaneB", TwistWorkSpaceSlot::kSpiritLaneB},
         {"mSpiritLaneC", TwistWorkSpaceSlot::kSpiritLaneC},
@@ -459,14 +443,6 @@ bool ResolveAliasSlot(const std::string &pAlias,
         {"mVaporLaneB", TwistWorkSpaceSlot::kVaporLaneB},
         {"mVaporLaneC", TwistWorkSpaceSlot::kVaporLaneC},
         {"mVaporLaneD", TwistWorkSpaceSlot::kVaporLaneD},
-        {"mChanceLaneA", TwistWorkSpaceSlot::kChanceLaneA},
-        {"mChanceLaneB", TwistWorkSpaceSlot::kChanceLaneB},
-        {"mChanceLaneC", TwistWorkSpaceSlot::kChanceLaneC},
-        {"mChanceLaneD", TwistWorkSpaceSlot::kChanceLaneD},
-        {"mDomainLaneKeyRotateA", TwistWorkSpaceSlot::kDomainLaneKeyRotateA},
-        {"mDomainLaneKeySpawnA", TwistWorkSpaceSlot::kDomainLaneKeySpawnA},
-        {"mDomainLaneSeed", TwistWorkSpaceSlot::kDomainLaneSeed},
-        {"mDomainLaneTwist", TwistWorkSpaceSlot::kDomainLaneTwist},
         {"mIceLaneA", TwistWorkSpaceSlot::kIceLaneA},
         {"mIceLaneB", TwistWorkSpaceSlot::kIceLaneB},
         {"mIceLaneC", TwistWorkSpaceSlot::kIceLaneC},
@@ -520,6 +496,18 @@ bool ParseCryptoCallArguments(const std::string &pLine,
     if (aLine.empty()) {
         return false;
     }
+
+    std::size_t aComment = aLine.find("//");
+    while (aComment != std::string::npos) {
+        const std::size_t aLineEnd = aLine.find('\n', aComment);
+        if (aLineEnd == std::string::npos) {
+            aLine.erase(aComment);
+            break;
+        }
+        aLine.erase(aComment, aLineEnd - aComment);
+        aComment = aLine.find("//", aComment);
+    }
+    aLine = TrimCopy(aLine);
 
     if (!aLine.empty() && (aLine.back() == ';')) {
         aLine.pop_back();
@@ -753,7 +741,6 @@ bool ResolveConstantsToken(const std::string &pToken,
     if (TryWorkspaceConstants("mDomainBundle.mKeyBConstants", &pWorkSpace->mDomainBundle.mKeySpawnAConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mMaskAConstants", &pWorkSpace->mDomainBundle.mKeyRotateAConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mMaskBConstants", &pWorkSpace->mDomainBundle.mKeySpawnAConstants)) { return true; }
-    if (TryWorkspaceConstants("mDomainBundle.mPoisonLaneConstants", &pWorkSpace->mDomainBundle.mKeyRotateAConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mMaskLaneConstants", &pWorkSpace->mDomainBundle.mKeySpawnAConstants)) { return true; }
     if (TryWorkspaceConstants("mDomainBundle.mSpiritLaneConstants", &pWorkSpace->mDomainBundle.mSeedConstants)) { return true; }
 
@@ -789,11 +776,9 @@ bool ResolveConstantsToken(const std::string &pToken,
     if ((aToken == "mConstantsPhaseA") ||
         (aToken == "mConstantsKeyA") ||
         (aToken == "mConstantsMaskA") ||
-        (aToken == "mConstantsPoisonLane") ||
         (aToken == "mDomainBundleInbuilt.mKeyRotateAConstants") ||
         (aToken == "mDomainBundleInbuilt.mKeyAConstants") ||
-        (aToken == "mDomainBundleInbuilt.mMaskAConstants") ||
-        (aToken == "mDomainBundleInbuilt.mPoisonLaneConstants")) {
+        (aToken == "mDomainBundleInbuilt.mMaskAConstants")) {
         *pConstantsResolved = &(pExpander->GetDomainBundleInbuilt()->mKeyRotateAConstants);
         return true;
     }
@@ -866,7 +851,6 @@ bool ResolveSaltSetToken(const std::string &pToken,
     if (TryWorkspaceSet("mDomainBundle.mKeyBSalts", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mMaskASalts", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mMaskBSalts", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
-    if (TryWorkspaceSet("mDomainBundle.mPoisonLaneSalts", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mMaskLaneSalts", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
     if (TryWorkspaceSet("mDomainBundle.mSpiritLaneSalts", &pWorkSpace->mDomainBundle.mSeedSalts)) { return true; }
 
@@ -883,9 +867,6 @@ bool ResolveSaltSetToken(const std::string &pToken,
     if (TryWorkspaceSet("mMatsMaskBOrbiterInit", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
     if (TryWorkspaceSet("mMatsMaskBOrbiter", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
     if (TryWorkspaceSet("mMatsMaskBWanderer", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsPoisonLaneOrbiterInit", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsPoisonLaneOrbiter", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
-    if (TryWorkspaceSet("mMatsPoisonLaneWanderer", &pWorkSpace->mDomainBundle.mKeyRotateASalts)) { return true; }
     if (TryWorkspaceSet("mMatsMaskLaneOrbiterInit", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
     if (TryWorkspaceSet("mMatsMaskLaneOrbiter", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
     if (TryWorkspaceSet("mMatsMaskLaneWanderer", &pWorkSpace->mDomainBundle.mKeySpawnASalts)) { return true; }
@@ -922,7 +903,6 @@ bool ResolveSaltSetToken(const std::string &pToken,
         if (TryExpanderSet("mDomainBundleInbuilt.mKeyBSalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mMaskASalts", &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mMaskBSalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts)) { return true; }
-        if (TryExpanderSet("mDomainBundleInbuilt.mPoisonLaneSalts", &pExpander->GetDomainBundleInbuilt()->mKeyRotateASalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mMaskLaneSalts", &pExpander->GetDomainBundleInbuilt()->mKeySpawnASalts)) { return true; }
         if (TryExpanderSet("mDomainBundleInbuilt.mSpiritLaneSalts", &pExpander->GetDomainBundleInbuilt()->mSeedSalts)) { return true; }
     }
@@ -981,90 +961,6 @@ bool ResolveBufferPointerToken(const std::string &pToken,
     return *pBufferResolved != nullptr;
 }
 
-bool ResolveSeedRoundMaterialToken(const std::string &pToken,
-                                   TwistWorkSpace *pWorkSpace,
-                                   TwistExpander *pExpander,
-                                   TwistDomainSeedRoundMaterial **pMaterialResolved) {
-    if (pMaterialResolved == nullptr) {
-        return false;
-    }
-
-    const std::string aToken = NormalizeRoundMaterialToken(pToken);
-    const std::size_t aRoundPos = aToken.rfind('.');
-    if (aRoundPos == std::string::npos) {
-        return false;
-    }
-
-    const std::string aSetToken = aToken.substr(0U, aRoundPos);
-    const std::string aRoundToken = aToken.substr(aRoundPos + 1U);
-    TwistDomainSaltSet *aSaltSet = nullptr;
-    if (!ResolveSaltSetToken(aSetToken, pWorkSpace, pExpander, &aSaltSet) || (aSaltSet == nullptr)) {
-        return false;
-    }
-
-    if (aRoundToken == "mOrbiterAssign") {
-        *pMaterialResolved = &aSaltSet->mOrbiterAssign;
-        return true;
-    }
-    if (aRoundToken == "mOrbiterUpdate") {
-        *pMaterialResolved = &aSaltSet->mOrbiterUpdate;
-        return true;
-    }
-    if (aRoundToken == "mWandererUpdate") {
-        *pMaterialResolved = &aSaltSet->mWandererUpdate;
-        return true;
-    }
-    return false;
-}
-
-bool ResolveSaltLaneToken(const std::string &pToken,
-                          TwistWorkSpace *pWorkSpace,
-                          TwistExpander *pExpander,
-                          std::uint64_t **pSaltResolved) {
-    if (pSaltResolved == nullptr) {
-        return false;
-    }
-
-    const std::string aToken = NormalizeRoundMaterialToken(pToken);
-    static const char *kSaltNames[] = {
-        ".mSaltA",
-        ".mSaltB",
-        ".mSaltC",
-        ".mSaltD",
-        ".mSaltE",
-        ".mSaltF"
-    };
-
-    for (int i = 0; i < 6; ++i) {
-        const std::string aSuffix(kSaltNames[i]);
-        if ((aToken.size() <= aSuffix.size()) ||
-            (aToken.compare(aToken.size() - aSuffix.size(), aSuffix.size(), aSuffix) != 0)) {
-            continue;
-        }
-
-        TwistDomainSeedRoundMaterial *aMaterial = nullptr;
-        if (!ResolveSeedRoundMaterialToken(aToken.substr(0U, aToken.size() - aSuffix.size()),
-                                           pWorkSpace,
-                                           pExpander,
-                                           &aMaterial) ||
-            (aMaterial == nullptr)) {
-            return false;
-        }
-
-        switch (i) {
-            case 0: *pSaltResolved = aMaterial->mSaltA; return true;
-            case 1: *pSaltResolved = aMaterial->mSaltB; return true;
-            case 2: *pSaltResolved = aMaterial->mSaltC; return true;
-            case 3: *pSaltResolved = aMaterial->mSaltD; return true;
-            case 4: *pSaltResolved = aMaterial->mSaltE; return true;
-            case 5: *pSaltResolved = aMaterial->mSaltF; return true;
-            default: break;
-        }
-    }
-
-    return false;
-}
-
 bool ExecuteKDFBufferAssignmentLine(const std::string &pLine,
                                     TwistWorkSpace *pWorkSpace,
                                     TwistExpander *pExpander,
@@ -1109,150 +1005,72 @@ bool ExecuteKDFBufferAssignmentLine(const std::string &pLine,
     return true;
 }
 
-bool ExecuteSnowLine(const std::string &pLine,
+bool ExecuteFarmLine(const std::string &pLine,
                      TwistWorkSpace *pWorkSpace,
                      TwistExpander *pExpander,
                      const BranchRuntimePointers *pPointers,
                      std::string *pErrorMessage) {
-    enum class SnowMethod : std::uint8_t {
-        kAES256 = 0,
-        kChaCha20 = 1,
-        kSha256 = 2,
-        kAria256 = 3
-    };
-
-    std::vector<std::string> aArgs;
-    SnowMethod aMethod = SnowMethod::kAES256;
-    if (ParseCryptoCallArguments(pLine, "AES256Counter", &aArgs)) {
-        aMethod = SnowMethod::kAES256;
-    } else if (ParseCryptoCallArguments(pLine, "ChaCha20Counter", &aArgs)) {
-        aMethod = SnowMethod::kChaCha20;
-    } else if (ParseCryptoCallArguments(pLine, "Sha256Counter", &aArgs)) {
-        aMethod = SnowMethod::kSha256;
-    } else if (ParseCryptoCallArguments(pLine, "Aria256Counter", &aArgs)) {
-        aMethod = SnowMethod::kAria256;
-    } else {
-        return false;
-    }
-
-    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
-        SetError(pErrorMessage, "Snow call execution was missing required runtime inputs.");
-        return false;
-    }
-    if (aArgs.size() != 2U) {
-        SetError(pErrorMessage, "Snow counter call expects exactly 2 arguments.");
-        return false;
-    }
-
-    std::uint8_t *aSource = nullptr;
-    std::uint8_t *aDest = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, pPointers, &aSource)) {
-        SetError(pErrorMessage, "Snow source alias resolved to null or unknown: " + aArgs[0]);
-        return false;
-    }
-    if (!ResolveBufferPointerToken(aArgs[1], pWorkSpace, pExpander, pPointers, &aDest)) {
-        SetError(pErrorMessage, "Snow destination alias resolved to null or unknown: " + aArgs[1]);
-        return false;
-    }
-
-    switch (aMethod) {
-        case SnowMethod::kAES256:
-            TwistSnow::AES256Counter(aSource, aDest);
-            break;
-        case SnowMethod::kChaCha20:
-            TwistSnow::ChaCha20Counter(aSource, aDest);
-            break;
-        case SnowMethod::kSha256:
-            TwistSnow::Sha256Counter(aSource, aDest);
-            break;
-        case SnowMethod::kAria256:
-            TwistSnow::Aria256Counter(aSource, aDest);
-            break;
-        default:
-            SetError(pErrorMessage, "Snow call method was unsupported.");
-            return false;
-    }
-
-    return true;
-}
-
-bool ExecuteFarmSaltLine(const std::string &pLine,
-                         TwistWorkSpace *pWorkSpace,
-                         TwistExpander *pExpander,
-                         const BranchRuntimePointers *pPointers,
-                         std::string *pErrorMessage) {
-    if (pLine.find("pFarmSalt") == std::string::npos) {
+    if (pLine.find("TwistFarm::Farm") == std::string::npos) {
         return false;
     }
 
     std::vector<std::string> aArgs;
-    if (!ParseCryptoCallArguments(pLine, "Derive", &aArgs)) {
+    if (!ParseCryptoCallArguments(pLine, "Farm", &aArgs)) {
         return false;
     }
-    if (aArgs.size() != 7U) {
-        SetError(pErrorMessage, "pFarmSalt->Derive expects exactly 7 arguments.");
+    if (aArgs.size() != 10U) {
+        SetError(pErrorMessage, "TwistFarm::Farm expects exactly 10 arguments.");
         return false;
     }
 
     TwistFarmSalt *aFarmSalt = (pPointers == nullptr) ? nullptr : pPointers->pFarmSalt;
     if (aFarmSalt == nullptr) {
-        SetError(pErrorMessage, "pFarmSalt->Derive execution had no active farm.");
+        SetError(pErrorMessage, "TwistFarm::Farm execution had no active farm.");
         return false;
     }
 
-    std::uint8_t *aSource = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, pPointers, &aSource)) {
-        SetError(pErrorMessage, "pFarmSalt->Derive source alias was invalid: " + aArgs[0]);
+    if (TrimCopy(aArgs[0]) != "pFarmSalt") {
+        SetError(pErrorMessage, "TwistFarm::Farm farm argument was invalid: " + aArgs[0]);
         return false;
     }
 
-    std::uint64_t *aSalt[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
-    for (int i = 0; i < 6; ++i) {
-        if (!ResolveSaltLaneToken(aArgs[static_cast<std::size_t>(i + 1)],
-                                  pWorkSpace,
-                                  pExpander,
-                                  &aSalt[i])) {
+    std::uint8_t *aLanes[7] = {
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
+    };
+    for (std::size_t i = 0U; i < 7U; ++i) {
+        if (!ResolveBufferPointerToken(aArgs[i + 1U],
+                                       pWorkSpace,
+                                       pExpander,
+                                       pPointers,
+                                       &aLanes[i])) {
             SetError(pErrorMessage,
-                     "pFarmSalt->Derive salt token was invalid: " + aArgs[static_cast<std::size_t>(i + 1)]);
+                     "TwistFarm::Farm lane alias was invalid: " + aArgs[i + 1U]);
             return false;
         }
     }
 
-    aFarmSalt->Derive(aSource, aSalt[0], aSalt[1], aSalt[2], aSalt[3], aSalt[4], aSalt[5]);
-    return true;
-}
-
-bool ExecuteFarmConstantsLine(const std::string &pLine,
-                              TwistWorkSpace *pWorkSpace,
-                              TwistExpander *pExpander,
-                              const BranchRuntimePointers *pPointers,
-                              std::string *pErrorMessage) {
-    if (pLine.find("TwistFarmConstants") == std::string::npos) {
+    TwistDomainSaltSet *aSaltSet = nullptr;
+    if (!ResolveSaltSetToken(aArgs[8], pWorkSpace, pExpander, &aSaltSet)) {
+        SetError(pErrorMessage, "TwistFarm::Farm salt-set token was invalid: " + aArgs[8]);
         return false;
     }
-
-    std::vector<std::string> aArgs;
-    if (!ParseCryptoCallArguments(pLine, "Derive", &aArgs)) {
-        return false;
-    }
-    if (aArgs.size() != 2U) {
-        SetError(pErrorMessage, "TwistFarmConstants::Derive expects exactly 2 arguments.");
-        return false;
-    }
-
-    std::uint8_t *aSource = nullptr;
-    if (!ResolveBufferPointerToken(aArgs[0], pWorkSpace, pExpander, pPointers, &aSource)) {
-        SetError(pErrorMessage, "TwistFarmConstants::Derive source alias was invalid: " + aArgs[0]);
-        return false;
-    }
-
     TwistDomainConstants *aConstants = nullptr;
-    if (!ResolveConstantsToken(aArgs[1], pWorkSpace, pExpander, &aConstants)) {
-        SetError(pErrorMessage, "TwistFarmConstants::Derive constants token was invalid: " + aArgs[1]);
+    if (!ResolveConstantsToken(aArgs[9], pWorkSpace, pExpander, &aConstants)) {
+        SetError(pErrorMessage, "TwistFarm::Farm constants token was invalid: " + aArgs[9]);
         return false;
     }
 
-    TwistFarmConstants::Derive(aSource, aConstants);
+    TwistFarm::Farm(
+        aFarmSalt,
+        aLanes[0],
+        aLanes[1],
+        aLanes[2],
+        aLanes[3],
+        aLanes[4],
+        aLanes[5],
+        aLanes[6],
+        aSaltSet,
+        aConstants);
     return true;
 }
 
@@ -1325,7 +1143,7 @@ bool ExecuteKDFLine(const std::string &pLine,
         return true;
     };
 
-    bool aUsesKDFSnowArgument = false;
+    bool aUsesKDFStateArguments = false;
     bool aUsesExplicitBuffers = false;
     bool aHasExplicitNonce = false;
 
@@ -1333,14 +1151,14 @@ bool ExecuteKDFLine(const std::string &pLine,
         (aFunctionName == "KDF_B") ||
         (aFunctionName == "KDF_C") ||
         (aFunctionName == "KDF_D")) {
-        if (aArgs.size() != 20U) {
+        if (aArgs.size() != 16U) {
             SetError(pErrorMessage,
                      aFunctionName +
-                     " call expects nonce, constants, salts, three snow "
-                     "lanes, and fourteen ARX state pointers.");
+                     " call expects nonce, constants, salts, and thirteen "
+                     "ARX state pointers.");
             return false;
         }
-        aUsesKDFSnowArgument = true;
+        aUsesKDFStateArguments = true;
         aHasExplicitNonce = true;
     } else {
         if ((aArgs.size() != 2U) && (aArgs.size() != 3U) &&
@@ -1397,48 +1215,16 @@ bool ExecuteKDFLine(const std::string &pLine,
         return false;
     }
 
-    std::uint8_t *aSnowLaneA = nullptr;
-    std::uint8_t *aSnowLaneB = nullptr;
-    std::uint8_t *aSnowLaneC = nullptr;
-    if (aUsesKDFSnowArgument &&
-        !ResolveBufferPointerToken(aArgs[aOffset + 2U],
-                                   pWorkSpace,
-                                   pExpander,
-                                   pPointers,
-                                   &aSnowLaneA)) {
-        SetError(pErrorMessage,
-                 aFunctionName +
-                 " snow alias resolved to null or unknown: " +
-                 aArgs[aOffset + 2U]);
-        return false;
-    }
-    if (aUsesKDFSnowArgument &&
-        (!ResolveBufferPointerToken(aArgs[aOffset + 3U],
-                                    pWorkSpace,
-                                    pExpander,
-                                    pPointers,
-                                    &aSnowLaneB) ||
-         !ResolveBufferPointerToken(aArgs[aOffset + 4U],
-                                    pWorkSpace,
-                                    pExpander,
-                                    pPointers,
-                                    &aSnowLaneC))) {
-        SetError(pErrorMessage,
-                 aFunctionName +
-                 " second or third snow alias resolved to null or unknown.");
-        return false;
-    }
-
-    static const std::array<const char *, 14> kStateNames = {
-        "aPrevious", "aIngress", "aCarry",
+    static const std::array<const char *, 13> kStateNames = {
+        "aIngress", "aCarry",
         "aWandererA", "aWandererB", "aWandererC", "aWandererD",
         "aWandererE", "aWandererF", "aWandererG", "aWandererH",
         "aWandererI", "aWandererJ", "aWandererK",
     };
     std::array<std::uint64_t, kStateNames.size()> aState{};
-    if (aUsesKDFSnowArgument) {
+    if (aUsesKDFStateArguments) {
         for (std::size_t i = 0U; i < kStateNames.size(); ++i) {
-            std::string aStateToken = TrimCopy(aArgs[aOffset + 5U + i]);
+            std::string aStateToken = TrimCopy(aArgs[aOffset + 2U + i]);
             while (!aStateToken.empty() &&
                    ((aStateToken.front() == '&') ||
                     (aStateToken.front() == '*'))) {
@@ -1477,52 +1263,40 @@ bool ExecuteKDFLine(const std::string &pLine,
                          aNonce,
                          aConstants,
                          aSaltSet,
-                         aSnowLaneA,
-                         aSnowLaneB,
-                         aSnowLaneC,
                          &aState[0], &aState[1], &aState[2],
                          &aState[3], &aState[4], &aState[5], &aState[6],
                          &aState[7], &aState[8], &aState[9], &aState[10],
-                         &aState[11], &aState[12], &aState[13]);
+                         &aState[11], &aState[12]);
         StoreState();
     } else if (aFunctionName == "KDF_B") {
         pExpander->KDF_B(pWorkSpace,
                          aNonce,
                          aConstants,
                          aSaltSet,
-                         aSnowLaneA,
-                         aSnowLaneB,
-                         aSnowLaneC,
                          &aState[0], &aState[1], &aState[2],
                          &aState[3], &aState[4], &aState[5], &aState[6],
                          &aState[7], &aState[8], &aState[9], &aState[10],
-                         &aState[11], &aState[12], &aState[13]);
+                         &aState[11], &aState[12]);
         StoreState();
     } else if (aFunctionName == "KDF_C") {
         pExpander->KDF_C(pWorkSpace,
                          aNonce,
                          aConstants,
                          aSaltSet,
-                         aSnowLaneA,
-                         aSnowLaneB,
-                         aSnowLaneC,
                          &aState[0], &aState[1], &aState[2],
                          &aState[3], &aState[4], &aState[5], &aState[6],
                          &aState[7], &aState[8], &aState[9], &aState[10],
-                         &aState[11], &aState[12], &aState[13]);
+                         &aState[11], &aState[12]);
         StoreState();
     } else if (aFunctionName == "KDF_D") {
         pExpander->KDF_D(pWorkSpace,
                          aNonce,
                          aConstants,
                          aSaltSet,
-                         aSnowLaneA,
-                         aSnowLaneB,
-                         aSnowLaneC,
                          &aState[0], &aState[1], &aState[2],
                          &aState[3], &aState[4], &aState[5], &aState[6],
                          &aState[7], &aState[8], &aState[9], &aState[10],
-                         &aState[11], &aState[12], &aState[13]);
+                         &aState[11], &aState[12]);
         StoreState();
     } else {
         pExpander->KDF(aNonce,
@@ -1576,20 +1350,6 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedSnow = ExecuteSnowLine(
-        pRawLine,
-        pWorkSpace,
-        pExpander,
-        pPointers,
-        &aLineError);
-    if (!aLineError.empty()) {
-        SetError(pErrorMessage, aLineError);
-        return false;
-    }
-    if (aExecutedSnow) {
-        return true;
-    }
-
     const bool aExecutedKDF = ExecuteKDFLine(
         pRawLine,
         pWorkSpace,
@@ -1605,7 +1365,7 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         return true;
     }
 
-    const bool aExecutedFarmSalt = ExecuteFarmSaltLine(
+    const bool aExecutedFarm = ExecuteFarmLine(
         pRawLine,
         pWorkSpace,
         pExpander,
@@ -1615,21 +1375,7 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         SetError(pErrorMessage, aLineError);
         return false;
     }
-    if (aExecutedFarmSalt) {
-        return true;
-    }
-
-    const bool aExecutedFarmConstants = ExecuteFarmConstantsLine(
-        pRawLine,
-        pWorkSpace,
-        pExpander,
-        pPointers,
-        &aLineError);
-    if (!aLineError.empty()) {
-        SetError(pErrorMessage, aLineError);
-        return false;
-    }
-    if (aExecutedFarmConstants) {
+    if (aExecutedFarm) {
         return true;
     }
 
@@ -1653,11 +1399,10 @@ bool ApplyBranchStringLine(const std::string &pRawLine,
         aRuntimeRawLine.pop_back();
         aRuntimeRawLine = TrimCopy(aRuntimeRawLine);
     }
-    if ((aRuntimeRawLine.rfind("TwistMemory::", 0U) == 0U) ||
-        (aRuntimeRawLine.rfind("TwistSquash::", 0U) == 0U) ||
+    if ((aRuntimeRawLine.rfind("TwistSquash::", 0U) == 0U) ||
         (aRuntimeRawLine.rfind("TwistDiffuse::", 0U) == 0U) ||
         (aRuntimeRawLine.rfind("TwistShiftBox::", 0U) == 0U) ||
-        (aRuntimeRawLine.rfind("TwistIndexShuffle::", 0U) == 0U) ||
+        (aRuntimeRawLine.rfind("TwistShuffle::", 0U) == 0U) ||
         (aRuntimeRawLine.rfind("mMatrix.", 0U) == 0U)) {
         std::vector<GStatement> aRuntimeStatements;
         aRuntimeStatements.push_back(GStatement::RawLine(pRawLine));
@@ -1891,133 +1636,69 @@ void GTwistExpander::RefreshTablePointers() {
 void GTwistExpander::KDF(std::uint64_t pNonce,
                          TwistDomainConstants *pDomainConstants,
                          TwistDomainSaltSet *pDomainSaltSet) {
-    TwistExpander::KDF(pNonce,
-                       pDomainConstants,
-                       pDomainSaltSet);
+    (void)pNonce;
+    (void)pDomainConstants;
+    (void)pDomainSaltSet;
 }
 
 void GTwistExpander::KDF_A(TwistWorkSpace *pWorkSpace,
                            std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
                            TwistDomainSaltSet *pDomainSaltSet,
-                           std::uint8_t *pSnowLaneA,
-                           std::uint8_t *pSnowLaneB,
-                           std::uint8_t *pSnowLaneC,
                            MUTABLE_PARAMS) {
-    TwistExpander::KDF_A(pWorkSpace,
-                         pNonce,
-                         pDomainConstants,
-                         pDomainSaltSet,
-                         pSnowLaneA,
-                         pSnowLaneB,
-                         pSnowLaneC,
-                         pPrevious,
-                         pIngress,
-                         pCarry,
-                         pWandererA,
-                         pWandererB,
-                         pWandererC,
-                         pWandererD,
-                         pWandererE,
-                         pWandererF,
-                         pWandererG,
-                         pWandererH,
-                         pWandererI,
-                         pWandererJ,
-                         pWandererK);
+    (void)pWorkSpace;
+    (void)pNonce;
+    (void)pDomainConstants;
+    (void)pDomainSaltSet;
+    (void)pIngress;
+    (void)pCarry;
+    (void)pWandererA;
+    (void)pWandererB;
+    (void)pWandererC;
+    (void)pWandererD;
+    (void)pWandererE;
+    (void)pWandererF;
+    (void)pWandererG;
+    (void)pWandererH;
+    (void)pWandererI;
+    (void)pWandererJ;
+    (void)pWandererK;
 }
 
 void GTwistExpander::KDF_B(TwistWorkSpace *pWorkSpace,
                            std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
                            TwistDomainSaltSet *pDomainSaltSet,
-                           std::uint8_t *pSnowLaneA,
-                           std::uint8_t *pSnowLaneB,
-                           std::uint8_t *pSnowLaneC,
                            MUTABLE_PARAMS) {
-    TwistExpander::KDF_B(pWorkSpace,
-                         pNonce,
-                         pDomainConstants,
-                         pDomainSaltSet,
-                         pSnowLaneA,
-                         pSnowLaneB,
-                         pSnowLaneC,
-                         pPrevious,
-                         pIngress,
-                         pCarry,
-                         pWandererA,
-                         pWandererB,
-                         pWandererC,
-                         pWandererD,
-                         pWandererE,
-                         pWandererF,
-                         pWandererG,
-                         pWandererH,
-                         pWandererI,
-                         pWandererJ,
-                         pWandererK);
+    KDF_A(pWorkSpace,
+          pNonce,
+          pDomainConstants,
+          pDomainSaltSet,
+          MUTABLE_PARAMS_PASSED);
 }
 
 void GTwistExpander::KDF_C(TwistWorkSpace *pWorkSpace,
                            std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
                            TwistDomainSaltSet *pDomainSaltSet,
-                           std::uint8_t *pSnowLaneA,
-                           std::uint8_t *pSnowLaneB,
-                           std::uint8_t *pSnowLaneC,
                            MUTABLE_PARAMS) {
-    TwistExpander::KDF_C(pWorkSpace,
-                         pNonce,
-                         pDomainConstants,
-                         pDomainSaltSet,
-                         pSnowLaneA,
-                         pSnowLaneB,
-                         pSnowLaneC,
-                         pPrevious,
-                         pIngress,
-                         pCarry,
-                         pWandererA,
-                         pWandererB,
-                         pWandererC,
-                         pWandererD,
-                         pWandererE,
-                         pWandererF,
-                         pWandererG,
-                         pWandererH,
-                         pWandererI,
-                         pWandererJ,
-                         pWandererK);
+    KDF_A(pWorkSpace,
+          pNonce,
+          pDomainConstants,
+          pDomainSaltSet,
+          MUTABLE_PARAMS_PASSED);
 }
 
 void GTwistExpander::KDF_D(TwistWorkSpace *pWorkSpace,
                            std::uint64_t pNonce,
                            TwistDomainConstants *pDomainConstants,
                            TwistDomainSaltSet *pDomainSaltSet,
-                           std::uint8_t *pSnowLaneA,
-                           std::uint8_t *pSnowLaneB,
-                           std::uint8_t *pSnowLaneC,
                            MUTABLE_PARAMS) {
-    TwistExpander::KDF_D(pWorkSpace,
-                         pNonce,
-                         pDomainConstants,
-                         pDomainSaltSet,
-                         pSnowLaneA,
-                         pSnowLaneB,
-                         pSnowLaneC,
-                         pPrevious,
-                         pIngress,
-                         pCarry,
-                         pWandererA,
-                         pWandererB,
-                         pWandererC,
-                         pWandererD,
-                         pWandererE,
-                         pWandererF,
-                         pWandererG,
-                         pWandererH,
-                         pWandererI,
-                         pWandererJ,
-                         pWandererK);
+    KDF_A(pWorkSpace,
+          pNonce,
+          pDomainConstants,
+          pDomainSaltSet,
+          MUTABLE_PARAMS_PASSED);
 }
 
 void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
@@ -2025,87 +1706,70 @@ void GTwistExpander::Seed(TwistWorkSpace *pWorkSpace,
                           std::uint64_t pNonce,
                           std::uint8_t *pPassword,
                           std::size_t pPasswordByteLength,
-                          std::uint8_t *pSnowLaneA,
-                          std::uint8_t *pSnowLaneB,
-                          std::uint8_t *pSnowLaneC,
-                          std::uint8_t *pSnowLaneD,
                           std::uint8_t *pDestination) {
     RefreshTablePointers();
-    TwistExpander::Seed(pWorkSpace,
-                        pFarmSalt,
-                        pNonce,
-                        pPassword,
-                        pPasswordByteLength,
-                        pSnowLaneA,
-                        pSnowLaneB,
-                        pSnowLaneC,
-                        pSnowLaneD,
-                        pDestination);
-
+    if ((pWorkSpace == nullptr) || (pFarmSalt == nullptr) ||
+        (pDestination == nullptr)) {
+        return;
+    }
+    UnrollPassword(pWorkSpace->mSourceLane,
+                   pPassword,
+                   pPasswordByteLength);
+    UnrollNonce(pWorkSpace->mNonceLane, pNonce);
+    mDomainBundleEphemeral.Zero();
+    pWorkSpace->mDomainBundle.Zero();
 }
 
 void GTwistExpander::TwistBlock(TwistWorkSpace *pWorkSpace,
                                 std::uint8_t *pSource,
-                                std::uint8_t *pSnowLaneA,
-                                std::uint8_t *pSnowLaneB,
-                                std::uint8_t *pSnowLaneC,
-                                std::uint8_t *pSnowLaneD,
+                                std::uint8_t *pCrossLaneA,
+                                std::uint8_t *pCrossLaneB,
+                                std::uint8_t *pCrossLaneC,
+                                std::uint8_t *pCrossLaneD,
                                 std::uint8_t *pDestination) {
-    TwistExpander::TwistBlock(pWorkSpace,
-                              pSource,
-                              pSnowLaneA,
-                              pSnowLaneB,
-                              pSnowLaneC,
-                              pSnowLaneD,
-                              pDestination);
-}
-
-void GTwistExpander::FoldSeed(TwistWorkSpace *pWorkSpace,
-                              std::uint8_t *pDestination) {
-    TwistExpander::FoldSeed(pWorkSpace, pDestination);
-}
-
-void GTwistExpander::FoldTwist(TwistWorkSpace *pWorkSpace,
-                               std::uint8_t *pDestination) {
-    TwistExpander::FoldTwist(pWorkSpace, pDestination);
+    (void)pWorkSpace;
+    (void)pSource;
+    (void)pCrossLaneA;
+    (void)pCrossLaneB;
+    (void)pCrossLaneC;
+    (void)pCrossLaneD;
+    (void)pDestination;
 }
 
 void GTwistExpander::GrowKeyA(TwistWorkSpace *pWorkSpace,
                               MUTABLE_PARAMS) {
-    TwistExpander::GrowKeyA(pWorkSpace,
-                            pPrevious,
-                            pIngress,
-                            pCarry,
-                            pWandererA,
-                            pWandererB,
-                            pWandererC,
-                            pWandererD,
-                            pWandererE,
-                            pWandererF,
-                            pWandererG,
-                            pWandererH,
-                            pWandererI,
-                            pWandererJ,
-                            pWandererK);
+    (void)pWorkSpace;
+    (void)pIngress;
+    (void)pCarry;
+    (void)pWandererA;
+    (void)pWandererB;
+    (void)pWandererC;
+    (void)pWandererD;
+    (void)pWandererE;
+    (void)pWandererF;
+    (void)pWandererG;
+    (void)pWandererH;
+    (void)pWandererI;
+    (void)pWandererJ;
+    (void)pWandererK;
 }
 
 void GTwistExpander::GrowKeyB(TwistWorkSpace *pWorkSpace,
                               MUTABLE_PARAMS) {
-    TwistExpander::GrowKeyB(pWorkSpace,
-                            pPrevious,
-                            pIngress,
-                            pCarry,
-                            pWandererA,
-                            pWandererB,
-                            pWandererC,
-                            pWandererD,
-                            pWandererE,
-                            pWandererF,
-                            pWandererG,
-                            pWandererH,
-                            pWandererI,
-                            pWandererJ,
-                            pWandererK);
+    (void)pWorkSpace;
+    (void)pIngress;
+    (void)pCarry;
+    (void)pWandererA;
+    (void)pWandererB;
+    (void)pWandererC;
+    (void)pWandererD;
+    (void)pWandererE;
+    (void)pWandererF;
+    (void)pWandererG;
+    (void)pWandererH;
+    (void)pWandererI;
+    (void)pWandererJ;
+    (void)pWandererK;
 }
 
 bool GTwistExpander::LoadJSONProjectRoot(const std::string &pJsonPath,

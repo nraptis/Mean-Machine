@@ -9,15 +9,17 @@
 #include "GSeedRunStage.hpp"
 
 #include <array>
+#include <cstddef>
 #include <string>
 
 class ResidualBucket;
 
 namespace GTwistRunGrowKeyBConfig {
 
-using GrowStageConfigs = std::array<GSeedRunStageConfig, 4>;
+using GrowStageConfigs = std::array<GSeedRunStageConfig, 5>;
 
-GrowStageConfigs                            MakeGrowBConfig(ResidualBucket &pResidualBucket);
+GrowStageConfigs                            MakeGrowBConfig(ResidualBucket &pResidualBucket,
+                                                            std::size_t pCandidateIndex);
 
 }
 

@@ -40,10 +40,9 @@ enum class GAXSKModelTermKind: std::uint8_t {
 
 enum class GAXSFormat : std::uint8_t {
     kInvalid = 0,
-    kN5,
-    kN7,
-    kN9,
-    kN11
+    kN7 = 2,
+    kN9 = 3,
+    kN11 = 4
 };
 
 enum class GAXSKDiffuseKind : std::uint8_t {
@@ -172,12 +171,8 @@ struct GAXSKInputSlot {
 struct GAXSKContextWordPlan {
     GAXSKVariable mTarget = GAXSKVariable::kInvalid;
     std::vector<GAXSKInputSlot> mSlots;
-    bool mHasDomainMix = true;
     bool mIsIngress = false;
     GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
-    
-    
-    
 };
 
 struct GAXSKVariableTerm {
@@ -202,7 +197,6 @@ struct GAXSKScatterMixPlan {
     GAXSKScatterMixPair mLeftPair;
     GAXSKScatterMixPair mRightPair;
     GAXSKScatterMixOp mOuterOp = GAXSKScatterMixOp::kInvalid;
-    bool mHasDomainMix = true;
     GAXSKDiffuseKind mDiffuse = GAXSKDiffuseKind::kInvalid;
 };
 
@@ -340,16 +334,16 @@ public:
                                                  bool pIgnoreNonces,
                                                  std::vector<int> pLaneCounts,
                                                  std::vector<GAXSKSourceLayout> pSourceLayouts,
-                                                 bool pHasDomainMix,
                                                  GAssignType pAssignType,
+                                                 GAXSKDiffuseKind pFixedDiffuse,
                                                  std::vector<GAXSKSkeleton> *pResult,
                                                  std::string *pErrorMessage);
 
     bool                                    Bake(GAXSFormat pFormat,
                                                  bool pIgnoreNonces,
                                                  std::vector<int> pLaneCounts,
-                                                 bool pHasDomainMix,
                                                  GAssignType pAssignType,
+                                                 GAXSKDiffuseKind pFixedDiffuse,
                                                  std::vector<GAXSKSkeleton> *pResult,
                                                  std::string *pErrorMessage);
     
@@ -380,6 +374,8 @@ public:
     GAXSKStatement                          MakePreviousAssignStatement();
     
     GAXSKStatement                          MakeCommentStatement();
+
+    GAXSKDiffuseKind                        SelectDiffuseKind() const;
     
     GAXSKModel                              MakeModelForFormatPass(GAXSFormat pFormat,
                                                                    int pPassIndex);
@@ -413,7 +409,7 @@ public:
     
     
     GAXSFormat                              mFormat = GAXSFormat::kInvalid;
-    bool                                    mHasDomainMix = false;
+    GAXSKDiffuseKind                        mFixedDiffuse = GAXSKDiffuseKind::kInvalid;
     std::vector<GAXSKPool *>                mPools;
     std::vector<int>                        mLaneCounts;
     

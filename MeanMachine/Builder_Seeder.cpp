@@ -22,6 +22,7 @@
 
 #include <array>
 #include <sstream>
+#include <utility>
 
 namespace {
 
@@ -51,50 +52,14 @@ const char *PhaseDisplayName(const TwistDomain pDomain) {
     }
 }
 
-const char *DomainLaneMemberName(const TwistDomain pDomain) {
-    switch (pDomain) {
-        case TwistDomain::kKeyRotateA:
-            return "mDomainLaneKeyRotateA";
-        case TwistDomain::kKeyRotateB:
-            return "mDomainLaneKeyRotateB";
-        case TwistDomain::kKeySpawnA:
-            return "mDomainLaneKeySpawnA";
-        case TwistDomain::kKeySpawnB:
-            return "mDomainLaneKeySpawnB";
-        case TwistDomain::kSeed:
-            return "mDomainLaneSeed";
-        case TwistDomain::kTwist:
-            return "mDomainLaneTwist";
-        default:
-            return "";
-    }
-}
-
-const char *DomainSquashName(const TwistDomain pDomain) {
-    switch (pDomain) {
-        case TwistDomain::kKeySpawnA:
-            return "SquashB";
-        case TwistDomain::kKeyRotateB:
-        case TwistDomain::kTwist:
-            return "SquashA";
-        case TwistDomain::kKeySpawnB:
-        case TwistDomain::kSeed:
-        case TwistDomain::kKeyRotateA:
-        default:
-            return "SquashC";
-    }
-}
-
 std::string UInt64Literal(const std::uint64_t pValue) {
     std::ostringstream aStream;
     aStream << "0x" << std::uppercase << std::hex << pValue << "ULL";
     return aStream.str();
 }
 
-void AddKDFStateReset(TwistProgramBranch &pBranch,
-                      const std::string &pPurpose) {
-    static constexpr std::array<const char *, 14> kStateNames = {
-        "aPrevious",
+void AddKDFStateReset(TwistProgramBranch &pBranch) {
+    static constexpr std::array<const char *, 13> kStateNames = {
         "aIngress",
         "aCarry",
         "aWandererA",
@@ -110,30 +75,38 @@ void AddKDFStateReset(TwistProgramBranch &pBranch,
         "aWandererK",
     };
 
-    pBranch.AddLine("// Reset ARX state for " + pPurpose + ".");
     for (const char *aStateName : kStateNames) {
         pBranch.AddLine(
             std::string(aStateName) + " = " +
             UInt64Literal(Random::Get64High()) + ";"
         );
     }
-    pBranch.AddLine("");
+    pBranch.AddLine("//");
 }
 
 void AddSeedPhaseHeader(TwistProgramBranch &pBranch,
                         const TwistDomain pDomain) {
-    pBranch.AddLine("////////////////////////////////////////////////////////");
-    pBranch.AddLine(std::string("////////        ") + PhaseDisplayName(pDomain));
-    pBranch.AddLine("////////");
-    pBranch.AddLine("");
+    pBranch.AddLine("//");
+    pBranch.AddLine(std::string("// ") + PhaseDisplayName(pDomain));
+    pBranch.AddLine("//");
 }
 
 void AddSeedPhaseFooter(TwistProgramBranch &pBranch) {
-    pBranch.AddLine("");
-    pBranch.AddLine("////////");
-    pBranch.AddLine("////////");
+    pBranch.AddLine("//");
     pBranch.AddLine("////////////////////////////////////////////////////////");
-    pBranch.AddLine("");
+}
+
+void AddFarmStatements(TwistProgramBranch &pBranch,
+                       const std::vector<GStatement> &pStatements) {
+    for (std::size_t aStatementIndex = 0U;
+         aStatementIndex < pStatements.size();
+         ++aStatementIndex) {
+        if (aStatementIndex > 0U) {
+            pBranch.AddLine("//");
+        }
+        pBranch.AddLine(pStatements[aStatementIndex].mRawLine);
+    }
+    pBranch.AddLine("//");
 }
 
 void AddSeedMatrixDomainWordLines(TwistProgramBranch &pBranch) {
@@ -191,14 +164,6 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         return false;
     }
 
-    pExpander->mSeed.AddLine("// [seed]");
-
-    std::vector<GSymbol> aPoisonLanes;
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA));
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneB));
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneC));
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneD));
-
     std::vector<GSymbol> aHeartLanes;
     aHeartLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kHeartLaneA));
     aHeartLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kHeartLaneB));
@@ -217,6 +182,12 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
     aCrystalLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kCrystalLaneC));
     aCrystalLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kCrystalLaneD));
 
+    std::vector<GSymbol> aVaporLanes;
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneA));
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneB));
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneC));
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneD));
+
     std::vector<TwistDomain> aDomains;
     aDomains.push_back(TwistDomain::kKeyRotateA);
     aDomains.push_back(TwistDomain::kKeyRotateB);
@@ -225,30 +196,14 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
     aDomains.push_back(TwistDomain::kTwist);
     aDomains.push_back(TwistDomain::kSeed);
 
-    std::vector<GSymbol> aSnowLanes;
-    aSnowLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnowLaneA));
-    aSnowLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnowLaneB));
-    aSnowLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnowLaneC));
-    aSnowLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kSnowLaneD));
-
-    const std::array<GSymbol, 3> aKDFSnowLanes = {
-        aSnowLanes[0],
-        aSnowLanes[1],
-        aSnowLanes[2],
-    };
-
     for (std::size_t aDomainIndex = 0U; aDomainIndex < aDomains.size(); ++aDomainIndex) {
         const std::string aDomainPartialName = PhaseSubWordName(aDomains[aDomainIndex]);
 
         AddSeedPhaseHeader(pExpander->mSeed, aDomains[aDomainIndex]);
-        AddKDFStateReset(
-            pExpander->mSeed,
-            PhaseDisplayName(aDomains[aDomainIndex])
-        );
+        AddKDFStateReset(pExpander->mSeed);
 
         std::vector<GStatement> aStatementsKDFA;
         GKDF_A aKDF_A;
-        aKDF_A.mKDFSnowLanes = aKDFSnowLanes;
         if (!aKDF_A.Bake(aDomains[aDomainIndex],
                          GKDFMaterialBundle::kInbuilt,
                          &aStatementsKDFA,
@@ -264,7 +219,7 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
             }
             pExpander->mSeed.AddLine(aStatement.mRawLine);
         }
-        pExpander->mSeed.AddLine("////////");
+        pExpander->mSeed.AddLine("//");
 
         std::vector<GStatement> aStatementsFarmA;
         GFarm aFarm;
@@ -281,19 +236,10 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
             return false;
         }
 
-        for (std::size_t aStatementIndex = 0U;
-             aStatementIndex < aStatementsFarmA.size();
-             ++aStatementIndex) {
-            if ((aStatementIndex + 1U) == aStatementsFarmA.size()) {
-                pExpander->mSeed.AddLine("////////");
-            }
-            pExpander->mSeed.AddLine(aStatementsFarmA[aStatementIndex].mRawLine);
-        }
-        pExpander->mSeed.AddLine("////////");
+        AddFarmStatements(pExpander->mSeed, aStatementsFarmA);
 
         std::vector<GStatement> aStatementsKDFB;
         GKDF_B aKDF_B;
-        aKDF_B.mKDFSnowLanes = aKDFSnowLanes;
         if (!aKDF_B.Bake(aDomains[aDomainIndex],
                          GKDFMaterialBundle::kEphemeral,
                          &aStatementsKDFB,
@@ -306,7 +252,7 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         for (const GStatement &aStatement : aStatementsKDFB) {
             pExpander->mSeed.AddLine(aStatement.mRawLine);
         }
-        pExpander->mSeed.AddLine("////////");
+        pExpander->mSeed.AddLine("//");
 
         //
         // KDF_B wood lanes -> workspace domain material.
@@ -326,20 +272,12 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
             }
             return false;
         }
-        pExpander->mSeed.AddLine(
-            "// wood lanes to pWorkSpace->mDomainBundle"
-        );
-        for (const GStatement &aStatement :
-             aStatementsFarmAfterKDFB) {
-            pExpander->mSeed.AddLine(aStatement.mRawLine);
-        }
-        pExpander->mSeed.AddLine("////////");
+        AddFarmStatements(pExpander->mSeed, aStatementsFarmAfterKDFB);
 
         std::vector<GStatement> aStatementsKDFC;
         GKDF_C aKDF_C;
-        aKDF_C.mKDFSnowLanes = aKDFSnowLanes;
         if (!aKDF_C.Bake(aDomains[aDomainIndex],
-                         GKDFMaterialBundle::kEphemeral,
+                         GKDFMaterialBundle::kWorkspace,
                          &aStatementsKDFC,
                          pErrorMessage)) {
             if (pErrorMessage != nullptr) {
@@ -350,7 +288,7 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         for (const GStatement &aStatement : aStatementsKDFC) {
             pExpander->mSeed.AddLine(aStatement.mRawLine);
         }
-        pExpander->mSeed.AddLine("////////");
+        pExpander->mSeed.AddLine("//");
 
         //
         // KDF_C crystal lanes -> ephemeral domain material.
@@ -370,18 +308,10 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
             }
             return false;
         }
-        pExpander->mSeed.AddLine(
-            "// crystal lanes to mDomainBundleEphemeral"
-        );
-        for (const GStatement &aStatement :
-             aStatementsFarmAfterKDFC) {
-            pExpander->mSeed.AddLine(aStatement.mRawLine);
-        }
-        pExpander->mSeed.AddLine("////////");
+        AddFarmStatements(pExpander->mSeed, aStatementsFarmAfterKDFC);
 
         std::vector<GStatement> aStatementsKDFD;
         GKDF_D aKDF_D;
-        aKDF_D.mKDFSnowLanes = aKDFSnowLanes;
         if (!aKDF_D.Bake(aDomains[aDomainIndex],
                          GKDFMaterialBundle::kEphemeral,
                          &aStatementsKDFD,
@@ -394,16 +324,16 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
         for (const GStatement &aStatement : aStatementsKDFD) {
             pExpander->mSeed.AddLine(aStatement.mRawLine);
         }
-        pExpander->mSeed.AddLine("////////");
+        pExpander->mSeed.AddLine("//");
 
         //
-        // KDF_D poison lanes -> final workspace domain material.
+        // KDF_D vapor lanes -> final workspace domain material.
         //
         std::vector<GStatement> aStatementsFarmAfterKDFD;
-        if (!aFarm.BakeWorkspace(aPoisonLanes[0],
-                                 aPoisonLanes[1],
-                                 aPoisonLanes[2],
-                                 aPoisonLanes[3],
+        if (!aFarm.BakeWorkspace(aVaporLanes[0],
+                                 aVaporLanes[1],
+                                 aVaporLanes[2],
+                                 aVaporLanes[3],
                                  aDomainPartialName,
                                  &aStatementsFarmAfterKDFD,
                                  pErrorMessage)) {
@@ -415,28 +345,15 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
             return false;
         }
 
-        pExpander->mSeed.AddLine(
-            "// poison lanes to pWorkSpace->mDomainBundle"
-        );
-        for (const GStatement &aStatement :
-             aStatementsFarmAfterKDFD) {
-            pExpander->mSeed.AddLine(aStatement.mRawLine);
-        }
-        pExpander->mSeed.AddLine("////////");
-        pExpander->mSeed.AddLine(
-            std::string("TwistSquash::") +
-            DomainSquashName(aDomains[aDomainIndex]) +
-            "(aPoisonLaneA, aPoisonLaneB, aPoisonLaneC, aPoisonLaneD, "
-            "pWorkSpace->" +
-            DomainLaneMemberName(aDomains[aDomainIndex]) +
-            ");"
-        );
-        pExpander->mSeed.AddLine("////////");
+        AddFarmStatements(pExpander->mSeed, aStatementsFarmAfterKDFD);
 
         AddSeedPhaseFooter(pExpander->mSeed);
     }
 
-    AddKDFStateReset(pExpander->mSeed, "Seed stages");
+    pExpander->mSeed.AddLine("//");
+    pExpander->mSeed.AddLine("// Seed stages");
+    pExpander->mSeed.AddLine("//");
+    AddKDFStateReset(pExpander->mSeed);
 
     return Build_PostKDF(pExpander,
                          pResidualBucket,
@@ -454,9 +371,37 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
         return false;
     }
 
+    //
+    // Seed lane plan
+    //
+    // A: Source + Nonce -> Spirit A-B + Magma A-D
+    // B: Magma A-D -> Spirit C-D + Crystal A-D
+    // C: Crystal A-D -> Fuse A-D
+    //    diffuse -> Wind A-D
+    //
+    // D: Wind A-D -> Vapor A-B + Shadow A-D
+    // E: Shadow A-D -> Vapor C-D + Kinetic A-D
+    // F: Kinetic A-D -> Fuse A-D
+    //    diffuse -> Aether A-D
+    //
+    // G: Aether A-D -> Earth A-B + Fire A-D
+    // H: Fire A-D -> Earth C-D + Water A-D
+    // I: Water A-D -> Fuse A-D
+    //    diffuse -> Heart A-D
+    //
+    // J: Heart A-D -> Lightning A-B + Soil A-D
+    // K: Soil A-D -> Lightning C-D + Ice A-D
+    // L: Ice A-D -> Fuse A-D
+    //    diffuse -> Wood A-D
+    //
+    // M: Wood A-D -> Plasma A-B + Magma A-D
+    // N: Magma A-D -> Plasma C-D + Crystal A-D
+    //
+
     const GSeedRunSeedConfig::SeedStageConfigs aBuiltStageConfigs =
         GSeedRunSeedConfig::MakeSeedConfig(true,
-                                           pResidualBucket);
+                                           pResidualBucket,
+                                           pExpander->mControlCandidateIndex);
     std::vector<GSeedRunStageConfig> aStageConfigs(
         aBuiltStageConfigs.begin(),
         aBuiltStageConfigs.end());
@@ -475,11 +420,11 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneC));
     aEarthLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kEarthLaneD));
 
-    std::vector<GSymbol> aFireLanes;
-    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneA));
-    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneB));
-    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneC));
-    aFireLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFireLaneD));
+    std::vector<GSymbol> aWaterLanes;
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneA));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneB));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneC));
+    aWaterLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWaterLaneD));
 
     std::vector<GSymbol> aWindLanes;
     aWindLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWindLaneA));
@@ -505,17 +450,11 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     aLightningLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kLightningLaneC));
     aLightningLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kLightningLaneD));
 
-    std::vector<GSymbol> aPlasmaLanes;
-    aPlasmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneA));
-    aPlasmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneB));
-    aPlasmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneC));
-    aPlasmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneD));
-
-    std::vector<GSymbol> aMagmaLanes;
-    aMagmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kMagmaLaneA));
-    aMagmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kMagmaLaneB));
-    aMagmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kMagmaLaneC));
-    aMagmaLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kMagmaLaneD));
+    std::vector<GSymbol> aSpiritLanes;
+    aSpiritLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kSpiritLaneA));
+    aSpiritLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kSpiritLaneB));
+    aSpiritLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kSpiritLaneC));
+    aSpiritLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kSpiritLaneD));
 
     std::vector<GSymbol> aCrystalLanes;
     aCrystalLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kCrystalLaneA));
@@ -529,25 +468,23 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     aAetherLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kAetherLaneC));
     aAetherLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kAetherLaneD));
 
-    std::vector<GSymbol> aCelestialLanes;
-    aCelestialLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kCelestialLaneA));
-    aCelestialLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kCelestialLaneB));
-    aCelestialLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kCelestialLaneC));
-    aCelestialLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kCelestialLaneD));
+    std::vector<GSymbol> aVaporLanes;
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneA));
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneB));
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneC));
+    aVaporLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kVaporLaneD));
+
+    std::vector<GSymbol> aKineticLanes;
+    aKineticLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kKineticLaneA));
+    aKineticLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kKineticLaneB));
+    aKineticLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kKineticLaneC));
+    aKineticLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kKineticLaneD));
 
     std::vector<GSymbol> aWoodLanes;
     aWoodLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWoodLaneA));
     aWoodLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWoodLaneB));
     aWoodLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWoodLaneC));
     aWoodLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kWoodLaneD));
-
-    std::vector<GSymbol> aPoisonLanes;
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA));
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneB));
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneC));
-    aPoisonLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kPoisonLaneD));
-
-
 
     for (std::size_t i = 0U; i < 3U; ++i) {
         const std::string aStageName =
@@ -571,19 +508,19 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     aDiffusionA.mInputB = aFuseLanes[1];
     aDiffusionA.mInputC = aFuseLanes[2];
     aDiffusionA.mInputD = aFuseLanes[3];
-    aDiffusionA.mOutputA = aHeartLanes[0];
-    aDiffusionA.mOutputB = aHeartLanes[1];
-    aDiffusionA.mOutputC = aHeartLanes[2];
-    aDiffusionA.mOutputD = aHeartLanes[3];
+    aDiffusionA.mOutputA = aWindLanes[0];
+    aDiffusionA.mOutputB = aWindLanes[1];
+    aDiffusionA.mOutputC = aWindLanes[2];
+    aDiffusionA.mOutputD = aWindLanes[3];
 
     // Previous six:
-    //   Plasma C, Plasma D, Magma A, Magma B, Magma C, Magma D
-    aDiffusionA.mShuffleEntropyA = aPlasmaLanes[2];
-    aDiffusionA.mShuffleEntropyB = aPlasmaLanes[3];
-    aDiffusionA.mShuffleEntropyC = aMagmaLanes[2];
-    aDiffusionA.mShuffleEntropyD = aMagmaLanes[3];
-    aDiffusionA.mOperationSourceA = aMagmaLanes[0];
-    aDiffusionA.mOperationSourceB = aMagmaLanes[1];
+    //   Spirit C, Spirit D, Crystal A, Crystal B, Crystal C, Crystal D
+    aDiffusionA.mShuffleEntropyA = aSpiritLanes[2];
+    aDiffusionA.mShuffleEntropyB = aSpiritLanes[3];
+    aDiffusionA.mShuffleEntropyC = aCrystalLanes[2];
+    aDiffusionA.mShuffleEntropyD = aCrystalLanes[3];
+    aDiffusionA.mOperationSourceA = aCrystalLanes[0];
+    aDiffusionA.mOperationSourceB = aCrystalLanes[1];
 
     GBatch aBatchDiffusionA;
     if (!GRunMatrixDiffusion::Bake(aDiffusionA,
@@ -616,19 +553,19 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     aDiffusionB.mInputB = aFuseLanes[1];
     aDiffusionB.mInputC = aFuseLanes[2];
     aDiffusionB.mInputD = aFuseLanes[3];
-    aDiffusionB.mOutputA = aWindLanes[0];
-    aDiffusionB.mOutputB = aWindLanes[1];
-    aDiffusionB.mOutputC = aWindLanes[2];
-    aDiffusionB.mOutputD = aWindLanes[3];
+    aDiffusionB.mOutputA = aAetherLanes[0];
+    aDiffusionB.mOutputB = aAetherLanes[1];
+    aDiffusionB.mOutputC = aAetherLanes[2];
+    aDiffusionB.mOutputD = aAetherLanes[3];
 
     // Previous six:
-    //   Crystal C, Crystal D, Earth A, Earth B, Earth C, Earth D
-    aDiffusionB.mShuffleEntropyA = aCrystalLanes[2];
-    aDiffusionB.mShuffleEntropyB = aCrystalLanes[3];
-    aDiffusionB.mShuffleEntropyC = aEarthLanes[2];
-    aDiffusionB.mShuffleEntropyD = aEarthLanes[3];
-    aDiffusionB.mOperationSourceA = aEarthLanes[0];
-    aDiffusionB.mOperationSourceB = aEarthLanes[1];
+    //   Vapor C, Vapor D, Kinetic A, Kinetic B, Kinetic C, Kinetic D
+    aDiffusionB.mShuffleEntropyA = aVaporLanes[2];
+    aDiffusionB.mShuffleEntropyB = aVaporLanes[3];
+    aDiffusionB.mShuffleEntropyC = aKineticLanes[2];
+    aDiffusionB.mShuffleEntropyD = aKineticLanes[3];
+    aDiffusionB.mOperationSourceA = aKineticLanes[0];
+    aDiffusionB.mOperationSourceB = aKineticLanes[1];
 
     GBatch aBatchDiffusionB;
     if (!GRunMatrixDiffusion::Bake(aDiffusionB,
@@ -661,18 +598,18 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     aDiffusionC.mInputB = aFuseLanes[1];
     aDiffusionC.mInputC = aFuseLanes[2];
     aDiffusionC.mInputD = aFuseLanes[3];
-    aDiffusionC.mOutputA = aCelestialLanes[0];
-    aDiffusionC.mOutputB = aCelestialLanes[1];
-    aDiffusionC.mOutputC = aCelestialLanes[2];
-    aDiffusionC.mOutputD = aCelestialLanes[3];
+    aDiffusionC.mOutputA = aHeartLanes[0];
+    aDiffusionC.mOutputB = aHeartLanes[1];
+    aDiffusionC.mOutputC = aHeartLanes[2];
+    aDiffusionC.mOutputD = aHeartLanes[3];
     // Previous six:
-    //   Aether C, Aether D, Fire A, Fire B, Fire C, Fire D
-    aDiffusionC.mShuffleEntropyA = aAetherLanes[2];
-    aDiffusionC.mShuffleEntropyB = aAetherLanes[3];
-    aDiffusionC.mShuffleEntropyC = aFireLanes[2];
-    aDiffusionC.mShuffleEntropyD = aFireLanes[3];
-    aDiffusionC.mOperationSourceA = aFireLanes[0];
-    aDiffusionC.mOperationSourceB = aFireLanes[1];
+    //   Earth C, Earth D, Water A, Water B, Water C, Water D
+    aDiffusionC.mShuffleEntropyA = aEarthLanes[2];
+    aDiffusionC.mShuffleEntropyB = aEarthLanes[3];
+    aDiffusionC.mShuffleEntropyC = aWaterLanes[2];
+    aDiffusionC.mShuffleEntropyD = aWaterLanes[3];
+    aDiffusionC.mOperationSourceA = aWaterLanes[0];
+    aDiffusionC.mOperationSourceB = aWaterLanes[1];
 
     GBatch aBatchDiffusionC;
     if (!GRunMatrixDiffusion::Bake(aDiffusionC,
@@ -770,17 +707,20 @@ bool Builder_Seeder::Build_PostKDF(GTwistExpander *pExpander,
     );
 
     pExpander->mSeed.AddLine("//");
-    pExpander->mSeed.AddLine("// [KEY — sixteen key rows, lane splits A-P]");
+    pExpander->mSeed.AddLine("// [KEY — sixteen key-row functions, lane splits A-P]");
     pExpander->mSeed.AddLine("//");
-    GSeedRunKEY aKeyBox(aKeyBoxConfigs[0]);
-    if (!aKeyBox.Plan(pErrorMessage) ||
-        !aKeyBox.Build(pExpander->mSeed, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage =
-                "Builder_Seeder failed on GSeedRunKEY:\n" +
-                *pErrorMessage;
+    for (std::size_t i = 0U; i < aKeyBoxConfigs.size(); ++i) {
+        GSeedRunKEY aKeyBox(aKeyBoxConfigs[i]);
+        if (!aKeyBox.Plan(pErrorMessage) ||
+            !aKeyBox.Build(pExpander->mSeed, pErrorMessage)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "Builder_Seeder failed on " +
+                    aKeyBoxConfigs[i].mStageName + ":\n" +
+                    *pErrorMessage;
+            }
+            return false;
         }
-        return false;
     }
     return true;
 }

@@ -10,11 +10,9 @@
 #include "TwistExpander.hpp"
 #include "TwistDiffuse.hpp"
 #include "TwistFunctional.hpp"
-#include "TwistIndexShuffle.hpp"
-#include "TwistMemory.hpp"
+#include "TwistShuffle.hpp"
 #include "TwistMix32.hpp"
 #include "TwistShiftBox.hpp"
-#include "TwistSnow.hpp"
 #include "TwistSquash.hpp"
 
 #include <algorithm>
@@ -79,7 +77,10 @@ bool IsDeclarableScalarName(const std::string &pName) {
 
 bool IsParameterVariableName(const std::string &pName) {
     return (pName == "pNonce") ||
-           (pName == "pSnow") ||
+           (pName == "pCrossLaneA") ||
+           (pName == "pCrossLaneB") ||
+           (pName == "pCrossLaneC") ||
+           (pName == "pCrossLaneD") ||
            (pName == "pSource") ||
            (pName == "pDestination") ||
            (pName == "pInput") ||
@@ -91,15 +92,23 @@ bool IsParameterBufferSymbol(const GSymbol &pSymbol) {
            ((pSymbol.mName == "pSource") ||
             (pSymbol.mName == "pDestination") ||
             (pSymbol.mName == "pInput") ||
-            (pSymbol.mName == "pOutput"));
+            (pSymbol.mName == "pOutput") ||
+            (pSymbol.mName == "pCrossLaneA") ||
+            (pSymbol.mName == "pCrossLaneB") ||
+            (pSymbol.mName == "pCrossLaneC") ||
+            (pSymbol.mName == "pCrossLaneD"));
 }
 
 bool IsImplicitPointerSlot(const TwistWorkSpaceSlot pSlot) {
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource:
+        case TwistWorkSpaceSlot::kSourceLane:
+        case TwistWorkSpaceSlot::kNonceLane:
         case TwistWorkSpaceSlot::kParamSource:
         case TwistWorkSpaceSlot::kParamDestination:
-        case TwistWorkSpaceSlot::kParamSnow:
+        case TwistWorkSpaceSlot::kParamCrossA:
+        case TwistWorkSpaceSlot::kParamCrossB:
+        case TwistWorkSpaceSlot::kParamCrossC:
+        case TwistWorkSpaceSlot::kParamCrossD:
             return true;
         default:
             return false;
@@ -135,7 +144,7 @@ void AppendUniqueVariableName(std::vector<std::string> *pNames,
 bool IsPhaseSaltSlot(const TwistWorkSpaceSlot pSlot) {
     const int aValue = static_cast<int>(pSlot);
     const int aBase = static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA);
-    const int aCount = 18 * 6;
+    const int aCount = 24 * 6;
     return (aValue >= aBase) && (aValue < (aBase + aCount));
 }
 
@@ -144,7 +153,7 @@ void AppendPhaseSaltSlots(std::vector<TwistWorkSpaceSlot> *pSlots) {
         return;
     }
     const int aBase = static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA);
-    const int aCount = 18 * 6;
+    const int aCount = 24 * 6;
     for (int aOffset = 0; aOffset < aCount; ++aOffset) {
         pSlots->push_back(static_cast<TwistWorkSpaceSlot>(aBase + aOffset));
     }
@@ -152,7 +161,8 @@ void AppendPhaseSaltSlots(std::vector<TwistWorkSpaceSlot> *pSlots) {
 
 std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
     std::vector<TwistWorkSpaceSlot> aSlots = {
-        TwistWorkSpaceSlot::kSource,
+        TwistWorkSpaceSlot::kSourceLane,
+        TwistWorkSpaceSlot::kNonceLane,
         TwistWorkSpaceSlot::kParamSource,
         TwistWorkSpaceSlot::kParamDestination,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA,
@@ -161,34 +171,36 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignG,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignH,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE,
         TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateG,
+        TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateH,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateG,
+        TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateH,
         TwistWorkSpaceSlot::kHeartLaneA,
         TwistWorkSpaceSlot::kHeartLaneB,
         TwistWorkSpaceSlot::kHeartLaneC,
         TwistWorkSpaceSlot::kHeartLaneD,
-        TwistWorkSpaceSlot::kPoisonLaneA,
-        TwistWorkSpaceSlot::kPoisonLaneB,
-        TwistWorkSpaceSlot::kPoisonLaneC,
-        TwistWorkSpaceSlot::kPoisonLaneD,
         TwistWorkSpaceSlot::kSpiritLaneA,
         TwistWorkSpaceSlot::kSpiritLaneB,
         TwistWorkSpaceSlot::kSpiritLaneC,
         TwistWorkSpaceSlot::kSpiritLaneD,
-        TwistWorkSpaceSlot::kSnowLaneA,
-        TwistWorkSpaceSlot::kSnowLaneB,
-        TwistWorkSpaceSlot::kSnowLaneC,
-        TwistWorkSpaceSlot::kSnowLaneD,
+        TwistWorkSpaceSlot::kParamCrossA,
+        TwistWorkSpaceSlot::kParamCrossB,
+        TwistWorkSpaceSlot::kParamCrossC,
+        TwistWorkSpaceSlot::kParamCrossD,
         TwistWorkSpaceSlot::kFireLaneA,
         TwistWorkSpaceSlot::kFireLaneB,
         TwistWorkSpaceSlot::kFireLaneC,
@@ -253,16 +265,6 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kVaporLaneB,
         TwistWorkSpaceSlot::kVaporLaneC,
         TwistWorkSpaceSlot::kVaporLaneD,
-        TwistWorkSpaceSlot::kChanceLaneA,
-        TwistWorkSpaceSlot::kChanceLaneB,
-        TwistWorkSpaceSlot::kChanceLaneC,
-        TwistWorkSpaceSlot::kChanceLaneD,
-        TwistWorkSpaceSlot::kDomainLaneKeyRotateA,
-        TwistWorkSpaceSlot::kDomainLaneKeyRotateB,
-        TwistWorkSpaceSlot::kDomainLaneKeySpawnA,
-        TwistWorkSpaceSlot::kDomainLaneKeySpawnB,
-        TwistWorkSpaceSlot::kDomainLaneSeed,
-        TwistWorkSpaceSlot::kDomainLaneTwist,
         TwistWorkSpaceSlot::kIceLaneA,
         TwistWorkSpaceSlot::kIceLaneB,
         TwistWorkSpaceSlot::kIceLaneC,
@@ -293,7 +295,6 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kKeyRowB5,
         TwistWorkSpaceSlot::kKeyRowB6,
         TwistWorkSpaceSlot::kKeyRowB7,
-        TwistWorkSpaceSlot::kParamSnow,
     };
     AppendPhaseSaltSlots(&aSlots);
     return aSlots;
@@ -310,7 +311,8 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
     }
 
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource: return "source";
+        case TwistWorkSpaceSlot::kSourceLane: return "source";
+        case TwistWorkSpaceSlot::kNonceLane: return "nonce";
         case TwistWorkSpaceSlot::kParamSource: return "param_source";
         case TwistWorkSpaceSlot::kParamDestination: return "param_destination";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA: return "param_domain_salt_orbiter_init_a";
@@ -319,34 +321,36 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignD: return "param_domain_salt_orbiter_init_d";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignE: return "param_domain_salt_orbiter_init_e";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignF: return "param_domain_salt_orbiter_init_f";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignG: return "param_domain_salt_orbiter_init_g";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignH: return "param_domain_salt_orbiter_init_h";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateA: return "param_domain_salt_orbiter_a";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateB: return "param_domain_salt_orbiter_b";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateC: return "param_domain_salt_orbiter_c";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateD: return "param_domain_salt_orbiter_d";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateE: return "param_domain_salt_orbiter_e";
         case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateF: return "param_domain_salt_orbiter_f";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateG: return "param_domain_salt_orbiter_g";
+        case TwistWorkSpaceSlot::kParamDomainSaltOrbiterUpdateH: return "param_domain_salt_orbiter_h";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateA: return "param_domain_salt_Wanderer_a";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateB: return "param_domain_salt_Wanderer_b";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateC: return "param_domain_salt_Wanderer_c";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateD: return "param_domain_salt_Wanderer_d";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateE: return "param_domain_salt_Wanderer_e";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF: return "param_domain_salt_Wanderer_f";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateG: return "param_domain_salt_Wanderer_g";
+        case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateH: return "param_domain_salt_Wanderer_h";
         case TwistWorkSpaceSlot::kHeartLaneA: return "seed_lane_a";
         case TwistWorkSpaceSlot::kHeartLaneB: return "seed_lane_b";
         case TwistWorkSpaceSlot::kHeartLaneC: return "seed_lane_c";
         case TwistWorkSpaceSlot::kHeartLaneD: return "seed_lane_d";
-        case TwistWorkSpaceSlot::kPoisonLaneA: return "work_lane_a";
-        case TwistWorkSpaceSlot::kPoisonLaneB: return "work_lane_b";
-        case TwistWorkSpaceSlot::kPoisonLaneC: return "work_lane_c";
-        case TwistWorkSpaceSlot::kPoisonLaneD: return "work_lane_d";
         case TwistWorkSpaceSlot::kSpiritLaneA: return "operation_lane_a";
         case TwistWorkSpaceSlot::kSpiritLaneB: return "operation_lane_b";
         case TwistWorkSpaceSlot::kSpiritLaneC: return "operation_lane_c";
         case TwistWorkSpaceSlot::kSpiritLaneD: return "operation_lane_d";
-        case TwistWorkSpaceSlot::kSnowLaneA: return "snow_lane_a";
-        case TwistWorkSpaceSlot::kSnowLaneB: return "snow_lane_b";
-        case TwistWorkSpaceSlot::kSnowLaneC: return "snow_lane_c";
-        case TwistWorkSpaceSlot::kSnowLaneD: return "snow_lane_d";
+        case TwistWorkSpaceSlot::kParamCrossA: return "param_cross_a";
+        case TwistWorkSpaceSlot::kParamCrossB: return "param_cross_b";
+        case TwistWorkSpaceSlot::kParamCrossC: return "param_cross_c";
+        case TwistWorkSpaceSlot::kParamCrossD: return "param_cross_d";
         case TwistWorkSpaceSlot::kFireLaneA: return "fire_lane_a";
         case TwistWorkSpaceSlot::kFireLaneB: return "fire_lane_b";
         case TwistWorkSpaceSlot::kFireLaneC: return "fire_lane_c";
@@ -411,17 +415,6 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kVaporLaneB: return "vapor_lane_b";
         case TwistWorkSpaceSlot::kVaporLaneC: return "vapor_lane_c";
         case TwistWorkSpaceSlot::kVaporLaneD: return "vapor_lane_d";
-        case TwistWorkSpaceSlot::kChanceLaneA: return "chance_lane_a";
-        case TwistWorkSpaceSlot::kChanceLaneB: return "chance_lane_b";
-        case TwistWorkSpaceSlot::kChanceLaneC: return "chance_lane_c";
-        case TwistWorkSpaceSlot::kChanceLaneD: return "chance_lane_d";
-        case TwistWorkSpaceSlot::kDomainLaneKeyRotateA: return "domain_lane_key_rotate_a";
-        case TwistWorkSpaceSlot::kDomainLaneKeyRotateB: return "domain_lane_key_rotate_b";
-        case TwistWorkSpaceSlot::kDomainLaneKeySpawnA: return "domain_lane_key_spawn_a";
-        case TwistWorkSpaceSlot::kDomainLaneKeySpawnB: return "domain_lane_key_spawn_b";
-        case TwistWorkSpaceSlot::kDomainLaneSeed: return "domain_lane_seed";
-        case TwistWorkSpaceSlot::kDomainLaneTwist: return "domain_lane_twist";
-        case TwistWorkSpaceSlot::kParamSnow: return "param_snow";
         case TwistWorkSpaceSlot::kIceLaneA: return "invest_lane_a";
         case TwistWorkSpaceSlot::kIceLaneB: return "invest_lane_b";
         case TwistWorkSpaceSlot::kIceLaneC: return "invest_lane_c";
@@ -475,8 +468,20 @@ bool SlotFromToken(const std::string &pToken,
         *pSlot = TwistWorkSpaceSlot::kParamDestination;
         return true;
     }
-    if ((pToken == "snow") || (pToken == "param_snow")) {
-        *pSlot = TwistWorkSpaceSlot::kParamSnow;
+    if ((pToken == "cross_a") || (pToken == "param_cross_a")) {
+        *pSlot = TwistWorkSpaceSlot::kParamCrossA;
+        return true;
+    }
+    if ((pToken == "cross_b") || (pToken == "param_cross_b")) {
+        *pSlot = TwistWorkSpaceSlot::kParamCrossB;
+        return true;
+    }
+    if ((pToken == "cross_c") || (pToken == "param_cross_c")) {
+        *pSlot = TwistWorkSpaceSlot::kParamCrossC;
+        return true;
+    }
+    if ((pToken == "cross_d") || (pToken == "param_cross_d")) {
+        *pSlot = TwistWorkSpaceSlot::kParamCrossD;
         return true;
     }
 
@@ -877,8 +882,12 @@ bool ResolveRuntimeAliasSlot(const std::string &pAlias,
     }
 
     const std::string aAlias = TrimRuntimeLine(pAlias);
-    if ((aAlias == "aSource") || (aAlias == "mSource")) {
-        *pSlotOut = TwistWorkSpaceSlot::kSource;
+    if ((aAlias == "aSource") || (aAlias == "mSourceLane")) {
+        *pSlotOut = TwistWorkSpaceSlot::kSourceLane;
+        return true;
+    }
+    if ((aAlias == "aNonceLane") || (aAlias == "mNonceLane")) {
+        *pSlotOut = TwistWorkSpaceSlot::kNonceLane;
         return true;
     }
     if ((aAlias == "pSource") || (aAlias == "pSourceInput") || (aAlias == "pInput")) {
@@ -1127,63 +1136,6 @@ void CollectRuntimeDiffuseSlots(const std::string &pRawLine,
     }
 }
 
-void CollectRuntimeMemorySlots(const std::string &pRawLine,
-                               std::vector<TwistWorkSpaceSlot> *pSlots) {
-    if (pSlots == nullptr) {
-        return;
-    }
-
-    std::string aLine = pRawLine;
-    const std::size_t aComment = aLine.find("//");
-    if (aComment != std::string::npos) {
-        aLine = aLine.substr(0U, aComment);
-    }
-    aLine = TrimRuntimeLine(aLine);
-    if (!aLine.empty() && (aLine.back() == ';')) {
-        aLine.pop_back();
-        aLine = TrimRuntimeLine(aLine);
-    }
-
-    const std::string aPrefix = "TwistMemory::";
-    if (aLine.rfind(aPrefix, 0U) != 0U) {
-        return;
-    }
-
-    const std::size_t aOpen = aLine.find('(', aPrefix.size());
-    const std::size_t aClose = aLine.rfind(')');
-    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
-        return;
-    }
-
-    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
-    std::vector<std::string> aArgs;
-    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs)) {
-        return;
-    }
-
-    std::size_t aBufferArgumentCount = 0U;
-    if ((aMethod == "ZeroBlock") ||
-        (aMethod == "ZeroKeyBoxA") ||
-        (aMethod == "ZeroKeyBoxB")) {
-        aBufferArgumentCount = 1U;
-    } else if (aMethod == "Copy") {
-        aBufferArgumentCount = 2U;
-    }
-
-    for (std::size_t aArgumentIndex = 0U; (aArgumentIndex < aBufferArgumentCount) && (aArgumentIndex < aArgs.size()); aArgumentIndex += 1U) {
-        std::string aAlias = TrimRuntimeLine(aArgs[aArgumentIndex]);
-        const std::size_t aPlus = aAlias.find('+');
-        if (aPlus != std::string::npos) {
-            aAlias = TrimRuntimeLine(aAlias.substr(0U, aPlus));
-        }
-
-        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
-        if (ResolveRuntimeAliasSlot(aAlias, &aSlot)) {
-            AppendUnique(pSlots, aSlot);
-        }
-    }
-}
-
 bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
                                  TwistWorkSpace *pWorkSpace,
                                  TwistExpander *pExpander,
@@ -1313,7 +1265,7 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
         aLine = TrimRuntimeLine(aLine);
     }
 
-    const std::string aPrefix = "TwistIndexShuffle::Execute";
+    const std::string aPrefix = "TwistShuffle::Execute";
     if (aLine.rfind(aPrefix, 0U) != 0U) {
         return true;
     }
@@ -1358,133 +1310,8 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
     }
 
     std::size_t *aDest = reinterpret_cast<std::size_t *>(aDestBytes);
-    TwistIndexShuffle::Execute(aDest, aSourceBytes);
+    TwistShuffle::Execute(aDest, aSourceBytes);
     return true;
-}
-
-bool ExecuteRuntimeRawMemoryLine(const std::string &pRawLine,
-                                 TwistWorkSpace *pWorkSpace,
-                                 TwistExpander *pExpander,
-                                 bool *pExecuted,
-                                 std::string *pError) {
-    if (pExecuted != nullptr) {
-        *pExecuted = false;
-    }
-    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
-        return true;
-    }
-
-    std::string aLine = pRawLine;
-    const std::size_t aComment = aLine.find("//");
-    if (aComment != std::string::npos) {
-        aLine = aLine.substr(0U, aComment);
-    }
-    aLine = TrimRuntimeLine(aLine);
-    if (!aLine.empty() && (aLine.back() == ';')) {
-        aLine.pop_back();
-        aLine = TrimRuntimeLine(aLine);
-    }
-
-    const std::string aPrefix = "TwistMemory::";
-    if (aLine.rfind(aPrefix, 0U) != 0U) {
-        return true;
-    }
-    if (pExecuted != nullptr) {
-        *pExecuted = true;
-    }
-
-    const std::size_t aOpen = aLine.find('(', aPrefix.size());
-    const std::size_t aClose = aLine.rfind(')');
-    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
-        SetError(pError, "Memory call was malformed.");
-        return false;
-    }
-
-    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
-    std::vector<std::string> aArgs;
-    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs)) {
-        SetError(pError, "Memory call arguments were malformed.");
-        return false;
-    }
-
-    auto ResolveBufferArg = [&](const std::string &pArg, std::uint8_t **pBufferOut) -> bool {
-        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
-        if (!ResolveRuntimeAliasSlot(pArg, &aSlot)) {
-            SetError(pError, "Memory buffer argument was invalid: " + pArg);
-            return false;
-        }
-        *pBufferOut = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSlot);
-        if (*pBufferOut == nullptr) {
-            SetError(pError, "Memory buffer argument resolved to null: " + pArg);
-            return false;
-        }
-        return true;
-    };
-
-    if ((aMethod == "ZeroBlock") ||
-        (aMethod == "ZeroKeyBoxA") ||
-        (aMethod == "ZeroKeyBoxB")) {
-        if (aArgs.size() != 1U) {
-            SetError(pError, "Memory zero call expected 1 argument.");
-            return false;
-        }
-        std::uint8_t *aBuffer = nullptr;
-        if (!ResolveBufferArg(aArgs[0], &aBuffer)) {
-            return false;
-        }
-        if (aMethod == "ZeroBlock") {
-            TwistMemory::ZeroBlock(aBuffer);
-        } else if (aMethod == "ZeroKeyBoxA") {
-            TwistMemory::ZeroKeyBoxA(aBuffer);
-        } else if (aMethod == "ZeroKeyBoxB") {
-            TwistMemory::ZeroKeyBoxB(aBuffer);
-        }
-        return true;
-    }
-
-    if (aMethod == "Copy") {
-        if (aArgs.size() != 3U) {
-            SetError(pError, "Memory copy call expected 3 arguments.");
-            return false;
-        }
-        std::uint8_t *aDest = nullptr;
-        std::uint8_t *aSource = nullptr;
-        if (!ResolveBufferArg(aArgs[0], &aDest) ||
-            !ResolveBufferArg(aArgs[1], &aSource)) {
-            return false;
-        }
-        std::string aLengthToken = TrimRuntimeLine(aArgs[2]);
-        if (!aLengthToken.empty() && ((aLengthToken.back() == 'U') || (aLengthToken.back() == 'u'))) {
-            aLengthToken.pop_back();
-        }
-        int aLength = 0;
-        if (!ParseRuntimeIntToken(aLengthToken, nullptr, &aLength) || (aLength < 0)) {
-            SetError(pError, "Memory copy length was invalid: " + aArgs[2]);
-            return false;
-        }
-        TwistMemory::Copy(aDest, aSource, static_cast<std::uint32_t>(aLength));
-        return true;
-    }
-
-    if (aMethod == "SwapBlock") {
-        if (aArgs.size() != 3U) {
-            SetError(pError, "Memory swap call expected 3 arguments.");
-            return false;
-        }
-        std::uint8_t *aBufferA = nullptr;
-        std::uint8_t *aBufferB = nullptr;
-        std::uint8_t *aTemp = nullptr;
-        if (!ResolveBufferArg(aArgs[0], &aBufferA) ||
-            !ResolveBufferArg(aArgs[1], &aBufferB) ||
-            !ResolveBufferArg(aArgs[2], &aTemp)) {
-            return false;
-        }
-        TwistMemory::SwapBlock(aBufferA, aBufferB, aTemp);
-        return true;
-    }
-
-    SetError(pError, "Memory call method was unsupported: " + aMethod);
-    return false;
 }
 
 bool ExecuteRuntimeRawSquashLine(const std::string &pRawLine,
@@ -1774,89 +1601,6 @@ bool ExecuteRuntimeRawShiftBoxLine(const std::string &pRawLine,
         TwistShiftBox::ShiftKeyBoxB(pWorkSpace);
     } else {
         SetError(pError, "ShiftBox call method was unsupported: " + aMethod);
-        return false;
-    }
-
-    return true;
-}
-
-bool ExecuteRuntimeRawSnowLine(const std::string &pRawLine,
-                               TwistWorkSpace *pWorkSpace,
-                               TwistExpander *pExpander,
-                               bool *pExecuted,
-                               std::string *pError) {
-    if (pExecuted != nullptr) {
-        *pExecuted = false;
-    }
-    if ((pWorkSpace == nullptr) || (pExpander == nullptr)) {
-        return true;
-    }
-
-    std::string aLine = pRawLine;
-    const std::size_t aComment = aLine.find("//");
-    if (aComment != std::string::npos) {
-        aLine = aLine.substr(0U, aComment);
-    }
-    aLine = TrimRuntimeLine(aLine);
-    if (!aLine.empty() && (aLine.back() == ';')) {
-        aLine.pop_back();
-        aLine = TrimRuntimeLine(aLine);
-    }
-
-    const std::string aPrefix = "TwistSnow::";
-    if (aLine.rfind(aPrefix, 0U) != 0U) {
-        return true;
-    }
-    if (pExecuted != nullptr) {
-        *pExecuted = true;
-    }
-
-    const std::size_t aOpen = aLine.find('(', aPrefix.size());
-    const std::size_t aClose = aLine.rfind(')');
-    if ((aOpen == std::string::npos) || (aClose == std::string::npos) || (aClose < aOpen)) {
-        SetError(pError, "Snow call was malformed.");
-        return false;
-    }
-
-    const std::string aMethod = aLine.substr(aPrefix.size(), aOpen - aPrefix.size());
-    std::vector<std::string> aArgs;
-    if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs) ||
-        (aArgs.size() != 2U)) {
-        SetError(pError, "Snow counter call expected 2 arguments.");
-        return false;
-    }
-
-    auto ResolveBufferArg = [&](const std::string &pArg, std::uint8_t **pBufferOut) -> bool {
-        TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
-        if (!ResolveRuntimeAliasSlot(pArg, &aSlot)) {
-            SetError(pError, "Snow buffer argument was invalid: " + pArg);
-            return false;
-        }
-        *pBufferOut = ResolveRuntimeBufferSlot(pWorkSpace, pExpander, aSlot);
-        if (*pBufferOut == nullptr) {
-            SetError(pError, "Snow buffer argument resolved to null: " + pArg);
-            return false;
-        }
-        return true;
-    };
-
-    std::uint8_t *aSource = nullptr;
-    std::uint8_t *aDest = nullptr;
-    if (!ResolveBufferArg(aArgs[0], &aSource) ||
-        !ResolveBufferArg(aArgs[1], &aDest)) {
-        return false;
-    }
-
-    if (aMethod == "AES256Counter") {
-        TwistSnow::AES256Counter(aSource, aDest);
-    } else if (aMethod == "ChaCha20Counter") {
-        TwistSnow::ChaCha20Counter(aSource, aDest);
-    } else if (aMethod == "Sha256Counter") {
-        TwistSnow::Sha256Counter(aSource, aDest);
-    } else if (aMethod == "Aria256Counter") {
-        TwistSnow::Aria256Counter(aSource, aDest);
-    } else {
-        SetError(pError, "Snow call method was unsupported: " + aMethod);
         return false;
     }
 
@@ -2273,21 +2017,14 @@ int ScalarDeclarationOrder(const std::string &pName) {
 }
 
 bool IsFixedRandomArxStateScalarName(const std::string &pName) {
-    return (pName == "aPrevious") ||
-           (pName == "aIngress") ||
+    return (pName == "aIngress") ||
            (pName == "aCarry") ||
            (LetterIndexFromSuffix(pName, "aWanderer") >= 0);
 }
 
-std::string UInt64ScalarLiteral(const std::uint64_t pValue) {
-    std::ostringstream aStream;
-    aStream << "0x" << std::uppercase << std::hex << pValue << "ULL";
-    return aStream.str();
-}
-
 std::string ScalarInitialValueForName(const std::string &pName) {
     if (IsFixedRandomArxStateScalarName(pName)) {
-        return UInt64ScalarLiteral(Random::Get64High());
+        return "0U";
     }
     return "0";
 }
@@ -2518,12 +2255,6 @@ bool WorkspaceConstantValue(const TwistDomainConstants *pConstants,
         case TwistConstants::kMatrixArgD:
             *pValue = static_cast<GRuntimeScalar>(pConstants->mMatrixArgD);
             return true;
-        case TwistConstants::kMaskMutateA:
-            *pValue = static_cast<GRuntimeScalar>(pConstants->mMaskMutateA);
-            return true;
-        case TwistConstants::kMaskMutateB:
-            *pValue = static_cast<GRuntimeScalar>(pConstants->mMaskMutateB);
-            return true;
         default:
             SetError(pError, "Workspace domain word used an unsupported constant.");
             return false;
@@ -2555,10 +2286,6 @@ bool LegacyDomainWordConstantInfo(const std::string &pName,
         aConstant = TwistConstants::kMatrixArgC;
     } else if (pName == "aDomainWordMatrixArgD") {
         aConstant = TwistConstants::kMatrixArgD;
-    } else if (pName == "aDomainWordMaskMutateA") {
-        aConstant = TwistConstants::kMaskMutateA;
-    } else if (pName == "aDomainWordMaskMutateB") {
-        aConstant = TwistConstants::kMaskMutateB;
     }
 
     if (aConstant == TwistConstants::kInvalid) {
@@ -4029,17 +3756,6 @@ bool ExecuteStatement(const GStatement &pStatement,
             return true;
         }
 
-        if (!ExecuteRuntimeRawMemoryLine(pStatement.mRawLine,
-                                         pWorkSpace,
-                                         pExpander,
-                                         &aExecutedRawLine,
-                                         pError)) {
-            return false;
-        }
-        if (aExecutedRawLine) {
-            return true;
-        }
-
         if (!ExecuteRuntimeRawSquashLine(pStatement.mRawLine,
                                          pWorkSpace,
                                          pExpander,
@@ -4067,17 +3783,6 @@ bool ExecuteStatement(const GStatement &pStatement,
                                            pWorkSpace,
                                            &aExecutedRawLine,
                                            pError)) {
-            return false;
-        }
-        if (aExecutedRawLine) {
-            return true;
-        }
-
-        if (!ExecuteRuntimeRawSnowLine(pStatement.mRawLine,
-                                       pWorkSpace,
-                                       pExpander,
-                                       &aExecutedRawLine,
-                                       pError)) {
             return false;
         }
         if (aExecutedRawLine) {
@@ -4797,7 +4502,6 @@ static void CollectSlotsFromStatement(const GStatement &pStatement,
     if (pStatement.IsRawLine()) {
         CollectRuntimeM88DispatchSlots(pStatement.mRawLine, pSlots);
         CollectRuntimeSquashSlots(pStatement.mRawLine, pSlots);
-        CollectRuntimeMemorySlots(pStatement.mRawLine, pSlots);
         CollectRuntimeDiffuseSlots(pStatement.mRawLine, pSlots);
         return;
     }
@@ -5432,6 +5136,11 @@ std::string GBatch::BuildCppScopeBlock(std::string *pError,
                 aStream << '\n';
             }
             aIsFirstLine = false;
+            if (!mExportsAsBlock &&
+                (aLine.size() >= 4U) &&
+                (aLine.compare(0U, 4U, "    ") == 0)) {
+                aLine.erase(0U, 4U);
+            }
             aStream << aLine;
         }
         if (mExportsAsBlock) {

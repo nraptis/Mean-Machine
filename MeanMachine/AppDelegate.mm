@@ -26,8 +26,6 @@
 #include "GSeedRunKDF_A.hpp"
 #include "GSeedRunKeyBox.hpp"
 #include "TwistFarmSalt.hpp"
-#include "TwistSnow.hpp"
-#include "TwistCryptoScoring.hpp"
 #include "Rig.hpp"
 #include "GRunMatrixDiffusion.hpp"
 #include "GAXSK.hpp"
@@ -36,9 +34,9 @@
 
 #include "GrowAControl.hpp"
 #include "GrowBControl.hpp"
-#include "FoldSeedControl.hpp"
-#include "FoldTwistControl.hpp"
 #include "LaneSplitControl.hpp"
+#include "SaltTables.hpp"
+#include "GMagicNumbers.hpp"
 
 int gCandidateIndex = 0;
 
@@ -79,7 +77,7 @@ int gCandidateIndex = 0;
 
 */
 
-#include "TwistExpander_Achernar.hpp"
+// #include "TwistExpander_Achernar.hpp"
  
 #include "Scanner_MagicNumbers.hpp"
 #include "OptimalCombinations.hpp"
@@ -98,10 +96,10 @@ bool IsRunningUnderXCTest() {
 bool AddKeyBoxLaneSplitGroups(std::string *pErrorMessage) {
     return LaneSplitControl::AddLaneGroup(
                {
-                   TwistWorkSpaceSlot::kPoisonLaneA,
-                   TwistWorkSpaceSlot::kPoisonLaneB,
-                   TwistWorkSpaceSlot::kPoisonLaneC,
-                   TwistWorkSpaceSlot::kPoisonLaneD,
+                   TwistWorkSpaceSlot::kCrystalLaneA,
+                   TwistWorkSpaceSlot::kCrystalLaneB,
+                   TwistWorkSpaceSlot::kCrystalLaneC,
+                   TwistWorkSpaceSlot::kCrystalLaneD,
                },
                pErrorMessage) &&
            LaneSplitControl::AddLaneGroup(
@@ -135,13 +133,6 @@ bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
     const std::string aLaneSplitFolder =
         ControlValueAssetFolder("lane_split_pre_planned",
                                 pExplorationCases);
-    const std::string aFoldSeedFolder =
-        ControlValueAssetFolder("fold_seed_pre_planned",
-                                pExplorationCases);
-    const std::string aFoldTwistFolder =
-        ControlValueAssetFolder("fold_twist_pre_planned",
-                                pExplorationCases);
-
     std::printf("\nGenerating control values with %llu exploration cases...\n",
                 static_cast<unsigned long long>(pExplorationCases));
 
@@ -174,38 +165,6 @@ bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
     GrowBControl::Reset();
     if (!GrowBControl::LoadValues(aGrowBFolder,
                                   pErrorMessage)) {
-        return false;
-    }
-
-    FoldSeedControl::Reset();
-    for (std::size_t i = 0U;
-         i < FoldSeedControl::kCandidateCount;
-         ++i) {
-        FoldSeedControl::Generate(pExplorationCases);
-    }
-    if (!FoldSeedControl::SaveValues(aFoldSeedFolder,
-                                     pErrorMessage)) {
-        return false;
-    }
-    FoldSeedControl::Reset();
-    if (!FoldSeedControl::LoadValues(aFoldSeedFolder,
-                                     pErrorMessage)) {
-        return false;
-    }
-
-    FoldTwistControl::Reset();
-    for (std::size_t i = 0U;
-         i < FoldTwistControl::kCandidateCount;
-         ++i) {
-        FoldTwistControl::Generate(pExplorationCases);
-    }
-    if (!FoldTwistControl::SaveValues(aFoldTwistFolder,
-                                      pErrorMessage)) {
-        return false;
-    }
-    FoldTwistControl::Reset();
-    if (!FoldTwistControl::LoadValues(aFoldTwistFolder,
-                                      pErrorMessage)) {
         return false;
     }
 
@@ -243,15 +202,47 @@ bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
     std::printf("Saved:\n"
                 "    %s\n"
                 "    %s\n"
-                "    %s\n"
-                "    %s\n"
                 "    %s\n",
                 aGrowAFolder.c_str(),
                 aGrowBFolder.c_str(),
-                aFoldSeedFolder.c_str(),
-                aFoldTwistFolder.c_str(),
                 aLaneSplitFolder.c_str());
     return true;
+}
+
+bool GenerateFoldControlValueAssets(
+    const std::uint64_t pExplorationCases,
+    const std::string &pGrowAFolder,
+    const std::string &pGrowBFolder,
+    std::string *pErrorMessage) {
+    GrowAControl::Reset();
+    for (std::size_t i = 0U;
+         i < GrowAControl::kCandidateCount;
+         ++i) {
+        GrowAControl::Generate(pExplorationCases);
+    }
+    if (!GrowAControl::SaveValues(pGrowAFolder,
+                                  pErrorMessage)) {
+        return false;
+    }
+    GrowAControl::Reset();
+    if (!GrowAControl::LoadValues(pGrowAFolder,
+                                  pErrorMessage)) {
+        return false;
+    }
+
+    GrowBControl::Reset();
+    for (std::size_t i = 0U;
+         i < GrowBControl::kCandidateCount;
+         ++i) {
+        GrowBControl::Generate(pExplorationCases);
+    }
+    if (!GrowBControl::SaveValues(pGrowBFolder,
+                                  pErrorMessage)) {
+        return false;
+    }
+    GrowBControl::Reset();
+    return GrowBControl::LoadValues(pGrowBFolder,
+                                    pErrorMessage);
 }
 
 int RunControlValueExporter() {
@@ -281,6 +272,32 @@ extern "C" int MeanMachineRunExporter(void) {
     return RunControlValueExporter();
 }
 
+extern "C" int MeanMachineBuildTestExpander(void) {
+    std::string aError;
+    gCandidateIndex = 0;
+    if (!Builder::Go("CornTesting/Gen", "Achernar", &aError)) {
+        std::printf("Builder::Go failed for Achernar:\n%s\n",
+                    aError.c_str());
+        return 1;
+    }
+    return 0;
+}
+
+extern "C" int MeanMachineRegenerateFoldControls(void) {
+    std::string aError;
+    if (!GenerateFoldControlValueAssets(
+            100ULL,
+            "Assets/grow_a_pre_planned",
+            "Assets/grow_b_pre_planned",
+            &aError)) {
+        std::printf("Fold control generation failed:\n%s\n",
+                    aError.c_str());
+        return 1;
+    }
+    std::printf("Regenerated mandatory GrowA and GrowB fold controls.\n");
+    return 0;
+}
+
 @interface AppDelegate ()
 
 @property (strong) IBOutlet NSWindow *window;
@@ -294,14 +311,68 @@ extern "C" int MeanMachineRunExporter(void) {
     
     printf("App is awake and running...\n");
     
-    /*
+    
     if (IsRunningUnderXCTest()) {
         printf("skipping app, xc test...\n");
         return;
     }
+    
+    /*
+    if (MeanMachineRunExporter() != 0) {
+        return;
+    }
+    printf("Done with export block...\n");
+    
+    return;
     */
+     
     
+    /*
+    {
+        std::vector<SaltTables::Salt> aSalts = SaltTables::Get();
+        std::vector<GHotPack> aPacks = GMagicNumbers::GetHotPacks(37500);
+        std::set<std::uint64_t> aMap;
+        int aCompareCount = 0;
+        for (auto aSalt : aSalts) {
+            for (int i=0;i<512;i++) {
+                std::uint64_t aValue = aSalt[i];
+                if (aMap.contains(aValue)) {
+                    printf("dupe from salt...\n");
+                    exit(0);
+                }
+                aMap.insert(aValue);
+                aCompareCount++;
+            }
+        }
+        
+        printf("compared all salts, no dupes (%d)\n", aCompareCount);
+        
+        for (auto aPack : aPacks) {
+            for (int i=0;i<G_HOT_PACK_SIZE;i++) {
+                GHotPair aPair = aPack.mPair[i];
+                std::uint64_t aValueA = aPair.mAdd;
+                if (aMap.contains(aValueA)) {
+                    printf("dupe from add...\n");
+                    exit(0);
+                }
+                aMap.insert(aValueA);
+                aCompareCount++;
+                
+                std::uint64_t aValueB = aPair.mMul;
+                if (aMap.contains(aValueB)) {
+                    printf("dupe from mul...\n");
+                    exit(0);
+                }
+                aMap.insert(aValueB);
+                aCompareCount++;
+            }
+        }
+        
+        printf("compared all pairs, no dupes (%d)\n", aCompareCount);
+    }
+     */
     
+    /*
     {
         printf("exporting 1 test expander...\n");
         std::string aError;
@@ -316,19 +387,8 @@ extern "C" int MeanMachineRunExporter(void) {
         ++gCandidateIndex;
         return;
     }
-    
-    
-    //Scanner_MagicNumbers::Check();
-    //return;
-    
-    /*
-    if (MeanMachineRunExporter() != 0) {
-        return;
-    }
-    printf("Done with export block...\n");
-    
-    return;
     */
+    
     
     
     if (IsRunningUnderXCTest() == false) {
@@ -414,102 +474,6 @@ extern "C" int MeanMachineRunExporter(void) {
 
     return;
     */
-    
-    
-    
-    /*
-    unsigned char aPassword[3];
-
-    int aNumber = 50;
-    
-    
-    for (int aLetter1 = 'a'; aLetter1 <= 'z'; aLetter1++) {
-        for (int aLetter2 = 'a'; aLetter2 <= 'z'; aLetter2++) {
-            for (int aLetter3 = 'a'; aLetter3 <= 'z'; aLetter3++) {
-                
-                TwistExpander_BaseBall aExpanderA;
-                TwistExpander_BaseBall aExpanderB;
-                
-                TwistWorkSpace aWorkSpaceA;
-                TwistWorkSpace aWorkSpaceB;
-                TwistWorkSpace aWorkSpaceC;
-                
-                aPassword[0] = static_cast<unsigned char>(aLetter1);
-                aPassword[1] = static_cast<unsigned char>(aLetter2);
-                aPassword[2] = static_cast<unsigned char>(aLetter3);
-
-                std::array<std::uint8_t, S_BLOCK> aSnowSource{};
-                std::array<std::uint8_t, S_BLOCK> aSnowLaneA{};
-                std::array<std::uint8_t, S_BLOCK> aSnowLaneB{};
-                std::array<std::uint8_t, S_BLOCK> aSnowLaneC{};
-                std::array<std::uint8_t, S_BLOCK> aSnowLaneD{};
-                TwistExpander::UnrollPasswordToSource(aSnowSource.data(),
-                                                      aPassword,
-                                                      3U);
-                TwistSnow::BuildLanes(aSnowSource.data(),
-                                      aSnowLaneA.data(),
-                                      aSnowLaneB.data(),
-                                      aSnowLaneC.data(),
-                                      aSnowLaneD.data());
-                
-                const std::vector<std::uint64_t> aNonces = GenerateUniqueNonces(5U);
-                
-                DirtyWorkSpace::Scramble(&aWorkSpaceA, &aExpanderA);
-                DirtyWorkSpace::Scramble(&aWorkSpaceB, &aExpanderB);
-                DirtyWorkSpace::Scramble(&aWorkSpaceC, nullptr);
-                
-                Rig aRigA;
-                Rig aRigB;
-                Rig aRigC;
-                
-                std::string aErrorMessage;
-                if (!RunRigWithWorkSpace(&aExpanderA, &aWorkSpaceA, &aRigA, aNonces, aPassword, 3,
-                                         aSnowLaneA.data(), aSnowLaneB.data(),
-                                         aSnowLaneC.data(), aSnowLaneD.data(),
-                                         &aErrorMessage)) {
-                    printf("rig A failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
-                    return;
-                }
-                if (!RunRigWithWorkSpace(&aExpanderB, &aWorkSpaceB, &aRigB, aNonces, aPassword, 3,
-                                         aSnowLaneA.data(), aSnowLaneB.data(),
-                                         aSnowLaneC.data(), aSnowLaneD.data(),
-                                         &aErrorMessage)) {
-                    printf("rig B failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
-                    return;
-                }
-                
-                if (!CompareWorkSpace::CompareBlocks(aRigA.mData, aRigB.mData, 32U, &aErrorMessage)) {
-                    printf("A/B destination compare failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
-                    return;
-                }
-                
-                if (!RunRigWithWorkSpace(&aExpanderA, &aWorkSpaceC, &aRigC, aNonces, aPassword, 3,
-                                         aSnowLaneA.data(), aSnowLaneB.data(),
-                                         aSnowLaneC.data(), aSnowLaneD.data(),
-                                         &aErrorMessage)) {
-                    printf("rig C failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
-                    return;
-                }
-                
-                if (!CompareWorkSpace::CompareBlocks(aRigB.mData, aRigC.mData, 32U, &aErrorMessage)) {
-                    printf("B/C destination compare failed for %c%c%c: %s\n", aPassword[0], aPassword[1], aPassword[2], aErrorMessage.c_str());
-                    return;
-                }
-                
-                aRigC.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
-                printf("exported %d\n", aNumber);
-            }
-        }
-    }
-    return;
-    */
-    
-    
-    
-     
-    
-    
-   
     
     
     
@@ -615,163 +579,7 @@ extern "C" int MeanMachineRunExporter(void) {
         }
     }
     */
-    
-    
-    /*
-    std::vector<std::string> aFilePaths =
-        FileIO::GetAllFilesRecursive(FileIO::ProjectRoot("streams"));
 
-    for (const std::string &aFile : aFilePaths) {
-        if ((aFile.size() < 4) ||
-            (aFile.substr(aFile.size() - 4) != ".bin")) {
-            continue;
-        }
-
-        std::vector<std::uint8_t> aData;
-        if (FileIO::Load(aFile, aData) == false) {
-            continue;
-        }
-
-        printf("\n==============================\n");
-        printf("file: %s\n", aFile.c_str());
-        printf("size: %zu\n", aData.size());
-
-        PrintHexChunk(aData, 0, 512, "front");
-
-        PrintHexChunk(aData, S_BLOCK - 256, 512, "around S_BLOCK boundary");
-
-        PrintHexChunk(aData, (S_BLOCK * 2) - 256, 512, "around 2*S_BLOCK boundary");
-        PrintHexChunk(aData, (S_BLOCK * 3) - 256, 512, "around 3*S_BLOCK boundary");
-        PrintHexChunk(aData, (S_BLOCK * 4) - 256, 512, "around 4*S_BLOCK boundary");
-        PrintHexChunk(aData, (S_BLOCK * 5) - 256, 512, "around 5*S_BLOCK boundary");
-
-        if (aData.size() >= 512) {
-            PrintHexChunk(aData, aData.size() - 512, 512, "end");
-        }
-    }
-    */
-    /*
-    if (IsRunningUnderXCTest() == false) {
-        
-        
-        GSeedRunKDF_A_A aKDF;
-        std::string aError;
-        GTwistExpander aExpander;
-        aExpander.mNameBase = "Toberman";
-        
-        if (!aKDF.Plan(&aError)) {
-            printf("error on GSeedRunKDF_A_A.Plan\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-        
-        if (!aKDF.Build(aExpander.mKDF, &aError)) {
-            printf("error on GSeedRunKDF_A_A.Build\n");
-            printf("%s\n", aError.c_str());
-            return;
-        }
-        if (aExpander.mKDF.GetBatchJsonText().empty() &&
-            aExpander.mKDF.GetStringLines().empty()) {
-            printf("error on GSeedRunKDF_A_A.Build\n");
-            printf("kdf branch export was empty (no batches and no lines)\n");
-            return;
-        }
-        
-        aExpander.mSeed.AddLine("// [phase ii]");
-     
-        
-        GRunMatrixDiffusionConfig aDiffusionA;
-        aDiffusionA.mInputA = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mInputB = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mInputC = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mInputD = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mOutputA = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mOutputB = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mOutputC = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mOutputD = BufSymbol(TwistWorkSpaceSlot::kPoisonLaneA);
-        aDiffusionA.mShuffleEntropyA = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
-        aDiffusionA.mShuffleEntropyB = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
-        aDiffusionA.mShuffleEntropyC = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
-        aDiffusionA.mShuffleEntropyD = BufSymbol(TwistWorkSpaceSlot::kIndexList256A);
-        aDiffusionA.mOperationSourceA = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
-        aDiffusionA.mOperationSourceB = BufSymbol(TwistWorkSpaceSlot::kOperationLaneA);
-
-        GBatch aBatch;
-        aBatch.AddComment("seed-matrix-diffusion: workA/workC -> maskA/maskB");
-        if (!GRunMatrixDiffusion::Bake(aDiffusionA, &aBatch, &aError)) {
-            printf("error on matrix dif: %s\n", aError.c_str());
-            return;
-        }
-        
-        aExpander.mKDF.AddBatch(aBatch);
-
-        
-        if (!aExpander.ExportCPPProjectRoot("CornTesting/Gen", &aError) ||
-            !aExpander.ExportJSONProjectRoot("CornTesting/Gen", &aError)) {
-            printf("expander export failed: %s\n", aError.c_str());
-            return;
-        }
-        printf("done export...\n");
-        
-        
-    }
-    */
-    
-    /*
-    unsigned char aPassword[3];
-
-    int aNumber = 0;
-    
-    int aBlockCount = 1;
-
-    TwistWorkSpace aWorkSpace;
-    TwistFarmSBox aFarmSBox;
-    TwistFarmSalt aFarmSalt;
-
-    int aDataLength = S_BLOCK * aBlockCount;
-    std::uint8_t * aSource= new std::uint8_t[aDataLength];
-    std::uint8_t *aLaneA= new std::uint8_t[aDataLength];
-    std::uint8_t *aLaneB= new std::uint8_t[aDataLength];
-    std::uint8_t *aLaneC= new std::uint8_t[aDataLength];
-
-    Rig aRig;
-    aRig.SetBlockCount(aBlockCount);
-    
-    int aCOunt = 0;
-    for (int aLetter1 = 'a'; aLetter1 <= 'z'; aLetter1++) {
-        
-        aPassword[0] = static_cast<unsigned char>(aLetter1);
-        //aPassword[1] = static_cast<unsigned char>(aLetter2);
-        //aPassword[2] = static_cast<unsigned char>(aLetter3);
-        
-        
-        LardExpander::UnrollPasswordToSource(aSource,
-                                             aPassword,
-                                             1,
-                                             aDataLength);
-        
-        LardExpander aExpander;
-        aExpander.mDataLength = aDataLength;
-        aExpander.mPassword = aSource;
-        aExpander.mLaneA = aLaneA;
-        aExpander.mLaneB = aLaneB;
-        aExpander.mLaneC = aLaneC;
-        aExpander.mLaneD = aRig.mData;
-        
-        aExpander.Roll();
-        
-        aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
-        
-        printf("exported %d\n", aNumber);
-        
-    }
-    
-    return;
-    
-    
-    
-    */
-   
 }
 
 

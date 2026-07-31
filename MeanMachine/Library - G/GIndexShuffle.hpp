@@ -51,7 +51,7 @@ public:
         }
 
         pStatements->push_back(
-            GStatement::RawLine("TwistIndexShuffle::Execute(" + aIndexAlias + ", " + aEntropyAlias + ");")
+            GStatement::RawLine("TwistShuffle::Execute(" + aIndexAlias + ", " + aEntropyAlias + ");")
         );
         return true;
     }

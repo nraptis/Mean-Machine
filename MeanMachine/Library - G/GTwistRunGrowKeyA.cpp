@@ -4,7 +4,9 @@
 //
 
 #include "GTwistRunGrowKeyA.hpp"
-#include "GPassFactory.hpp"
+#include "ArrangementFour.hpp"
+#include "GPassFactoryMidstage.hpp"
+#include "GPassFactoryTrunk.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
 #include "ResidualBucket.hpp"
 
@@ -27,7 +29,7 @@ std::vector<TwistWorkSpaceSlot> PhaseSalts(const TwistDomain pDomain,
                                            const TwistWorkSpaceSlot pBaseSlot,
                                            const int pLaneCount) {
     const int aBase = static_cast<int>(pBaseSlot);
-    const int aOffset = PhaseIndex(pDomain) * 18;
+    const int aOffset = PhaseIndex(pDomain) * 24;
 
     std::vector<TwistWorkSpaceSlot> aResult;
     aResult.reserve(static_cast<std::size_t>(pLaneCount));
@@ -49,7 +51,6 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     aConfig.mEndLine = "// " + pStageName + " " + pLoopName + " (end)";
     
     aConfig.mIgnoreNonces = true;
-    aConfig.mHasDomainMix = false;
     aConfig.mAssignType = GAssignType::kSet;
     aConfig.mDomain = kDomain;
     aConfig.mIsNonKDF = true;
@@ -57,9 +58,9 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     aConfig.mLoopCeiling = S_BLOCK;
     aConfig.mLoopEndText = "S_BLOCK";
     aConfig.mHotPackCount = 12;
-    aConfig.mSaltsOrbiterAssign = PhaseSalts(kDomain, Slot::kKeyRotateASaltOrbiterAssignA, 6);
-    aConfig.mSaltsOrbiterUpdate = PhaseSalts(kDomain, Slot::kKeyRotateASaltOrbiterUpdateA, 6);
-    aConfig.mSaltsWandererUpdate = PhaseSalts(kDomain, Slot::kKeyRotateASaltWandererUpdateA, 6);
+    aConfig.mSaltsOrbiterAssign = PhaseSalts(kDomain, Slot::kKeyRotateASaltOrbiterAssignA, 8);
+    aConfig.mSaltsOrbiterUpdate = PhaseSalts(kDomain, Slot::kKeyRotateASaltOrbiterUpdateA, 8);
+    aConfig.mSaltsWandererUpdate = PhaseSalts(kDomain, Slot::kKeyRotateASaltWandererUpdateA, 8);
     return aConfig;
 }
 
@@ -67,32 +68,35 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
 
 namespace GTwistRunGrowKeyAConfig {
 
-GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
+GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
+                                 const std::size_t pCandidateIndex) {
     using Slot = TwistWorkSpaceSlot;
 
     GrowStageConfigs aConfigs;
     std::vector<Slot> aResidualsPool;
 
+    // Lane Plan
+
     //
     // Grow A — Stage A
     //
-    const GPassFactory::SlotArray4 aInputsA = {
-        Slot::kPoisonLaneA, Slot::kPoisonLaneB,
-        Slot::kPoisonLaneC, Slot::kPoisonLaneD,
+    const GPassFactoryMidstage::SlotArray4 aInputsA = {
+        Slot::kCrystalLaneA, Slot::kCrystalLaneB,
+        Slot::kCrystalLaneC, Slot::kCrystalLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsA = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsA = {
         Slot::kShadowLaneA, Slot::kShadowLaneB,
         Slot::kShadowLaneC, Slot::kShadowLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aInputsA));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsA));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsA));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsA));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage A", 16); // plus two fixed key rows
+        pResidualBucket.Withdraw("Grow A — Stage A", 15); // plus the opposite key row
 
-    const GPassFactory::SlotArray18 aResidualsA = {
-        Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray16 aResidualsA = {
+        Slot::kKeyRowReadB,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -100,59 +104,34 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14], aResidualsPool[15],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("Grow A — Stage A", {
-        Slot::kPoisonLaneA, Slot::kPoisonLaneB,
-        Slot::kPoisonLaneC, Slot::kPoisonLaneD,
+        Slot::kCrystalLaneA, Slot::kCrystalLaneB,
+        Slot::kCrystalLaneC, Slot::kCrystalLaneD,
     });
-
-    GSeedRunStageConfig aConfigA = BaseConfig("GROW_A_A",
-                                              "grow_a_loop_a");
-    aConfigA.mFormat = GAXSFormat::kN7;
-    aConfigA.mSlices =
-        GPassFactory::FourPassEighteenResidualSlices(aInputsA,
-                                                     aResidualsA,
-                                                     aDestinationsA);
-    aConfigA.mExpectedSkeletonCount =
-        static_cast<int>(aDestinationsA.size());
-    aConfigA.mHotPackCount =
-        static_cast<int>(aDestinationsA.size());
-
-    std::string aErrorMessageA;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
-            aConfigA,
-            GPassFactory::ToVector(aInputsA),
-            GPassFactory::ToVector(aResidualsA),
-            GPassFactory::ToVector(aDestinationsA),
-            &aErrorMessageA)) {
-        printf("MakeGrowAConfig stage A was not valid with ValidateMidstage");
-        printf("%s\n", aErrorMessageA.c_str());
-        exit(0);
-    }
-    aConfigs[0] = aConfigA;
 
     //
     // Grow A — Stage B
     //
-    const GPassFactory::SlotArray4 aInputsB = {
+    const GPassFactoryMidstage::SlotArray4 aInputsB = {
         Slot::kShadowLaneA, Slot::kShadowLaneB,
         Slot::kShadowLaneC, Slot::kShadowLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsB = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsB = {
         Slot::kWindLaneA, Slot::kWindLaneB,
         Slot::kWindLaneC, Slot::kWindLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aInputsB));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsB));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsB));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsB));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage B", 16); // plus two fixed key rows
+        pResidualBucket.Withdraw("Grow A — Stage B", 15); // plus the opposite key row
 
-    const GPassFactory::SlotArray18 aResidualsB = {
-        Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray16 aResidualsB = {
+        Slot::kKeyRowReadB,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -160,7 +139,7 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14], aResidualsPool[15],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("Grow A — Stage B", {
@@ -168,51 +147,26 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
         Slot::kShadowLaneC, Slot::kShadowLaneD,
     });
 
-    GSeedRunStageConfig aConfigB = BaseConfig("GROW_A_B",
-                                              "grow_a_loop_b");
-    aConfigB.mFormat = GAXSFormat::kN9;
-    aConfigB.mSlices =
-        GPassFactory::FourPassEighteenResidualSlices(aInputsB,
-                                                     aResidualsB,
-                                                     aDestinationsB);
-    aConfigB.mExpectedSkeletonCount =
-        static_cast<int>(aDestinationsB.size());
-    aConfigB.mHotPackCount =
-        static_cast<int>(aDestinationsB.size());
-
-    std::string aErrorMessageB;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
-            aConfigB,
-            GPassFactory::ToVector(aInputsB),
-            GPassFactory::ToVector(aResidualsB),
-            GPassFactory::ToVector(aDestinationsB),
-            &aErrorMessageB)) {
-        printf("MakeGrowAConfig stage B was not valid with ValidateMidstage");
-        printf("%s\n", aErrorMessageB.c_str());
-        exit(0);
-    }
-    aConfigs[1] = aConfigB;
-
     //
     // Grow A — Stage C
     //
-    const GPassFactory::SlotArray4 aInputsC = {
+    const GPassFactoryMidstage::SlotArray4 aInputsC = {
         Slot::kWindLaneA, Slot::kWindLaneB,
         Slot::kWindLaneC, Slot::kWindLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsC = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsC = {
         Slot::kFuseLaneA, Slot::kFuseLaneB,
         Slot::kFuseLaneC, Slot::kFuseLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aInputsC));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsC));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsC));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsC));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage C", 16); // plus two fixed key rows
+        pResidualBucket.Withdraw("Grow A — Stage C", 15); // plus the opposite key row
 
-    const GPassFactory::SlotArray18 aResidualsC = {
-        Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray16 aResidualsC = {
+        Slot::kKeyRowReadB,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -220,38 +174,13 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14], aResidualsPool[15],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("Grow A — Stage C", {
         Slot::kWindLaneA, Slot::kWindLaneB,
         Slot::kWindLaneC, Slot::kWindLaneD,
     });
-
-    GSeedRunStageConfig aConfigC = BaseConfig("GROW_A_C",
-                                              "grow_a_loop_c");
-    aConfigC.mFormat = GAXSFormat::kN11;
-    aConfigC.mSlices =
-        GPassFactory::FourPassEighteenResidualSlices(aInputsC,
-                                                     aResidualsC,
-                                                     aDestinationsC);
-    aConfigC.mExpectedSkeletonCount =
-        static_cast<int>(aDestinationsC.size());
-    aConfigC.mHotPackCount =
-        static_cast<int>(aDestinationsC.size());
-
-    std::string aErrorMessageC;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
-            aConfigC,
-            GPassFactory::ToVector(aInputsC),
-            GPassFactory::ToVector(aResidualsC),
-            GPassFactory::ToVector(aDestinationsC),
-            &aErrorMessageC)) {
-        printf("MakeGrowAConfig stage C was not valid with ValidateMidstage");
-        printf("%s\n", aErrorMessageC.c_str());
-        exit(0);
-    }
-    aConfigs[2] = aConfigC;
 
     // Matrix diffusion:
     //   Fuse A-D -> Vapor A-D
@@ -261,23 +190,23 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
     //
     // Grow A — Stage D
     //
-    const GPassFactory::SlotArray4 aInputsD = {
+    const GPassFactoryMidstage::SlotArray4 aInputsD = {
         Slot::kVaporLaneA, Slot::kVaporLaneB,
         Slot::kVaporLaneC, Slot::kVaporLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsD = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsD = {
         Slot::kAetherLaneA, Slot::kAetherLaneB,
         Slot::kAetherLaneC, Slot::kAetherLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aInputsD));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsD));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsD));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsD));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage D", 16); // plus two fixed key rows
+        pResidualBucket.Withdraw("Grow A — Stage D", 15); // plus the opposite key row
 
-    const GPassFactory::SlotArray18 aResidualsD = {
-        Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray16 aResidualsD = {
+        Slot::kKeyRowReadB,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -285,7 +214,7 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14], aResidualsPool[15],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("Grow A — Stage D", {
@@ -293,32 +222,178 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
         Slot::kVaporLaneC, Slot::kVaporLaneD,
     });
 
+    const ArrangementFour::SlotArray4 aArrangedInputsD =
+        ArrangementFour::Arrange(aInputsD,
+                                 static_cast<int>(pCandidateIndex),
+                                 5);
+
+    //
+    // Grow A — Stage E
+    //
+    const GPassFactoryMidstage::SlotArray4 aInputsE = {
+        Slot::kAetherLaneA, Slot::kAetherLaneB,
+        Slot::kAetherLaneC, Slot::kAetherLaneD,
+    };
+    const GPassFactoryMidstage::SlotArray4 aDestinationsE = {
+        Slot::kKineticLaneA, Slot::kKineticLaneB,
+        Slot::kKineticLaneC, Slot::kKineticLaneD,
+    };
+
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsE));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsE));
+
+    aResidualsPool =
+        pResidualBucket.Withdraw("Grow A — Stage E", 15); // plus the opposite key row
+
+    const GPassFactoryMidstage::SlotArray16 aResidualsE = {
+        Slot::kKeyRowReadB,
+        aResidualsPool[0], aResidualsPool[1],
+        aResidualsPool[2], aResidualsPool[3],
+        aResidualsPool[4], aResidualsPool[5],
+        aResidualsPool[6], aResidualsPool[7],
+        aResidualsPool[8], aResidualsPool[9],
+        aResidualsPool[10], aResidualsPool[11],
+        aResidualsPool[12], aResidualsPool[13],
+        aResidualsPool[14],
+    };
+
+    pResidualBucket.AddResiduals("Grow A — Stage E", {
+        Slot::kAetherLaneA, Slot::kAetherLaneB,
+        Slot::kAetherLaneC, Slot::kAetherLaneD,
+    });
+
     pResidualBucket.Print("Grow A — Final");
+
+    // Stage Construction
+
+    GSeedRunStageConfig aConfigA = BaseConfig("GROW_A_A",
+                                              "grow_a_loop_a");
+    aConfigA.mFormat = GAXSFormat::kN9;
+    aConfigA.mSlices =
+        GPassFactoryMidstage::FourPassSixteenResidualSlices(
+            aInputsA,
+            aResidualsA,
+            aDestinationsA);
+    aConfigA.mExpectedSkeletonCount =
+        static_cast<int>(aDestinationsA.size());
+    aConfigA.mHotPackCount =
+        static_cast<int>(aDestinationsA.size());
+
+    std::string aErrorMessageA;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+            aConfigA,
+            GPassFactoryMidstage::ToVector(aInputsA),
+            GPassFactoryMidstage::ToVector(aResidualsA),
+            GPassFactoryMidstage::ToVector(aDestinationsA),
+            &aErrorMessageA)) {
+        printf("MakeGrowAConfig stage A was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessageA.c_str());
+        exit(0);
+    }
+    aConfigs[0] = aConfigA;
+
+    GSeedRunStageConfig aConfigB = BaseConfig("GROW_A_B",
+                                              "grow_a_loop_b");
+    aConfigB.mFormat = GAXSFormat::kN11;
+    aConfigB.mSlices =
+        GPassFactoryMidstage::FourPassSixteenResidualSlices(
+            aInputsB,
+            aResidualsB,
+            aDestinationsB);
+    aConfigB.mExpectedSkeletonCount =
+        static_cast<int>(aDestinationsB.size());
+    aConfigB.mHotPackCount =
+        static_cast<int>(aDestinationsB.size());
+
+    std::string aErrorMessageB;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+            aConfigB,
+            GPassFactoryMidstage::ToVector(aInputsB),
+            GPassFactoryMidstage::ToVector(aResidualsB),
+            GPassFactoryMidstage::ToVector(aDestinationsB),
+            &aErrorMessageB)) {
+        printf("MakeGrowAConfig stage B was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessageB.c_str());
+        exit(0);
+    }
+    aConfigs[1] = aConfigB;
+
+    GSeedRunStageConfig aConfigC = BaseConfig("GROW_A_C",
+                                              "grow_a_loop_c");
+    aConfigC.mFormat = GAXSFormat::kN7;
+    aConfigC.mSlices =
+        GPassFactoryMidstage::FourPassSixteenResidualSlices(
+            aInputsC,
+            aResidualsC,
+            aDestinationsC);
+    aConfigC.mExpectedSkeletonCount =
+        static_cast<int>(aDestinationsC.size());
+    aConfigC.mHotPackCount =
+        static_cast<int>(aDestinationsC.size());
+
+    std::string aErrorMessageC;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+            aConfigC,
+            GPassFactoryMidstage::ToVector(aInputsC),
+            GPassFactoryMidstage::ToVector(aResidualsC),
+            GPassFactoryMidstage::ToVector(aDestinationsC),
+            &aErrorMessageC)) {
+        printf("MakeGrowAConfig stage C was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessageC.c_str());
+        exit(0);
+    }
+    aConfigs[2] = aConfigC;
 
     GSeedRunStageConfig aConfigD = BaseConfig("GROW_A_D",
                                               "grow_a_loop_d");
-    aConfigD.mFormat = GAXSFormat::kN7;
+    aConfigD.mFormat = GAXSFormat::kN9;
     aConfigD.mSlices =
-        GPassFactory::FourPassEighteenResidualSlices(aInputsD,
-                                                     aResidualsD,
-                                                     aDestinationsD);
+        GPassFactoryTrunk::FourPassTrunkSlices(
+            aArrangedInputsD,
+            aResidualsD,
+            aDestinationsD);
     aConfigD.mExpectedSkeletonCount =
         static_cast<int>(aDestinationsD.size());
     aConfigD.mHotPackCount =
         static_cast<int>(aDestinationsD.size());
 
     std::string aErrorMessageD;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+    if (!GSeedRunStageConfigValidator::ValidateTrunk(
             aConfigD,
-            GPassFactory::ToVector(aInputsD),
-            GPassFactory::ToVector(aResidualsD),
-            GPassFactory::ToVector(aDestinationsD),
+            GPassFactoryMidstage::ToVector(aArrangedInputsD),
+            GPassFactoryMidstage::ToVector(aResidualsD),
+            GPassFactoryMidstage::ToVector(aDestinationsD),
             &aErrorMessageD)) {
-        printf("MakeGrowAConfig stage D was not valid with ValidateMidstage");
+        printf("MakeGrowAConfig stage D was not valid with ValidateTrunk");
         printf("%s\n", aErrorMessageD.c_str());
         exit(0);
     }
     aConfigs[3] = aConfigD;
+
+    GSeedRunStageConfig aConfigE = BaseConfig("GROW_A_E",
+                                              "grow_a_loop_e");
+    aConfigE.mFormat = GAXSFormat::kN11;
+    aConfigE.mSlices =
+        GPassFactoryMidstage::FourPassSixteenResidualSlices(aInputsE,
+                                                     aResidualsE,
+                                                     aDestinationsE);
+    aConfigE.mExpectedSkeletonCount =
+        static_cast<int>(aDestinationsE.size());
+    aConfigE.mHotPackCount =
+        static_cast<int>(aDestinationsE.size());
+
+    std::string aErrorMessageE;
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+            aConfigE,
+            GPassFactoryMidstage::ToVector(aInputsE),
+            GPassFactoryMidstage::ToVector(aResidualsE),
+            GPassFactoryMidstage::ToVector(aDestinationsE),
+            &aErrorMessageE)) {
+        printf("MakeGrowAConfig stage E was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessageE.c_str());
+        exit(0);
+    }
+    aConfigs[4] = aConfigE;
 
     return aConfigs;
 }
@@ -326,7 +401,7 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket) {
 } // namespace GTwistRunGrowKeyAConfig
 
 GTwistRunGrowKeyA::GTwistRunGrowKeyA(ResidualBucket &pResidualBucket)
-: mStage(GTwistRunGrowKeyAConfig::MakeGrowAConfig(pResidualBucket)[0]) {
+: mStage(GTwistRunGrowKeyAConfig::MakeGrowAConfig(pResidualBucket, 0U)[0]) {
 }
 
 GTwistRunGrowKeyA::GTwistRunGrowKeyA(const GSeedRunStageConfig &pConfig,

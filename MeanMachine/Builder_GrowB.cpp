@@ -44,7 +44,9 @@ bool Builder_GrowB::Build(GTwistExpander *pExpander,
     pExpander->mGrowKeyB.AddLine("// [grow key b]");
 
     const GTwistRunGrowKeyBConfig::GrowStageConfigs aBuiltStageConfigs =
-        GTwistRunGrowKeyBConfig::MakeGrowBConfig(pResidualBucket);
+        GTwistRunGrowKeyBConfig::MakeGrowBConfig(
+            pResidualBucket,
+            pExpander->mControlCandidateIndex);
     std::vector<GSeedRunStageConfig> aStageConfigs(
         aBuiltStageConfigs.begin(),
         aBuiltStageConfigs.end());
@@ -74,11 +76,17 @@ bool Builder_GrowB::Build(GTwistExpander *pExpander,
         GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneC),
         GSymbol::Buf(TwistWorkSpaceSlot::kFuseLaneD),
     };
-    const std::vector<GSymbol> aChanceLanes = {
-        GSymbol::Buf(TwistWorkSpaceSlot::kChanceLaneA),
-        GSymbol::Buf(TwistWorkSpaceSlot::kChanceLaneB),
-        GSymbol::Buf(TwistWorkSpaceSlot::kChanceLaneC),
-        GSymbol::Buf(TwistWorkSpaceSlot::kChanceLaneD),
+    const std::vector<GSymbol> aVaporLanes = {
+        GSymbol::Buf(TwistWorkSpaceSlot::kVaporLaneA),
+        GSymbol::Buf(TwistWorkSpaceSlot::kVaporLaneB),
+        GSymbol::Buf(TwistWorkSpaceSlot::kVaporLaneC),
+        GSymbol::Buf(TwistWorkSpaceSlot::kVaporLaneD),
+    };
+    const std::vector<GSymbol> aAetherLanes = {
+        GSymbol::Buf(TwistWorkSpaceSlot::kAetherLaneA),
+        GSymbol::Buf(TwistWorkSpaceSlot::kAetherLaneB),
+        GSymbol::Buf(TwistWorkSpaceSlot::kAetherLaneC),
+        GSymbol::Buf(TwistWorkSpaceSlot::kAetherLaneD),
     };
     const std::vector<GSymbol> aKineticLanes = {
         GSymbol::Buf(TwistWorkSpaceSlot::kKineticLaneA),
@@ -86,32 +94,25 @@ bool Builder_GrowB::Build(GTwistExpander *pExpander,
         GSymbol::Buf(TwistWorkSpaceSlot::kKineticLaneC),
         GSymbol::Buf(TwistWorkSpaceSlot::kKineticLaneD),
     };
-    const std::vector<GSymbol> aCelestialLanes = {
-        GSymbol::Buf(TwistWorkSpaceSlot::kCelestialLaneA),
-        GSymbol::Buf(TwistWorkSpaceSlot::kCelestialLaneB),
-        GSymbol::Buf(TwistWorkSpaceSlot::kCelestialLaneC),
-        GSymbol::Buf(TwistWorkSpaceSlot::kCelestialLaneD),
-    };
 
     GRunMatrixDiffusionConfig aDiffusion;
     aDiffusion.mInputA = aFuseLanes[0];
     aDiffusion.mInputB = aFuseLanes[1];
     aDiffusion.mInputC = aFuseLanes[2];
     aDiffusion.mInputD = aFuseLanes[3];
-    aDiffusion.mOutputA = aChanceLanes[0];
-    aDiffusion.mOutputB = aChanceLanes[1];
-    aDiffusion.mOutputC = aChanceLanes[2];
-    aDiffusion.mOutputD = aChanceLanes[3];
+    aDiffusion.mOutputA = aVaporLanes[0];
+    aDiffusion.mOutputB = aVaporLanes[1];
+    aDiffusion.mOutputC = aVaporLanes[2];
+    aDiffusion.mOutputD = aVaporLanes[3];
 
     // Previous six:
-    //   Kinetic C, Kinetic D, Celestial A, Celestial B,
-    //   Celestial C, Celestial D
-    aDiffusion.mShuffleEntropyA = aKineticLanes[2];
-    aDiffusion.mShuffleEntropyB = aKineticLanes[3];
-    aDiffusion.mShuffleEntropyC = aCelestialLanes[2];
-    aDiffusion.mShuffleEntropyD = aCelestialLanes[3];
-    aDiffusion.mOperationSourceA = aCelestialLanes[0];
-    aDiffusion.mOperationSourceB = aCelestialLanes[1];
+    //   Aether C, Aether D, Kinetic A, Kinetic B, Kinetic C, Kinetic D
+    aDiffusion.mShuffleEntropyA = aAetherLanes[2];
+    aDiffusion.mShuffleEntropyB = aAetherLanes[3];
+    aDiffusion.mShuffleEntropyC = aKineticLanes[2];
+    aDiffusion.mShuffleEntropyD = aKineticLanes[3];
+    aDiffusion.mOperationSourceA = aKineticLanes[0];
+    aDiffusion.mOperationSourceB = aKineticLanes[1];
 
     GBatch aDiffusionBatch;
     aDiffusionBatch.mExportsAsBlock = false;
@@ -128,15 +129,17 @@ bool Builder_GrowB::Build(GTwistExpander *pExpander,
     pExpander->mGrowKeyB.AddBatch(aDiffusionBatch);
     pExpander->mGrowKeyB.AddLine("//");
 
-    GTwistRunGrowKeyB aFinalRunner(aStageConfigs[3], pResidualBucket);
-    if (!aFinalRunner.Plan(pErrorMessage) ||
-        !aFinalRunner.Build(pExpander->mGrowKeyB, pErrorMessage)) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage =
-                "Builder_GrowB::Build failed on grow B stage D:\n" +
-                *pErrorMessage;
+    for (std::size_t i = 3U; i < aStageConfigs.size(); ++i) {
+        GTwistRunGrowKeyB aRunner(aStageConfigs[i], pResidualBucket);
+        if (!aRunner.Plan(pErrorMessage) ||
+            !aRunner.Build(pExpander->mGrowKeyB, pErrorMessage)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "Builder_GrowB::Build failed on grow B stage " +
+                    std::to_string(i) + ":\n" + *pErrorMessage;
+            }
+            return false;
         }
-        return false;
     }
 
     return true;

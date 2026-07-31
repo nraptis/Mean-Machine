@@ -75,23 +75,23 @@ bool Builder::Go(const std::string &pOutputRoot,
         Slot::kMagmaLaneA, Slot::kMagmaLaneB, Slot::kMagmaLaneC, Slot::kMagmaLaneD,
         Slot::kPlasmaLaneC, Slot::kPlasmaLaneD };
     Random::Shuffle(&aPool0);
-    
+
     std::vector<Slot> aPool1 = {
         Slot::kWoodLaneA, Slot::kWoodLaneB, Slot::kWoodLaneC, Slot::kWoodLaneD,
         Slot::kPlasmaLaneA, Slot::kPlasmaLaneB };
     Random::Shuffle(&aPool1);
-    
+
     std::vector<Slot> aPool2 = {
         Slot::kIceLaneA, Slot::kIceLaneB, Slot::kIceLaneC, Slot::kIceLaneD,
-        Slot::kLightningLaneA, Slot::kLightningLaneB, Slot::kLightningLaneC, Slot::kLightningLaneD, // 8
-        Slot::kSoilLaneA, Slot::kSoilLaneB, Slot::kSoilLaneC, Slot::kSoilLaneD }; // 12
+        Slot::kLightningLaneA, Slot::kLightningLaneB, Slot::kLightningLaneC, Slot::kLightningLaneD };
     Random::Shuffle(&aPool2);
-    
+
     std::vector<Slot> aPool3 = {
         Slot::kWaterLaneA, Slot::kWaterLaneB, Slot::kWaterLaneC, Slot::kWaterLaneD, // 4
         Slot::kHeartLaneA, Slot::kHeartLaneB, Slot::kHeartLaneC, Slot::kHeartLaneD, // 8
         Slot::kEarthLaneA, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD, // 12
-        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD }; // 16
+        Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD, // 16
+        Slot::kSoilLaneA, Slot::kSoilLaneB, Slot::kSoilLaneC, Slot::kSoilLaneD }; // 20
     Random::Shuffle(&aPool3);
     
     ResidualBucket aResidualBucketGrowA;
@@ -105,32 +105,21 @@ bool Builder::Go(const std::string &pOutputRoot,
     aResidualBucketGrowB.AddResiduals("Estimate-Grow-B (1)", { aPool1[1], aPool1[3], aPool1[5] }, 1);
     
     aResidualBucketGrowA.AddResiduals("Estimate-Grow-A (2)", {
-        aPool2[ 0], aPool2[ 2], aPool2[ 4],
-        aPool2[ 6], aPool2[ 8], aPool2[10]}, 2);
+        aPool2[0], aPool2[2],
+        aPool2[4], aPool2[6]}, 2);
     aResidualBucketGrowB.AddResiduals("Estimate-Grow-B (2)", {
-        aPool2[ 1], aPool2[ 3], aPool2[ 5],
-        aPool2[ 7], aPool2[ 9], aPool2[11]}, 2);
+        aPool2[1], aPool2[3],
+        aPool2[5], aPool2[7]}, 2);
     
     aResidualBucketGrowA.AddResiduals("Estimate-Grow-A (3)", {
         aPool3[ 0], aPool3[ 2], aPool3[ 4], aPool3[ 6],
-        aPool3[ 8], aPool3[10], aPool3[12], aPool3[14]}, 3);
+        aPool3[ 8], aPool3[10], aPool3[12], aPool3[14],
+        aPool3[16], aPool3[18]}, 3);
     
     aResidualBucketGrowB.AddResiduals("Estimate-Grow-B (3)", {
         aPool3[ 1], aPool3[ 3], aPool3[ 5], aPool3[ 7],
-        aPool3[ 9], aPool3[11], aPool3[13], aPool3[15]}, 3);
-    
-    
-    aResidualBucketGrowB.AddResiduals("Extra-Grow-B (0)", {
-        Slot::kVaporLaneA, Slot::kVaporLaneB,
-        Slot::kVaporLaneC, Slot::kVaporLaneD
-    }, 0);
-
-    aResidualBucketGrowB.AddResiduals("Extra-Grow-B (1)", {
-        Slot::kWindLaneA, Slot::kWindLaneB,
-        Slot::kWindLaneC, Slot::kWindLaneD,
-    }, 1);
-    
-    
+        aPool3[ 9], aPool3[11], aPool3[13], aPool3[15],
+        aPool3[17], aPool3[19]}, 3);
     Builder_GrowA aGrowABuilder;
     if (!aGrowABuilder.Build(&aExpander,
                              aResidualBucketGrowA,

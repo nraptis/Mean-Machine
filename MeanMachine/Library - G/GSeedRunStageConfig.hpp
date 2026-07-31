@@ -133,8 +133,8 @@ struct GSeedRunStageConfig {
 
     GAXSFormat                              mFormat = GAXSFormat::kInvalid;
     bool                                    mIgnoreNonces = false;
-    bool                                    mHasDomainMix = true;
     GAssignType                             mAssignType = GAssignType::kSet;
+    GAXSKDiffuseKind                        mFixedDiffuse = GAXSKDiffuseKind::kInvalid;
     TwistDomain                             mDomain = TwistDomain::kInvalid;
     bool                                    mIsNonKDF = true;
     int                                     mExpectedSkeletonCount = 6;
@@ -151,6 +151,8 @@ struct GSeedRunStageConfig {
     int                                     mMaxBoundSourceCount = 8;
     int                                     mWarmupDestinationCount = 0;
     bool                                    mBindDuplicateSourceSlots = false;
+    bool                                    mUsesSpecialSixPassStarterGraph = false;
+    bool                                    mUsesSpecialSixPassTwistStarterGraph = false;
 
     std::vector<TwistWorkSpaceSlot>         mSaltsOrbiterAssign;
     std::vector<TwistWorkSpaceSlot>         mSaltsOrbiterUpdate;

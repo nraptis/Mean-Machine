@@ -16,7 +16,7 @@ class GTwistExpander;
 
 class SaltTables {
 public:
-    using Salt = std::array<std::uint64_t, 32U>;
+    using Salt = std::array<std::uint64_t, 512U>;
 
     static const std::vector<Salt>                              &Get();
 

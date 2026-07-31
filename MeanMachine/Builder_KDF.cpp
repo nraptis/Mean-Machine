@@ -197,11 +197,32 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         BufSymbol(TwistWorkSpaceSlot::kFireLaneD),
     };
 
+    const std::vector<GSymbol> aAetherLanes = {
+        BufSymbol(TwistWorkSpaceSlot::kAetherLaneA),
+        BufSymbol(TwistWorkSpaceSlot::kAetherLaneB),
+        BufSymbol(TwistWorkSpaceSlot::kAetherLaneC),
+        BufSymbol(TwistWorkSpaceSlot::kAetherLaneD),
+    };
+
+    const std::vector<GSymbol> aKineticLanes = {
+        BufSymbol(TwistWorkSpaceSlot::kKineticLaneA),
+        BufSymbol(TwistWorkSpaceSlot::kKineticLaneB),
+        BufSymbol(TwistWorkSpaceSlot::kKineticLaneC),
+        BufSymbol(TwistWorkSpaceSlot::kKineticLaneD),
+    };
+
     const std::vector<GSymbol> aWaterLanes = {
         BufSymbol(TwistWorkSpaceSlot::kWaterLaneA),
         BufSymbol(TwistWorkSpaceSlot::kWaterLaneB),
         BufSymbol(TwistWorkSpaceSlot::kWaterLaneC),
         BufSymbol(TwistWorkSpaceSlot::kWaterLaneD),
+    };
+
+    const std::vector<GSymbol> aSpiritLanes = {
+        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneA),
+        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneB),
+        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneC),
+        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneD),
     };
 
     const std::vector<GSymbol> aWindLanes = {
@@ -253,31 +274,12 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         BufSymbol(TwistWorkSpaceSlot::kShadowLaneD),
     };
 
-    const std::vector<GSymbol> aAetherLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneD),
-    };
-
-    const std::vector<GSymbol> aCelestialLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kCelestialLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kCelestialLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kCelestialLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kCelestialLaneD),
-    };
-
-    const std::vector<GSymbol> aVaporLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kVaporLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kVaporLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kVaporLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kVaporLaneD),
-    };
-
     ResidualBucket aResidualBucket;
 
     const GSeedRunKDF_AConfig::KDFStageConfigs aKDFAConfigs =
-        GSeedRunKDF_AConfig::MakeKDF_AConfig(aResidualBucket);
+        GSeedRunKDF_AConfig::MakeKDF_AConfig(
+            aResidualBucket,
+            pExpander->mControlCandidateIndex);
 
     if (!BuildKDFStage<GSeedRunKDF_A>(pExpander->mKDF_A,
                                        aKDFAConfigs[0],
@@ -322,7 +324,7 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     if (!BuildMatrixDiffusionFromPreviousSix(pExpander->mKDF_A,
                                              "kdf-a",
                                              aFuseLanes,
-                                             aWaterLanes,
+                                             aSpiritLanes,
                                              aKDFAPreviousSixLanes,
                                              pErrorMessage)) {
         return false;
@@ -337,7 +339,9 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         return false;
     }
     const GSeedRunKDF_BConfig::KDFStageConfigs aKDFBConfigs =
-        GSeedRunKDF_BConfig::MakeKDF_BConfig(aResidualBucket);
+        GSeedRunKDF_BConfig::MakeKDF_BConfig(
+            aResidualBucket,
+            pExpander->mControlCandidateIndex);
     const std::vector<GSymbol> aKDFBPreviousSixLanes = {
         aSoilLanes[2], aSoilLanes[3],
         aLightningLanes[0], aLightningLanes[1],
@@ -354,7 +358,9 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     }
 
     const GSeedRunKDF_CConfig::KDFStageConfigs aKDFCConfigs =
-        GSeedRunKDF_CConfig::MakeKDF_CConfig(aResidualBucket);
+        GSeedRunKDF_CConfig::MakeKDF_CConfig(
+            aResidualBucket,
+            pExpander->mControlCandidateIndex);
     const std::vector<GSymbol> aKDFCPreviousSixLanes = {
         aMagmaLanes[2], aMagmaLanes[3],
         aPlasmaLanes[0], aPlasmaLanes[1],
@@ -371,17 +377,19 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
     }
 
     const GSeedRunKDF_DConfig::KDFStageConfigs aKDFDConfigs =
-        GSeedRunKDF_DConfig::MakeKDF_DConfig(aResidualBucket);
+        GSeedRunKDF_DConfig::MakeKDF_DConfig(
+            aResidualBucket,
+            pExpander->mControlCandidateIndex);
     const std::vector<GSymbol> aKDFDPreviousSixLanes = {
         aAetherLanes[2], aAetherLanes[3],
-        aCelestialLanes[0], aCelestialLanes[1],
-        aCelestialLanes[2], aCelestialLanes[3],
+        aKineticLanes[0], aKineticLanes[1],
+        aKineticLanes[2], aKineticLanes[3],
     };
     if (!BuildKDFStyleBranch<GSeedRunKDF_D>(pExpander->mKDF_D,
                                             aKDFDConfigs,
                                             'D',
                                             aFuseLanes,
-                                            aVaporLanes,
+                                            aWaterLanes,
                                             aKDFDPreviousSixLanes,
                                             pErrorMessage)) {
         return false;

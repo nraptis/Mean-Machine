@@ -38,11 +38,4 @@ private:
     std::vector<Entry>                      mEntries;
 };
 
-struct GrowResidualBuckets {
-    ResidualBucket                          mGrowKeyA;
-    ResidualBucket                          mGrowKeyB;
-};
-
-GrowResidualBuckets                        MakeGrowResidualBuckets();
-
 #endif /* ResidualBucket_hpp */

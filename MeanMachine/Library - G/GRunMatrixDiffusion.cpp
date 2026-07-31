@@ -87,46 +87,40 @@ bool GRunMatrixDiffusion::Bake(const GRunMatrixDiffusionConfig &pConfig,
     std::vector<GStatement> aStatements;
 
     std::ostringstream aCall;
-    aCall << "TwistDiffuse::DiffuseWithDomainWords(";
-    aCall << BufAliasName(pConfig.mInputA) << ", "
-          << BufAliasName(pConfig.mInputB) << ",\n"
-          << "                     "
+    aCall << "TwistDiffuse::DiffuseWithDomainWords(\n"
+          << "        "
+          << BufAliasName(pConfig.mInputA) << ", "
+          << BufAliasName(pConfig.mInputB) << ", "
           << BufAliasName(pConfig.mInputC) << ", "
           << BufAliasName(pConfig.mInputD) << ",  // input lanes\n"
-          << "                     "
+          << "        "
           << BufAliasName(pConfig.mOutputA) << ", "
-          << BufAliasName(pConfig.mOutputB) << ",\n"
-          << "                     "
+          << BufAliasName(pConfig.mOutputB) << ", "
           << BufAliasName(pConfig.mOutputC) << ", "
           << BufAliasName(pConfig.mOutputD) << ", // output lanes\n"
-          << "                     "
+          << "        "
           << BufAliasName(pConfig.mShuffleEntropyA) << ", "
           << BufAliasName(pConfig.mShuffleEntropyB) << ", "
           << BufAliasName(pConfig.mShuffleEntropyC) << ", "
           << BufAliasName(pConfig.mShuffleEntropyD) << ", // index shuffle seeds\n"
-          << "                     "
+          << "        "
           << BufAliasName(pConfig.mOperationSourceA) << ", "
           << BufAliasName(pConfig.mOperationSourceB) << ", // operation seeds\n"
-          << "                     "
+          << "        "
           << BufAliasName(aIndexListA) << ", "
           << BufAliasName(aIndexListB) << ", "
           << BufAliasName(aIndexListC) << ", "
-          << BufAliasName(aIndexListD) << ",\n"
-          << "                     &mMatrix,\n"
-          << "                     "
+          << BufAliasName(aIndexListD) << ", "
+          << "&mMatrix, "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixSelectA).mName << ", "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixSelectB).mName << ", "
-          << "// matrix select\n"
-          << "                     "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixUnrollA).mName << ", "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixUnrollB).mName << ", "
-          << "// matrix unroll\n"
-          << "                     "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixArgA).mName << ", "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixArgB).mName << ", "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixArgC).mName << ", "
           << GSymbol::Var(TwistVariable::kDomainWordMatrixArgD).mName
-          << "); // matrix args";
+          << ");";
     aStatements.push_back(GStatement::RawLine(aCall.str()));
     pBatch->CommitStatements(&aStatements);
     return true;

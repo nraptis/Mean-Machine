@@ -68,8 +68,8 @@ public:
                         mConfig.mIgnoreNonces,
                         aLaneCounts,
                         aSourceLayouts,
-                        mConfig.mHasDomainMix,
                         mConfig.mAssignType,
+                        mConfig.mFixedDiffuse,
                         &mARXSkeletons,
                         pErrorMessage)) {
             if ((pErrorMessage != nullptr) && pErrorMessage->empty()) {
@@ -147,13 +147,13 @@ public:
                     aSlice.mDomain = aSliceDomain;
                     aSlice.mSaltsOrbiterAssign = SymbolsForSlots(PhaseSalts(aSliceDomain,
                                                                              Slot::kKeyRotateASaltOrbiterAssignA,
-                                                                             6));
+                                                                          8));
                     aSlice.mSaltsOrbiterUpdate = SymbolsForSlots(PhaseSalts(aSliceDomain,
                                                                             Slot::kKeyRotateASaltOrbiterUpdateA,
-                                                                            6));
+                                                                          8));
                     aSlice.mSaltsWandererUpdate = SymbolsForSlots(PhaseSalts(aSliceDomain,
                                                                               Slot::kKeyRotateASaltWandererUpdateA,
-                                                                              6));
+                                                                          8));
                 }
             }
 
@@ -244,7 +244,7 @@ private:
                                                        const TwistWorkSpaceSlot pBaseSlot,
                                                        const int pLaneCount) {
         const int aBase = static_cast<int>(pBaseSlot);
-        const int aOffset = PhaseIndex(pDomain) * 18;
+        const int aOffset = PhaseIndex(pDomain) * 24;
 
         std::vector<TwistWorkSpaceSlot> aResult;
         aResult.reserve(static_cast<std::size_t>(pLaneCount));
@@ -290,7 +290,8 @@ private:
                                        const std::size_t pSliceIndex,
                                        const int pMaxSourceCount,
                                        std::string *pErrorMessage) {
-        if ((pSources.size() < 2U) || (pSources.size() > static_cast<std::size_t>(pMaxSourceCount))) {
+        if ((pSources.size() < 2U) ||
+            (pSources.size() > static_cast<std::size_t>(pMaxSourceCount))) {
             SetError(pErrorMessage,
                      pStageName + " " + pBatchName +
                      " slice " + std::to_string(pSliceIndex + 1U) +

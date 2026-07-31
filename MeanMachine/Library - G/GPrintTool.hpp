@@ -198,9 +198,11 @@ private:
     static std::vector<TwistWorkSpaceSlot> AllKnownSlots() {
         using Slot = TwistWorkSpaceSlot;
         return {
-            Slot::kSource, Slot::kParamSource, Slot::kParamDestination, Slot::kParamSnow,
+            Slot::kSourceLane, Slot::kNonceLane,
+            Slot::kParamSource, Slot::kParamDestination,
+            Slot::kParamCrossA, Slot::kParamCrossB,
+            Slot::kParamCrossC, Slot::kParamCrossD,
             Slot::kHeartLaneA, Slot::kHeartLaneB, Slot::kHeartLaneC, Slot::kHeartLaneD,
-            Slot::kPoisonLaneA, Slot::kPoisonLaneB, Slot::kPoisonLaneC, Slot::kPoisonLaneD,
             Slot::kSpiritLaneA, Slot::kSpiritLaneB, Slot::kSpiritLaneC, Slot::kSpiritLaneD,
             Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
             Slot::kWaterLaneA, Slot::kWaterLaneB, Slot::kWaterLaneC, Slot::kWaterLaneD,
@@ -218,9 +220,6 @@ private:
             Slot::kCelestialLaneA, Slot::kCelestialLaneB, Slot::kCelestialLaneC, Slot::kCelestialLaneD,
             Slot::kKineticLaneA, Slot::kKineticLaneB, Slot::kKineticLaneC, Slot::kKineticLaneD,
             Slot::kVaporLaneA, Slot::kVaporLaneB, Slot::kVaporLaneC, Slot::kVaporLaneD,
-            Slot::kChanceLaneA, Slot::kChanceLaneB, Slot::kChanceLaneC, Slot::kChanceLaneD,
-            Slot::kDomainLaneKeyRotateA, Slot::kDomainLaneKeySpawnA,
-            Slot::kDomainLaneSeed, Slot::kDomainLaneTwist,
             Slot::kIceLaneA, Slot::kIceLaneB, Slot::kIceLaneC, Slot::kIceLaneD,
             Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kKeyRowWriteA, Slot::kKeyRowWriteB,
             Slot::kKeyBoxUnrolledA, Slot::kKeyBoxUnrolledB,
@@ -238,15 +237,8 @@ private:
         if ((aToken == "expand") || (aToken == "expansion") || (aToken == "seed")) {
             return {Slot::kHeartLaneA, Slot::kHeartLaneB, Slot::kHeartLaneC, Slot::kHeartLaneD};
         }
-        if (aToken == "work") {
-            return {Slot::kPoisonLaneA, Slot::kPoisonLaneB, Slot::kPoisonLaneC, Slot::kPoisonLaneD};
-        }
         if ((aToken == "op") || (aToken == "operation")) {
             return {Slot::kSpiritLaneA, Slot::kSpiritLaneB, Slot::kSpiritLaneC, Slot::kSpiritLaneD};
-        }
-        if (aToken == "snow") {
-            return {Slot::kHeartLaneA, Slot::kHeartLaneB,
-                    Slot::kHeartLaneC, Slot::kHeartLaneD};
         }
         if (aToken == "fire") {
             return {Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD};
@@ -295,13 +287,6 @@ private:
         }
         if (aToken == "vapor") {
             return {Slot::kVaporLaneA, Slot::kVaporLaneB, Slot::kVaporLaneC, Slot::kVaporLaneD};
-        }
-        if (aToken == "chance") {
-            return {Slot::kChanceLaneA, Slot::kChanceLaneB, Slot::kChanceLaneC, Slot::kChanceLaneD};
-        }
-        if ((aToken == "domain") || (aToken == "domains")) {
-            return {Slot::kDomainLaneKeyRotateA, Slot::kDomainLaneKeySpawnA,
-                    Slot::kDomainLaneSeed, Slot::kDomainLaneTwist};
         }
         if (aToken == "invest") {
             return {Slot::kIceLaneA, Slot::kIceLaneB, Slot::kIceLaneC, Slot::kIceLaneD};

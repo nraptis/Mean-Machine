@@ -8,7 +8,6 @@
 #include "LaneSplitControl.hpp"
 
 #include <array>
-#include <utility>
 #include <vector>
 
 namespace {
@@ -34,7 +33,7 @@ std::vector<Slot> PhaseSalts(const TwistDomain pDomain,
     std::vector<Slot> aResult;
     aResult.reserve(static_cast<std::size_t>(pLaneCount));
     const int aBase = static_cast<int>(pBaseSlot);
-    const int aOffset = aPhaseIndex * 18;
+    const int aOffset = aPhaseIndex * 24;
     for (int i = 0; i < pLaneCount; ++i) {
         aResult.push_back(
             static_cast<Slot>(aBase + aOffset + i)
@@ -44,82 +43,71 @@ std::vector<Slot> PhaseSalts(const TwistDomain pDomain,
 }
 
 GSeedRunStageConfig BaseConfig(const char *pStageName,
-                               const char *pBatchName) {
-    constexpr TwistDomain kDefaultDomain = TwistDomain::kKeySpawnA;
-
+                               const char *pBatchName,
+                               const TwistDomain pDomain,
+                               const GAXSFormat pFormat) {
     GSeedRunStageConfig aConfig;
     aConfig.mStageName = pStageName;
     aConfig.mBatchName = pBatchName;
-    aConfig.mFormat = GAXSFormat::kN9;
+    aConfig.mFormat = pFormat;
     aConfig.mIgnoreNonces = false;
-    aConfig.mHasDomainMix = true;
     aConfig.mAssignType = GAssignType::kSet;
-    // Rows A0-A7 use this default. Rows B0-B7 explicitly override it with
-    // kKeySpawnB through mSliceDomains below.
-    aConfig.mDomain = kDefaultDomain;
+    aConfig.mDomain = pDomain;
     aConfig.mIsNonKDF = true;
-    aConfig.mExpectedSkeletonCount = 8;
-    aConfig.mHotPackCount = 8;
+    aConfig.mExpectedSkeletonCount = 1;
+    aConfig.mHotPackCount = 1;
     aConfig.mMaxContextSourceCount = 4;
     aConfig.mMaxBoundSourceCount = 8;
     aConfig.mBindDuplicateSourceSlots = false;
+    aConfig.mFixedDiffuse = GAXSKDiffuseKind::kDiffuseA;
     aConfig.mAutoRangeAdjust = false;
     aConfig.mSourceOffsetRangeLo = 0;
     aConfig.mSourceOffsetRangeHi = W_KEY1;
     aConfig.mEmitLaneFlowComments = true;
     aConfig.mSaltsOrbiterAssign =
-        PhaseSalts(kDefaultDomain,
+        PhaseSalts(pDomain,
                    Slot::kKeyRotateASaltOrbiterAssignA,
-                   6);
+                   8);
     aConfig.mSaltsOrbiterUpdate =
-        PhaseSalts(kDefaultDomain,
+        PhaseSalts(pDomain,
                    Slot::kKeyRotateASaltOrbiterUpdateA,
-                   6);
+                   8);
     aConfig.mSaltsWandererUpdate =
-        PhaseSalts(kDefaultDomain,
+        PhaseSalts(pDomain,
                    Slot::kKeyRotateASaltWandererUpdateA,
-                   6);
+                   8);
     return aConfig;
 }
 
-GSeedRunStageConfig MakeSixteenLoopConfig(
+GSeedRunStageConfig MakeSingleLoopConfig(
     const char *pStageName,
     const char *pBatchName,
-    const std::array<Slot, 16> &pDestinations) {
+    const Slot pDestination,
+    const TwistDomain pDomain,
+    const GAXSFormat pFormat) {
     GSeedRunStageConfig aConfig =
-        BaseConfig(pStageName, pBatchName);
-    aConfig.mExpectedSkeletonCount =
-        static_cast<int>(pDestinations.size());
-    aConfig.mHotPackCount =
-        static_cast<int>(pDestinations.size());
-
-    for (std::size_t i = 0U; i < pDestinations.size(); ++i) {
-        aConfig.mSlices.push_back(
-            GSeedRunStageSliceSpec(
-                {
-                    Slot::kPoisonLaneA,
-                    Slot::kPoisonLaneB,
-                    Slot::kPoisonLaneC,
-                    Slot::kPoisonLaneD,
-                },
-                false,
-                {
-                    Slot::kPlasmaLaneA,
-                    Slot::kPlasmaLaneB,
-                    Slot::kPlasmaLaneC,
-                    Slot::kPlasmaLaneD,
-                },
-                true,
-                pDestinations[i],
-                false
-            )
-        );
-        aConfig.mSliceDomains.push_back(
-            i < 8U
-                ? TwistDomain::kKeySpawnA
-                : TwistDomain::kKeySpawnB
-        );
-    }
+        BaseConfig(pStageName, pBatchName, pDomain, pFormat);
+    aConfig.mSlices.push_back(
+        GSeedRunStageSliceSpec(
+            {
+                Slot::kCrystalLaneA,
+                Slot::kCrystalLaneB,
+                Slot::kCrystalLaneC,
+                Slot::kCrystalLaneD,
+            },
+            false,
+            {
+                Slot::kPlasmaLaneA,
+                Slot::kPlasmaLaneB,
+                Slot::kPlasmaLaneC,
+                Slot::kPlasmaLaneD,
+            },
+            true,
+            pDestination,
+            false
+        )
+    );
+    aConfig.mSliceDomains.push_back(pDomain);
     return aConfig;
 }
 
@@ -143,10 +131,10 @@ bool LoadLaneSplitValues(std::string *pErrorMessage) {
     LaneSplitControl::Reset();
     if (!LaneSplitControl::AddLaneGroup(
             {
-                Slot::kPoisonLaneA,
-                Slot::kPoisonLaneB,
-                Slot::kPoisonLaneC,
-                Slot::kPoisonLaneD,
+                Slot::kCrystalLaneA,
+                Slot::kCrystalLaneB,
+                Slot::kCrystalLaneC,
+                Slot::kCrystalLaneD,
             },
             pErrorMessage) ||
         !LaneSplitControl::AddLaneGroup(
@@ -188,6 +176,8 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
         return false;
     }
 
+    // Lane Plan
+
     const std::array<Slot, 16> aDestinations = {
         Slot::kKeyRowA0, Slot::kKeyRowA1,
         Slot::kKeyRowA2, Slot::kKeyRowA3,
@@ -199,19 +189,63 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
         Slot::kKeyRowB6, Slot::kKeyRowB7,
     };
 
-    GSeedRunStageConfig aConfig =
-        MakeSixteenLoopConfig("GSeedRunKEY",
-                              "key_box",
-                              aDestinations);
+    static constexpr std::array<const char *, 16> kStageNames = {
+        "GSeedRunKEY_A_A", "GSeedRunKEY_A_B",
+        "GSeedRunKEY_A_C", "GSeedRunKEY_A_D",
+        "GSeedRunKEY_A_E", "GSeedRunKEY_A_F",
+        "GSeedRunKEY_A_G", "GSeedRunKEY_A_H",
+        "GSeedRunKEY_B_A", "GSeedRunKEY_B_B",
+        "GSeedRunKEY_B_C", "GSeedRunKEY_B_D",
+        "GSeedRunKEY_B_E", "GSeedRunKEY_B_F",
+        "GSeedRunKEY_B_G", "GSeedRunKEY_B_H",
+    };
+    static constexpr std::array<const char *, 16> kBatchNames = {
+        "key_a_loop_a", "key_a_loop_b",
+        "key_a_loop_c", "key_a_loop_d",
+        "key_a_loop_e", "key_a_loop_f",
+        "key_a_loop_g", "key_a_loop_h",
+        "key_b_loop_a", "key_b_loop_b",
+        "key_b_loop_c", "key_b_loop_d",
+        "key_b_loop_e", "key_b_loop_f",
+        "key_b_loop_g", "key_b_loop_h",
+    };
+    static constexpr std::array<GAXSFormat, 16> kFormats = {
+        GAXSFormat::kN11, GAXSFormat::kN11,
+        GAXSFormat::kN11, GAXSFormat::kN11,
+        GAXSFormat::kN11, GAXSFormat::kN11,
+        GAXSFormat::kN11, GAXSFormat::kN11,
+        GAXSFormat::kN11, GAXSFormat::kN11,
+        GAXSFormat::kN11, GAXSFormat::kN11,
+        GAXSFormat::kN11, GAXSFormat::kN11,
+        GAXSFormat::kN11, GAXSFormat::kN11,
+    };
 
-    if (!LaneSplitControl::LinkStageConfig(
-            &aConfig,
-            pCandidateIndex,
-            pErrorMessage)) {
-        return false;
+    // Stage Construction
+
+    for (std::size_t i = 0U; i < pConfigs->size(); ++i) {
+        const TwistDomain aDomain =
+            i < 8U
+                ? TwistDomain::kKeySpawnA
+                : TwistDomain::kKeySpawnB;
+        GSeedRunStageConfig aConfig =
+            MakeSingleLoopConfig(kStageNames[i],
+                                 kBatchNames[i],
+                                 aDestinations[i],
+                                 aDomain,
+                                 kFormats[i]);
+
+        const std::vector<std::uint8_t> aLogicalLaneSplits = {
+            static_cast<std::uint8_t>(i),
+        };
+        if (!LaneSplitControl::LinkStageConfig(
+                &aConfig,
+                pCandidateIndex,
+                aLogicalLaneSplits,
+                pErrorMessage)) {
+            return false;
+        }
+        (*pConfigs)[i] = std::move(aConfig);
     }
-
-    (*pConfigs)[0] = std::move(aConfig);
     return true;
 }
 

@@ -11,6 +11,8 @@
 
 namespace {
 
+constexpr std::size_t kSaltLaneCount = 8U;
+
 std::vector<GSymbol> MakeShuffledWanderers() {
     std::vector<GSymbol> aWanderers = {
         GSymbol::Var(TwistVariable::kWandererA),
@@ -30,48 +32,32 @@ std::vector<GSymbol> MakeShuffledWanderers() {
     return aWanderers;
 }
 
-void AddSymbolsToCache(GSymbolCache *pCache,
-                       const std::vector<GSymbol> &pSymbols) {
-    if (pCache == nullptr) {
-        return;
-    }
-    for (const GSymbol &aSymbol : pSymbols) {
-        pCache->AddItem(&aSymbol);
-    }
-}
-
-void FillSaltBag(const std::vector<GSymbol> &pSaltsOrbiterAssign,
+bool FillSaltBag(const std::vector<GSymbol> &pSaltsOrbiterAssign,
                  const std::vector<GSymbol> &pSaltsOrbiterUpdate,
                  const std::vector<GSymbol> &pSaltsWandererUpdate,
-                 GAXPLSaltBag *pSaltBag) {
+                 GAXPLSaltBag *pSaltBag,
+                 std::string *pErrorMessage) {
     if (pSaltBag == nullptr) {
-        return;
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "CSPRNGV2::FillSaltBag received null salt bag";
+        }
+        return false;
     }
 
-    GSymbolCache aCacheOrbiterAssign;
-    AddSymbolsToCache(&aCacheOrbiterAssign, pSaltsOrbiterAssign);
-    aCacheOrbiterAssign.SetLimits(2, 2, 2);
-    aCacheOrbiterAssign.Fetch(2);
-    pSaltBag->mOrbiterAssign = {
-        *(aCacheOrbiterAssign.mBus[0]), *(aCacheOrbiterAssign.mBus[1]),
-    };
+    if ((pSaltsOrbiterAssign.size() != kSaltLaneCount) ||
+        (pSaltsOrbiterUpdate.size() != kSaltLaneCount) ||
+        (pSaltsWandererUpdate.size() != kSaltLaneCount)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                "CSPRNGV2::FillSaltBag requires exactly eight salts for every role";
+        }
+        return false;
+    }
 
-    GSymbolCache aCacheOrbiterUpdate;
-    AddSymbolsToCache(&aCacheOrbiterUpdate, pSaltsOrbiterUpdate);
-    aCacheOrbiterUpdate.SetLimits(2, 3, 4);
-    aCacheOrbiterUpdate.Fetch(4);
-    pSaltBag->mOrbiterUpdate = {
-        *(aCacheOrbiterUpdate.mBus[0]), *(aCacheOrbiterUpdate.mBus[1]),
-        *(aCacheOrbiterUpdate.mBus[2]), *(aCacheOrbiterUpdate.mBus[3]),
-    };
-
-    GSymbolCache aCacheWandererUpdate;
-    AddSymbolsToCache(&aCacheWandererUpdate, pSaltsWandererUpdate);
-    aCacheWandererUpdate.SetLimits(2, 2, 2);
-    aCacheWandererUpdate.Fetch(2);
-    pSaltBag->mWandererUpdate = {
-        *(aCacheWandererUpdate.mBus[0]), *(aCacheWandererUpdate.mBus[1]),
-    };
+    pSaltBag->mOrbiterAssign = pSaltsOrbiterAssign;
+    pSaltBag->mOrbiterUpdate = pSaltsOrbiterUpdate;
+    pSaltBag->mWandererUpdate = pSaltsWandererUpdate;
+    return true;
 }
 
 } // namespace
@@ -93,11 +79,11 @@ bool CSPRNGV2::Bake(bool pIsNonKDF,
         return false;
     }
     
-    if (pSaltsOrbiterAssign.size() < 2 ||
-        pSaltsOrbiterUpdate.size() < 4 ||
-        pSaltsWandererUpdate.size() < 2) {
+    if ((pSaltsOrbiterAssign.size() != kSaltLaneCount) ||
+        (pSaltsOrbiterUpdate.size() != kSaltLaneCount) ||
+        (pSaltsWandererUpdate.size() != kSaltLaneCount)) {
         if (pErrorMessage != nullptr) {
-            *pErrorMessage = "CSPRNGV2::Bake received too few salts";
+            *pErrorMessage = "CSPRNGV2::Bake requires exactly eight salts for every role";
         }
         return false;
     }
@@ -130,58 +116,26 @@ bool CSPRNGV2::Bake(bool pIsNonKDF,
         GSymbol::Var("aNonceWordP"),
     };
     
-    GSymbolCache aCacheOrbiterAssign;
-    for (int aSaltIndex=0; aSaltIndex< pSaltsOrbiterAssign.size(); aSaltIndex++) {
-        aCacheOrbiterAssign.AddItem(&(pSaltsOrbiterAssign[aSaltIndex]));
-    }
-    aCacheOrbiterAssign.SetLimits(2, 2, 2);
-    
-    GSymbolCache aCacheOrbiterUpdate;
-    for (int aSaltIndex=0; aSaltIndex< pSaltsOrbiterUpdate.size(); aSaltIndex++) {
-        aCacheOrbiterUpdate.AddItem(&(pSaltsOrbiterUpdate[aSaltIndex]));
-    }
-    aCacheOrbiterUpdate.SetLimits(2, 3, 4);
-    
-    GSymbolCache aCacheWandererUpdate;
-    for (int aSaltIndex=0; aSaltIndex< pSaltsWandererUpdate.size(); aSaltIndex++) {
-        aCacheWandererUpdate.AddItem(&(pSaltsWandererUpdate[aSaltIndex]));
-    }
-    aCacheWandererUpdate.SetLimits(2, 2, 2);
-    
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
         if (!pSlices[aSliceIndex].mSaltsOrbiterAssign.empty() ||
             !pSlices[aSliceIndex].mSaltsOrbiterUpdate.empty() ||
             !pSlices[aSliceIndex].mSaltsWandererUpdate.empty()) {
-            if ((pSlices[aSliceIndex].mSaltsOrbiterAssign.size() < 2U) ||
-                (pSlices[aSliceIndex].mSaltsOrbiterUpdate.size() < 4U) ||
-                (pSlices[aSliceIndex].mSaltsWandererUpdate.size() < 2U)) {
-                if (pErrorMessage != nullptr) {
-                    *pErrorMessage = "CSPRNGV2::Bake received incomplete per-slice salts";
-                }
+            if (!FillSaltBag(pSlices[aSliceIndex].mSaltsOrbiterAssign,
+                             pSlices[aSliceIndex].mSaltsOrbiterUpdate,
+                             pSlices[aSliceIndex].mSaltsWandererUpdate,
+                             &(pSlices[aSliceIndex].mSaltBag),
+                             pErrorMessage)) {
                 return false;
             }
-            FillSaltBag(pSlices[aSliceIndex].mSaltsOrbiterAssign,
-                        pSlices[aSliceIndex].mSaltsOrbiterUpdate,
-                        pSlices[aSliceIndex].mSaltsWandererUpdate,
-                        &(pSlices[aSliceIndex].mSaltBag));
-            continue;
+        } else {
+            if (!FillSaltBag(pSaltsOrbiterAssign,
+                             pSaltsOrbiterUpdate,
+                             pSaltsWandererUpdate,
+                             &(pSlices[aSliceIndex].mSaltBag),
+                             pErrorMessage)) {
+                return false;
+            }
         }
-
-        aCacheOrbiterAssign.Fetch(2);
-        pSlices[aSliceIndex].mSaltBag.mOrbiterAssign = {
-            *(aCacheOrbiterAssign.mBus[0]), *(aCacheOrbiterAssign.mBus[1]),
-        };
-        
-        aCacheOrbiterUpdate.Fetch(4);
-        pSlices[aSliceIndex].mSaltBag.mOrbiterUpdate = {
-            *(aCacheOrbiterUpdate.mBus[0]), *(aCacheOrbiterUpdate.mBus[1]),
-            *(aCacheOrbiterUpdate.mBus[2]), *(aCacheOrbiterUpdate.mBus[3]),
-        };
-        
-        aCacheWandererUpdate.Fetch(2);
-        pSlices[aSliceIndex].mSaltBag.mWandererUpdate = {
-            *(aCacheWandererUpdate.mBus[0]), *(aCacheWandererUpdate.mBus[1]),
-        };
     }
     
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
@@ -201,43 +155,6 @@ bool CSPRNGV2::Bake(bool pIsNonKDF,
         Random::Shuffle(&pSlices[aSliceIndex].mOrbiters);
         
         pSlices[aSliceIndex].mWanderers = MakeShuffledWanderers();
-    }
-    
-    bool NO_SHUFFLE = false;
-    
-    if (NO_SHUFFLE == true) {
-        for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
-            aCacheOrbiterAssign.Fetch(2);
-            pSlices[aSliceIndex].mSaltBag.mOrbiterAssign = {
-                pSaltsOrbiterAssign[0], pSaltsOrbiterAssign[1],
-            };
-            
-            aCacheOrbiterUpdate.Fetch(4);
-            pSlices[aSliceIndex].mSaltBag.mOrbiterUpdate = {
-                pSaltsOrbiterUpdate[0], pSaltsOrbiterUpdate[1],
-                pSaltsOrbiterUpdate[2], pSaltsOrbiterUpdate[3],
-            };
-            
-            aCacheWandererUpdate.Fetch(2);
-            pSlices[aSliceIndex].mSaltBag.mWandererUpdate = {
-                pSaltsWandererUpdate[0], pSaltsWandererUpdate[1],
-            };
-        }
-        for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
-            if (pSlices[aSliceIndex].mARXSkeleton.HasNonceSlots()) {
-                pSlices[aSliceIndex].mNonceBytes = aNonceWords;
-                Random::Shuffle(&pSlices[aSliceIndex].mNonceBytes);
-            } else {
-                pSlices[aSliceIndex].mNonceBytes.clear();
-            }
-            pSlices[aSliceIndex].mOrbiters = {
-                aOrbiterA, aOrbiterB, aOrbiterC, aOrbiterD,
-                aOrbiterE, aOrbiterF, aOrbiterG, aOrbiterH,
-                aOrbiterI, aOrbiterJ, aOrbiterK,
-            };
-            pSlices[aSliceIndex].mWanderers = MakeShuffledWanderers();
-        }
-        
     }
     
     GAXPL *aPlan = new GAXPL();

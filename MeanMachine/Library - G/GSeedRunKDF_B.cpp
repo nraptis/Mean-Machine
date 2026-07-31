@@ -4,7 +4,9 @@
 //
 
 #include "GSeedRunKDF_B.hpp"
-#include "GPassFactory.hpp"
+#include "ArrangementFour.hpp"
+#include "GPassFactoryMidstage.hpp"
+#include "GPassFactoryTrunk.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
 #include "ResidualBucket.hpp"
 
@@ -19,6 +21,8 @@ std::vector<TwistWorkSpaceSlot> ParamOrbiterAssignSalts() {
         Slot::kParamDomainSaltOrbiterAssignD,
         Slot::kParamDomainSaltOrbiterAssignE,
         Slot::kParamDomainSaltOrbiterAssignF,
+        Slot::kParamDomainSaltOrbiterAssignG,
+        Slot::kParamDomainSaltOrbiterAssignH,
     };
 }
 
@@ -31,6 +35,8 @@ std::vector<TwistWorkSpaceSlot> ParamOrbiterUpdateSalts() {
         Slot::kParamDomainSaltOrbiterUpdateD,
         Slot::kParamDomainSaltOrbiterUpdateE,
         Slot::kParamDomainSaltOrbiterUpdateF,
+        Slot::kParamDomainSaltOrbiterUpdateG,
+        Slot::kParamDomainSaltOrbiterUpdateH,
     };
 }
 
@@ -43,6 +49,8 @@ std::vector<TwistWorkSpaceSlot> ParamWandererUpdateSalts() {
         Slot::kParamDomainSaltWandererUpdateD,
         Slot::kParamDomainSaltWandererUpdateE,
         Slot::kParamDomainSaltWandererUpdateF,
+        Slot::kParamDomainSaltWandererUpdateG,
+        Slot::kParamDomainSaltWandererUpdateH,
     };
 }
 
@@ -56,7 +64,6 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     aConfig.mEndLine = "// " + pStageName + " " + pBatchName + " (end)";
     aConfig.mFormat = pFormat;
     aConfig.mIgnoreNonces = false;
-    aConfig.mHasDomainMix = true;
     aConfig.mDomain = TwistDomain::kInvalid;
     aConfig.mIsNonKDF = false;
     aConfig.mExpectedSkeletonCount = 6;
@@ -70,7 +77,6 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
 }
 
 void AddKDF_BPrologue(TwistProgramBranch &pBranch) {
-    pBranch.AddLine("// [kdf-b]");
     pBranch.AddLine("std::uint64_t aDomainWordIngress = pConstants->mIngress;");
     pBranch.AddLine("std::uint64_t aDomainWordScatter = pConstants->mScatter;");
     pBranch.AddLine("std::uint64_t aDomainWordCross = pConstants->mCross;");
@@ -82,51 +88,48 @@ void AddKDF_BPrologue(TwistProgramBranch &pBranch) {
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgB = pConstants->mMatrixArgB;");
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgC = pConstants->mMatrixArgC;");
     pBranch.AddLine("std::uint8_t aDomainWordMatrixArgD = pConstants->mMatrixArgD;");
-
+    pBranch.AddLine("");
 }
-
-
-// [poi-a] x 3, [poi-b] x 3, [poi-c] x 2, [poi-d] x 2
-// [ear-a] x 2, [ear-b] x 2, [ear-c] x 2, [ear-d] x 2
-// [fir-a] x 1, [fir-b] x 1, [fir-c] x 1, [fir-d] x 1
-// [win-a] x 0, [win-b] x 0, [win-c] x 0, [win-d] x 0
 
 } // namespace
 
 namespace GSeedRunKDF_BConfig {
 
-KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
+KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket,
+                                const std::size_t pCandidateIndex) {
     using Slot = TwistWorkSpaceSlot;
 
     KDFStageConfigs aConfigs;
     std::vector<Slot> aResidualsPool;
 
+    // Lane Plan
+
     //
     // KDF B — Stage A
     //
-    const GPassFactory::SlotArray4 aPrimarySourcesA = {
+    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesA = {
         Slot::kHeartLaneA,
         Slot::kHeartLaneB,
         Slot::kHeartLaneC,
         Slot::kHeartLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsA = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsA = {
         Slot::kSoilLaneA,
         Slot::kSoilLaneB,
         Slot::kSoilLaneC,
         Slot::kSoilLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aPrimarySourcesA));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsA));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesA));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsA));
 
     printf("at KDF B — Stage A, there were %zu residuals available\n",
            pResidualBucket.CountValidResiduals());
 
-    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage A", 14);
+    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage A", 15);
 
-    const GPassFactory::SlotArray16 aResidualsA = {
-        Slot::kSource, Slot::kParamSnow,
+    const GPassFactoryMidstage::SlotArray16 aResidualsA = {
+        Slot::kSourceLane,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -134,6 +137,7 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("KDF B — Stage A", {
@@ -146,29 +150,29 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     //
     // KDF B — Stage B
     //
-    const GPassFactory::SlotArray4 aPrimarySourcesB = {
+    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesB = {
         Slot::kSoilLaneA,
         Slot::kSoilLaneB,
         Slot::kSoilLaneC,
         Slot::kSoilLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsB = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsB = {
         Slot::kLightningLaneA,
         Slot::kLightningLaneB,
         Slot::kLightningLaneC,
         Slot::kLightningLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aPrimarySourcesB));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsB));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesB));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsB));
 
     printf("at KDF B — Stage B, there were %zu residuals available\n",
            pResidualBucket.CountValidResiduals());
 
-    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage B", 14);
+    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage B", 15);
 
-    const GPassFactory::SlotArray16 aResidualsB = {
-        Slot::kSource, Slot::kParamSnow,
+    const GPassFactoryMidstage::SlotArray16 aResidualsB = {
+        Slot::kSourceLane,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -176,6 +180,7 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("KDF B — Stage B", {
@@ -188,29 +193,29 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     //
     // KDF B — Stage C
     //
-    const GPassFactory::SlotArray4 aPrimarySourcesC = {
+    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesC = {
         Slot::kLightningLaneA,
         Slot::kLightningLaneB,
         Slot::kLightningLaneC,
         Slot::kLightningLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsC = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsC = {
         Slot::kFuseLaneA,
         Slot::kFuseLaneB,
         Slot::kFuseLaneC,
         Slot::kFuseLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aPrimarySourcesC));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsC));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesC));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsC));
 
     printf("at KDF B — Stage C, there were %zu residuals available\n",
            pResidualBucket.CountValidResiduals());
 
-    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage C", 14);
+    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage C", 15);
 
-    const GPassFactory::SlotArray16 aResidualsC = {
-        Slot::kSource, Slot::kParamSnow,
+    const GPassFactoryMidstage::SlotArray16 aResidualsC = {
+        Slot::kSourceLane,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -218,6 +223,7 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("KDF B — Stage C", {
@@ -234,29 +240,29 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     //
     // KDF B — Stage D
     //
-    const GPassFactory::SlotArray4 aPrimarySourcesD = {
+    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesD = {
         Slot::kIceLaneA,
         Slot::kIceLaneB,
         Slot::kIceLaneC,
         Slot::kIceLaneD,
     };
-    const GPassFactory::SlotArray4 aDestinationsD = {
+    const GPassFactoryMidstage::SlotArray4 aDestinationsD = {
         Slot::kWoodLaneA,
         Slot::kWoodLaneB,
         Slot::kWoodLaneC,
         Slot::kWoodLaneD,
     };
 
-    pResidualBucket.Remove(GPassFactory::ToVector(aPrimarySourcesD));
-    pResidualBucket.Remove(GPassFactory::ToVector(aDestinationsD));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesD));
+    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsD));
 
     printf("at KDF B — Stage D, there were %zu residuals available\n",
            pResidualBucket.CountValidResiduals());
 
-    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage D", 14);
+    aResidualsPool = pResidualBucket.Withdraw("KDF B — Stage D", 15);
 
-    const GPassFactory::SlotArray16 aResidualsD = {
-        Slot::kSource, Slot::kParamSnow,
+    const GPassFactoryMidstage::SlotArray16 aResidualsD = {
+        Slot::kSourceLane,
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
@@ -264,6 +270,7 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
         aResidualsPool[8], aResidualsPool[9],
         aResidualsPool[10], aResidualsPool[11],
         aResidualsPool[12], aResidualsPool[13],
+        aResidualsPool[14],
     };
 
     pResidualBucket.AddResiduals("KDF B — Stage D", {
@@ -273,14 +280,16 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
         Slot::kIceLaneD,
     });
 
+    // Stage Construction
+
     //
     // Build and validate KDF B — Stage A
     //
     GSeedRunStageConfig aConfigA = BaseConfig("GSeedRunKDF_B_A",
                                               "kdf_b_loop_a",
-                                              GAXSFormat::kN9);
+                                              GAXSFormat::kN7);
     aConfigA.mSlices =
-        GPassFactory::FourPassSixteenResidualSlices(aPrimarySourcesA,
+        GPassFactoryMidstage::FourPassSixteenResidualSlices(aPrimarySourcesA,
                                                     aResidualsA,
                                                     aDestinationsA);
     aConfigA.mExpectedSkeletonCount =
@@ -291,9 +300,9 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     std::string aErrorMessageA;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(
             aConfigA,
-            GPassFactory::ToVector(aPrimarySourcesA),
-            GPassFactory::ToVector(aResidualsA),
-            GPassFactory::ToVector(aDestinationsA),
+            GPassFactoryMidstage::ToVector(aPrimarySourcesA),
+            GPassFactoryMidstage::ToVector(aResidualsA),
+            GPassFactoryMidstage::ToVector(aDestinationsA),
             &aErrorMessageA)) {
         printf("MakeKDF_BConfig stage A was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessageA.c_str());
@@ -306,9 +315,9 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     //
     GSeedRunStageConfig aConfigB = BaseConfig("GSeedRunKDF_B_B",
                                               "kdf_b_loop_b",
-                                              GAXSFormat::kN7);
+                                              GAXSFormat::kN9);
     aConfigB.mSlices =
-        GPassFactory::FourPassSixteenResidualSlices(aPrimarySourcesB,
+        GPassFactoryMidstage::FourPassSixteenResidualSlices(aPrimarySourcesB,
                                                     aResidualsB,
                                                     aDestinationsB);
     aConfigB.mExpectedSkeletonCount =
@@ -319,9 +328,9 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     std::string aErrorMessageB;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(
             aConfigB,
-            GPassFactory::ToVector(aPrimarySourcesB),
-            GPassFactory::ToVector(aResidualsB),
-            GPassFactory::ToVector(aDestinationsB),
+            GPassFactoryMidstage::ToVector(aPrimarySourcesB),
+            GPassFactoryMidstage::ToVector(aResidualsB),
+            GPassFactoryMidstage::ToVector(aDestinationsB),
             &aErrorMessageB)) {
         printf("MakeKDF_BConfig stage B was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessageB.c_str());
@@ -336,7 +345,7 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
                                               "kdf_b_loop_c",
                                               GAXSFormat::kN11);
     aConfigC.mSlices =
-        GPassFactory::FourPassSixteenResidualSlices(aPrimarySourcesC,
+        GPassFactoryMidstage::FourPassSixteenResidualSlices(aPrimarySourcesC,
                                                     aResidualsC,
                                                     aDestinationsC);
     aConfigC.mExpectedSkeletonCount =
@@ -347,9 +356,9 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     std::string aErrorMessageC;
     if (!GSeedRunStageConfigValidator::ValidateMidstage(
             aConfigC,
-            GPassFactory::ToVector(aPrimarySourcesC),
-            GPassFactory::ToVector(aResidualsC),
-            GPassFactory::ToVector(aDestinationsC),
+            GPassFactoryMidstage::ToVector(aPrimarySourcesC),
+            GPassFactoryMidstage::ToVector(aResidualsC),
+            GPassFactoryMidstage::ToVector(aDestinationsC),
             &aErrorMessageC)) {
         printf("MakeKDF_BConfig stage C was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessageC.c_str());
@@ -368,26 +377,31 @@ KDFStageConfigs MakeKDF_BConfig(ResidualBucket &pResidualBucket) {
     //
     // Build and validate KDF B — Stage D
     //
+    const ArrangementFour::SlotArray4 aArrangedPrimarySourcesD =
+        ArrangementFour::Arrange(aPrimarySourcesD,
+                                 static_cast<int>(pCandidateIndex),
+                                 1);
+
     GSeedRunStageConfig aConfigD = BaseConfig("GSeedRunKDF_B_D",
                                               "kdf_b_loop_d",
-                                              GAXSFormat::kN9);
+                                              GAXSFormat::kN7);
     aConfigD.mSlices =
-        GPassFactory::FourPassSixteenResidualSlices(aPrimarySourcesD,
-                                                    aResidualsD,
-                                                    aDestinationsD);
+        GPassFactoryTrunk::FourPassTrunkSlices(aArrangedPrimarySourcesD,
+                                          aResidualsD,
+                                          aDestinationsD);
     aConfigD.mExpectedSkeletonCount =
         static_cast<int>(aDestinationsD.size());
     aConfigD.mHotPackCount =
         static_cast<int>(aDestinationsD.size());
 
     std::string aErrorMessageD;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+    if (!GSeedRunStageConfigValidator::ValidateTrunk(
             aConfigD,
-            GPassFactory::ToVector(aPrimarySourcesD),
-            GPassFactory::ToVector(aResidualsD),
-            GPassFactory::ToVector(aDestinationsD),
+            GPassFactoryMidstage::ToVector(aArrangedPrimarySourcesD),
+            GPassFactoryMidstage::ToVector(aResidualsD),
+            GPassFactoryMidstage::ToVector(aDestinationsD),
             &aErrorMessageD)) {
-        printf("MakeKDF_BConfig stage D was not valid with ValidateMidstage");
+        printf("MakeKDF_BConfig stage D was not valid with ValidateTrunk");
         printf("%s\n", aErrorMessageD.c_str());
         exit(0);
     }

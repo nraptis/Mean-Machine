@@ -12,8 +12,6 @@ enum class Kind : std::uint32_t {
     kGrowA = 1U,
     kGrowB = 2U,
     kLaneSplit = 3U,
-    kFoldSeed = 4U,
-    kFoldTwist = 5U,
 };
 
 // Values are serialized as explicit little-endian uint64 fields. This keeps

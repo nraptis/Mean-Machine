@@ -9,6 +9,7 @@
 #include "GSeedRunStage.hpp"
 
 #include <array>
+#include <cstddef>
 #include <string>
 
 class ResidualBucket;
@@ -17,7 +18,8 @@ namespace GTwistRunTwistConfig {
 
 using TwistStageConfigs = std::array<GSeedRunStageConfig, 8>;
 
-TwistStageConfigs                          MakeTwistConfig(ResidualBucket &pResidualBucket);
+TwistStageConfigs                          MakeTwistConfig(ResidualBucket &pResidualBucket,
+                                                          std::size_t pCandidateIndex);
 
 }
 

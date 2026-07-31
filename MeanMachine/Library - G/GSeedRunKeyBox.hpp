@@ -15,12 +15,11 @@
 
 namespace GSeedRunKeyBoxConfig {
 
-using KeyBoxStageConfigs = std::array<GSeedRunStageConfig, 1>;
+using KeyBoxStageConfigs = std::array<GSeedRunStageConfig, 16>;
 
-// Poison A-D are ingress, Plasma A-D are cross, and the sixteen logical
-// fragments feed the sixteen direct key-row destinations in one KEY stage.
-// Candidate values are loaded from Assets; this path never generates a
-// fallback family.
+// Crystal A-D and Plasma A-D feed sixteen independently generated KEY stages.
+// Each stage uses one logical lane fragment A-P from the required eight-lane
+// LaneSplit_Candidate family.
 bool LoadLaneSplitValues(std::string *pErrorMessage = nullptr);
 
 bool MakeKeyBoxConfigs(std::size_t pCandidateIndex,

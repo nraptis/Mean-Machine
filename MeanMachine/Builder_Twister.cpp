@@ -78,7 +78,9 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
     }
 
     const GTwistRunTwistConfig::TwistStageConfigs aBuiltStageConfigs =
-        GTwistRunTwistConfig::MakeTwistConfig(pResidualBucket);
+        GTwistRunTwistConfig::MakeTwistConfig(
+            pResidualBucket,
+            pExpander->mControlCandidateIndex);
     std::vector<GSeedRunStageConfig> aStageConfigs(
         aBuiltStageConfigs.begin(),
         aBuiltStageConfigs.end());
@@ -130,13 +132,6 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
     aWoodLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWoodLaneB));
     aWoodLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWoodLaneC));
     aWoodLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kWoodLaneD));
-
-    std::vector<GSymbol> aPoisonLanes;
-    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneA));
-    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneB));
-    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneC));
-    aPoisonLanes.push_back(GSymbol::Buf(TwistWorkSpaceSlot::kPoisonLaneD));
-
 
     for (std::size_t i = 0U; i < 3U; ++i) {
         const std::string aStageName =

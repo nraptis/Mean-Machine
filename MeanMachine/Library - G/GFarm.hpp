@@ -6,7 +6,6 @@
 #ifndef GFarm_hpp
 #define GFarm_hpp
 
-#include "GFarmConstants.hpp"
 #include "GKDF.hpp"
 
 #include <string>
@@ -52,21 +51,14 @@ public:
         }
 
         const std::string aSaltSet = aBundlePrefix + "." + aPhaseMember + "Salts";
-        AddFarmSaltRound(BufAliasName(pBufferSymbolOrbiterAssign),
-                         aSaltSet + ".mOrbiterAssign",
-                         pStatements);
-        AddFarmSaltRound(BufAliasName(pBufferSymbolOrbiterUpdate),
-                         aSaltSet + ".mOrbiterUpdate",
-                         pStatements);
-        AddFarmSaltRound(BufAliasName(pBufferSymbolWandererUpdate),
-                         aSaltSet + ".mWandererUpdate",
-                         pStatements);
-
-        GFarmConstants aFarmConstants;
-        return aFarmConstants.Bake(BufAliasName(pBufferSymbolConstants),
-                                   aBundlePrefix + "." + aPhaseMember + "Constants",
-                                   pStatements,
-                                   pErrorMessage);
+        AddFarm(BufAliasName(pBufferSymbolOrbiterAssign),
+                BufAliasName(pBufferSymbolOrbiterUpdate),
+                BufAliasName(pBufferSymbolWandererUpdate),
+                BufAliasName(pBufferSymbolConstants),
+                aSaltSet,
+                aBundlePrefix + "." + aPhaseMember + "Constants",
+                pStatements);
+        return true;
     }
 
     bool                                BakeEphemeral(GSymbol pBufferSymbolOrbiterAssign,
@@ -198,14 +190,25 @@ private:
         return "";
     }
 
-    static void                         AddFarmSaltRound(const std::string &pSource,
-                                                         const std::string &pRound,
-                                                         std::vector<GStatement> *pStatements) {
+    static void                         AddFarm(const std::string &pSaltLaneA,
+                                                const std::string &pSaltLaneB,
+                                                const std::string &pSaltLaneC,
+                                                const std::string &pConstantLane,
+                                                const std::string &pSaltSet,
+                                                const std::string &pConstants,
+                                                std::vector<GStatement> *pStatements) {
         pStatements->push_back(GStatement::RawLine(
-            "pFarmSalt->Derive(" + pSource + ", " + pRound + ".mSaltA,\n"
-            "                  " + pRound + ".mSaltB, " + pRound + ".mSaltC,\n"
-            "                  " + pRound + ".mSaltD, " + pRound + ".mSaltE,\n"
-            "                  " + pRound + ".mSaltF);"));
+            "TwistFarm::Farm(pFarmSalt,\n"
+            "                " +
+            pSaltLaneA + ", " +
+            pSaltLaneB + ", " +
+            pSaltLaneC + ", " +
+            pConstantLane + ", // farm lanes\n"
+            "                aFuseLaneA, aFuseLaneB, aFuseLaneC, // temp/fold lanes\n"
+            "                &" +
+            pSaltSet + ",\n"
+            "                &(" +
+            pConstants + "));"));
     }
 
     static std::string                  Trim(const std::string &pText) {

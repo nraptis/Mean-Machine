@@ -17,7 +17,8 @@ namespace GSeedRunKDF_AConfig {
 
 using KDFStageConfigs = std::array<GSeedRunStageConfig, 4>;
 
-KDFStageConfigs                            MakeKDF_AConfig(ResidualBucket &pResidualBucket);
+KDFStageConfigs                            MakeKDF_AConfig(ResidualBucket &pResidualBucket,
+                                                           std::size_t pCandidateIndex);
 
 }
 

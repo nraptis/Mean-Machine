@@ -51,7 +51,6 @@ std::string BundlePrefix(const GKDFMaterialBundle pBundle) {
 bool BakeKDFCall(const char *pFunctionName,
                  TwistDomain pDomain,
                  GKDFMaterialBundle pBundle,
-                 const std::array<GSymbol, 3> &pSnowLanes,
                  std::vector<GStatement> *pStatements,
                  std::string *pErrorMessage) {
     if (pErrorMessage != nullptr) {
@@ -70,17 +69,6 @@ bool BakeKDFCall(const char *pFunctionName,
     std::string aCall = std::string(pFunctionName) + "(pWorkSpace, pNonce, "
         "&(" + aBundle + "." + std::string(aSet.mConstants) + "), "
         "&(" + aBundle + "." + std::string(aSet.mSalts) + ")";
-    for (const GSymbol &aSnowLane : pSnowLanes) {
-        if (!aSnowLane.IsBuf()) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage =
-                    std::string(pFunctionName) +
-                    "::Bake requires three snow buffers.";
-            }
-            return false;
-        }
-        aCall += ", " + BufAliasName(aSnowLane);
-    }
     aCall +=
         ", &aPrevious, &aIngress, &aCarry"
         ", &aWandererA, &aWandererB, &aWandererC, &aWandererD"
@@ -100,7 +88,6 @@ bool GKDF_A::Bake(TwistDomain pDomain,
     return BakeKDFCall("KDF_A",
                        pDomain,
                        pBundle,
-                       mKDFSnowLanes,
                        pStatements,
                        pErrorMessage);
 }
@@ -112,7 +99,6 @@ bool GKDF_B::Bake(TwistDomain pDomain,
     return BakeKDFCall("KDF_B",
                        pDomain,
                        pBundle,
-                       mKDFSnowLanes,
                        pStatements,
                        pErrorMessage);
 }
@@ -124,7 +110,6 @@ bool GKDF_C::Bake(TwistDomain pDomain,
     return BakeKDFCall("KDF_C",
                        pDomain,
                        pBundle,
-                       mKDFSnowLanes,
                        pStatements,
                        pErrorMessage);
 }
@@ -136,7 +121,6 @@ bool GKDF_D::Bake(TwistDomain pDomain,
     return BakeKDFCall("KDF_D",
                        pDomain,
                        pBundle,
-                       mKDFSnowLanes,
                        pStatements,
                        pErrorMessage);
 }

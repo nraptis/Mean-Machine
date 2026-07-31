@@ -23,7 +23,7 @@ std::vector<SaltTables::Salt> gSaltTables;
 bool gSaltTablesDidLoad = false;
 std::size_t gSaltTableCursor = 0U;
 
-constexpr std::size_t kSaltWordCount = 32U;
+constexpr std::size_t kSaltWordCount = 512U;
 constexpr std::size_t kSaltByteCount = kSaltWordCount * sizeof(std::uint64_t);
 
 static_assert(S_SALT == kSaltWordCount,
@@ -102,8 +102,8 @@ void SaltTables::InjectRandomDomains(GTwistExpander *pExpander) {
     std::vector<Salt> aUniqueTables;
 
     // Six domains use 13 tables for constants and 18 seed materials use
-    // six full salts each: 78 + 108 = 186 records per expander.
-    constexpr std::size_t kTablesPerExpander = (6U * 13U) + (18U * 6U);
+    // eight full salts each: 78 + 144 = 222 records per expander.
+    constexpr std::size_t kTablesPerExpander = (6U * 13U) + (18U * 8U);
     aUniqueTables.reserve(kTablesPerExpander);
     if (!aLoadedTables.empty()) {
         for (std::size_t i = 0U; i < kTablesPerExpander; ++i) {
@@ -170,6 +170,8 @@ void SaltTables::InjectRandomDomains(GTwistExpander *pExpander) {
         FillDomainSalt(pMaterial->mSaltD, pTableCursor + 3U);
         FillDomainSalt(pMaterial->mSaltE, pTableCursor + 4U);
         FillDomainSalt(pMaterial->mSaltF, pTableCursor + 5U);
+        FillDomainSalt(pMaterial->mSaltG, pTableCursor + 6U);
+        FillDomainSalt(pMaterial->mSaltH, pTableCursor + 7U);
     };
 
     auto FillDomainConstants = [&](TwistDomainConstants *pConstants,
@@ -178,15 +180,12 @@ void SaltTables::InjectRandomDomains(GTwistExpander *pExpander) {
         if (pConstants == nullptr) {
             return;
         }
-        pConstants->mDomainConstantPublicIngress = FillDomainConstant(pTableCursor + 0U,
-                                                                      pTagCursor + 0ULL);
-        pConstants->mDomainConstantPrivateIngress = FillDomainConstant(pTableCursor + 1U,
-                                                                       pTagCursor + 1ULL);
-        pConstants->mDomainConstantCrossIngress = FillDomainConstant(pTableCursor + 2U,
-                                                                     pTagCursor + 2ULL);
-        pConstants->mIngress = pConstants->mDomainConstantPublicIngress;
-        pConstants->mScatter = pConstants->mDomainConstantPrivateIngress;
-        pConstants->mCross = pConstants->mDomainConstantCrossIngress;
+        pConstants->mIngress = FillDomainConstant(pTableCursor + 0U,
+                                                  pTagCursor + 0ULL);
+        pConstants->mScatter = FillDomainConstant(pTableCursor + 1U,
+                                                  pTagCursor + 1ULL);
+        pConstants->mCross = FillDomainConstant(pTableCursor + 2U,
+                                                pTagCursor + 2ULL);
         pConstants->mMatrixSelectA = FillDomainConstant(pTableCursor + 3U,
                                                         pTagCursor + 3ULL);
         pConstants->mMatrixSelectB = FillDomainConstant(pTableCursor + 4U,
@@ -203,10 +202,6 @@ void SaltTables::InjectRandomDomains(GTwistExpander *pExpander) {
                                                           pTagCursor + 9ULL);
         pConstants->mMatrixArgD = FillDomainConstantByte(pTableCursor + 10U,
                                                           pTagCursor + 10ULL);
-        pConstants->mMaskMutateA = FillDomainConstantByte(pTableCursor + 11U,
-                                                          pTagCursor + 11ULL);
-        pConstants->mMaskMutateB = FillDomainConstantByte(pTableCursor + 12U,
-                                                          pTagCursor + 12ULL);
     };
 
     TwistDomainSeedRoundMaterial *aMaterials[] = {
@@ -252,6 +247,6 @@ void SaltTables::InjectRandomDomains(GTwistExpander *pExpander) {
     for (TwistDomainSeedRoundMaterial *aMaterial : aMaterials) {
         FillSeedMaterial(aMaterial,
                          aDomainTableCursor);
-        aDomainTableCursor += 6U;
+        aDomainTableCursor += 8U;
     }
 }

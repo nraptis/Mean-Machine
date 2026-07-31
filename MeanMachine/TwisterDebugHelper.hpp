@@ -44,7 +44,7 @@ public:
     static void PrintTwistAKeyRows(std::size_t pBlockIndex,
                                    TwistWorkSpace *pWorkSpace) {
         char aLabel[64];
-        std::snprintf(aLabel, sizeof(aLabel), "Twist_A key rows (%zu)", pBlockIndex);
+        std::snprintf(aLabel, sizeof(aLabel), "TWIST_A key rows (%zu)", pBlockIndex);
         PrintKeyRows(aLabel, pWorkSpace);
     }
 

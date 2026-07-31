@@ -7,6 +7,20 @@
 
 #include "TwistFarmSalt.hpp"
 
+namespace {
+
+constexpr std::size_t kSaltByteCount =
+    static_cast<std::size_t>(S_SALT) * sizeof(std::uint64_t);
+constexpr std::size_t kSourceSliceCount =
+    static_cast<std::size_t>(S_BLOCK) / kSaltByteCount;
+
+static_assert(kSourceSliceCount == 8U,
+              "TwistFarmSalt expects eight salt-sized source slices.");
+static_assert((8U * kSaltByteCount) == S_BLOCK,
+              "Eight salts must consume exactly one source lane.");
+
+} // namespace
+
 TwistFarmSalt::TwistFarmSalt() {
     
 }
@@ -17,96 +31,53 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
                            std::uint64_t *pSaltC,
                            std::uint64_t *pSaltD,
                            std::uint64_t *pSaltE,
-                           std::uint64_t *pSaltF) {
-    
-    static_assert((SALT_CANDIDATE_COUNT * S_SALT * sizeof(std::uint64_t)) == S_BLOCK,
-                  "SALT_CANDIDATE_COUNT must exactly cover S_BLOCK.");
-    
-    int aFillListSize = 0;
-    int aFillListCount = 0;
-    if (pSaltA != nullptr) { mFillSalt[aFillListSize++] = pSaltA; }
-    if (pSaltB != nullptr) { mFillSalt[aFillListSize++] = pSaltB; }
-    if (pSaltC != nullptr) { mFillSalt[aFillListSize++] = pSaltC; }
-    if (pSaltD != nullptr) { mFillSalt[aFillListSize++] = pSaltD; }
-    if (pSaltE != nullptr) { mFillSalt[aFillListSize++] = pSaltE; }
-    if (pSaltF != nullptr) { mFillSalt[aFillListSize++] = pSaltF; }
-    
-    std::uint64_t *aCandidateSaltFlatReference = mCandidateSaltFlat;
-    for (int i=0; i<SALT_CANDIDATE_COUNT; i++) {
-        mCandidateSalt[i] = aCandidateSaltFlatReference;
-        aCandidateSaltFlatReference = &(aCandidateSaltFlatReference[S_SALT]);
+                           std::uint64_t *pSaltF,
+                           std::uint64_t *pSaltG,
+                           std::uint64_t *pSaltH) {
+    if (pSource == nullptr) {
+        return;
     }
-    
-    memcpy(mCandidateSaltFlat, pSource, S_BLOCK);
-    
-    // Score every candidate.
-    for (int i = 0; i < SALT_CANDIDATE_COUNT; i++) {
-        const std::uint64_t *aCandidate = mCandidateSalt[i];
-        mCandidateScore[i] = mAnalyzer.ComputeCombinedSaltGrade(aCandidate);
-    }
-    
-    for (int i = 0; i < SALT_CANDIDATE_COUNT - 1; i++) {
-        int aBestIndex = i;
-        
-        for (int j = i + 1; j < SALT_CANDIDATE_COUNT; j++) {
-            if (mCandidateScore[j] > mCandidateScore[aBestIndex]) {
-                aBestIndex = j;
-            }
-        }
-        
-        if (aBestIndex != i) {
-            std::swap(mCandidateScore[i], mCandidateScore[aBestIndex]);
-            std::swap(mCandidateSalt[i], mCandidateSalt[aBestIndex]);
-        }
-    }
-    
-    std::memset(mCandidateClaimed, 0, sizeof(mCandidateClaimed));
 
-    std::memcpy(mFillSalt[0], mCandidateSalt[0], S_SALT * sizeof(std::uint64_t));
-    mCandidateClaimed[0] = 1;
-    aFillListCount = 1;
-    
-    const int aBattleCount = std::min<int>(24, SALT_CANDIDATE_COUNT);
-    while (aFillListCount<aFillListSize) {
-        int aBestIndex = -1;
-        int aBestMinHammingDistance = -1;
-        
-        for (int i=0; i<aBattleCount; i++) {
-            
-            if (mCandidateClaimed[i] != 0) {
-                continue;
-            }
-            
-            int aMinHammingDistance = std::numeric_limits<int>::max();
-            
-            for (int j=0; j<aFillListCount; j++) {
-                const int aDistance =
-                    mAnalyzer.ComputeSaltHammingDistance_Salt(mFillSalt[j],
-                                                              mCandidateSalt[i]);
-                
-                if (aDistance < aMinHammingDistance) {
-                    aMinHammingDistance = aDistance;
-                }
-            }
-            
-            if (aMinHammingDistance > aBestMinHammingDistance) {
-                aBestMinHammingDistance = aMinHammingDistance;
-                aBestIndex = i;
-            }
-        }
-        
-        if (aBestIndex == -1) {
-            printf("fatal: we did not have enough salts?\n");
-            break;
-        }
-        
-        std::memcpy(mFillSalt[aFillListCount],
-                    mCandidateSalt[aBestIndex],
-                    S_SALT * sizeof(std::uint64_t));
-        
-        mCandidateClaimed[aBestIndex] = 1;
-        
-        aFillListCount++;
+    const std::uint8_t *aSaltSliceA =
+        pSource + (0U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceB =
+        pSource + (1U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceC =
+        pSource + (2U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceD =
+        pSource + (3U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceE =
+        pSource + (4U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceF =
+        pSource + (5U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceG =
+        pSource + (6U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceH =
+        pSource + (7U * kSaltByteCount);
+
+    if (pSaltA != nullptr) {
+        std::memcpy(pSaltA, aSaltSliceA, kSaltByteCount);
+    }
+    if (pSaltB != nullptr) {
+        std::memcpy(pSaltB, aSaltSliceB, kSaltByteCount);
+    }
+    if (pSaltC != nullptr) {
+        std::memcpy(pSaltC, aSaltSliceC, kSaltByteCount);
+    }
+    if (pSaltD != nullptr) {
+        std::memcpy(pSaltD, aSaltSliceD, kSaltByteCount);
+    }
+    if (pSaltE != nullptr) {
+        std::memcpy(pSaltE, aSaltSliceE, kSaltByteCount);
+    }
+    if (pSaltF != nullptr) {
+        std::memcpy(pSaltF, aSaltSliceF, kSaltByteCount);
+    }
+    if (pSaltG != nullptr) {
+        std::memcpy(pSaltG, aSaltSliceG, kSaltByteCount);
+    }
+    if (pSaltH != nullptr) {
+        std::memcpy(pSaltH, aSaltSliceH, kSaltByteCount);
     }
 }
 
@@ -121,7 +92,9 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
            pRoundMaterial->mSaltC,
            pRoundMaterial->mSaltD,
            pRoundMaterial->mSaltE,
-           pRoundMaterial->mSaltF);
+           pRoundMaterial->mSaltF,
+           pRoundMaterial->mSaltG,
+           pRoundMaterial->mSaltH);
 }
 
 void TwistFarmSalt::Zero() {

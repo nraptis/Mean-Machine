@@ -10,9 +10,7 @@
 
 #include "GMagicNumbers.hpp"
 #include "GQuick.hpp"
-#include "GMagicNumbers.hpp"
 #include "GAX.hpp"
-#include "GCache.hpp"
 
 #include <string>
 

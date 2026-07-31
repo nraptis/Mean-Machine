@@ -92,7 +92,7 @@ public:
                     aAvailableIndices.push_back(i);
                 }
             }
-
+            
             if (aAvailableIndices.empty()) {
                 sFetchedIndices.clear();
                 for (const int aIndex : aFetchedThisCall) {
@@ -112,7 +112,7 @@ public:
             }
         }
         
-        // printf("now fetched total of %d magic nums\n", (int)sFetchedIndices.size());
+        printf("now fetched total of %d magic nums\n", (int)sFetchedIndices.size());
         
         return aResult;
     }

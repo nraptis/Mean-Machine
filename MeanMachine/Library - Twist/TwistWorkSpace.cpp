@@ -11,6 +11,14 @@ static_assert(H_KEY == 8,
               "The individual key-row workspace slots require exactly eight rows.");
 static_assert(S_BLOCK == (W_KEY * 16),
               "Lane splits require exactly sixteen W_KEY fragments per full lane.");
+static_assert(
+    (static_cast<int>(TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateH) -
+     static_cast<int>(TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA) + 1) == 24,
+    "Parameterized domain salts require three contiguous groups of eight.");
+static_assert(
+    (static_cast<int>(TwistWorkSpaceSlot::kKeySpawnBSaltWandererUpdateH) -
+     static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA) + 1) == 144,
+    "Workspace domain salts require six contiguous groups of twenty-four.");
 
 TwistBufferKey TwistBufferKey::Salt(TwistSaltOwner pOwner,
                                     TwistDomain pDomain,
@@ -121,6 +129,8 @@ std::uint64_t *GetSaltLane(TwistDomainSeedRoundMaterial *pMaterial,
         case 3: return pMaterial->mSaltD;
         case 4: return pMaterial->mSaltE;
         case 5: return pMaterial->mSaltF;
+        case 6: return pMaterial->mSaltG;
+        case 7: return pMaterial->mSaltH;
         default: return nullptr;
     }
 }
@@ -143,16 +153,16 @@ bool DecodeParamSaltSlot(TwistWorkSpaceSlot pSlot,
                          int *pLaneOut) {
     const int aValue = static_cast<int>(pSlot);
     const int aBase = static_cast<int>(TwistWorkSpaceSlot::kParamDomainSaltOrbiterAssignA);
-    const int aCount = 18;
+    const int aCount = 24;
     if ((aValue < aBase) || (aValue >= (aBase + aCount))) {
         return false;
     }
     const int aOffset = aValue - aBase;
     if (pRoleOut != nullptr) {
-        *pRoleOut = aOffset / 6;
+        *pRoleOut = aOffset / 8;
     }
     if (pLaneOut != nullptr) {
-        *pLaneOut = aOffset % 6;
+        *pLaneOut = aOffset % 8;
     }
     return true;
 }
@@ -163,7 +173,7 @@ bool DecodePhaseSaltSlot(TwistWorkSpaceSlot pSlot,
                          int *pLaneOut) {
     const int aValue = static_cast<int>(pSlot);
     const int aBase = static_cast<int>(TwistWorkSpaceSlot::kKeyRotateASaltOrbiterAssignA);
-    const int aCountPerPhase = 18;
+    const int aCountPerPhase = 24;
     constexpr int kPhaseCount = 6;
     constexpr TwistDomain kDomains[kPhaseCount] = {
         TwistDomain::kKeyRotateA,
@@ -184,10 +194,10 @@ bool DecodePhaseSaltSlot(TwistWorkSpaceSlot pSlot,
         *pDomainOut = kDomains[aPhaseIndex];
     }
     if (pRoleOut != nullptr) {
-        *pRoleOut = aRoleLaneOffset / 6;
+        *pRoleOut = aRoleLaneOffset / 8;
     }
     if (pLaneOut != nullptr) {
-        *pLaneOut = aRoleLaneOffset % 6;
+        *pLaneOut = aRoleLaneOffset % 8;
     }
     return true;
 }
@@ -287,11 +297,10 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkSpace,
             return nullptr;
         }
         switch (pSlot) {
-            case TwistWorkSpaceSlot::kParamSnow:
-            case TwistWorkSpaceSlot::kIndexList256A:
-            case TwistWorkSpaceSlot::kIndexList256B:
-            case TwistWorkSpaceSlot::kIndexList256C:
-            case TwistWorkSpaceSlot::kIndexList256D:
+            case TwistWorkSpaceSlot::kParamCrossA:
+            case TwistWorkSpaceSlot::kParamCrossB:
+            case TwistWorkSpaceSlot::kParamCrossC:
+            case TwistWorkSpaceSlot::kParamCrossD:
                 return nullptr;
             default:
                 break;
@@ -299,26 +308,22 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkSpace,
     }
 
     switch (pSlot) {
-        case TwistWorkSpaceSlot::kSource: return pWorkSpace->mSource;
+        case TwistWorkSpaceSlot::kSourceLane: return pWorkSpace->mSourceLane;
+        case TwistWorkSpaceSlot::kNonceLane: return pWorkSpace->mNonceLane;
         case TwistWorkSpaceSlot::kParamSource: return pParamSource;
         case TwistWorkSpaceSlot::kParamDestination: return pParamDestination;
-        case TwistWorkSpaceSlot::kParamSnow: return nullptr;
+        case TwistWorkSpaceSlot::kParamCrossA: return nullptr;
+        case TwistWorkSpaceSlot::kParamCrossB: return nullptr;
+        case TwistWorkSpaceSlot::kParamCrossC: return nullptr;
+        case TwistWorkSpaceSlot::kParamCrossD: return nullptr;
         case TwistWorkSpaceSlot::kHeartLaneA: return pWorkSpace->mHeartLaneA;
         case TwistWorkSpaceSlot::kHeartLaneB: return pWorkSpace->mHeartLaneB;
         case TwistWorkSpaceSlot::kHeartLaneC: return pWorkSpace->mHeartLaneC;
         case TwistWorkSpaceSlot::kHeartLaneD: return pWorkSpace->mHeartLaneD;
-        case TwistWorkSpaceSlot::kPoisonLaneA: return pWorkSpace->mPoisonLaneA;
-        case TwistWorkSpaceSlot::kPoisonLaneB: return pWorkSpace->mPoisonLaneB;
-        case TwistWorkSpaceSlot::kPoisonLaneC: return pWorkSpace->mPoisonLaneC;
-        case TwistWorkSpaceSlot::kPoisonLaneD: return pWorkSpace->mPoisonLaneD;
         case TwistWorkSpaceSlot::kSpiritLaneA: return pWorkSpace->mSpiritLaneA;
         case TwistWorkSpaceSlot::kSpiritLaneB: return pWorkSpace->mSpiritLaneB;
         case TwistWorkSpaceSlot::kSpiritLaneC: return pWorkSpace->mSpiritLaneC;
         case TwistWorkSpaceSlot::kSpiritLaneD: return pWorkSpace->mSpiritLaneD;
-        case TwistWorkSpaceSlot::kSnowLaneA: return pWorkSpace->mHeartLaneA;
-        case TwistWorkSpaceSlot::kSnowLaneB: return pWorkSpace->mHeartLaneB;
-        case TwistWorkSpaceSlot::kSnowLaneC: return pWorkSpace->mHeartLaneC;
-        case TwistWorkSpaceSlot::kSnowLaneD: return pWorkSpace->mHeartLaneD;
         case TwistWorkSpaceSlot::kFireLaneA: return pWorkSpace->mFireLaneA;
         case TwistWorkSpaceSlot::kFireLaneB: return pWorkSpace->mFireLaneB;
         case TwistWorkSpaceSlot::kFireLaneC: return pWorkSpace->mFireLaneC;
@@ -383,24 +388,14 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkSpace,
         case TwistWorkSpaceSlot::kVaporLaneB: return pWorkSpace->mVaporLaneB;
         case TwistWorkSpaceSlot::kVaporLaneC: return pWorkSpace->mVaporLaneC;
         case TwistWorkSpaceSlot::kVaporLaneD: return pWorkSpace->mVaporLaneD;
-        case TwistWorkSpaceSlot::kChanceLaneA: return pWorkSpace->mChanceLaneA;
-        case TwistWorkSpaceSlot::kChanceLaneB: return pWorkSpace->mChanceLaneB;
-        case TwistWorkSpaceSlot::kChanceLaneC: return pWorkSpace->mChanceLaneC;
-        case TwistWorkSpaceSlot::kChanceLaneD: return pWorkSpace->mChanceLaneD;
-        case TwistWorkSpaceSlot::kDomainLaneKeyRotateA: return pWorkSpace->mDomainLaneKeyRotateA;
-        case TwistWorkSpaceSlot::kDomainLaneKeyRotateB: return pWorkSpace->mDomainLaneKeyRotateB;
-        case TwistWorkSpaceSlot::kDomainLaneKeySpawnA: return pWorkSpace->mDomainLaneKeySpawnA;
-        case TwistWorkSpaceSlot::kDomainLaneKeySpawnB: return pWorkSpace->mDomainLaneKeySpawnB;
-        case TwistWorkSpaceSlot::kDomainLaneSeed: return pWorkSpace->mDomainLaneSeed;
-        case TwistWorkSpaceSlot::kDomainLaneTwist: return pWorkSpace->mDomainLaneTwist;
         case TwistWorkSpaceSlot::kIceLaneA: return pWorkSpace->mIceLaneA;
         case TwistWorkSpaceSlot::kIceLaneB: return pWorkSpace->mIceLaneB;
         case TwistWorkSpaceSlot::kIceLaneC: return pWorkSpace->mIceLaneC;
         case TwistWorkSpaceSlot::kIceLaneD: return pWorkSpace->mIceLaneD;
-        case TwistWorkSpaceSlot::kIndexList256A: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256A);
-        case TwistWorkSpaceSlot::kIndexList256B: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256B);
-        case TwistWorkSpaceSlot::kIndexList256C: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256C);
-        case TwistWorkSpaceSlot::kIndexList256D: return reinterpret_cast<std::uint8_t *>(pExpander->mIndexList256D);
+        case TwistWorkSpaceSlot::kIndexList256A: return reinterpret_cast<std::uint8_t *>(pWorkSpace->mIndexList256A);
+        case TwistWorkSpaceSlot::kIndexList256B: return reinterpret_cast<std::uint8_t *>(pWorkSpace->mIndexList256B);
+        case TwistWorkSpaceSlot::kIndexList256C: return reinterpret_cast<std::uint8_t *>(pWorkSpace->mIndexList256C);
+        case TwistWorkSpaceSlot::kIndexList256D: return reinterpret_cast<std::uint8_t *>(pWorkSpace->mIndexList256D);
         case TwistWorkSpaceSlot::kKeyBoxUnrolledA: return &(pWorkSpace->mKeyBoxA[0][0]);
         case TwistWorkSpaceSlot::kKeyBoxUnrolledB: return &(pWorkSpace->mKeyBoxB[0][0]);
         case TwistWorkSpaceSlot::kKeyRowReadA: return &(pWorkSpace->mKeyBoxA[H_KEY - 1][0]);
@@ -440,7 +435,7 @@ std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkSpace,
         return reinterpret_cast<std::uint8_t *>(GetPhaseSaltSlot(pWorkSpace, pSlot));
     }
 
-    return pWorkSpace->mPoisonLaneA;
+    return nullptr;
 }
 
 std::uint8_t *TwistWorkSpace::GetBuffer(TwistWorkSpace *pWorkSpace,
@@ -576,29 +571,23 @@ bool TwistWorkSpace::IsSalt(TwistBufferKey pKey) {
 void TwistWorkSpace::Zero() {
     Zero_PostSeed();
 
-    memset(mDomainLaneKeyRotateA, 0, sizeof(mDomainLaneKeyRotateA));
-    memset(mDomainLaneKeyRotateB, 0, sizeof(mDomainLaneKeyRotateB));
-    memset(mDomainLaneKeySpawnA, 0, sizeof(mDomainLaneKeySpawnA));
-    memset(mDomainLaneKeySpawnB, 0, sizeof(mDomainLaneKeySpawnB));
-    memset(mDomainLaneSeed, 0, sizeof(mDomainLaneSeed));
-    memset(mDomainLaneTwist, 0, sizeof(mDomainLaneTwist));
-
     mDomainBundle.Zero();
 }
 
 void TwistWorkSpace::Zero_PostSeed() {
 
-    memset(mSource, 0, sizeof(mSource));
+    memset(mSourceLane, 0, sizeof(mSourceLane));
+    memset(mNonceLane, 0, sizeof(mNonceLane));
+
+    memset(mIndexList256A, 0, sizeof(mIndexList256A));
+    memset(mIndexList256B, 0, sizeof(mIndexList256B));
+    memset(mIndexList256C, 0, sizeof(mIndexList256C));
+    memset(mIndexList256D, 0, sizeof(mIndexList256D));
 
     memset(mHeartLaneA, 0, sizeof(mHeartLaneA));
     memset(mHeartLaneB, 0, sizeof(mHeartLaneB));
     memset(mHeartLaneC, 0, sizeof(mHeartLaneC));
     memset(mHeartLaneD, 0, sizeof(mHeartLaneD));
-
-    memset(mPoisonLaneA, 0, sizeof(mPoisonLaneA));
-    memset(mPoisonLaneB, 0, sizeof(mPoisonLaneB));
-    memset(mPoisonLaneC, 0, sizeof(mPoisonLaneC));
-    memset(mPoisonLaneD, 0, sizeof(mPoisonLaneD));
 
     memset(mSpiritLaneA, 0, sizeof(mSpiritLaneA));
     memset(mSpiritLaneB, 0, sizeof(mSpiritLaneB));
@@ -684,11 +673,6 @@ void TwistWorkSpace::Zero_PostSeed() {
     memset(mVaporLaneB, 0, sizeof(mVaporLaneB));
     memset(mVaporLaneC, 0, sizeof(mVaporLaneC));
     memset(mVaporLaneD, 0, sizeof(mVaporLaneD));
-
-    memset(mChanceLaneA, 0, sizeof(mChanceLaneA));
-    memset(mChanceLaneB, 0, sizeof(mChanceLaneB));
-    memset(mChanceLaneC, 0, sizeof(mChanceLaneC));
-    memset(mChanceLaneD, 0, sizeof(mChanceLaneD));
 
     memset(mIceLaneA, 0, sizeof(mIceLaneA));
     memset(mIceLaneB, 0, sizeof(mIceLaneB));

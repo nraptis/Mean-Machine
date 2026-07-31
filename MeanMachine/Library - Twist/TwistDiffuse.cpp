@@ -6,7 +6,7 @@
 //
 
 #include "TwistDiffuse.hpp"
-#include "TwistIndexShuffle.hpp"
+#include "TwistShuffle.hpp"
 
 namespace {
 
@@ -114,10 +114,10 @@ void TwistDiffuse::DiffuseWithDomainWords(std::uint8_t *pInputLaneA,
                                           std::uint8_t pMatrixArgB,
                                           std::uint8_t pMatrixArgC,
                                           std::uint8_t pMatrixArgD) {
-    TwistIndexShuffle::Execute(pIndexList256A, pShuffleEntropyLaneA);
-    TwistIndexShuffle::Execute(pIndexList256B, pShuffleEntropyLaneB);
-    TwistIndexShuffle::Execute(pIndexList256C, pShuffleEntropyLaneC);
-    TwistIndexShuffle::Execute(pIndexList256D, pShuffleEntropyLaneD);
+    TwistShuffle::Execute(pIndexList256A, pShuffleEntropyLaneA);
+    TwistShuffle::Execute(pIndexList256B, pShuffleEntropyLaneB);
+    TwistShuffle::Execute(pIndexList256C, pShuffleEntropyLaneC);
+    TwistShuffle::Execute(pIndexList256D, pShuffleEntropyLaneD);
     
     // A @ 0, C @ 64
     DiffuseLaneWithDomainWords(pInputLaneA,

@@ -48,7 +48,8 @@ void DirtyWorkSpace::Scramble(TwistWorkSpace *pWorkSpace,
     }
     
     const TwistWorkSpaceSlot aSlots[] = {
-        TwistWorkSpaceSlot::kSource,
+        TwistWorkSpaceSlot::kSourceLane,
+        TwistWorkSpaceSlot::kNonceLane,
         TwistWorkSpaceSlot::kKeyBoxUnrolledA,
         TwistWorkSpaceSlot::kKeyBoxUnrolledB,
         
@@ -56,11 +57,6 @@ void DirtyWorkSpace::Scramble(TwistWorkSpace *pWorkSpace,
         TwistWorkSpaceSlot::kHeartLaneB,
         TwistWorkSpaceSlot::kHeartLaneC,
         TwistWorkSpaceSlot::kHeartLaneD,
-        
-        TwistWorkSpaceSlot::kPoisonLaneA,
-        TwistWorkSpaceSlot::kPoisonLaneB,
-        TwistWorkSpaceSlot::kPoisonLaneC,
-        TwistWorkSpaceSlot::kPoisonLaneD,
         
         TwistWorkSpaceSlot::kSpiritLaneA,
         TwistWorkSpaceSlot::kSpiritLaneB,
@@ -147,16 +143,6 @@ void DirtyWorkSpace::Scramble(TwistWorkSpace *pWorkSpace,
         TwistWorkSpaceSlot::kVaporLaneC,
         TwistWorkSpaceSlot::kVaporLaneD,
 
-        TwistWorkSpaceSlot::kChanceLaneA,
-        TwistWorkSpaceSlot::kChanceLaneB,
-        TwistWorkSpaceSlot::kChanceLaneC,
-        TwistWorkSpaceSlot::kChanceLaneD,
-
-        TwistWorkSpaceSlot::kDomainLaneKeyRotateA,
-        TwistWorkSpaceSlot::kDomainLaneKeySpawnA,
-        TwistWorkSpaceSlot::kDomainLaneSeed,
-        TwistWorkSpaceSlot::kDomainLaneTwist,
-        
         TwistWorkSpaceSlot::kIceLaneA,
         TwistWorkSpaceSlot::kIceLaneB,
         TwistWorkSpaceSlot::kIceLaneC,

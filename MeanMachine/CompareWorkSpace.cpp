@@ -19,7 +19,8 @@ struct NamedSlot {
 };
 
 const NamedSlot kWorkSpaceSlots[] = {
-    {"source", TwistWorkSpaceSlot::kSource},
+    {"source", TwistWorkSpaceSlot::kSourceLane},
+    {"nonce", TwistWorkSpaceSlot::kNonceLane},
     {"key_box_a", TwistWorkSpaceSlot::kKeyBoxUnrolledA},
     {"key_box_b", TwistWorkSpaceSlot::kKeyBoxUnrolledB},
     
@@ -27,11 +28,6 @@ const NamedSlot kWorkSpaceSlots[] = {
     {"expansion_lane_b", TwistWorkSpaceSlot::kHeartLaneB},
     {"expansion_lane_c", TwistWorkSpaceSlot::kHeartLaneC},
     {"expansion_lane_d", TwistWorkSpaceSlot::kHeartLaneD},
-    
-    {"work_lane_a", TwistWorkSpaceSlot::kPoisonLaneA},
-    {"work_lane_b", TwistWorkSpaceSlot::kPoisonLaneB},
-    {"work_lane_c", TwistWorkSpaceSlot::kPoisonLaneC},
-    {"work_lane_d", TwistWorkSpaceSlot::kPoisonLaneD},
     
     {"operation_lane_a", TwistWorkSpaceSlot::kSpiritLaneA},
     {"operation_lane_b", TwistWorkSpaceSlot::kSpiritLaneB},
@@ -118,16 +114,6 @@ const NamedSlot kWorkSpaceSlots[] = {
     {"vapor_lane_c", TwistWorkSpaceSlot::kVaporLaneC},
     {"vapor_lane_d", TwistWorkSpaceSlot::kVaporLaneD},
 
-    {"chance_lane_a", TwistWorkSpaceSlot::kChanceLaneA},
-    {"chance_lane_b", TwistWorkSpaceSlot::kChanceLaneB},
-    {"chance_lane_c", TwistWorkSpaceSlot::kChanceLaneC},
-    {"chance_lane_d", TwistWorkSpaceSlot::kChanceLaneD},
-
-    {"domain_lane_key_rotate", TwistWorkSpaceSlot::kDomainLaneKeyRotateA},
-    {"domain_lane_key_spawn", TwistWorkSpaceSlot::kDomainLaneKeySpawnA},
-    {"domain_lane_seed", TwistWorkSpaceSlot::kDomainLaneSeed},
-    {"domain_lane_twist", TwistWorkSpaceSlot::kDomainLaneTwist},
-    
     {"invest_lane_a", TwistWorkSpaceSlot::kIceLaneA},
     {"invest_lane_b", TwistWorkSpaceSlot::kIceLaneB},
     {"invest_lane_c", TwistWorkSpaceSlot::kIceLaneC},

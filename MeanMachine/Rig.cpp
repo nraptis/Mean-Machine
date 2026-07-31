@@ -7,7 +7,6 @@
 
 #include "Rig.hpp"
 #include "TwistFarmSalt.hpp"
-#include "TwistSnow.hpp"
 #include <array>
 #include <cctype>
 #include <cstdio>
@@ -79,29 +78,20 @@ void Rig::Run(TwistExpander *pExpander,
     
     TwistWorkSpace aWorkSpace;
     TwistFarmSalt aFarmSalt;
-    std::array<std::uint8_t, S_BLOCK> aSnowLaneA{};
-    std::array<std::uint8_t, S_BLOCK> aSnowLaneB{};
-    std::array<std::uint8_t, S_BLOCK> aSnowLaneC{};
-    std::array<std::uint8_t, S_BLOCK> aSnowLaneD{};
+    std::array<std::uint8_t, S_BLOCK> aCrossLaneA{};
+    std::array<std::uint8_t, S_BLOCK> aCrossLaneB{};
+    std::array<std::uint8_t, S_BLOCK> aCrossLaneC{};
+    std::array<std::uint8_t, S_BLOCK> aCrossLaneD{};
 
-    TwistExpander::UnrollPasswordToSource(aWorkSpace.mSource,
-                                          pPassword,
-                                          static_cast<std::size_t>(pPasswordLength));
-    TwistSnow::BuildLanes(aWorkSpace.mSource,
-                          aSnowLaneA.data(),
-                          aSnowLaneB.data(),
-                          aSnowLaneC.data(),
-                          aSnowLaneD.data());
+    TwistExpander::UnrollPassword(aWorkSpace.mSourceLane,
+                                  pPassword,
+                                  static_cast<std::size_t>(pPasswordLength));
 
     pExpander->Seed(&aWorkSpace,
                     &aFarmSalt,
                     0ULL,
                     pPassword,
                     static_cast<std::size_t>(pPasswordLength),
-                    aSnowLaneA.data(),
-                    aSnowLaneB.data(),
-                    aSnowLaneC.data(),
-                    aSnowLaneD.data(),
                     mData);
     
     for (int aBlockIndex=1; aBlockIndex<mBlockCount; aBlockIndex++) {
@@ -112,10 +102,10 @@ void Rig::Run(TwistExpander *pExpander,
         
         pExpander->TwistBlock(&aWorkSpace,
                               aSource,
-                              aSnowLaneA.data(),
-                              aSnowLaneB.data(),
-                              aSnowLaneC.data(),
-                              aSnowLaneD.data(),
+                              aCrossLaneA.data(),
+                              aCrossLaneB.data(),
+                              aCrossLaneC.data(),
+                              aCrossLaneD.data(),
                               aDest);
         
     }

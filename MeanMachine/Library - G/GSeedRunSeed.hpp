@@ -18,7 +18,8 @@ namespace GSeedRunSeedConfig {
 using SeedStageConfigs = std::array<GSeedRunStageConfig, 14>;
 
 SeedStageConfigs                           MakeSeedConfig(bool pUseNonces,
-                                                          ResidualBucket &pResidualBucket);
+                                                          ResidualBucket &pResidualBucket,
+                                                          std::size_t pCandidateIndex);
 
 }
 

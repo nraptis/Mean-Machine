@@ -24,13 +24,11 @@ public:
     // 3 source key flow: source/key_a/key_b => FFB, FBF, BFB, BBF
     
     // entry point #1
-    // always calls ValidateDestinations, ValidateList, ValidateSequencing
     // max of 4 pPrimarySources
     // all combinations of pPrimarySources [forward, backward] are represented
     static bool                                             ValidateStarter(const GSeedRunStageConfig &pConfig,
                                                                             std::vector<TwistWorkSpaceSlot> pPrimarySources,
                                                                             std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
-                                                                            bool pIsSpecialTwelvePassLoop,
                                                                             std::string *pErrorMessage);
 
     static bool                                             ValidateStarterWithResiduals(const GSeedRunStageConfig &pConfig,
@@ -40,7 +38,6 @@ public:
                                                                                          std::string *pErrorMessage);
     
     // entry point #2
-    // always calls ValidateDestinations, ValidateList, ValidateSequencing
     
     static bool                                             ValidateMidstage(const GSeedRunStageConfig &pConfig,
                                                                              std::vector<TwistWorkSpaceSlot> pPrimarySources,
@@ -48,13 +45,15 @@ public:
                                                                              std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
                                                                              std::string *pErrorMessage);
 
-    // Independent midstages produce sibling outputs that must not feed one
-    // another. Source, residual, direction, and destination rules still apply.
-    static bool                                             ValidateIndependentMidstage(const GSeedRunStageConfig &pConfig,
-                                                                                        std::vector<TwistWorkSpaceSlot> pPrimarySources,
-                                                                                        std::vector<TwistWorkSpaceSlot> pResidualSources,
-                                                                                        std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
-                                                                                        std::string *pErrorMessage);
+    // entry point #3
+    // A trunk starts immediately after matrix diffusion. Its four primary
+    // lanes are simultaneous matrix outputs rather than ordered prior writes.
+    // At least one residual is required for pass four's wildcard.
+    static bool                                             ValidateTrunk(const GSeedRunStageConfig &pConfig,
+                                                                          std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                          std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                          std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+                                                                          std::string *pErrorMessage);
 
 private:
     
@@ -83,27 +82,16 @@ private:
                                                                          std::vector<TwistWorkSpaceSlot> pSources,
                                                                          std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
                                                                          std::string *pErrorMessage);
+
+    // Midstages continue from ordered primary writes immediately preceding
+    // the stage. Every primary whose fourth-read window reaches this stage
+    // must appear in that window.
+    static bool                                             ValidateMidstageList(const GSeedRunStageConfig &pConfig,
+                                                                                 std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                 std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                 std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+                                                                                 std::string *pErrorMessage);
     
-    
-    // No source is read before it is available from pAllSources or prior destination writes.
-    static bool                                             ValidateSequencing(const GSeedRunStageConfig &pConfig,
-                                                                               std::vector<TwistWorkSpaceSlot> pAllSources,
-                                                                               std::string *pErrorMessage);
-    
-    
-    static bool                                             ValidateImmediatelyUsePreviousDest(const GSeedRunStageConfig &pConfig,
-                                                                                               std::string *pErrorMessage);
-    
-    
-    // After a dest is written:
-    //      If tail pressure is enabled, it must be used min(remaining passes, 3) times later.
-    //      Otherwise, one later use is enough.
-    //      If it is required once, that use must force it forward.
-    //      If it is required twice or more, it must be forced forward and backward.
-    //      The final dest is not expected to have any later use.
-    static bool                                             ValidateSufficientDestUsage(const GSeedRunStageConfig &pConfig,
-                                                                                       bool pRequireTailReadPressure,
-                                                                                       std::string *pErrorMessage);
     
     // We should not use any TwistWorkSpaceSlot twice in ingress
     // We should not use any TwistWorkSpaceSlot twice in cross
@@ -111,17 +99,50 @@ private:
     static bool                                             ValidateNonRedundancy(const GSeedRunStageConfig &pConfig,
                                                                                           std::string *pErrorMessage);
     
-    // We keep a running list of sources.
-    // For each slice:
-    //      If source count is 0 or 1, immediately fail
-    //      If source count is 2, there must be this exact pattern: ingress = [a, b], cross = [b, a]
-    //      If source count is 3, there must be this exact pattern: ingress = [a, b], cross = [a, c]
-    //      If source count is 4 or greater, there must be no duplicate unless
-    //      mBindDuplicateSourceSlots explicitly requests separately bound
-    //      duplicate reads.
+    // No destination may be read before it is written. After a write, its
+    // required sliding schedule is:
+    //      +1 pass: ingress[0]
+    //      +2 pass: cross[0]
+    //      +3 pass: ingress[1]
+    // If another pass is available, it must appear exactly once more at
+    // cross[1]. Four-pass flavors require +4. Six-pass flavors permit +4,
+    // +5, or +6. It may not appear again outside that window.
+    // Every required appearance is exact and exclusive within its pass.
     static bool                                             ValidateSourceGraph(const GSeedRunStageConfig &pConfig,
                                                                                 std::vector<TwistWorkSpaceSlot> pSources,
                                                                                           std::string *pErrorMessage);
+
+    // KDF-A-A and Seed-A use an explicit six-pass source graph. Their first
+    // two passes are fixed; their final four passes select from a small,
+    // mechanically enumerated set of source pairs.
+    static bool                                             ValidateSourceGraphSpecialSixPassStarter(
+                                                                                const GSeedRunStageConfig &pConfig,
+                                                                                std::vector<TwistWorkSpaceSlot> pSources,
+                                                                                std::string *pErrorMessage);
+
+    // Twist-A has three primary lanes and an exact 36-candidate six-pass
+    // starter graph. Source alternates ingress/cross from passes three
+    // through six while key placement supplies the candidate variation.
+    static bool                                             ValidateSourceGraphSpecialSixPassTwistStarter(
+                                                                                const GSeedRunStageConfig &pConfig,
+                                                                                std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                std::string *pErrorMessage);
+
+    // Apply the source graph to primary lanes written immediately before this
+    // midstage, then continue normally through this stage's destinations.
+    static bool                                             ValidateSourceGraphMidstage(const GSeedRunStageConfig &pConfig,
+                                                                                        std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                        std::vector<TwistWorkSpaceSlot> pSources,
+                                                                                        std::string *pErrorMessage);
+
+    // Validate the exact four-pass matrix-output entry graph, then apply the
+    // normal destination source graph to all four or six trunk destinations.
+    static bool                                             ValidateSourceGraphTrunk(const GSeedRunStageConfig &pConfig,
+                                                                                     std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                     std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                     std::vector<TwistWorkSpaceSlot> pSources,
+                                                                                     std::string *pErrorMessage);
     
     
     // Residuals are unique lanes, each read exactly once. They occupy a
@@ -137,17 +158,6 @@ private:
     static bool                                             ValidatePrimaryCombinations(const GSeedRunStageConfig &pConfig,
                                                                                   std::vector<TwistWorkSpaceSlot> pPrimarySources,
                                                                                           std::string *pErrorMessage);
-    
-    
-    //
-    static bool                                             ValidateMidstageSourceDiversity(const GSeedRunStageConfig &pConfig,
-                                                                                  std::vector<TwistWorkSpaceSlot> pPrimarySources,
-                                                                                          std::string *pErrorMessage);
-    
-
-    
-    
-    
     
 };
 

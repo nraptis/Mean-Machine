@@ -18,10 +18,20 @@
 #define S_QUARTER (S_BLOCK >> 2U)
 #define S_QUARTER1 (S_QUARTER - 1U)
 
-#define S_SALT 32
-#define S_SALT_DIVIDE_BITSHIFT 5
+#define S_EIGHTH (S_BLOCK >> 3U)
+#define S_EIGHTH1 (S_EIGHTH - 1U)
 
-#define S_SALT1 31
+#define S_SALT 512
+#define S_SALT_DIVIDE_BITSHIFT 9
+
+#define S_SALT1 511
+
+static_assert((1U << S_SALT_DIVIDE_BITSHIFT) == S_SALT,
+              "S_SALT_DIVIDE_BITSHIFT must describe S_SALT.");
+static_assert((S_SALT & S_SALT1) == 0U,
+              "S_SALT must be a power of two for masked salt indexing.");
+static_assert(S_SALT1 == (S_SALT - 1U),
+              "S_SALT1 must be the mask for S_SALT.");
 
 #define W_KEY 2048
 #define W_KEY1 2047
@@ -85,10 +95,15 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
 
     kInvalid=255,
 
-    kSource=0, // workspace-owned source block
+    kSourceLane=0, // workspace-owned source lane
+    kNonceLane=1,
     kParamSource=2,
     kParamDestination=3,
-    kParamSnow=4,
+
+    kParamCrossA=8,
+    kParamCrossB=9,
+    kParamCrossC=10,
+    kParamCrossD=11,
     
     
     kEarthLaneA=140,
@@ -176,32 +191,10 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kVaporLaneC=62,
     kVaporLaneD=63,
 
-    kChanceLaneA=64,
-    kChanceLaneB=65,
-    kChanceLaneC=66,
-    kChanceLaneD=67,
-
-    kDomainLaneKeyRotateA=68,
-    kDomainLaneKeySpawnA=69,
-    kDomainLaneSeed=70,
-    kDomainLaneTwist=71,
-    kDomainLaneKeyRotateB=72,
-    kDomainLaneKeySpawnB=73,
-
-    kPoisonLaneA=90,
-    kPoisonLaneB=91,
-    kPoisonLaneC=92,
-    kPoisonLaneD=93,
-
     kSpiritLaneA=100,
     kSpiritLaneB=101,
     kSpiritLaneC=102,
     kSpiritLaneD=103,
-    
-    kSnowLaneA=106,
-    kSnowLaneB=107,
-    kSnowLaneC=108,
-    kSnowLaneD=109,
     
     kFuseLaneA=148,
     kFuseLaneB=149,
@@ -249,25 +242,31 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kParamDomainSaltOrbiterAssignD=173,
     kParamDomainSaltOrbiterAssignE=174,
     kParamDomainSaltOrbiterAssignF=175,
+    kParamDomainSaltOrbiterAssignG=176,
+    kParamDomainSaltOrbiterAssignH=177,
 
-    kParamDomainSaltOrbiterUpdateA=176,
-    kParamDomainSaltOrbiterUpdateB=177,
-    kParamDomainSaltOrbiterUpdateC=178,
-    kParamDomainSaltOrbiterUpdateD=179,
-    kParamDomainSaltOrbiterUpdateE=180,
-    kParamDomainSaltOrbiterUpdateF=181,
+    kParamDomainSaltOrbiterUpdateA=178,
+    kParamDomainSaltOrbiterUpdateB=179,
+    kParamDomainSaltOrbiterUpdateC=180,
+    kParamDomainSaltOrbiterUpdateD=181,
+    kParamDomainSaltOrbiterUpdateE=182,
+    kParamDomainSaltOrbiterUpdateF=183,
+    kParamDomainSaltOrbiterUpdateG=184,
+    kParamDomainSaltOrbiterUpdateH=185,
 
-    kParamDomainSaltWandererUpdateA=182,
-    kParamDomainSaltWandererUpdateB=183,
-    kParamDomainSaltWandererUpdateC=184,
-    kParamDomainSaltWandererUpdateD=185,
-    kParamDomainSaltWandererUpdateE=186,
-    kParamDomainSaltWandererUpdateF=187,
+    kParamDomainSaltWandererUpdateA=186,
+    kParamDomainSaltWandererUpdateB=187,
+    kParamDomainSaltWandererUpdateC=188,
+    kParamDomainSaltWandererUpdateD=189,
+    kParamDomainSaltWandererUpdateE=190,
+    kParamDomainSaltWandererUpdateF=191,
+    kParamDomainSaltWandererUpdateG=192,
+    kParamDomainSaltWandererUpdateH=193,
 
-    kIndexList256A=190,
-    kIndexList256B=191,
-    kIndexList256C=192,
-    kIndexList256D=193,
+    kIndexList256A=194,
+    kIndexList256B=195,
+    kIndexList256C=196,
+    kIndexList256D=197,
 
     kKeyRotateASaltOrbiterAssignA=300,
     kKeyRotateASaltOrbiterAssignB,
@@ -275,113 +274,149 @@ enum class TwistWorkSpaceSlot : std::uint16_t {
     kKeyRotateASaltOrbiterAssignD,
     kKeyRotateASaltOrbiterAssignE,
     kKeyRotateASaltOrbiterAssignF,
+    kKeyRotateASaltOrbiterAssignG,
+    kKeyRotateASaltOrbiterAssignH,
     kKeyRotateASaltOrbiterUpdateA,
     kKeyRotateASaltOrbiterUpdateB,
     kKeyRotateASaltOrbiterUpdateC,
     kKeyRotateASaltOrbiterUpdateD,
     kKeyRotateASaltOrbiterUpdateE,
     kKeyRotateASaltOrbiterUpdateF,
+    kKeyRotateASaltOrbiterUpdateG,
+    kKeyRotateASaltOrbiterUpdateH,
     kKeyRotateASaltWandererUpdateA,
     kKeyRotateASaltWandererUpdateB,
     kKeyRotateASaltWandererUpdateC,
     kKeyRotateASaltWandererUpdateD,
     kKeyRotateASaltWandererUpdateE,
     kKeyRotateASaltWandererUpdateF,
+    kKeyRotateASaltWandererUpdateG,
+    kKeyRotateASaltWandererUpdateH,
 
-    kKeySpawnASaltOrbiterAssignA=318,
+    kKeySpawnASaltOrbiterAssignA=324,
     kKeySpawnASaltOrbiterAssignB,
     kKeySpawnASaltOrbiterAssignC,
     kKeySpawnASaltOrbiterAssignD,
     kKeySpawnASaltOrbiterAssignE,
     kKeySpawnASaltOrbiterAssignF,
+    kKeySpawnASaltOrbiterAssignG,
+    kKeySpawnASaltOrbiterAssignH,
     kKeySpawnASaltOrbiterUpdateA,
     kKeySpawnASaltOrbiterUpdateB,
     kKeySpawnASaltOrbiterUpdateC,
     kKeySpawnASaltOrbiterUpdateD,
     kKeySpawnASaltOrbiterUpdateE,
     kKeySpawnASaltOrbiterUpdateF,
+    kKeySpawnASaltOrbiterUpdateG,
+    kKeySpawnASaltOrbiterUpdateH,
     kKeySpawnASaltWandererUpdateA,
     kKeySpawnASaltWandererUpdateB,
     kKeySpawnASaltWandererUpdateC,
     kKeySpawnASaltWandererUpdateD,
     kKeySpawnASaltWandererUpdateE,
     kKeySpawnASaltWandererUpdateF,
+    kKeySpawnASaltWandererUpdateG,
+    kKeySpawnASaltWandererUpdateH,
 
-    kSeedSaltOrbiterAssignA=336,
+    kSeedSaltOrbiterAssignA=348,
     kSeedSaltOrbiterAssignB,
     kSeedSaltOrbiterAssignC,
     kSeedSaltOrbiterAssignD,
     kSeedSaltOrbiterAssignE,
     kSeedSaltOrbiterAssignF,
+    kSeedSaltOrbiterAssignG,
+    kSeedSaltOrbiterAssignH,
     kSeedSaltOrbiterUpdateA,
     kSeedSaltOrbiterUpdateB,
     kSeedSaltOrbiterUpdateC,
     kSeedSaltOrbiterUpdateD,
     kSeedSaltOrbiterUpdateE,
     kSeedSaltOrbiterUpdateF,
+    kSeedSaltOrbiterUpdateG,
+    kSeedSaltOrbiterUpdateH,
     kSeedSaltWandererUpdateA,
     kSeedSaltWandererUpdateB,
     kSeedSaltWandererUpdateC,
     kSeedSaltWandererUpdateD,
     kSeedSaltWandererUpdateE,
     kSeedSaltWandererUpdateF,
+    kSeedSaltWandererUpdateG,
+    kSeedSaltWandererUpdateH,
 
-    kTwistSaltOrbiterAssignA=354,
+    kTwistSaltOrbiterAssignA=372,
     kTwistSaltOrbiterAssignB,
     kTwistSaltOrbiterAssignC,
     kTwistSaltOrbiterAssignD,
     kTwistSaltOrbiterAssignE,
     kTwistSaltOrbiterAssignF,
+    kTwistSaltOrbiterAssignG,
+    kTwistSaltOrbiterAssignH,
     kTwistSaltOrbiterUpdateA,
     kTwistSaltOrbiterUpdateB,
     kTwistSaltOrbiterUpdateC,
     kTwistSaltOrbiterUpdateD,
     kTwistSaltOrbiterUpdateE,
     kTwistSaltOrbiterUpdateF,
+    kTwistSaltOrbiterUpdateG,
+    kTwistSaltOrbiterUpdateH,
     kTwistSaltWandererUpdateA,
     kTwistSaltWandererUpdateB,
     kTwistSaltWandererUpdateC,
     kTwistSaltWandererUpdateD,
     kTwistSaltWandererUpdateE,
     kTwistSaltWandererUpdateF,
+    kTwistSaltWandererUpdateG,
+    kTwistSaltWandererUpdateH,
 
-    kKeyRotateBSaltOrbiterAssignA=372,
+    kKeyRotateBSaltOrbiterAssignA=396,
     kKeyRotateBSaltOrbiterAssignB,
     kKeyRotateBSaltOrbiterAssignC,
     kKeyRotateBSaltOrbiterAssignD,
     kKeyRotateBSaltOrbiterAssignE,
     kKeyRotateBSaltOrbiterAssignF,
+    kKeyRotateBSaltOrbiterAssignG,
+    kKeyRotateBSaltOrbiterAssignH,
     kKeyRotateBSaltOrbiterUpdateA,
     kKeyRotateBSaltOrbiterUpdateB,
     kKeyRotateBSaltOrbiterUpdateC,
     kKeyRotateBSaltOrbiterUpdateD,
     kKeyRotateBSaltOrbiterUpdateE,
     kKeyRotateBSaltOrbiterUpdateF,
+    kKeyRotateBSaltOrbiterUpdateG,
+    kKeyRotateBSaltOrbiterUpdateH,
     kKeyRotateBSaltWandererUpdateA,
     kKeyRotateBSaltWandererUpdateB,
     kKeyRotateBSaltWandererUpdateC,
     kKeyRotateBSaltWandererUpdateD,
     kKeyRotateBSaltWandererUpdateE,
     kKeyRotateBSaltWandererUpdateF,
+    kKeyRotateBSaltWandererUpdateG,
+    kKeyRotateBSaltWandererUpdateH,
 
-    kKeySpawnBSaltOrbiterAssignA=390,
+    kKeySpawnBSaltOrbiterAssignA=420,
     kKeySpawnBSaltOrbiterAssignB,
     kKeySpawnBSaltOrbiterAssignC,
     kKeySpawnBSaltOrbiterAssignD,
     kKeySpawnBSaltOrbiterAssignE,
     kKeySpawnBSaltOrbiterAssignF,
+    kKeySpawnBSaltOrbiterAssignG,
+    kKeySpawnBSaltOrbiterAssignH,
     kKeySpawnBSaltOrbiterUpdateA,
     kKeySpawnBSaltOrbiterUpdateB,
     kKeySpawnBSaltOrbiterUpdateC,
     kKeySpawnBSaltOrbiterUpdateD,
     kKeySpawnBSaltOrbiterUpdateE,
     kKeySpawnBSaltOrbiterUpdateF,
+    kKeySpawnBSaltOrbiterUpdateG,
+    kKeySpawnBSaltOrbiterUpdateH,
     kKeySpawnBSaltWandererUpdateA,
     kKeySpawnBSaltWandererUpdateB,
     kKeySpawnBSaltWandererUpdateC,
     kKeySpawnBSaltWandererUpdateD,
     kKeySpawnBSaltWandererUpdateE,
     kKeySpawnBSaltWandererUpdateF,
+    kKeySpawnBSaltWandererUpdateG,
+    kKeySpawnBSaltWandererUpdateH,
 
 };
 
@@ -391,10 +426,6 @@ public:
     std::uint64_t                           mIngress;
     std::uint64_t                           mScatter;
     std::uint64_t                           mCross;
-
-    std::uint64_t                           mDomainConstantPublicIngress;
-    std::uint64_t                           mDomainConstantPrivateIngress;
-    std::uint64_t                           mDomainConstantCrossIngress;
 
     std::uint64_t                           mMatrixSelectA;
     std::uint64_t                           mMatrixSelectB;
@@ -407,16 +438,11 @@ public:
     std::uint8_t                            mMatrixArgC;
     std::uint8_t                            mMatrixArgD;
 
-    std::uint8_t                            mMaskMutateA;
-    std::uint8_t                            mMaskMutateB;
-
     void                                    Zero() {
         mIngress = 0; mScatter = 0; mCross = 0;
-        mDomainConstantPublicIngress = 0; mDomainConstantPrivateIngress = 0; mDomainConstantCrossIngress = 0;
         mMatrixSelectA = 0; mMatrixSelectB = 0;
         mMatrixUnrollA = 0; mMatrixUnrollB = 0;
         mMatrixArgA = 0; mMatrixArgB = 0; mMatrixArgC = 0; mMatrixArgD = 0;
-        mMaskMutateA = 0; mMaskMutateB = 0;
     }
 
 };
@@ -429,6 +455,8 @@ public:
     std::uint64_t                           mSaltD[S_SALT];
     std::uint64_t                           mSaltE[S_SALT];
     std::uint64_t                           mSaltF[S_SALT];
+    std::uint64_t                           mSaltG[S_SALT];
+    std::uint64_t                           mSaltH[S_SALT];
 
     void                                    Zero() {
         memset(mSaltA, 0, sizeof(mSaltA));
@@ -437,6 +465,8 @@ public:
         memset(mSaltD, 0, sizeof(mSaltD));
         memset(mSaltE, 0, sizeof(mSaltE));
         memset(mSaltF, 0, sizeof(mSaltF));
+        memset(mSaltG, 0, sizeof(mSaltG));
+        memset(mSaltH, 0, sizeof(mSaltH));
     }
 
 };
@@ -504,10 +534,16 @@ class TwistWorkSpace {
 public:
     TwistWorkSpace();
 
-    uint8_t                                 mKeyBoxA[H_KEY][W_KEY];
-    uint8_t                                 mKeyBoxB[H_KEY][W_KEY];
+    alignas(std::uint32_t) uint8_t          mKeyBoxA[H_KEY][W_KEY];
+    alignas(std::uint32_t) uint8_t          mKeyBoxB[H_KEY][W_KEY];
 
-    std::uint8_t                            mSource[S_BLOCK];
+    std::uint8_t                            mSourceLane[S_BLOCK];
+    std::uint8_t                            mNonceLane[S_BLOCK];
+
+    std::size_t                             mIndexList256A[256];
+    std::size_t                             mIndexList256B[256];
+    std::size_t                             mIndexList256C[256];
+    std::size_t                             mIndexList256D[256];
 
     std::uint8_t                            mEarthLaneA[S_BLOCK];
     std::uint8_t                            mEarthLaneB[S_BLOCK];
@@ -564,10 +600,10 @@ public:
     std::uint8_t                            mPlasmaLaneC[S_BLOCK];
     std::uint8_t                            mPlasmaLaneD[S_BLOCK];
 
-    std::uint8_t                            mShadowLaneA[S_BLOCK];
-    std::uint8_t                            mShadowLaneB[S_BLOCK];
-    std::uint8_t                            mShadowLaneC[S_BLOCK];
-    std::uint8_t                            mShadowLaneD[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mShadowLaneA[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mShadowLaneB[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mShadowLaneC[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mShadowLaneD[S_BLOCK];
 
     std::uint8_t                            mCrystalLaneA[S_BLOCK];
     std::uint8_t                            mCrystalLaneB[S_BLOCK];
@@ -584,32 +620,15 @@ public:
     std::uint8_t                            mCelestialLaneC[S_BLOCK];
     std::uint8_t                            mCelestialLaneD[S_BLOCK];
 
-    std::uint8_t                            mKineticLaneA[S_BLOCK];
-    std::uint8_t                            mKineticLaneB[S_BLOCK];
-    std::uint8_t                            mKineticLaneC[S_BLOCK];
-    std::uint8_t                            mKineticLaneD[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mKineticLaneA[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mKineticLaneB[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mKineticLaneC[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mKineticLaneD[S_BLOCK];
 
-    std::uint8_t                            mVaporLaneA[S_BLOCK];
-    std::uint8_t                            mVaporLaneB[S_BLOCK];
-    std::uint8_t                            mVaporLaneC[S_BLOCK];
-    std::uint8_t                            mVaporLaneD[S_BLOCK];
-
-    std::uint8_t                            mChanceLaneA[S_BLOCK];
-    std::uint8_t                            mChanceLaneB[S_BLOCK];
-    std::uint8_t                            mChanceLaneC[S_BLOCK];
-    std::uint8_t                            mChanceLaneD[S_BLOCK];
-
-    std::uint8_t                            mDomainLaneKeyRotateA[S_BLOCK];
-    std::uint8_t                            mDomainLaneKeyRotateB[S_BLOCK];
-    std::uint8_t                            mDomainLaneKeySpawnA[S_BLOCK];
-    std::uint8_t                            mDomainLaneKeySpawnB[S_BLOCK];
-    std::uint8_t                            mDomainLaneSeed[S_BLOCK];
-    std::uint8_t                            mDomainLaneTwist[S_BLOCK];
-    
-    std::uint8_t                            mPoisonLaneA[S_BLOCK];
-    std::uint8_t                            mPoisonLaneB[S_BLOCK];
-    std::uint8_t                            mPoisonLaneC[S_BLOCK];
-    std::uint8_t                            mPoisonLaneD[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mVaporLaneA[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mVaporLaneB[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mVaporLaneC[S_BLOCK];
+    alignas(std::uint32_t) std::uint8_t     mVaporLaneD[S_BLOCK];
 
     std::uint8_t                            mSpiritLaneA[S_BLOCK];
     std::uint8_t                            mSpiritLaneB[S_BLOCK];
