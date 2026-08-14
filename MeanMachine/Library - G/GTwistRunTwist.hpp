@@ -16,7 +16,7 @@ class ResidualBucket;
 
 namespace GTwistRunTwistConfig {
 
-using TwistStageConfigs = std::array<GSeedRunStageConfig, 8>;
+using TwistStageConfigs = std::array<GSeedRunStageConfig, 3>;
 
 TwistStageConfigs                          MakeTwistConfig(ResidualBucket &pResidualBucket,
                                                           std::size_t pCandidateIndex);

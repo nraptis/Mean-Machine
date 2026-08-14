@@ -21,7 +21,6 @@ bool GM88::BakeDispatch(GSymbol pOperation,
                         GSymbol pSource,
                         GSymbol pSourceIndex,
                         GSymbol pDestination,
-                        GSymbol pDestinationIndex,
                         std::vector<GStatement> *pStatements,
                         std::string *pErrorMessage) {
     if (pStatements == nullptr) {
@@ -41,8 +40,7 @@ bool GM88::BakeDispatch(GSymbol pOperation,
         return false;
     }
     if (!pOperationIndex.IsVar() ||
-        !pSourceIndex.IsVar() ||
-        !pDestinationIndex.IsVar()) {
+        !pSourceIndex.IsVar()) {
         SetError(pErrorMessage, "GM88::BakeDispatch indexes and domain words must be variable symbols.");
         return false;
     }
@@ -53,8 +51,7 @@ bool GM88::BakeDispatch(GSymbol pOperation,
     pOperationIndex.mName + ",\n" +
     "\t\t\t\t\t\t\t" + BufAliasName(pSource) + ", " +
     pSourceIndex.mName + ",\n" +
-    "\t\t\t\t\t\t\t" + BufAliasName(pDestination) + ", " +
-    pDestinationIndex.mName + ");";
+    "\t\t\t\t\t\t\t" + BufAliasName(pDestination) + ");";
     
     pStatements->push_back(GStatement::RawLine(aLine));
     
@@ -66,7 +63,6 @@ bool GM88::BakeDispatch(GSymbol pOperation,
                         GSymbol pSource,
                         GSymbol pSourceIndex,
                         GSymbol pDestination,
-                        GSymbol pDestinationIndex,
                         GSymbol pUnrollDomainWord,
                         GSymbol pArgADomainWord,
                         GSymbol pArgBDomainWord,
@@ -92,7 +88,6 @@ bool GM88::BakeDispatch(GSymbol pOperation,
     }
     if (!pOperationIndex.IsVar() ||
         !pSourceIndex.IsVar() ||
-        !pDestinationIndex.IsVar() ||
         !pUnrollDomainWord.IsVar() ||
         !pArgADomainWord.IsVar() ||
         !pArgBDomainWord.IsVar() ||
@@ -108,8 +103,7 @@ bool GM88::BakeDispatch(GSymbol pOperation,
     pOperationIndex.mName + ",\n" +
     "\t\t\t\t\t\t\t" + BufAliasName(pSource) + ", " +
     pSourceIndex.mName + ",\n" +
-    "\t\t\t\t\t\t\t" + BufAliasName(pDestination) + ", " +
-    pDestinationIndex.mName + ",\n" +
+    "\t\t\t\t\t\t\t" + BufAliasName(pDestination) + ",\n" +
     "\t\t\t\t\t\t\t" + pUnrollDomainWord.mName + ",\n" +
     "\t\t\t\t\t\t\t" + pArgADomainWord.mName + ", " +
     pArgBDomainWord.mName + ", " +

@@ -9,6 +9,7 @@
 #include "CSPRNGV2.hpp"
 #include "GMagicNumbers.hpp"
 #include "GPrintTool.hpp"
+#include "Random.hpp"
 #include "GSeedRunStageConfig.hpp"
 #include "GTwistExpander.hpp"
 #include <algorithm>
@@ -118,7 +119,14 @@ public:
 
             CSPRNGV2Slice aSlice = {};
             aSlice.mARXSkeleton = mARXSkeletons[aIndex];
-            aSlice.mDest = GSymbol::Buf(aSpec.mDest);
+            std::uint8_t aDestinationLaneSplit = 255U;
+            if (aSpec.DestinationLaneSplit(&aDestinationLaneSplit)) {
+                aSlice.mDest = GSymbol::Buf(
+                    TwistBufferKey::LaneSplit(aSpec.mDest,
+                                              aDestinationLaneSplit));
+            } else {
+                aSlice.mDest = GSymbol::Buf(aSpec.mDest);
+            }
             aSlice.mDestWriteInverted = aSpec.mDestWriteInverted;
             aSlice.mHotPack = mHotPacks[aIndex];
             aSlice.mLoopBegin = mConfig.mLoopBegin;
@@ -127,6 +135,37 @@ public:
             aSlice.mLoopEndText = mConfig.mLoopEndText;
             aSlice.mSourceRangesLo = mConfig.mSourceOffsetRangeLo;
             aSlice.mSourceRangesHi = mConfig.mSourceOffsetRangeHi;
+            if (!mConfig.mIgnoreNonces) {
+                const auto IsValidNonceRange = [](const int pMinimum,
+                                                  const int pMaximum) {
+                    return (pMinimum >= 2) &&
+                           (pMinimum <= pMaximum) &&
+                           (pMaximum <= 4);
+                };
+                if (!IsValidNonceRange(
+                        mConfig.mNonceCountMinOrbiterAssign,
+                        mConfig.mNonceCountMaxOrbiterAssign) ||
+                    !IsValidNonceRange(
+                        mConfig.mNonceCountMinOrbiterUpdate,
+                        mConfig.mNonceCountMaxOrbiterUpdate) ||
+                    !IsValidNonceRange(
+                        mConfig.mNonceCountMinWandererUpdate,
+                        mConfig.mNonceCountMaxWandererUpdate)) {
+                    SetError(pErrorMessage,
+                             mConfig.mStageName +
+                             " had invalid nonce-role count ranges");
+                    return false;
+                }
+                aSlice.mNonceCountOrbiterAssign =
+                    Random::Get(mConfig.mNonceCountMinOrbiterAssign,
+                                mConfig.mNonceCountMaxOrbiterAssign);
+                aSlice.mNonceCountOrbiterUpdate =
+                    Random::Get(mConfig.mNonceCountMinOrbiterUpdate,
+                                mConfig.mNonceCountMaxOrbiterUpdate);
+                aSlice.mNonceCountWandererUpdate =
+                    Random::Get(mConfig.mNonceCountMinWandererUpdate,
+                                mConfig.mNonceCountMaxWandererUpdate);
+            }
 
             for (TwistWorkSpaceSlot aSlot : aBinding.mSourceSlots) {
                 std::uint8_t aLaneSplit = 255U;
@@ -184,13 +223,13 @@ public:
             if (mConfig.mEmitLaneFlowComments && (aIndex < mConfig.mSlices.size())) {
                 const GSeedRunStageSliceSpec &aSpec = mConfig.mSlices[aIndex];
                 AddLoopLaneFlowComments(&aLoop,
-                                        mConfig.mBatchName + " loop " + std::to_string(aIndex + 1U),
                                         aSpec.IngressSources(),
                                         aSpec.CrossSources(),
                                         aSpec.mIsLastIngressDirectionLocked,
                                         aSpec.mIsLastCrossDirectionLocked,
                                         { aSpec.mDest });
             }
+            AddLoopRecipeComments(&aLoop, mARXSkeletons[aIndex]);
             aBatch.CommitLoop(aLoop);
         }
         pBranch.AddBatch(aBatch);
@@ -563,7 +602,6 @@ private:
     }
 
     void AddLoopLaneFlowComments(GLoop *pLoop,
-                                 const std::string &pTitle,
                                  const std::vector<TwistWorkSpaceSlot> &pIngressSlots,
                                  const std::vector<TwistWorkSpaceSlot> &pCrossSlots,
                                  const bool pIsLastIngressDirectionLocked,
@@ -574,24 +612,43 @@ private:
         }
         std::vector<GStatement> aStatements;
         aStatements.push_back(GStatement::Comment(""));
-        aStatements.push_back(GStatement::Comment(pTitle));
+        aStatements.push_back(GStatement::Comment(
+            "Ingress:     " + JoinLaneDiagram(
+                pIngressSlots,
+                true,
+                pIsLastIngressDirectionLocked)));
         aStatements.push_back(GStatement::Comment(""));
-        aStatements.push_back(GStatement::Comment("Ingress:"));
-        aStatements.push_back(GStatement::Comment("     " + JoinLaneDiagram(pIngressSlots,
-                                                                             true,
-                                                                             pIsLastIngressDirectionLocked)));
+        aStatements.push_back(GStatement::Comment(
+            "Cross:       " + JoinLaneDiagram(
+                pCrossSlots,
+                false,
+                pIsLastCrossDirectionLocked)));
         aStatements.push_back(GStatement::Comment(""));
-        aStatements.push_back(GStatement::Comment("Cross:"));
-        aStatements.push_back(GStatement::Comment("     " + JoinLaneDiagram(pCrossSlots,
-                                                                             false,
-                                                                             pIsLastCrossDirectionLocked)));
-        aStatements.push_back(GStatement::Comment(""));
-        aStatements.push_back(GStatement::Comment("Destination:"));
-        aStatements.push_back(GStatement::Comment("     " + JoinLaneNames(pWriteSlots, mConfig.mAssignType)));
+        aStatements.push_back(GStatement::Comment(
+            "Destination: " +
+            JoinLaneNames(pWriteSlots, mConfig.mAssignType)));
         aStatements.push_back(GStatement::Comment(""));
         pLoop->mInitializationStatements.insert(pLoop->mInitializationStatements.begin(),
                                                 aStatements.begin(),
                                                 aStatements.end());
+    }
+
+    static void AddLoopRecipeComments(
+        GLoop *pLoop,
+        const GAXSKSkeleton &pSkeleton) {
+        if ((pLoop == nullptr) || pSkeleton.mLoopRecipeComments.empty()) {
+            return;
+        }
+        std::vector<GStatement> aStatements;
+        aStatements.reserve(pSkeleton.mLoopRecipeComments.size());
+        for (const std::string &aComment :
+             pSkeleton.mLoopRecipeComments) {
+            aStatements.push_back(GStatement::Comment(aComment));
+        }
+        pLoop->mInitializationStatements.insert(
+            pLoop->mInitializationStatements.begin(),
+            aStatements.begin(),
+            aStatements.end());
     }
 
     GSeedRunStageConfig                     mConfig;

@@ -6,9 +6,13 @@
 #include "GTwistRunGrowKeyA.hpp"
 #include "ArrangementFour.hpp"
 #include "GPassFactoryMidstage.hpp"
+#include "GPassFactoryStarter.hpp"
 #include "GPassFactoryTrunk.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
+#include "GFlowPlans.hpp"
 #include "ResidualBucket.hpp"
+
+#include <algorithm>
 
 namespace {
 
@@ -55,13 +59,52 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     aConfig.mDomain = kDomain;
     aConfig.mIsNonKDF = true;
     aConfig.mExpectedSkeletonCount = 6;
-    aConfig.mLoopCeiling = S_BLOCK;
-    aConfig.mLoopEndText = "S_BLOCK";
+    aConfig.mLoopCeiling = W_KEY;
+    aConfig.mLoopEndText = "W_KEY";
+    aConfig.mAutoRangeAdjust = false;
+    aConfig.mSourceOffsetRangeLo = 0;
+    aConfig.mSourceOffsetRangeHi = W_KEY1;
     aConfig.mHotPackCount = 12;
     aConfig.mSaltsOrbiterAssign = PhaseSalts(kDomain, Slot::kKeyRotateASaltOrbiterAssignA, 8);
     aConfig.mSaltsOrbiterUpdate = PhaseSalts(kDomain, Slot::kKeyRotateASaltOrbiterUpdateA, 8);
     aConfig.mSaltsWandererUpdate = PhaseSalts(kDomain, Slot::kKeyRotateASaltWandererUpdateA, 8);
     return aConfig;
+}
+
+bool ApplyLaneSplit(GSeedRunStageConfig *pConfig,
+                    const std::uint8_t pLaneSplit,
+                    std::string *pErrorMessage) {
+    if (pConfig == nullptr) {
+        return false;
+    }
+
+    for (GSeedRunStageSliceSpec &aSlice : pConfig->mSlices) {
+        std::vector<TwistWorkSpaceSlot> aSources =
+            aSlice.IngressSources();
+        const std::vector<TwistWorkSpaceSlot> aCrossSources =
+            aSlice.CrossSources();
+        aSources.insert(aSources.end(),
+                        aCrossSources.begin(),
+                        aCrossSources.end());
+
+        for (const TwistWorkSpaceSlot aSource : aSources) {
+            if (TwistWorkSpace::GetBufferLength(aSource) != S_BLOCK) {
+                continue;
+            }
+            if (!aSlice.SetSourceLaneSplit(aSource,
+                                           pLaneSplit,
+                                           pErrorMessage)) {
+                return false;
+            }
+        }
+
+        if ((TwistWorkSpace::GetBufferLength(aSlice.mDest) == S_BLOCK) &&
+            !aSlice.SetDestinationLaneSplit(pLaneSplit,
+                                            pErrorMessage)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -76,191 +119,158 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
     std::vector<Slot> aResidualsPool;
 
     // Lane Plan
+    const std::vector<GFlowStep> aLanePlans =
+        GFlowPlans::ARXSteps(GFlowPlans::GrowA());
 
     //
     // Grow A — Stage A
     //
-    const GPassFactoryMidstage::SlotArray4 aInputsA = {
-        Slot::kCrystalLaneA, Slot::kCrystalLaneB,
-        Slot::kCrystalLaneC, Slot::kCrystalLaneD,
+    const std::vector<Slot> aInputsAVector =
+        GFlowPlans::InputSlots(aLanePlans[0]);
+    const GPassFactoryStarter::SlotArray6 aInputsA = {
+        aInputsAVector[0], aInputsAVector[1], aInputsAVector[2],
+        aInputsAVector[3], aInputsAVector[4], aInputsAVector[5],
     };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsA = {
-        Slot::kShadowLaneA, Slot::kShadowLaneB,
-        Slot::kShadowLaneC, Slot::kShadowLaneD,
-    };
+    const GPassFactoryMidstage::SlotArray4 aDestinationsA =
+        GFlowPlans::FamilySlots(aLanePlans[0].mOutput);
 
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsA));
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsA));
 
-    aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage A", 15); // plus the opposite key row
+    const std::vector<Slot> aResidualsOne =
+        pResidualBucket.Withdraw("Grow A — Stage A / residuals A-B", 2);
+    const std::vector<Slot> aResidualsTwo =
+        pResidualBucket.Withdraw("Grow A — Stage A / residuals C-F", 4);
+    const std::vector<Slot> aResidualsThree =
+        pResidualBucket.Withdraw("Grow A — Stage A / residuals G-L", 6);
 
-    const GPassFactoryMidstage::SlotArray16 aResidualsA = {
-        Slot::kKeyRowReadB,
-        aResidualsPool[0], aResidualsPool[1],
-        aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7],
-        aResidualsPool[8], aResidualsPool[9],
-        aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14],
+    std::vector<Slot> aResidualsThreeOrdered;
+    for (Slot aResidual : aResidualsThree) {
+        if ((aResidual != aResidualsTwo[2]) &&
+            (aResidual != aResidualsTwo[3]) &&
+            (aResidualsThreeOrdered.size() < 2U)) {
+            aResidualsThreeOrdered.push_back(aResidual);
+        }
+    }
+    for (Slot aResidual : aResidualsThree) {
+        if (std::find(aResidualsThreeOrdered.begin(),
+                      aResidualsThreeOrdered.end(),
+                      aResidual) == aResidualsThreeOrdered.end()) {
+            aResidualsThreeOrdered.push_back(aResidual);
+        }
+    }
+
+    const GPassFactoryStarter::SlotArray12 aResidualsA = {
+        aResidualsOne[0], aResidualsOne[1],
+        aResidualsTwo[0], aResidualsTwo[1],
+        aResidualsTwo[2], aResidualsTwo[3],
+        aResidualsThreeOrdered[0], aResidualsThreeOrdered[1],
+        aResidualsThreeOrdered[2], aResidualsThreeOrdered[3],
+        aResidualsThreeOrdered[4], aResidualsThreeOrdered[5],
     };
 
-    pResidualBucket.AddResiduals("Grow A — Stage A", {
-        Slot::kCrystalLaneA, Slot::kCrystalLaneB,
-        Slot::kCrystalLaneC, Slot::kCrystalLaneD,
-    });
+    pResidualBucket.AddResiduals(
+        "Grow A — Stage A sources",
+        GFlowPlans::FamilySlotVector(aLanePlans[0].mInputs[0]),
+        3U);
 
     //
     // Grow A — Stage B
     //
-    const GPassFactoryMidstage::SlotArray4 aInputsB = {
-        Slot::kShadowLaneA, Slot::kShadowLaneB,
-        Slot::kShadowLaneC, Slot::kShadowLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsB = {
-        Slot::kWindLaneA, Slot::kWindLaneB,
-        Slot::kWindLaneC, Slot::kWindLaneD,
-    };
+    const GPassFactoryMidstage::SlotArray4 aInputsB =
+        GFlowPlans::FamilySlots(aLanePlans[1].mInputs[0]);
+    const GPassFactoryMidstage::SlotArray4 aDestinationsB =
+        GFlowPlans::FamilySlots(aLanePlans[1].mOutput);
 
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsB));
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsB));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage B", 15); // plus the opposite key row
+        pResidualBucket.Withdraw("Grow A — Stage B", 4);
 
-    const GPassFactoryMidstage::SlotArray16 aResidualsB = {
-        Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray4 aResidualsB = {
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7],
-        aResidualsPool[8], aResidualsPool[9],
-        aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14],
     };
 
-    pResidualBucket.AddResiduals("Grow A — Stage B", {
-        Slot::kShadowLaneA, Slot::kShadowLaneB,
-        Slot::kShadowLaneC, Slot::kShadowLaneD,
-    });
+    pResidualBucket.AddResiduals(
+        "Grow A — Stage B material",
+        GFlowPlans::FamilySlotVector({
+            aLanePlans[0].mOutput,
+            aLanePlans[1].mOutput,
+        }),
+        3U);
 
     //
     // Grow A — Stage C
     //
-    const GPassFactoryMidstage::SlotArray4 aInputsC = {
-        Slot::kWindLaneA, Slot::kWindLaneB,
-        Slot::kWindLaneC, Slot::kWindLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsC = {
-        Slot::kFuseLaneA, Slot::kFuseLaneB,
-        Slot::kFuseLaneC, Slot::kFuseLaneD,
-    };
+    const GPassFactoryMidstage::SlotArray4 aInputsC =
+        GFlowPlans::FamilySlots(aLanePlans[2].mInputs[0]);
+    const GPassFactoryMidstage::SlotArray4 aDestinationsC =
+        GFlowPlans::FamilySlots(aLanePlans[2].mOutput);
 
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsC));
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsC));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage C", 15); // plus the opposite key row
+        pResidualBucket.Withdraw("Grow A — Stage C", 2);
 
-    const GPassFactoryMidstage::SlotArray16 aResidualsC = {
-        Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray2 aResidualsC = {
         aResidualsPool[0], aResidualsPool[1],
-        aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7],
-        aResidualsPool[8], aResidualsPool[9],
-        aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14],
     };
 
-    pResidualBucket.AddResiduals("Grow A — Stage C", {
-        Slot::kWindLaneA, Slot::kWindLaneB,
-        Slot::kWindLaneC, Slot::kWindLaneD,
-    });
-
-    // Matrix diffusion:
-    //   Fuse A-D -> Vapor A-D
-    // Previous six:
-    //   Shadow C, Shadow D, Wind A-D
+    pResidualBucket.AddResiduals(
+        "Grow A — Stage C material",
+        GFlowPlans::FamilySlotVector({
+            aLanePlans[2].mInputs[0],
+            aLanePlans[2].mOutput,
+        }),
+        3U);
 
     //
     // Grow A — Stage D
     //
-    const GPassFactoryMidstage::SlotArray4 aInputsD = {
-        Slot::kVaporLaneA, Slot::kVaporLaneB,
-        Slot::kVaporLaneC, Slot::kVaporLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsD = {
-        Slot::kAetherLaneA, Slot::kAetherLaneB,
-        Slot::kAetherLaneC, Slot::kAetherLaneD,
-    };
+    const GPassFactoryMidstage::SlotArray4 aInputsD =
+        GFlowPlans::FamilySlots(aLanePlans[3].mInputs[0]);
+    const GPassFactoryMidstage::SlotArray4 aDestinationsD =
+        GFlowPlans::FamilySlots(aLanePlans[3].mOutput);
 
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsD));
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsD));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage D", 15); // plus the opposite key row
+        pResidualBucket.Withdraw("Grow A — Stage D", 4);
 
-    const GPassFactoryMidstage::SlotArray16 aResidualsD = {
-        Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray4 aResidualsD = {
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7],
-        aResidualsPool[8], aResidualsPool[9],
-        aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14],
     };
 
-    pResidualBucket.AddResiduals("Grow A — Stage D", {
-        Slot::kVaporLaneA, Slot::kVaporLaneB,
-        Slot::kVaporLaneC, Slot::kVaporLaneD,
-    });
-
-    const ArrangementFour::SlotArray4 aArrangedInputsD =
-        ArrangementFour::Arrange(aInputsD,
-                                 static_cast<int>(pCandidateIndex),
-                                 5);
+    pResidualBucket.AddResiduals(
+        "Grow A — Stage D material",
+        GFlowPlans::FamilySlotVector({
+            aLanePlans[3].mInputs[0],
+            aLanePlans[3].mOutput,
+        }),
+        3U);
 
     //
     // Grow A — Stage E
     //
-    const GPassFactoryMidstage::SlotArray4 aInputsE = {
-        Slot::kAetherLaneA, Slot::kAetherLaneB,
-        Slot::kAetherLaneC, Slot::kAetherLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsE = {
-        Slot::kKineticLaneA, Slot::kKineticLaneB,
-        Slot::kKineticLaneC, Slot::kKineticLaneD,
-    };
+    const GPassFactoryMidstage::SlotArray4 aInputsE =
+        GFlowPlans::FamilySlots(aLanePlans[4].mInputs[0]);
+    const GPassFactoryMidstage::SlotArray4 aDestinationsE =
+        GFlowPlans::FamilySlots(aLanePlans[4].mOutput);
 
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsE));
     pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsE));
 
     aResidualsPool =
-        pResidualBucket.Withdraw("Grow A — Stage E", 15); // plus the opposite key row
+        pResidualBucket.Withdraw("Grow A — Stage E", 2);
 
-    const GPassFactoryMidstage::SlotArray16 aResidualsE = {
-        Slot::kKeyRowReadB,
+    const GPassFactoryMidstage::SlotArray2 aResidualsE = {
         aResidualsPool[0], aResidualsPool[1],
-        aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7],
-        aResidualsPool[8], aResidualsPool[9],
-        aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14],
     };
-
-    pResidualBucket.AddResiduals("Grow A — Stage E", {
-        Slot::kAetherLaneA, Slot::kAetherLaneB,
-        Slot::kAetherLaneC, Slot::kAetherLaneD,
-    });
 
     pResidualBucket.Print("Grow A — Final");
 
@@ -268,9 +278,9 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
 
     GSeedRunStageConfig aConfigA = BaseConfig("GROW_A_A",
                                               "grow_a_loop_a");
-    aConfigA.mFormat = GAXSFormat::kN9;
+    aConfigA.mFormat = GAXSFormat::kN11;
     aConfigA.mSlices =
-        GPassFactoryMidstage::FourPassSixteenResidualSlices(
+        GPassFactoryStarter::WideFourPassSixInputTwelveResidualSlices(
             aInputsA,
             aResidualsA,
             aDestinationsA);
@@ -280,23 +290,30 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
         static_cast<int>(aDestinationsA.size());
 
     std::string aErrorMessageA;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
-            aConfigA,
-            GPassFactoryMidstage::ToVector(aInputsA),
-            GPassFactoryMidstage::ToVector(aResidualsA),
-            GPassFactoryMidstage::ToVector(aDestinationsA),
-            &aErrorMessageA)) {
-        printf("MakeGrowAConfig stage A was not valid with ValidateMidstage");
+    if (!ApplyLaneSplit(&aConfigA, 0U, &aErrorMessageA)) {
+        printf("MakeGrowAConfig stage A could not apply lane split");
         printf("%s\n", aErrorMessageA.c_str());
         exit(0);
     }
+
+    if (!GSeedRunStageConfigValidator::ValidateGrowSixInput(
+            aConfigA,
+            std::vector<Slot>(aInputsA.begin(), aInputsA.end()),
+            std::vector<Slot>(aResidualsA.begin(), aResidualsA.end()),
+            GPassFactoryMidstage::ToVector(aDestinationsA),
+            &aErrorMessageA)) {
+        printf("MakeGrowAConfig stage A was not valid with ValidateGrowSixInput");
+        printf("%s\n", aErrorMessageA.c_str());
+        exit(0);
+    }
+    aConfigA.SetLaneFlow(aInputsA, aDestinationsA);
     aConfigs[0] = aConfigA;
 
     GSeedRunStageConfig aConfigB = BaseConfig("GROW_A_B",
                                               "grow_a_loop_b");
     aConfigB.mFormat = GAXSFormat::kN11;
     aConfigB.mSlices =
-        GPassFactoryMidstage::FourPassSixteenResidualSlices(
+        GPassFactoryMidstage::FourPassFourResidualSlices(
             aInputsB,
             aResidualsB,
             aDestinationsB);
@@ -306,6 +323,11 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
         static_cast<int>(aDestinationsB.size());
 
     std::string aErrorMessageB;
+    if (!ApplyLaneSplit(&aConfigB, 0U, &aErrorMessageB)) {
+        printf("MakeGrowAConfig stage B could not apply lane split");
+        printf("%s\n", aErrorMessageB.c_str());
+        exit(0);
+    }
     if (!GSeedRunStageConfigValidator::ValidateMidstage(
             aConfigB,
             GPassFactoryMidstage::ToVector(aInputsB),
@@ -316,14 +338,20 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
         printf("%s\n", aErrorMessageB.c_str());
         exit(0);
     }
+    aConfigB.SetLaneFlow(aInputsB, aDestinationsB);
     aConfigs[1] = aConfigB;
+
+    const ArrangementFour::SlotArray4 aArrangedInputsC =
+        ArrangementFour::Arrange(aInputsC,
+                                 static_cast<int>(pCandidateIndex),
+                                 aLanePlans[2].mArrangementOffset);
 
     GSeedRunStageConfig aConfigC = BaseConfig("GROW_A_C",
                                               "grow_a_loop_c");
-    aConfigC.mFormat = GAXSFormat::kN7;
+    aConfigC.mFormat = GAXSFormat::kN11;
     aConfigC.mSlices =
-        GPassFactoryMidstage::FourPassSixteenResidualSlices(
-            aInputsC,
+        GPassFactoryTrunk::FourPassTrunkSlices(
+            aArrangedInputsC,
             aResidualsC,
             aDestinationsC);
     aConfigC.mExpectedSkeletonCount =
@@ -332,24 +360,30 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
         static_cast<int>(aDestinationsC.size());
 
     std::string aErrorMessageC;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
-            aConfigC,
-            GPassFactoryMidstage::ToVector(aInputsC),
-            GPassFactoryMidstage::ToVector(aResidualsC),
-            GPassFactoryMidstage::ToVector(aDestinationsC),
-            &aErrorMessageC)) {
-        printf("MakeGrowAConfig stage C was not valid with ValidateMidstage");
+    if (!ApplyLaneSplit(&aConfigC, 0U, &aErrorMessageC)) {
+        printf("MakeGrowAConfig stage C could not apply lane split");
         printf("%s\n", aErrorMessageC.c_str());
         exit(0);
     }
+    if (!GSeedRunStageConfigValidator::ValidateTrunk(
+            aConfigC,
+            GPassFactoryMidstage::ToVector(aArrangedInputsC),
+            GPassFactoryMidstage::ToVector(aResidualsC),
+            GPassFactoryMidstage::ToVector(aDestinationsC),
+            &aErrorMessageC)) {
+        printf("MakeGrowAConfig stage C was not valid with ValidateTrunk");
+        printf("%s\n", aErrorMessageC.c_str());
+        exit(0);
+    }
+    aConfigC.SetLaneFlow(aInputsC, aDestinationsC);
     aConfigs[2] = aConfigC;
 
     GSeedRunStageConfig aConfigD = BaseConfig("GROW_A_D",
                                               "grow_a_loop_d");
-    aConfigD.mFormat = GAXSFormat::kN9;
+    aConfigD.mFormat = GAXSFormat::kN11;
     aConfigD.mSlices =
-        GPassFactoryTrunk::FourPassTrunkSlices(
-            aArrangedInputsD,
+        GPassFactoryMidstage::FourPassFourResidualSlices(
+            aInputsD,
             aResidualsD,
             aDestinationsD);
     aConfigD.mExpectedSkeletonCount =
@@ -358,41 +392,59 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
         static_cast<int>(aDestinationsD.size());
 
     std::string aErrorMessageD;
-    if (!GSeedRunStageConfigValidator::ValidateTrunk(
-            aConfigD,
-            GPassFactoryMidstage::ToVector(aArrangedInputsD),
-            GPassFactoryMidstage::ToVector(aResidualsD),
-            GPassFactoryMidstage::ToVector(aDestinationsD),
-            &aErrorMessageD)) {
-        printf("MakeGrowAConfig stage D was not valid with ValidateTrunk");
+    if (!ApplyLaneSplit(&aConfigD, 0U, &aErrorMessageD)) {
+        printf("MakeGrowAConfig stage D could not apply lane split");
         printf("%s\n", aErrorMessageD.c_str());
         exit(0);
     }
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+            aConfigD,
+            GPassFactoryMidstage::ToVector(aInputsD),
+            GPassFactoryMidstage::ToVector(aResidualsD),
+            GPassFactoryMidstage::ToVector(aDestinationsD),
+            &aErrorMessageD)) {
+        printf("MakeGrowAConfig stage D was not valid with ValidateMidstage");
+        printf("%s\n", aErrorMessageD.c_str());
+        exit(0);
+    }
+    aConfigD.SetLaneFlow(aInputsD, aDestinationsD);
     aConfigs[3] = aConfigD;
+
+    const ArrangementFour::SlotArray4 aArrangedInputsE =
+        ArrangementFour::Arrange(aInputsE,
+                                 static_cast<int>(pCandidateIndex),
+                                 aLanePlans[4].mArrangementOffset);
 
     GSeedRunStageConfig aConfigE = BaseConfig("GROW_A_E",
                                               "grow_a_loop_e");
     aConfigE.mFormat = GAXSFormat::kN11;
     aConfigE.mSlices =
-        GPassFactoryMidstage::FourPassSixteenResidualSlices(aInputsE,
-                                                     aResidualsE,
-                                                     aDestinationsE);
+        GPassFactoryTrunk::FourPassTrunkSlices(
+            aArrangedInputsE,
+            aResidualsE,
+            aDestinationsE);
     aConfigE.mExpectedSkeletonCount =
         static_cast<int>(aDestinationsE.size());
     aConfigE.mHotPackCount =
         static_cast<int>(aDestinationsE.size());
 
     std::string aErrorMessageE;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
-            aConfigE,
-            GPassFactoryMidstage::ToVector(aInputsE),
-            GPassFactoryMidstage::ToVector(aResidualsE),
-            GPassFactoryMidstage::ToVector(aDestinationsE),
-            &aErrorMessageE)) {
-        printf("MakeGrowAConfig stage E was not valid with ValidateMidstage");
+    if (!ApplyLaneSplit(&aConfigE, 0U, &aErrorMessageE)) {
+        printf("MakeGrowAConfig stage E could not apply lane split");
         printf("%s\n", aErrorMessageE.c_str());
         exit(0);
     }
+    if (!GSeedRunStageConfigValidator::ValidateTrunk(
+            aConfigE,
+            GPassFactoryMidstage::ToVector(aArrangedInputsE),
+            GPassFactoryMidstage::ToVector(aResidualsE),
+            GPassFactoryMidstage::ToVector(aDestinationsE),
+            &aErrorMessageE)) {
+        printf("MakeGrowAConfig stage E was not valid with ValidateTrunk");
+        printf("%s\n", aErrorMessageE.c_str());
+        exit(0);
+    }
+    aConfigE.SetLaneFlow(aInputsE, aDestinationsE);
     aConfigs[4] = aConfigE;
 
     return aConfigs;

@@ -7,293 +7,273 @@
 
 #include "GAX.hpp"
 #include "GSeedProgram.hpp"
+#include "LoopRolePermutations.hpp"
+#include "LoopStitcher.hpp"
 #include "Random.hpp"
+#include "stdafx.hpp"
 #include "TwistArray.hpp"
+#include <algorithm>
 #include <array>
 
 namespace {
 
-// N=7, family=StrideForward, score=1180
-// rotation=0, reflected=false, stride=0, source_phase=2, feedback_phase=3, order_phase=0
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P0 = {
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-};
+constexpr std::size_t kLoopPatternRoleCount11 = 11U;
+constexpr std::size_t kLoopPatternCandidateCount11 =
+    LoopStitcher::kExpanderCount;
+constexpr std::size_t kLoopPatternCountPerCandidate11 = 656U;
 
-// N=7, family=RingForwardRotated, score=1160
-// rotation=0, reflected=true, stride=1, source_phase=2, feedback_phase=6, order_phase=6
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P1 = {
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
-};
+std::array<std::vector<LoopRecipe11>,
+           LoopStitcher::kExpanderCount> gLoopRecipes11;
+std::array<std::vector<LoopRolePermutations::Permutation>,
+           LoopStitcher::kExpanderCount> gOrbiterPermutations11;
+std::array<std::vector<LoopRolePermutations::Permutation>,
+           LoopStitcher::kExpanderCount> gWandererPermutations11;
+bool gDidLoadLoopPatterns11 = false;
 
-// N=7, family=ReverseRing, score=1068
-// rotation=0, reflected=false, stride=1, source_phase=6, feedback_phase=5, order_phase=5
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P2 = {
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB },
-};
+GAXSKVariable OrbiterForStructureRole(
+    const std::uint8_t pRole,
+    const LoopRolePermutations::Permutation &pPermutation) {
+    static constexpr std::array<GAXSKVariable, 11> kOrbiters = {{
+        GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB,
+        GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD,
+        GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF,
+        GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH,
+        GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitJ,
+        GAXSKVariable::kOrbitK,
+    }};
 
-// N=7, family=StrideForward, score=1180
-// rotation=0, reflected=false, stride=0, source_phase=5, feedback_phase=3, order_phase=1
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P3 = {
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD },
-};
+    if ((pRole >= pPermutation.size()) ||
+        (pPermutation[pRole] >= kOrbiters.size())) {
+        return GAXSKVariable::kInvalid;
+    }
+    return kOrbiters[pPermutation[pRole]];
+}
 
-// N=7, family=RingForwardRotated, score=1160
-// rotation=0, reflected=true, stride=1, source_phase=2, feedback_phase=6, order_phase=1
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P4 = {
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
-};
+GAXSKVariable WandererForStructureRole(
+    const std::uint8_t pRole,
+    const LoopRolePermutations::Permutation &pPermutation) {
+    static constexpr std::array<GAXSKVariable, 11> kWanderers = {{
+        GAXSKVariable::kWandererA, GAXSKVariable::kWandererB,
+        GAXSKVariable::kWandererC, GAXSKVariable::kWandererD,
+        GAXSKVariable::kWandererE, GAXSKVariable::kWandererF,
+        GAXSKVariable::kWandererG, GAXSKVariable::kWandererH,
+        GAXSKVariable::kWandererI, GAXSKVariable::kWandererJ,
+        GAXSKVariable::kWandererK,
+    }};
 
-// N=7, family=StrideForward, score=1180
-// rotation=0, reflected=false, stride=0, source_phase=2, feedback_phase=3, order_phase=2
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N7_P5 = {
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
-};
+    if ((pRole >= pPermutation.size()) ||
+        (pPermutation[pRole] >= kWanderers.size())) {
+        return GAXSKVariable::kInvalid;
+    }
+    return kWanderers[pPermutation[pRole]];
+}
 
+GAXSKVariable ContextForStructureRole(const std::uint8_t pRole) {
+    switch (pRole) {
+        case 0U: return GAXSKVariable::kIngress;
+        case 1U: return GAXSKVariable::kScatter;
+        case 2U: return GAXSKVariable::kPrevious;
+        case 3U: return GAXSKVariable::kCross;
+        default: return GAXSKVariable::kInvalid;
+    }
+}
 
+std::string RoleList(
+    const std::array<std::uint8_t,
+                     LOOP_PATTERN_ROLE_COUNT_11> &pRoles) {
+    std::string aResult = "[";
+    for (std::size_t i = 0U; i < pRoles.size(); ++i) {
+        if (i > 0U) {
+            aResult += ", ";
+        }
+        aResult += std::to_string(pRoles[i]);
+    }
+    aResult += "]";
+    return aResult;
+}
 
-// N=9, family=Foldback, score=1180
-// rotation=0, reflected=true, stride=0, source_phase=3, feedback_phase=5, order_phase=0
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P0 = {
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitH },
-};
+std::string HeartRound(
+    const std::array<std::uint8_t, 3U> &pRound) {
+    return "{ " + std::to_string(pRound[0]) + ", " +
+        std::to_string(pRound[1]) + ", " +
+        std::to_string(pRound[2]) + " }";
+}
 
-// N=9, family=StrideForward, score=1180
-// rotation=0, reflected=false, stride=0, source_phase=3, feedback_phase=4, order_phase=2
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P1 = {
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
-};
+std::vector<std::string> RecipeComments(
+    const LoopRecipe11 &pRecipe,
+    const LoopRolePermutations::Permutation &pOrbiterPermutation,
+    const LoopRolePermutations::Permutation &pWandererPermutation) {
+    const LoopRecipeMetadata11 &aMetadata = pRecipe.mMetadata;
+    std::string aFile = aMetadata.mSourceFile;
+    static const std::string kFinalLoopPrefix =
+        "Assets/final_loops/";
+    if (aFile.rfind(kFinalLoopPrefix, 0U) == 0U) {
+        aFile.erase(0U, kFinalLoopPrefix.size());
+    }
 
-// N=9, family=RingForwardRotated, score=1160
-// rotation=0, reflected=false, stride=1, source_phase=2, feedback_phase=8, order_phase=2
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P2 = {
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC },
-};
+    std::vector<std::string> aComments = {
+        "",
+        "File: " + aFile,
+        "",
+        "Head:        " +
+            RoleList(pRecipe.mHead.mWandererForOrbiter),
+        "Tail A:      " +
+            RoleList(pRecipe.mTail.mOrbiterAForWanderer),
+        "Tail B:      " +
+            RoleList(pRecipe.mTail.mOrbiterBForWanderer),
+        "",
+    };
 
-// N=9, family=StrideForward, score=1180
-// rotation=0, reflected=true, stride=2, source_phase=5, feedback_phase=6, order_phase=7
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P3 = {
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG },
-};
+    for (std::size_t i = 0U; i < pRecipe.mCore.mRounds.size(); ++i) {
+        const std::string aPrefix =
+            (i == 0U) ? "Heart:       [" : "              ";
+        const std::string aSuffix =
+            (i + 1U < pRecipe.mCore.mRounds.size()) ? "," : "]";
+        aComments.push_back(
+            aPrefix + HeartRound(pRecipe.mCore.mRounds[i]) + aSuffix);
+    }
 
-// N=9, family=Foldback, score=1180
-// rotation=6, reflected=false, stride=0, source_phase=3, feedback_phase=5, order_phase=1
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P4 = {
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
-};
+    aComments.insert(aComments.end(), {
+        "",
+        "Orbiters:    [" +
+            LoopRolePermutations::Letters(pOrbiterPermutation) + "]",
+        "Wanderers:   [" +
+            LoopRolePermutations::Letters(pWandererPermutation) + "]",
+    });
+    return aComments;
+}
 
-// N=9, family=Foldback, score=1180
-// rotation=7, reflected=true, stride=0, source_phase=3, feedback_phase=4, order_phase=2
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N9_P5 = {
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitB },
-};
+bool PatternForCandidateLoop(
+    std::vector<GAXSKModelOrbiterRound> *pRounds,
+    std::vector<GAXSKModelOrbiterAssignment> *pAssignments,
+    std::vector<GAXSKModelWandererUpdate> *pUpdates,
+    std::vector<std::string> *pRecipeComments) {
+    if ((pRounds == nullptr) ||
+        (pAssignments == nullptr) ||
+        (pUpdates == nullptr) ||
+        (pRecipeComments == nullptr)) {
+        return false;
+    }
+    pRounds->clear();
+    pAssignments->clear();
+    pUpdates->clear();
+    pRecipeComments->clear();
 
-// N=11, family=Foldback, score=1180
-// rotation=6, reflected=true, stride=4, source_phase=5, feedback_phase=9, order_phase=1
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P0 = {
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitK },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitJ },
-};
+    if (!gDidLoadLoopPatterns11 ||
+        (gCandidateIndex < 0) ||
+        (static_cast<std::size_t>(gCandidateIndex) >=
+         kLoopPatternCandidateCount11) ||
+        (gLoopIndex < 0) ||
+        (static_cast<std::size_t>(gLoopIndex) >=
+         kLoopPatternCountPerCandidate11)) {
+        return false;
+    }
 
-// N=11, family=Foldback, score=1180
-// rotation=2, reflected=false, stride=0, source_phase=7, feedback_phase=6, order_phase=8
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P1 = {
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitK },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitJ },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitD },
-};
+    const std::size_t aCandidateIndex =
+        static_cast<std::size_t>(gCandidateIndex);
+    const std::size_t aLoopIndex =
+        static_cast<std::size_t>(gLoopIndex);
+    const std::size_t aPatternIndex =
+        (static_cast<std::size_t>(gCandidateIndex) *
+         kLoopPatternCountPerCandidate11) +
+        aLoopIndex;
+    if ((aCandidateIndex >= gLoopRecipes11.size()) ||
+        (aLoopIndex >= gLoopRecipes11[aCandidateIndex].size()) ||
+        (aLoopIndex >= gOrbiterPermutations11[aCandidateIndex].size()) ||
+        (aLoopIndex >= gWandererPermutations11[aCandidateIndex].size())) {
+        return false;
+    }
 
-// N=11, family=StrideForward, score=1180
-// rotation=0, reflected=true, stride=4, source_phase=7, feedback_phase=5, order_phase=7
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P2 = {
-    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitJ },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitK },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
-};
+    const LoopRecipe11 &aRecipe =
+        gLoopRecipes11[aCandidateIndex][aLoopIndex];
+    const LoopRolePermutations::Permutation &aOrbiterPermutation =
+        gOrbiterPermutations11[aCandidateIndex][aLoopIndex];
+    const LoopRolePermutations::Permutation &aWandererPermutation =
+        gWandererPermutations11[aCandidateIndex][aLoopIndex];
+    *pRecipeComments = RecipeComments(aRecipe,
+                                      aOrbiterPermutation,
+                                      aWandererPermutation);
 
-// N=11, family=RingForwardRotated, score=1160
-// rotation=0, reflected=false, stride=4, source_phase=1, feedback_phase=3, order_phase=0
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P3 = {
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitJ },
-    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitK },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitE },
-};
+    pRounds->reserve(kLoopPatternRoleCount11);
+    pAssignments->reserve(kLoopPatternRoleCount11);
+    pUpdates->reserve(kLoopPatternRoleCount11);
+    for (std::size_t i = 0U;
+         i < kLoopPatternRoleCount11;
+        ++i) {
+        const std::array<std::uint8_t, 3U> &aRound =
+            aRecipe.mCore.mRounds[i];
+        const GAXSKVariable aLead =
+            OrbiterForStructureRole(aRound[0], aOrbiterPermutation);
+        const GAXSKVariable aSource =
+            OrbiterForStructureRole(aRound[1], aOrbiterPermutation);
+        const GAXSKVariable aFeedback =
+            OrbiterForStructureRole(aRound[2], aOrbiterPermutation);
+        if ((aLead == GAXSKVariable::kInvalid) ||
+            (aSource == GAXSKVariable::kInvalid) ||
+            (aFeedback == GAXSKVariable::kInvalid)) {
+            return false;
+        }
+        pRounds->push_back({aLead, aSource, aFeedback});
 
-// N=11, family=StrideForward, score=1180
-// rotation=0, reflected=true, stride=4, source_phase=5, feedback_phase=7, order_phase=6
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P4 = {
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitJ },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitK },
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
-};
+        GAXSKModelOrbiterAssignment aAssignment;
+        aAssignment.mTarget = OrbiterForStructureRole(
+            static_cast<std::uint8_t>(i),
+            aOrbiterPermutation);
+        aAssignment.mWanderer = WandererForStructureRole(
+            aRecipe.mHead.mWandererForOrbiter[i],
+            aWandererPermutation);
+        aAssignment.mContext = ContextForStructureRole(
+            static_cast<std::uint8_t>(
+                (i + (aPatternIndex & 3U)) & 3U));
+        const std::size_t aAssignmentCarryBase =
+            aPatternIndex % kLoopPatternRoleCount11;
+        aAssignment.mUseCarry =
+            (i == aAssignmentCarryBase) ||
+            (i == ((aAssignmentCarryBase + 4U) %
+                   kLoopPatternRoleCount11)) ||
+            (i == ((aAssignmentCarryBase + 8U) %
+                   kLoopPatternRoleCount11));
+        if ((aAssignment.mTarget == GAXSKVariable::kInvalid) ||
+            (aAssignment.mWanderer == GAXSKVariable::kInvalid) ||
+            (aAssignment.mContext == GAXSKVariable::kInvalid)) {
+            return false;
+        }
+        pAssignments->push_back(aAssignment);
 
-// N=11, family=RingForwardRotated, score=1160
-// rotation=0, reflected=true, stride=4, source_phase=1, feedback_phase=3, order_phase=2
-static const std::vector<GAXSKModelOrbiterRound> kOrbiterRounds_N11_P5 = {
-    { GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitD },
-    { GAXSKVariable::kOrbitC, GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitJ },
-    { GAXSKVariable::kOrbitI, GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitE },
-    { GAXSKVariable::kOrbitD, GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitK },
-    { GAXSKVariable::kOrbitJ, GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitF },
-    { GAXSKVariable::kOrbitE, GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitA },
-    { GAXSKVariable::kOrbitK, GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitG },
-    { GAXSKVariable::kOrbitF, GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitB },
-    { GAXSKVariable::kOrbitA, GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitH },
-    { GAXSKVariable::kOrbitG, GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitC },
-    { GAXSKVariable::kOrbitB, GAXSKVariable::kOrbitH, GAXSKVariable::kOrbitI },
-};
+        GAXSKModelWandererUpdate aUpdate;
+        aUpdate.mTarget = WandererForStructureRole(
+            static_cast<std::uint8_t>(i),
+            aWandererPermutation);
+        aUpdate.mContext = ContextForStructureRole(
+            static_cast<std::uint8_t>(
+                (i + 1U + ((aPatternIndex >> 2U) & 3U)) & 3U));
+        aUpdate.mOrbiterA = OrbiterForStructureRole(
+            aRecipe.mTail.mOrbiterAForWanderer[i],
+            aOrbiterPermutation);
+        aUpdate.mOrbiterB = OrbiterForStructureRole(
+            aRecipe.mTail.mOrbiterBForWanderer[i],
+            aOrbiterPermutation);
+        aUpdate.mUseXor = ((i + aPatternIndex) & 1U) != 0U;
+        const std::size_t aUpdateCarryBase =
+            (aPatternIndex * 3U) % kLoopPatternRoleCount11;
+        aUpdate.mUseCarry =
+            (i == aUpdateCarryBase) ||
+            (i == ((aUpdateCarryBase + 5U) %
+                   kLoopPatternRoleCount11));
+        aUpdate.mRotateFirst =
+            ((aPatternIndex >> (i % 8U)) & 1U) != 0U;
+        if ((aUpdate.mTarget == GAXSKVariable::kInvalid) ||
+            (aUpdate.mContext == GAXSKVariable::kInvalid) ||
+            (aUpdate.mOrbiterA == GAXSKVariable::kInvalid) ||
+            (aUpdate.mOrbiterB == GAXSKVariable::kInvalid)) {
+            return false;
+        }
+        pUpdates->push_back(aUpdate);
+    }
 
-static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds7 = {{
-    kOrbiterRounds_N7_P0,
-    kOrbiterRounds_N7_P1,
-    kOrbiterRounds_N7_P2,
-    kOrbiterRounds_N7_P3,
-    kOrbiterRounds_N7_P4,
-    kOrbiterRounds_N7_P5
-}};
-
-static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds9 = {{
-    kOrbiterRounds_N9_P0,
-    kOrbiterRounds_N9_P1,
-    kOrbiterRounds_N9_P2,
-    kOrbiterRounds_N9_P3,
-    kOrbiterRounds_N9_P4,
-    kOrbiterRounds_N9_P5
-}};
-
-static const std::array<std::vector<GAXSKModelOrbiterRound>, 6> kOrbiterRounds11 = {{
-    kOrbiterRounds_N11_P0,
-    kOrbiterRounds_N11_P1,
-    kOrbiterRounds_N11_P2,
-    kOrbiterRounds_N11_P3,
-    kOrbiterRounds_N11_P4,
-    kOrbiterRounds_N11_P5
-}};
-
+    ++gLoopIndex;
+    return true;
+}
 
 void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
@@ -379,39 +359,95 @@ bool IsWandererVariable(GAXSKVariable pVariable) {
 }
 
 static int PassCountForFormat(GAXSFormat pFormat) {
-    switch (pFormat) {
-        case GAXSFormat::kN7: return 6;
-        case GAXSFormat::kN9: return 6;
-        case GAXSFormat::kN11: return 6;
-        default: return 0;
-    }
+    return pFormat == GAXSFormat::kN11 ? 6 : 0;
 }
 
 static int SizeForFormat(GAXSFormat pFormat) {
-    switch (pFormat) {
-        case GAXSFormat::kN7: return 7;
-        case GAXSFormat::kN9: return 9;
-        case GAXSFormat::kN11: return 11;
-        default: return 0;
-    }
+    return pFormat == GAXSFormat::kN11 ? 11 : 0;
 }
 
-static std::vector<GAXSKModelOrbiterRound> RoundsForFormatPass(GAXSFormat pFormat, int pPassIndex) {
-    switch (pFormat) {
-        case GAXSFormat::kN7:
-            return kOrbiterRounds7[pPassIndex % 6];
-
-        case GAXSFormat::kN9:
-            return kOrbiterRounds9[pPassIndex % 6];
-
-        case GAXSFormat::kN11:
-            return kOrbiterRounds11[pPassIndex % 6];
-
-        default:
-            return {};
-    }
 }
 
+bool GAXSK::LoadLoopPatterns11(std::string *pErrorMessage) {
+    if (pErrorMessage != nullptr) {
+        pErrorMessage->clear();
+    }
+    if (gDidLoadLoopPatterns11) {
+        return true;
+    }
+
+    if (!LoopStitcher::Load(
+            "Assets/final_loops",
+            &gLoopRecipes11,
+            pErrorMessage)) {
+        return false;
+    }
+
+    if (!LoopRolePermutations::Verify("Assets/permutations",
+                                      pErrorMessage)) {
+        gLoopRecipes11 = {};
+        return false;
+    }
+
+    for (std::size_t i = 0U;
+         i < kLoopPatternCandidateCount11;
+         ++i) {
+        if (!LoopRolePermutations::LoadCandidate(
+                "Assets/permutations",
+                i,
+                &gOrbiterPermutations11[i],
+                &gWandererPermutations11[i],
+                pErrorMessage)) {
+            gLoopRecipes11 = {};
+            gOrbiterPermutations11 = {};
+            gWandererPermutations11 = {};
+            return false;
+        }
+    }
+
+    for (std::size_t i = 0U; i < gLoopRecipes11.size(); ++i) {
+        if (gLoopRecipes11[i].size() <
+                kLoopPatternCountPerCandidate11 ||
+            gOrbiterPermutations11[i].size() !=
+                kLoopPatternCountPerCandidate11 ||
+            gWandererPermutations11[i].size() !=
+                kLoopPatternCountPerCandidate11) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "Expander " + std::to_string(i) +
+                    " had asset counts {recipes:" +
+                    std::to_string(gLoopRecipes11[i].size()) +
+                    ", orbiters:" +
+                    std::to_string(gOrbiterPermutations11[i].size()) +
+                    ", wanderers:" +
+                    std::to_string(gWandererPermutations11[i].size()) +
+                    "}; expected at least 656 recipes and exactly 656 "
+                    "orbiter and wanderer permutations.";
+            }
+            gLoopRecipes11 = {};
+            gOrbiterPermutations11 = {};
+            gWandererPermutations11 = {};
+            return false;
+        }
+    }
+
+    gDidLoadLoopPatterns11 = true;
+    std::printf("GAXSK loaded %zu usable loop recipes and role "
+                "permutations per expander "
+                "from the stitched final-loop pool "
+                "(%zu spares per expander)\n",
+                kLoopPatternCountPerCandidate11,
+                LoopStitcher::kRecipesPerExpander -
+                    kLoopPatternCountPerCandidate11);
+    return true;
+}
+
+std::size_t GAXSK::LoopPatternCandidateCount11() {
+    return kLoopPatternCandidateCount11;
+}
+
+std::size_t GAXSK::LoopPatternCountPerCandidate11() {
+    return kLoopPatternCountPerCandidate11;
 }
 
 GAXSKSkeleton::GAXSKSkeleton()
@@ -720,17 +756,21 @@ GAXSKDiffuseKind GAXSK::SelectDiffuseKind() const {
     return Random::Choice(kDiffuseKinds);
 }
 
-GAXSKModel GAXSK::MakeModelForFormatPass(GAXSFormat pFormat,
-                                          int pPassIndex) {
-    auto aRounds = RoundsForFormatPass(pFormat, pPassIndex);
-    
-    Random::Shuffle(&aRounds);
-
-    if (aRounds.empty()) {
+GAXSKModel GAXSK::MakeModelForNextLoop(
+    std::vector<std::string> *pRecipeComments) {
+    std::vector<GAXSKModelOrbiterRound> aRounds;
+    std::vector<GAXSKModelOrbiterAssignment> aAssignments;
+    std::vector<GAXSKModelWandererUpdate> aUpdates;
+    if (!PatternForCandidateLoop(&aRounds,
+                                 &aAssignments,
+                                 &aUpdates,
+                                 pRecipeComments)) {
         return GAXSKModel();
     }
 
-    return GAXSKModel::MakeOrbiterPlan(aRounds);
+    return GAXSKModel::MakeOrbiterPlan(aRounds,
+                                       aAssignments,
+                                       aUpdates);
 }
 
 bool GAXSK::GetPassCount(int *pResult,
@@ -1116,25 +1156,11 @@ bool GAXSK::MakeScatterMixStatement(GAXSKStatement *pResult,
     return true;
 }
 
-static int MinimumRotationDistanceForFormat(GAXSFormat pFormat,
-                                            int pRotationCount) {
+static int MinimumRotationDistanceForFormat(int pRotationCount) {
     if (pRotationCount <= 1) {
         return 12;
     }
-
-    switch (pFormat) {
-        case GAXSFormat::kN7:
-            return pRotationCount >= 6 ? 6 : 12;
-
-        case GAXSFormat::kN9:
-            return pRotationCount >= 8 ? 4 : 8;
-
-        case GAXSFormat::kN11:
-            return pRotationCount >= 10 ? 2 : 4;
-
-        default:
-            return 8;
-    }
+    return pRotationCount >= 10 ? 2 : 4;
 }
 
 bool GAXSK::InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlots,
@@ -1150,7 +1176,7 @@ bool GAXSK::InfuseUpdateRotationSlots(std::vector<GAXSKUpdateRotationSlot> *pSlo
         return true;
     }
 
-    const int aMinimumDistance = MinimumRotationDistanceForFormat(mFormat, aRotationCount);
+    const int aMinimumDistance = MinimumRotationDistanceForFormat(aRotationCount);
     
     std::vector<int> aRotations;
     if (!ChooseUpdateRotations(aRotationCount,
@@ -1220,6 +1246,7 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
     }
     
     pSkeleton->mStatements.clear();
+    pSkeleton->mLoopRecipeComments.clear();
     
     pSkeleton->mStatements.push_back(MakePreviousAssignStatement());
     
@@ -1243,7 +1270,13 @@ bool GAXSK::BuildSkeletonForLaneCount(int pPassIndex,
     }
     pSkeleton->mStatements.push_back(aScatter);
     
-    GAXSKModel aModel = MakeModelForFormatPass(mFormat, pPassIndex);
+    GAXSKModel aModel = MakeModelForNextLoop(
+        &pSkeleton->mLoopRecipeComments);
+    if (aModel.mOrbiters.size() != kLoopPatternRoleCount11) {
+        SetError(pErrorMessage,
+                 "GAXSK exhausted or rejected the loaded loop patterns");
+        return false;
+    }
     
     if (!FinishModelStatements(aModel,
                                &pSkeleton->mStatements,

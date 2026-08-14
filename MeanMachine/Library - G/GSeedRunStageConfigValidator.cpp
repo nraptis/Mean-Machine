@@ -31,19 +31,6 @@ bool HasSlot(const std::vector<TwistWorkSpaceSlot> &pSlots,
     return false;
 }
 
-bool IsForbiddenResidual(const TwistWorkSpaceSlot pSlot) {
-    using Slot = TwistWorkSpaceSlot;
-    switch (pSlot) {
-        case Slot::kFuseLaneA:
-        case Slot::kFuseLaneB:
-        case Slot::kFuseLaneC:
-        case Slot::kFuseLaneD:
-            return true;
-        default:
-            return false;
-    }
-}
-
 void AppendUniqueSlot(std::vector<TwistWorkSpaceSlot> *pSlots,
                       const TwistWorkSpaceSlot pSlot) {
     if ((pSlots == nullptr) || HasSlot(*pSlots, pSlot)) {
@@ -294,11 +281,7 @@ bool ValidateScheduledSourceRead(
         return true;
     }
 
-    const bool aIsSixPassFlavor = (pConfig.mSlices.size() == 6U);
-    const bool aIsFourthReadWindow =
-        (pDistance == 4U) ||
-        (aIsSixPassFlavor &&
-         ((pDistance == 5U) || (pDistance == 6U)));
+    const bool aIsFourthReadWindow = (pDistance == 4U);
     if (aIsFourthReadWindow) {
         const bool aMatchesFourthReadPosition =
             (aAppearanceCount == 1U) &&
@@ -311,9 +294,7 @@ bool ValidateScheduledSourceRead(
                      pGraphName + " may use " +
                      BufName(pWrittenLane) +
                      " for its fourth read only as cross[1] " +
-                     (aIsSixPassFlavor ?
-                          "between four and six passes after its write" :
-                          "exactly four passes after its write"));
+                     "exactly four passes after its write");
             return false;
         }
         return true;
@@ -338,7 +319,6 @@ bool ValidateRequiredFourthSourceRead(
     const std::size_t pDistanceAtFirstRead,
     const char *pGraphName,
     std::string *pErrorMessage) {
-    const bool aIsSixPassFlavor = (pConfig.mSlices.size() == 6U);
     bool aCanSupportFourthRead = false;
     std::size_t aFourthReadCount = 0U;
 
@@ -347,10 +327,7 @@ bool ValidateRequiredFourthSourceRead(
          ++aReadIndex) {
         const std::size_t aDistance =
             pDistanceAtFirstRead + (aReadIndex - pFirstReadIndex);
-        const bool aIsFourthReadWindow =
-            (aDistance == 4U) ||
-            (aIsSixPassFlavor &&
-             ((aDistance == 5U) || (aDistance == 6U)));
+        const bool aIsFourthReadWindow = (aDistance == 4U);
         if (!aIsFourthReadWindow) {
             continue;
         }
@@ -366,9 +343,7 @@ bool ValidateRequiredFourthSourceRead(
                  pConfig.mStageName + " " + pGraphName +
                  " must use " + BufName(pWrittenLane) +
                  " exactly once for its fourth read at cross[1] " +
-                 (aIsSixPassFlavor ?
-                      "between four and six passes after its write" :
-                      "exactly four passes after its write"));
+                 "exactly four passes after its write");
         return false;
     }
 
@@ -589,35 +564,9 @@ bool GSeedRunStageConfigValidator::ValidateStarter(const GSeedRunStageConfig &pC
         return false;
     }
 
-    if (pConfig.mUsesSpecialSixPassStarterGraph &&
-        pConfig.mUsesSpecialSixPassTwistStarterGraph) {
-        SetError(pErrorMessage,
-                 pConfig.mStageName +
-                 " selected more than one special starter graph");
-        return false;
-    }
-
-    bool aSourceGraphWasValid = false;
-    if (pConfig.mUsesSpecialSixPassTwistStarterGraph) {
-        aSourceGraphWasValid =
-            ValidateSourceGraphSpecialSixPassTwistStarter(
-                pConfig,
-                aSources,
-                {},
-                pErrorMessage);
-    } else if (pConfig.mUsesSpecialSixPassStarterGraph) {
-        aSourceGraphWasValid =
-            ValidateSourceGraphSpecialSixPassStarter(
-                pConfig,
-                aSources,
-                pErrorMessage);
-    } else {
-        aSourceGraphWasValid =
-            ValidateSourceGraph(pConfig,
-                                aSources,
-                                pErrorMessage);
-    }
-    if (!aSourceGraphWasValid) {
+    if (!ValidateSourceGraph(pConfig,
+                             aSources,
+                             pErrorMessage)) {
         return false;
     }
     
@@ -625,11 +574,7 @@ bool GSeedRunStageConfigValidator::ValidateStarter(const GSeedRunStageConfig &pC
         return false;
     }
     
-    // Twist-A's exact three-primary graph fixes every side and position. Its
-    // dedicated validator replaces the older direction-combination rule that
-    // described SixPassStarterFourResidualSlices.
-    if (!pConfig.mUsesSpecialSixPassTwistStarterGraph &&
-        !ValidatePrimaryCombinations(pConfig,
+    if (!ValidatePrimaryCombinations(pConfig,
                                      pPrimarySources,
                                      pErrorMessage)) {
         return false;
@@ -682,21 +627,9 @@ bool GSeedRunStageConfigValidator::ValidateStarterWithResiduals(
         return false;
     }
 
-    bool aSourceGraphWasValid = false;
-    if (pConfig.mUsesSpecialSixPassTwistStarterGraph) {
-        aSourceGraphWasValid =
-            ValidateSourceGraphSpecialSixPassTwistStarter(
-                pConfig,
-                pPrimarySources,
-                pResidualSources,
-                pErrorMessage);
-    } else {
-        aSourceGraphWasValid =
-            ValidateSourceGraph(pConfig,
-                                aSources,
-                                pErrorMessage);
-    }
-    if (!aSourceGraphWasValid) {
+    if (!ValidateSourceGraph(pConfig,
+                             aSources,
+                             pErrorMessage)) {
         return false;
     }
 
@@ -710,11 +643,108 @@ bool GSeedRunStageConfigValidator::ValidateStarterWithResiduals(
         return false;
     }
 
-    if (!pConfig.mUsesSpecialSixPassTwistStarterGraph &&
-        !ValidatePrimaryCombinations(pConfig,
+    if (!ValidatePrimaryCombinations(pConfig,
                                      pPrimarySources,
                                      pErrorMessage)) {
         return false;
+    }
+
+    return true;
+}
+
+bool GSeedRunStageConfigValidator::ValidateGrowSixInput(
+    const GSeedRunStageConfig &pConfig,
+    std::vector<TwistWorkSpaceSlot> pPrimarySources,
+    std::vector<TwistWorkSpaceSlot> pResidualSources,
+    std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+    std::string *pErrorMessage) {
+    if ((pPrimarySources.size() != 6U) ||
+        (pResidualSources.size() != 12U) ||
+        (pExpectedDestinations.size() != 4U)) {
+        SetError(pErrorMessage,
+                 pConfig.mStageName +
+                 " Grow-six validation requires six inputs, twelve residuals, and four destinations");
+        return false;
+    }
+
+    if (!ValidateBasicShape(pConfig, pErrorMessage) ||
+        !ValidateDestinations(pConfig,
+                              pExpectedDestinations,
+                              pErrorMessage)) {
+        return false;
+    }
+
+    std::vector<TwistWorkSpaceSlot> aSources;
+    for (TwistWorkSpaceSlot aSlot : pPrimarySources) {
+        AppendUniqueSlot(&aSources, aSlot);
+    }
+    for (TwistWorkSpaceSlot aSlot : pResidualSources) {
+        AppendUniqueSlot(&aSources, aSlot);
+    }
+
+    if (!ValidateList(pConfig,
+                      aSources,
+                      pExpectedDestinations,
+                      pErrorMessage) ||
+        !ValidateSourceGraph(pConfig,
+                             aSources,
+                             pErrorMessage) ||
+        !ValidateNonRedundancy(pConfig,
+                               pErrorMessage)) {
+        return false;
+    }
+
+    const auto Matches = [](
+        const std::vector<TwistWorkSpaceSlot> &pActual,
+        const std::initializer_list<TwistWorkSpaceSlot> pExpected) {
+        return std::vector<TwistWorkSpaceSlot>(pExpected) == pActual;
+    };
+
+    const GSeedRunStageSliceSpec &aPassA = pConfig.mSlices[0];
+    const GSeedRunStageSliceSpec &aPassB = pConfig.mSlices[1];
+    const GSeedRunStageSliceSpec &aPassC = pConfig.mSlices[2];
+    const GSeedRunStageSliceSpec &aPassD = pConfig.mSlices[3];
+
+    const bool aMatchesGraph =
+        Matches(aPassA.mIngressSources,
+                {pPrimarySources[3], pPrimarySources[1],
+                 pPrimarySources[4], pResidualSources[0]}) &&
+        Matches(aPassA.mCrossSources,
+                {pPrimarySources[2], pPrimarySources[0],
+                 pPrimarySources[4], pResidualSources[1]}) &&
+        Matches(aPassB.mIngressSources,
+                {pExpectedDestinations[0], pPrimarySources[2],
+                 pPrimarySources[5], pResidualSources[2]}) &&
+        Matches(aPassB.mCrossSources,
+                {pPrimarySources[3], pPrimarySources[1],
+                 pPrimarySources[4], pResidualSources[3]}) &&
+        Matches(aPassC.mIngressSources,
+                {pExpectedDestinations[1], pPrimarySources[3],
+                 pResidualSources[4], pResidualSources[5]}) &&
+        Matches(aPassC.mCrossSources,
+                {pExpectedDestinations[0], pPrimarySources[2],
+                 pResidualSources[6], pResidualSources[7]}) &&
+        Matches(aPassD.mIngressSources,
+                {pExpectedDestinations[2], pExpectedDestinations[0],
+                 pResidualSources[8], pResidualSources[9]}) &&
+        Matches(aPassD.mCrossSources,
+                {pExpectedDestinations[1], pPrimarySources[3],
+                 pResidualSources[10], pResidualSources[11]});
+    if (!aMatchesGraph) {
+        SetError(pErrorMessage,
+                 pConfig.mStageName +
+                 " did not match the exact six-input Grow source graph");
+        return false;
+    }
+
+    for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+        if (!aSlice.mIsLastIngressDirectionLocked ||
+            !aSlice.mIsLastCrossDirectionLocked) {
+            SetError(pErrorMessage,
+                     pConfig.mStageName +
+                     " six-input Grow sources must be direction locked");
+            return false;
+        }
     }
 
     return true;
@@ -1036,387 +1066,6 @@ bool GSeedRunStageConfigValidator::ValidateSourceGraph(const GSeedRunStageConfig
     return true;
 }
 
-bool GSeedRunStageConfigValidator::ValidateSourceGraphSpecialSixPassStarter(
-    const GSeedRunStageConfig &pConfig,
-    std::vector<TwistWorkSpaceSlot> pSources,
-    std::string *pErrorMessage) {
-    if ((pSources.size() != 2U) ||
-        (pConfig.mSlices.size() != 6U)) {
-        SetError(pErrorMessage,
-                 pConfig.mStageName +
-                 " special starter graph requires two sources and six passes");
-        return false;
-    }
-
-    const TwistWorkSpaceSlot aSource = pSources[0];
-    const TwistWorkSpaceSlot aNonce = pSources[1];
-
-    const TwistWorkSpaceSlot aDestinationA =
-        pConfig.mSlices[0].mDest;
-    const TwistWorkSpaceSlot aDestinationB =
-        pConfig.mSlices[1].mDest;
-    const TwistWorkSpaceSlot aDestinationC =
-        pConfig.mSlices[2].mDest;
-    const TwistWorkSpaceSlot aDestinationD =
-        pConfig.mSlices[3].mDest;
-    const TwistWorkSpaceSlot aDestinationE =
-        pConfig.mSlices[4].mDest;
-
-    auto SourcesMatch =
-        [](const std::vector<TwistWorkSpaceSlot> &pActual,
-           const std::vector<TwistWorkSpaceSlot> &pExpected) {
-            return pActual == pExpected;
-        };
-
-    auto PairMatches =
-        [](const TwistWorkSpaceSlot pActualA,
-           const TwistWorkSpaceSlot pActualB,
-           const std::vector<std::array<TwistWorkSpaceSlot, 2U>> &pPairs) {
-            for (const std::array<TwistWorkSpaceSlot, 2U> &aPair : pPairs) {
-                if ((pActualA == aPair[0]) &&
-                    (pActualB == aPair[1])) {
-                    return true;
-                }
-            }
-            return false;
-        };
-
-    const GSeedRunStageSliceSpec &aPassOne = pConfig.mSlices[0];
-    if (!SourcesMatch(aPassOne.mIngressSources,
-                      {aSource, aNonce}) ||
-        !SourcesMatch(aPassOne.mCrossSources,
-                      {aNonce, aSource})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 0U) +
-                 " special starter graph expected ingress [source, nonce] and cross [nonce, source]");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassTwo = pConfig.mSlices[1];
-    if (!SourcesMatch(aPassTwo.mIngressSources,
-                      {aDestinationA, aSource}) ||
-        !SourcesMatch(aPassTwo.mCrossSources,
-                      {aSource, aNonce})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 1U) +
-                 " special starter graph did not match fixed pass two");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassThree = pConfig.mSlices[2];
-    if ((aPassThree.mIngressSources.size() != 2U) ||
-        (aPassThree.mCrossSources.size() != 2U) ||
-        (aPassThree.mIngressSources[0] != aDestinationB) ||
-        (aPassThree.mCrossSources[0] != aDestinationA) ||
-        !PairMatches(aPassThree.mIngressSources[1],
-                     aPassThree.mCrossSources[1],
-                     {{{aSource, aNonce}},
-                      {{aNonce, aSource}}})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 2U) +
-                 " special starter graph did not match a pass-three configuration");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassFour = pConfig.mSlices[3];
-    if ((aPassFour.mIngressSources.size() != 3U) ||
-        (aPassFour.mCrossSources.size() != 2U) ||
-        (aPassFour.mIngressSources[0] != aDestinationC) ||
-        (aPassFour.mIngressSources[1] != aDestinationA) ||
-        (aPassFour.mCrossSources[0] != aDestinationB) ||
-        !PairMatches(aPassFour.mIngressSources[2],
-                     aPassFour.mCrossSources[1],
-                     {{{aSource, aNonce}},
-                      {{aNonce, aSource}}})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 3U) +
-                 " special starter graph did not match a pass-four configuration");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassFive = pConfig.mSlices[4];
-    if ((aPassFive.mIngressSources.size() != 3U) ||
-        (aPassFive.mCrossSources.size() != 2U) ||
-        (aPassFive.mIngressSources[0] != aDestinationD) ||
-        (aPassFive.mIngressSources[1] != aDestinationB) ||
-        (aPassFive.mCrossSources[0] != aDestinationC) ||
-        !PairMatches(aPassFive.mIngressSources[2],
-                     aPassFive.mCrossSources[1],
-                     {{{aSource, aDestinationA}},
-                      {{aSource, aNonce}},
-                      {{aNonce, aSource}}})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 4U) +
-                 " special starter graph did not match a pass-five configuration");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassSix = pConfig.mSlices[5];
-    if ((aPassSix.mIngressSources.size() != 3U) ||
-        (aPassSix.mCrossSources.size() != 2U) ||
-        (aPassSix.mIngressSources[0] != aDestinationE) ||
-        (aPassSix.mIngressSources[1] != aDestinationC) ||
-        (aPassSix.mCrossSources[0] != aDestinationD) ||
-        !PairMatches(aPassSix.mIngressSources[2],
-                     aPassSix.mCrossSources[1],
-                     {{{aSource, aDestinationB}},
-                      {{aSource, aNonce}},
-                      {{aNonce, aSource}}})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 5U) +
-                 " special starter graph did not match a pass-six configuration");
-        return false;
-    }
-
-    return true;
-}
-
-bool GSeedRunStageConfigValidator::ValidateSourceGraphSpecialSixPassTwistStarter(
-    const GSeedRunStageConfig &pConfig,
-    std::vector<TwistWorkSpaceSlot> pPrimarySources,
-    std::vector<TwistWorkSpaceSlot> pResidualSources,
-    std::string *pErrorMessage) {
-    if ((pPrimarySources.size() != 3U) ||
-        (pConfig.mSlices.size() != 6U)) {
-        SetError(pErrorMessage,
-                 pConfig.mStageName +
-                 " special Twist starter graph requires three sources and six passes");
-        return false;
-    }
-
-    const TwistWorkSpaceSlot aSource = pPrimarySources[0];
-    const TwistWorkSpaceSlot aKeyA = pPrimarySources[1];
-    const TwistWorkSpaceSlot aKeyB = pPrimarySources[2];
-
-    std::vector<GSeedRunStageSliceSpec> aCoreSlices =
-        pConfig.mSlices;
-    for (std::size_t aSliceIndex = 0U;
-         aSliceIndex < aCoreSlices.size();
-         ++aSliceIndex) {
-        const GSeedRunStageSliceSpec &aActualSlice =
-            pConfig.mSlices[aSliceIndex];
-        GSeedRunStageSliceSpec &aCoreSlice =
-            aCoreSlices[aSliceIndex];
-
-        std::vector<TwistWorkSpaceSlot> aCoreIngress;
-        bool aIngressHadResidual = false;
-        for (TwistWorkSpaceSlot aSlot :
-             aActualSlice.mIngressSources) {
-            if (HasSlot(pResidualSources, aSlot)) {
-                aIngressHadResidual = true;
-            } else {
-                aCoreIngress.push_back(aSlot);
-            }
-        }
-
-        std::vector<TwistWorkSpaceSlot> aCoreCross;
-        bool aCrossHadResidual = false;
-        for (TwistWorkSpaceSlot aSlot :
-             aActualSlice.mCrossSources) {
-            if (HasSlot(pResidualSources, aSlot)) {
-                aCrossHadResidual = true;
-            } else {
-                aCoreCross.push_back(aSlot);
-            }
-        }
-
-        if (aActualSlice.mIsLastIngressDirectionLocked ==
-            aIngressHadResidual) {
-            SetError(pErrorMessage,
-                     StagePrefix(pConfig, aSliceIndex) +
-                     " special Twist starter graph had the wrong ingress direction lock");
-            return false;
-        }
-        if (aActualSlice.mIsLastCrossDirectionLocked ==
-            aCrossHadResidual) {
-            SetError(pErrorMessage,
-                     StagePrefix(pConfig, aSliceIndex) +
-                     " special Twist starter graph had the wrong cross direction lock");
-            return false;
-        }
-
-        aCoreSlice.mIngressSources = aCoreIngress;
-        aCoreSlice.mCrossSources = aCoreCross;
-    }
-
-    const TwistWorkSpaceSlot aDestinationA =
-        aCoreSlices[0].mDest;
-    const TwistWorkSpaceSlot aDestinationB =
-        aCoreSlices[1].mDest;
-    const TwistWorkSpaceSlot aDestinationC =
-        aCoreSlices[2].mDest;
-    const TwistWorkSpaceSlot aDestinationD =
-        aCoreSlices[3].mDest;
-    const TwistWorkSpaceSlot aDestinationE =
-        aCoreSlices[4].mDest;
-
-    auto SourcesMatch =
-        [](const std::vector<TwistWorkSpaceSlot> &pActual,
-           const std::vector<TwistWorkSpaceSlot> &pExpected) {
-            return pActual == pExpected;
-        };
-
-    const GSeedRunStageSliceSpec &aPassOne = aCoreSlices[0];
-    if (!SourcesMatch(aPassOne.mIngressSources,
-                      {aSource, aKeyA}) ||
-        !SourcesMatch(aPassOne.mCrossSources,
-                      {aSource, aKeyB})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 0U) +
-                 " special Twist starter graph did not match fixed pass one");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassTwo = aCoreSlices[1];
-    if (!SourcesMatch(aPassTwo.mIngressSources,
-                      {aDestinationA, aKeyB}) ||
-        !SourcesMatch(aPassTwo.mCrossSources,
-                      {aSource, aKeyA})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 1U) +
-                 " special Twist starter graph did not match fixed pass two");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassThree = aCoreSlices[2];
-    if ((aPassThree.mIngressSources.size() != 3U) ||
-        (aPassThree.mCrossSources.size() != 2U) ||
-        (aPassThree.mIngressSources[0] != aDestinationB) ||
-        (aPassThree.mIngressSources[1] != aSource) ||
-        (aPassThree.mCrossSources[0] != aDestinationA)) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 2U) +
-                 " special Twist starter graph did not match pass three");
-        return false;
-    }
-
-    const TwistWorkSpaceSlot aPassThreeIngressKey =
-        aPassThree.mIngressSources[2];
-    const TwistWorkSpaceSlot aPassThreeCrossKey =
-        aPassThree.mCrossSources[1];
-    const bool aPassThreeKeysWereValid =
-        ((aPassThreeIngressKey == aKeyA) &&
-         (aPassThreeCrossKey == aKeyB)) ||
-        ((aPassThreeIngressKey == aKeyB) &&
-         (aPassThreeCrossKey == aKeyA));
-    if (!aPassThreeKeysWereValid) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 2U) +
-                 " special Twist starter graph did not use opposite key orientations");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassFour = aCoreSlices[3];
-    const bool aPassFourWasAllIngress =
-        SourcesMatch(
-            aPassFour.mIngressSources,
-            {aDestinationC,
-             aDestinationA,
-             aPassThreeIngressKey,
-             aPassThreeCrossKey}) &&
-        SourcesMatch(aPassFour.mCrossSources,
-                     {aDestinationB, aSource});
-    const bool aPassFourWasSplit =
-        SourcesMatch(
-            aPassFour.mIngressSources,
-            {aDestinationC,
-             aDestinationA,
-             aPassThreeIngressKey}) &&
-        SourcesMatch(
-            aPassFour.mCrossSources,
-            {aDestinationB,
-             aSource,
-             aPassThreeCrossKey});
-    const bool aPassFourWasAllCross =
-        SourcesMatch(aPassFour.mIngressSources,
-                     {aDestinationC, aDestinationA}) &&
-        SourcesMatch(
-            aPassFour.mCrossSources,
-            {aDestinationB,
-             aSource,
-             aPassThreeIngressKey,
-             aPassThreeCrossKey});
-    if (!aPassFourWasAllIngress &&
-        !aPassFourWasSplit &&
-        !aPassFourWasAllCross) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 3U) +
-                 " special Twist starter graph did not match a pass-four key placement");
-        return false;
-    }
-
-    const GSeedRunStageSliceSpec &aPassFive = aCoreSlices[4];
-    TwistWorkSpaceSlot aPassFiveActiveKey = TwistWorkSpaceSlot::kInvalid;
-    const std::array<TwistWorkSpaceSlot, 2U> aKeys = {
-        aKeyA,
-        aKeyB,
-    };
-    for (TwistWorkSpaceSlot aKey : aKeys) {
-        const bool aKeyWasAfterSource =
-            SourcesMatch(
-                aPassFive.mIngressSources,
-                {aDestinationD,
-                 aDestinationB,
-                 aSource,
-                 aKey}) &&
-            SourcesMatch(aPassFive.mCrossSources,
-                         {aDestinationC, aDestinationA});
-        const bool aKeyWasBeforeSource =
-            SourcesMatch(
-                aPassFive.mIngressSources,
-                {aDestinationD,
-                 aDestinationB,
-                 aKey,
-                 aSource}) &&
-            SourcesMatch(aPassFive.mCrossSources,
-                         {aDestinationC, aDestinationA});
-        const bool aKeyWasOnCross =
-            SourcesMatch(
-                aPassFive.mIngressSources,
-                {aDestinationD,
-                 aDestinationB,
-                 aSource}) &&
-            SourcesMatch(
-                aPassFive.mCrossSources,
-                {aDestinationC,
-                 aDestinationA,
-                 aKey});
-        if (aKeyWasAfterSource ||
-            aKeyWasBeforeSource ||
-            aKeyWasOnCross) {
-            aPassFiveActiveKey = aKey;
-            break;
-        }
-    }
-    if (aPassFiveActiveKey == TwistWorkSpaceSlot::kInvalid) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 4U) +
-                 " special Twist starter graph did not match a pass-five key placement");
-        return false;
-    }
-
-    const TwistWorkSpaceSlot aPassSixOppositeKey =
-        (aPassFiveActiveKey == aKeyA) ? aKeyB : aKeyA;
-    const GSeedRunStageSliceSpec &aPassSix = aCoreSlices[5];
-    if (!SourcesMatch(
-            aPassSix.mIngressSources,
-            {aDestinationE,
-             aDestinationC,
-             aPassSixOppositeKey}) ||
-        !SourcesMatch(
-            aPassSix.mCrossSources,
-            {aDestinationD,
-             aDestinationB,
-             aSource})) {
-        SetError(pErrorMessage,
-                 StagePrefix(pConfig, 5U) +
-                 " special Twist starter graph did not match derived pass six");
-        return false;
-    }
-
-    return true;
-}
-
 bool GSeedRunStageConfigValidator::ValidateSourceGraphMidstage(
     const GSeedRunStageConfig &pConfig,
     std::vector<TwistWorkSpaceSlot> pPrimarySources,
@@ -1655,13 +1304,6 @@ bool GSeedRunStageConfigValidator::ValidateResidualGraph(const GSeedRunStageConf
         if (aResidual == TwistWorkSpaceSlot::kInvalid) {
             SetError(pErrorMessage,
                      pConfig.mStageName + " residual graph contained invalid residual source");
-            return false;
-        }
-
-        if (IsForbiddenResidual(aResidual)) {
-            SetError(pErrorMessage,
-                     pConfig.mStageName +
-                     " residual graph may not use fuse lanes");
             return false;
         }
 

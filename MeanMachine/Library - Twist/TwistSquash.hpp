@@ -30,6 +30,12 @@ public:
                                     std::uint8_t *pInputLaneC,
                                     std::uint8_t *pInputLaneD,
                                     std::uint8_t *pOutputLane);
+
+    static void             SquashKeyA(std::uint8_t *pInputLaneA,
+                                       std::uint8_t *pInputLaneB,
+                                       std::uint8_t *pInputLaneC,
+                                       std::uint8_t *pInputLaneD,
+                                       std::uint8_t *pOutputKeyRow);
     
     
     /*

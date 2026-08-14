@@ -25,6 +25,13 @@ struct GAXPLSaltBag {
     std::vector<GSymbol>                                mWandererUpdate;
 };
 
+struct GAXPLNoncePlan {
+    GSymbol                                             mScatter;
+    std::vector<GSymbol>                                mOrbiterAssign;
+    std::vector<GSymbol>                                mOrbiterUpdate;
+    std::vector<GSymbol>                                mWandererUpdate;
+};
+
 struct SaltBehavior {
     bool mReversed = false;
     int mOffset = -1;
@@ -48,6 +55,7 @@ public:
                                                              const GAXSKSkeleton *pSkeleton,
                                                              const GAXPLSaltBag &pSaltBag,
                                                              const std::vector<GSymbol> &pNonceBytes,
+                                                             const GAXPLNoncePlan &pNoncePlan,
                                                              const std::vector<GSymbol> &pSources,
                                                              const std::vector<GSymbol> &pOrbiters,
                                                              const std::vector<GSymbol> &pWanderers,
@@ -61,6 +69,7 @@ public:
     bool                                                Configure(const GAXSKSkeleton *pSkeleton,
                                                                   const GAXPLSaltBag &pSaltBag,
                                                                   const std::vector<GSymbol> &pNonceBytes,
+                                                                  const GAXPLNoncePlan &pNoncePlan,
                                                                   const std::vector<GSymbol> &pSources,
                                                                   const std::vector<GSymbol> &pOrbiters,
                                                                   const std::vector<GSymbol> &pWanderers,
@@ -132,6 +141,7 @@ public:
     std::vector<GSymbol>                                mSaltsOrbiterUpdate;
     std::vector<GSymbol>                                mSaltsWandererUpdate;
     std::vector<GSymbol>                                mNonceBytes;
+    GAXPLNoncePlan                                      mNoncePlan;
     std::vector<GSymbol>                                mSources;
     std::vector<GSymbol>                                mOrbiters;
     std::vector<GSymbol>                                mWanderers;

@@ -202,24 +202,35 @@ private:
             Slot::kParamSource, Slot::kParamDestination,
             Slot::kParamCrossA, Slot::kParamCrossB,
             Slot::kParamCrossC, Slot::kParamCrossD,
-            Slot::kHeartLaneA, Slot::kHeartLaneB, Slot::kHeartLaneC, Slot::kHeartLaneD,
             Slot::kSpiritLaneA, Slot::kSpiritLaneB, Slot::kSpiritLaneC, Slot::kSpiritLaneD,
             Slot::kFireLaneA, Slot::kFireLaneB, Slot::kFireLaneC, Slot::kFireLaneD,
             Slot::kWaterLaneA, Slot::kWaterLaneB, Slot::kWaterLaneC, Slot::kWaterLaneD,
+            Slot::kRainbowLaneA, Slot::kRainbowLaneB, Slot::kRainbowLaneC, Slot::kRainbowLaneD,
             Slot::kEarthLaneA, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD,
             Slot::kWindLaneA, Slot::kWindLaneB, Slot::kWindLaneC, Slot::kWindLaneD,
-            Slot::kFuseLaneA, Slot::kFuseLaneB, Slot::kFuseLaneC, Slot::kFuseLaneD,
-            Slot::kWoodLaneA, Slot::kWoodLaneB, Slot::kWoodLaneC, Slot::kWoodLaneD,
             Slot::kLightningLaneA, Slot::kLightningLaneB, Slot::kLightningLaneC, Slot::kLightningLaneD,
-            Slot::kMagmaLaneA, Slot::kMagmaLaneB, Slot::kMagmaLaneC, Slot::kMagmaLaneD,
-            Slot::kSoilLaneA, Slot::kSoilLaneB, Slot::kSoilLaneC, Slot::kSoilLaneD,
             Slot::kPlasmaLaneA, Slot::kPlasmaLaneB, Slot::kPlasmaLaneC, Slot::kPlasmaLaneD,
             Slot::kShadowLaneA, Slot::kShadowLaneB, Slot::kShadowLaneC, Slot::kShadowLaneD,
             Slot::kCrystalLaneA, Slot::kCrystalLaneB, Slot::kCrystalLaneC, Slot::kCrystalLaneD,
             Slot::kAetherLaneA, Slot::kAetherLaneB, Slot::kAetherLaneC, Slot::kAetherLaneD,
             Slot::kCelestialLaneA, Slot::kCelestialLaneB, Slot::kCelestialLaneC, Slot::kCelestialLaneD,
-            Slot::kKineticLaneA, Slot::kKineticLaneB, Slot::kKineticLaneC, Slot::kKineticLaneD,
             Slot::kVaporLaneA, Slot::kVaporLaneB, Slot::kVaporLaneC, Slot::kVaporLaneD,
+            Slot::kKineticLaneA, Slot::kKineticLaneB, Slot::kKineticLaneC, Slot::kKineticLaneD,
+            Slot::kSonicLaneA, Slot::kSonicLaneB, Slot::kSonicLaneC, Slot::kSonicLaneD,
+            Slot::kPlanarLaneA, Slot::kPlanarLaneB, Slot::kPlanarLaneC, Slot::kPlanarLaneD,
+            Slot::kFrostLaneA, Slot::kFrostLaneB, Slot::kFrostLaneC, Slot::kFrostLaneD,
+            Slot::kArcaneLaneA, Slot::kArcaneLaneB, Slot::kArcaneLaneC, Slot::kArcaneLaneD,
+            Slot::kLunarLaneA, Slot::kLunarLaneB, Slot::kLunarLaneC, Slot::kLunarLaneD,
+            Slot::kRunicLaneA, Slot::kRunicLaneB, Slot::kRunicLaneC, Slot::kRunicLaneD,
+            Slot::kGloomLaneA, Slot::kGloomLaneB, Slot::kGloomLaneC, Slot::kGloomLaneD,
+            Slot::kAbjurationLaneA, Slot::kAbjurationLaneB, Slot::kAbjurationLaneC, Slot::kAbjurationLaneD,
+            Slot::kDivinationLaneA, Slot::kDivinationLaneB, Slot::kDivinationLaneC, Slot::kDivinationLaneD,
+            Slot::kEvocationLaneA, Slot::kEvocationLaneB, Slot::kEvocationLaneC, Slot::kEvocationLaneD,
+            Slot::kStasisLaneA, Slot::kStasisLaneB, Slot::kStasisLaneC,
+            Slot::kAlchemyLaneA, Slot::kAlchemyLaneB, Slot::kAlchemyLaneC, Slot::kAlchemyLaneD,
+            Slot::kAuguryLaneA, Slot::kAuguryLaneB, Slot::kAuguryLaneC, Slot::kAuguryLaneD,
+            Slot::kPsychicLaneA, Slot::kPsychicLaneB, Slot::kPsychicLaneC, Slot::kPsychicLaneD,
+            Slot::kVoodooLaneA, Slot::kVoodooLaneB, Slot::kVoodooLaneC, Slot::kVoodooLaneD,
             Slot::kIceLaneA, Slot::kIceLaneB, Slot::kIceLaneC, Slot::kIceLaneD,
             Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kKeyRowWriteA, Slot::kKeyRowWriteB,
             Slot::kKeyBoxUnrolledA, Slot::kKeyBoxUnrolledB,
@@ -234,9 +245,6 @@ private:
     static std::vector<TwistWorkSpaceSlot> GroupSlots(const std::string &pToken) {
         using Slot = TwistWorkSpaceSlot;
         const std::string aToken = Normalize(pToken);
-        if ((aToken == "expand") || (aToken == "expansion") || (aToken == "seed")) {
-            return {Slot::kHeartLaneA, Slot::kHeartLaneB, Slot::kHeartLaneC, Slot::kHeartLaneD};
-        }
         if ((aToken == "op") || (aToken == "operation")) {
             return {Slot::kSpiritLaneA, Slot::kSpiritLaneB, Slot::kSpiritLaneC, Slot::kSpiritLaneD};
         }
@@ -246,26 +254,17 @@ private:
         if (aToken == "water") {
             return {Slot::kWaterLaneA, Slot::kWaterLaneB, Slot::kWaterLaneC, Slot::kWaterLaneD};
         }
+        if (aToken == "rainbow") {
+            return {Slot::kRainbowLaneA, Slot::kRainbowLaneB, Slot::kRainbowLaneC, Slot::kRainbowLaneD};
+        }
         if (aToken == "earth") {
             return {Slot::kEarthLaneA, Slot::kEarthLaneB, Slot::kEarthLaneC, Slot::kEarthLaneD};
         }
         if (aToken == "wind") {
             return {Slot::kWindLaneA, Slot::kWindLaneB, Slot::kWindLaneC, Slot::kWindLaneD};
         }
-        if (aToken == "fuse") {
-            return {Slot::kFuseLaneA, Slot::kFuseLaneB, Slot::kFuseLaneC, Slot::kFuseLaneD};
-        }
-        if (aToken == "scrap") {
-            return {Slot::kWoodLaneA, Slot::kWoodLaneB, Slot::kWoodLaneC, Slot::kWoodLaneD};
-        }
         if (aToken == "lightning") {
             return {Slot::kLightningLaneA, Slot::kLightningLaneB, Slot::kLightningLaneC, Slot::kLightningLaneD};
-        }
-        if (aToken == "magma") {
-            return {Slot::kMagmaLaneA, Slot::kMagmaLaneB, Slot::kMagmaLaneC, Slot::kMagmaLaneD};
-        }
-        if (aToken == "soil") {
-            return {Slot::kSoilLaneA, Slot::kSoilLaneB, Slot::kSoilLaneC, Slot::kSoilLaneD};
         }
         if (aToken == "plasma") {
             return {Slot::kPlasmaLaneA, Slot::kPlasmaLaneB, Slot::kPlasmaLaneC, Slot::kPlasmaLaneD};
@@ -282,11 +281,56 @@ private:
         if (aToken == "celestial") {
             return {Slot::kCelestialLaneA, Slot::kCelestialLaneB, Slot::kCelestialLaneC, Slot::kCelestialLaneD};
         }
+        if (aToken == "vapor") {
+            return {Slot::kVaporLaneA, Slot::kVaporLaneB, Slot::kVaporLaneC, Slot::kVaporLaneD};
+        }
         if (aToken == "kinetic") {
             return {Slot::kKineticLaneA, Slot::kKineticLaneB, Slot::kKineticLaneC, Slot::kKineticLaneD};
         }
-        if (aToken == "vapor") {
-            return {Slot::kVaporLaneA, Slot::kVaporLaneB, Slot::kVaporLaneC, Slot::kVaporLaneD};
+        if (aToken == "sonic") {
+            return {Slot::kSonicLaneA, Slot::kSonicLaneB, Slot::kSonicLaneC, Slot::kSonicLaneD};
+        }
+        if (aToken == "planar") {
+            return {Slot::kPlanarLaneA, Slot::kPlanarLaneB, Slot::kPlanarLaneC, Slot::kPlanarLaneD};
+        }
+        if (aToken == "frost") {
+            return {Slot::kFrostLaneA, Slot::kFrostLaneB, Slot::kFrostLaneC, Slot::kFrostLaneD};
+        }
+        if (aToken == "arcane") {
+            return {Slot::kArcaneLaneA, Slot::kArcaneLaneB, Slot::kArcaneLaneC, Slot::kArcaneLaneD};
+        }
+        if (aToken == "lunar") {
+            return {Slot::kLunarLaneA, Slot::kLunarLaneB, Slot::kLunarLaneC, Slot::kLunarLaneD};
+        }
+        if (aToken == "runic") {
+            return {Slot::kRunicLaneA, Slot::kRunicLaneB, Slot::kRunicLaneC, Slot::kRunicLaneD};
+        }
+        if (aToken == "gloom") {
+            return {Slot::kGloomLaneA, Slot::kGloomLaneB, Slot::kGloomLaneC, Slot::kGloomLaneD};
+        }
+        if (aToken == "abjuration") {
+            return {Slot::kAbjurationLaneA, Slot::kAbjurationLaneB, Slot::kAbjurationLaneC, Slot::kAbjurationLaneD};
+        }
+        if (aToken == "divination") {
+            return {Slot::kDivinationLaneA, Slot::kDivinationLaneB, Slot::kDivinationLaneC, Slot::kDivinationLaneD};
+        }
+        if (aToken == "evocation") {
+            return {Slot::kEvocationLaneA, Slot::kEvocationLaneB, Slot::kEvocationLaneC, Slot::kEvocationLaneD};
+        }
+        if (aToken == "stasis") {
+            return {Slot::kStasisLaneA, Slot::kStasisLaneB, Slot::kStasisLaneC};
+        }
+        if (aToken == "alchemy") {
+            return {Slot::kAlchemyLaneA, Slot::kAlchemyLaneB, Slot::kAlchemyLaneC, Slot::kAlchemyLaneD};
+        }
+        if (aToken == "augury") {
+            return {Slot::kAuguryLaneA, Slot::kAuguryLaneB, Slot::kAuguryLaneC, Slot::kAuguryLaneD};
+        }
+        if (aToken == "psychic") {
+            return {Slot::kPsychicLaneA, Slot::kPsychicLaneB, Slot::kPsychicLaneC, Slot::kPsychicLaneD};
+        }
+        if (aToken == "voodoo") {
+            return {Slot::kVoodooLaneA, Slot::kVoodooLaneB, Slot::kVoodooLaneC, Slot::kVoodooLaneD};
         }
         if (aToken == "invest") {
             return {Slot::kIceLaneA, Slot::kIceLaneB, Slot::kIceLaneC, Slot::kIceLaneD};

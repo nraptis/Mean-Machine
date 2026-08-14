@@ -11,13 +11,13 @@
 
 #include <array>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 class GPassFactoryTrunk {
 public:
     using Slot = TwistWorkSpaceSlot;
     using SlotArray4 = std::array<Slot, 4U>;
-    using SlotArray6 = std::array<Slot, 6U>;
 
     template <std::size_t N>
     static std::vector<GSeedRunStageSliceSpec> FourPassTrunkSlices(
@@ -30,15 +30,16 @@ public:
                               pDestinations);
     }
 
-    template <std::size_t N>
-    static std::vector<GSeedRunStageSliceSpec> SixPassTrunkSlices(
+    static std::vector<GSeedRunStageSliceSpec> FourPassVariableResidualSlices(
         const SlotArray4 &pPrimary,
-        const std::array<Slot, N> &pResiduals,
-        const SlotArray6 &pDestinations) {
-        static_assert((N >= 1U) && (N <= 24U));
-        return TrunkSlices<6U>(pPrimary,
-                              pResiduals,
-                              pDestinations);
+        const std::vector<Slot> &pResiduals,
+        const SlotArray4 &pDestinations) {
+        if (pResiduals.empty() || (pResiduals.size() > 18U)) {
+            return {};
+        }
+        return TrunkSlicesDynamic<4U>(pPrimary,
+                                     pResiduals,
+                                     pDestinations);
     }
 
 private:
@@ -49,14 +50,27 @@ private:
         const SlotArray4 &pPrimary,
         const std::array<Slot, N> &pResiduals,
         const std::array<Slot, DestinationCount> &pDestinations) {
-        static_assert((PassCount == 4U) || (PassCount == 6U));
+        static_assert(PassCount == 4U);
         static_assert(PassCount == DestinationCount);
         static_assert(N >= 1U);
 
-        std::array<Slot, N> aResiduals = pResiduals;
-        ShuffleArray(&aResiduals);
-        constexpr bool aReplaceOptionalDestinationA =
-            (PassCount == 4U) && (N == 18U);
+        return TrunkSlicesDynamic<PassCount>(
+            pPrimary,
+            std::vector<Slot>(pResiduals.begin(), pResiduals.end()),
+            pDestinations);
+    }
+
+    template <std::size_t PassCount,
+              std::size_t DestinationCount>
+    static std::vector<GSeedRunStageSliceSpec> TrunkSlicesDynamic(
+        const SlotArray4 &pPrimary,
+        std::vector<Slot> aResiduals,
+        const std::array<Slot, DestinationCount> &pDestinations) {
+        static_assert(PassCount == 4U);
+        static_assert(PassCount == DestinationCount);
+        Random::Shuffle(&aResiduals);
+        const bool aReplaceOptionalDestinationDynamic =
+            (aResiduals.size() == 18U);
 
         std::vector<GSeedRunStageSliceSpec> aSlices = {
             GSeedRunStageSliceSpec({pPrimary[0], pPrimary[1]},
@@ -88,7 +102,7 @@ private:
                                    true),
         };
 
-        if constexpr (aReplaceOptionalDestinationA) {
+        if (aReplaceOptionalDestinationDynamic) {
             aSlices[3].mIngressSources.push_back(aResiduals[1]);
         } else {
             aSlices[3].mIngressSources.push_back(pDestinations[0]);
@@ -115,10 +129,10 @@ private:
         // also reserved by the saturated four-pass flavor. Water-fill every
         // remaining residual into the currently shortest context, resolving
         // ties from the first pass to the last and ingress before cross.
-        constexpr std::size_t aFirstDistributedResidual =
-            aReplaceOptionalDestinationA ? 2U : 1U;
+        const std::size_t aFirstDistributedResidual =
+            aReplaceOptionalDestinationDynamic ? 2U : 1U;
         for (std::size_t aResidualIndex = aFirstDistributedResidual;
-             aResidualIndex < N;
+             aResidualIndex < aResiduals.size();
              ++aResidualIndex) {
             std::size_t aChosenPass = aSlices.size();
             std::size_t aChosenCount = 5U;
@@ -168,18 +182,6 @@ private:
         return aSlices;
     }
 
-    template <std::size_t N>
-    static void ShuffleArray(std::array<Slot, N> *pItems) {
-        if ((pItems == nullptr) || (N < 2U)) {
-            return;
-        }
-        for (std::size_t i = 1U; i < N; ++i) {
-            const std::size_t aSwapIndex =
-                static_cast<std::size_t>(
-                    Random::Get(static_cast<int>(i + 1U)));
-            std::swap((*pItems)[i], (*pItems)[aSwapIndex]);
-        }
-    }
 };
 
 #endif /* GPassFactoryTrunk_hpp */

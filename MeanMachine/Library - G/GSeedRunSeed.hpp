@@ -15,7 +15,7 @@ class ResidualBucket;
 
 namespace GSeedRunSeedConfig {
 
-using SeedStageConfigs = std::array<GSeedRunStageConfig, 14>;
+using SeedStageConfigs = std::array<GSeedRunStageConfig, 17>;
 
 SeedStageConfigs                           MakeSeedConfig(bool pUseNonces,
                                                           ResidualBucket &pResidualBucket,

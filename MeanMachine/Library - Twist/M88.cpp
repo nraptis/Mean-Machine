@@ -36,16 +36,16 @@ void M88::Print() const {
     std::printf("\n");
 }
 
+/*
 void M88::Dispatch(std::uint8_t *pOperationData,
                    std::size_t pOperationIndex,
                    std::uint8_t *pSource,
                    std::size_t pSourceIndex,
-                   std::uint8_t *pDestination,
-                   std::size_t pDestinationIndex) {
+                   std::uint8_t *pDestination) {
     
     std::uint8_t *aOperationData = pOperationData + pOperationIndex;
     std::uint8_t *aSource = pSource + pSourceIndex;
-    std::uint8_t *aDestination = pDestination + pDestinationIndex;
+    std::uint8_t *aDestination = pDestination;
     
     memcpy(mData, aSource, 64U);
     
@@ -127,13 +127,13 @@ void M88::Dispatch(std::uint8_t *pOperationData,
                    aOperationData[62],
                    aOperationData[63]);
 }
+*/
 
 void M88::Dispatch(std::uint8_t *pOperationData,
                    std::size_t pOperationIndex,
                    std::uint8_t *pSource,
                    std::size_t pSourceIndex,
                    std::uint8_t *pDestination,
-                   std::size_t pDestinationIndex,
                    std::uint8_t pUnrollDomainWord,
                    std::uint8_t pArgADomainWord,
                    std::uint8_t pArgBDomainWord,
@@ -142,87 +142,71 @@ void M88::Dispatch(std::uint8_t *pOperationData,
     
     std::uint8_t *aOperationData = pOperationData + pOperationIndex;
     std::uint8_t *aSource = pSource + pSourceIndex;
-    std::uint8_t *aDestination = pDestination + pDestinationIndex;
     
     memcpy(mData, aSource, 64U);
     
-    DispatchPermute(aOperationData[4] ^ pArgADomainWord,
-                    aOperationData[5],
-                    aOperationData[6],
-                    aOperationData[7],
-                    aOperationData[8] ^ pArgBDomainWord,
-                    aOperationData[9],
-                    aOperationData[10],
-                    aOperationData[11],
-                    
-                    aOperationData[12] ^ pArgCDomainWord,
-                    aOperationData[13],
-                    aOperationData[14],
-                    aOperationData[15],
-                    aOperationData[16] ^ pArgDDomainWord,
-                    aOperationData[17],
-                    aOperationData[18],
-                    aOperationData[19],
-                    
-                    aOperationData[20]);
+    std::uint8_t aDomainWord = 0;
+    std::size_t aOffset = 0;
     
-    DispatchFullA(aOperationData[21]);
+    for (std::size_t aLoopIndex=0;aLoopIndex<4;aLoopIndex++) {
+        if (aLoopIndex == 0) {
+            aDomainWord = pArgADomainWord;
+            aOffset = 4;
+        } else if (aLoopIndex == 1) {
+            aDomainWord = pArgBDomainWord;
+            aOffset = 7;
+        } else if (aLoopIndex == 2) {
+            aDomainWord = pArgCDomainWord;
+            aOffset = 10;
+        } else {
+            aDomainWord = pArgDDomainWord;
+            aOffset = 13;
+        }
+        
+        DispatchPermute(aOperationData[0 + aOffset] ^ aDomainWord,
+                        aOperationData[1 + aOffset] ^ aDomainWord,
+                        aOperationData[2 + aOffset] ^ aDomainWord,
+                        aOperationData[3 + aOffset] ^ aDomainWord,
+                        aOperationData[4 + aOffset] ^ aDomainWord,
+                        aOperationData[5 + aOffset] ^ aDomainWord,
+                        aOperationData[6 + aOffset] ^ aDomainWord,
+                        aOperationData[7 + aOffset] ^ aDomainWord,
+                        
+                        aOperationData[8 + aOffset] ^ aDomainWord,
+                        aOperationData[9 + aOffset] ^ aDomainWord,
+                        aOperationData[10 + aOffset] ^ aDomainWord,
+                        aOperationData[11 + aOffset] ^ aDomainWord,
+                        aOperationData[12 + aOffset] ^ aDomainWord,
+                        aOperationData[13 + aOffset] ^ aDomainWord,
+                        aOperationData[14 + aOffset] ^ aDomainWord,
+                        aOperationData[15 + aOffset] ^ aDomainWord,
+                        
+                        aOperationData[16 + aOffset] ^ aDomainWord);
+
+        DispatchFullA(aOperationData[17 + aOffset] ^ aDomainWord);
+        DispatchFullB(aOperationData[18 + aOffset] ^ aDomainWord);
+
+        DispatchQuadA(aOperationData[19 + aOffset] ^ aDomainWord);
+        DispatchQuadB(aOperationData[20 + aOffset] ^ aDomainWord);
+        DispatchQuadC(aOperationData[21 + aOffset] ^ aDomainWord);
+        DispatchQuadD(aOperationData[22 + aOffset] ^ aDomainWord);
+
+        DispatchMini(aOperationData[23 + aOffset] ^ aDomainWord);
+        
+        DispatchSwapsA(aOperationData[24 + aOffset] ^ aDomainWord,
+                       aOperationData[25 + aOffset] ^ aDomainWord);
+        DispatchSwapsB(aOperationData[26 + aOffset] ^ aDomainWord);
+    }
     
-    DispatchSwapsA(aOperationData[22] ^ pArgADomainWord,
-                   aOperationData[23] ^ pArgBDomainWord);
-    
-    DispatchQuadA(aOperationData[24] ^ pArgADomainWord);
-    DispatchQuadB(aOperationData[25] ^ pArgBDomainWord);
-    DispatchQuadC(aOperationData[26] ^ pArgCDomainWord);
-    DispatchQuadD(aOperationData[27] ^ pArgDDomainWord);
-    
-    DispatchSwapsB(aOperationData[28] ^ pArgCDomainWord);
-    
-    DispatchMini(aOperationData[29]);
-    
-    DispatchPermute(aOperationData[30] ^ pArgADomainWord,
-                    aOperationData[31],
-                    aOperationData[32],
-                    aOperationData[33],
-                    aOperationData[34] ^ pArgBDomainWord,
-                    aOperationData[35],
-                    aOperationData[36],
-                    aOperationData[37],
-                    
-                    aOperationData[38] ^ pArgCDomainWord,
-                    aOperationData[39],
-                    aOperationData[40],
-                    aOperationData[41],
-                    aOperationData[42] ^ pArgDDomainWord,
-                    aOperationData[43],
-                    aOperationData[44],
-                    aOperationData[45],
-                    
-                    aOperationData[46]);
-    
-    DispatchMini(aOperationData[47]);
-    
-    DispatchSwapsB(aOperationData[48] ^ pArgDDomainWord);
-    
-    DispatchQuadD(aOperationData[49] ^ pArgDDomainWord);
-    DispatchQuadC(aOperationData[50] ^ pArgCDomainWord);
-    DispatchQuadB(aOperationData[51] ^ pArgBDomainWord);
-    DispatchQuadA(aOperationData[52] ^ pArgADomainWord);
-    
-    DispatchSwapsA(aOperationData[53] ^ pArgCDomainWord,
-                   aOperationData[54] ^ pArgDDomainWord);
-    
-    DispatchFullB(aOperationData[55]);
-    
-    DispatchUnroll(aDestination,
-                   aOperationData[56] ^ pUnrollDomainWord,
-                   aOperationData[57] ^ pUnrollDomainWord,
-                   aOperationData[58] ^ pUnrollDomainWord,
-                   aOperationData[59] ^ pUnrollDomainWord,
-                   aOperationData[60] ^ pUnrollDomainWord,
-                   aOperationData[61] ^ pUnrollDomainWord,
-                   aOperationData[62] ^ pUnrollDomainWord,
-                   aOperationData[63] ^ pUnrollDomainWord);
+    DispatchUnroll(pDestination,
+                   aOperationData[40] ^ pUnrollDomainWord,
+                   aOperationData[41] ^ pUnrollDomainWord,
+                   aOperationData[42] ^ pUnrollDomainWord,
+                   aOperationData[43] ^ pUnrollDomainWord,
+                   aOperationData[44] ^ pUnrollDomainWord,
+                   aOperationData[45] ^ pUnrollDomainWord,
+                   aOperationData[46] ^ pUnrollDomainWord,
+                   aOperationData[47] ^ pUnrollDomainWord);
 }
 
 void M88::DispatchSwapsA(std::uint8_t pByteA, std::uint8_t pByteB) {

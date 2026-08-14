@@ -116,16 +116,52 @@ struct GSeedRunStageSliceSpec {
         return false;
     }
 
+    bool SetDestinationLaneSplit(std::uint8_t pLaneSplit,
+                                 std::string *pErrorMessage = nullptr) {
+        if (pLaneSplit >= 16U) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "The destination lane split index must be between A and P";
+            }
+            return false;
+        }
+        if (TwistWorkSpace::GetBufferLength(mDest) != S_BLOCK) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "Only full S_BLOCK destination lanes can be split into W_KEY fragments";
+            }
+            return false;
+        }
+        mDestLaneSplit = pLaneSplit;
+        return true;
+    }
+
+    bool DestinationLaneSplit(std::uint8_t *pLaneSplit) const {
+        if (mDestLaneSplit >= 16U) {
+            return false;
+        }
+        if (pLaneSplit != nullptr) {
+            *pLaneSplit = mDestLaneSplit;
+        }
+        return true;
+    }
+
     std::vector<TwistWorkSpaceSlot>         mIngressSources;
     std::vector<TwistWorkSpaceSlot>         mCrossSources;
     std::vector<GSeedRunStageLaneSplit>     mSourceLaneSplits;
     TwistWorkSpaceSlot                      mDest;
+    std::uint8_t                            mDestLaneSplit = 255U;
     bool                                    mDestWriteInverted;
     bool                                    mIsLastIngressDirectionLocked = false;
     bool                                    mIsLastCrossDirectionLocked = false;
 };
 
 struct GSeedRunStageConfig {
+    template <typename TSourceRange, typename TDestinationRange>
+    void SetLaneFlow(const TSourceRange &pSources,
+                     const TDestinationRange &pDestinations) {
+        mFlowSources.assign(pSources.begin(), pSources.end());
+        mFlowDestinations.assign(pDestinations.begin(), pDestinations.end());
+    }
+
     std::string                             mStageName;
     std::string                             mBatchName;
     std::string                             mStartLine;
@@ -133,6 +169,12 @@ struct GSeedRunStageConfig {
 
     GAXSFormat                              mFormat = GAXSFormat::kInvalid;
     bool                                    mIgnoreNonces = false;
+    int                                     mNonceCountMinOrbiterAssign = 2;
+    int                                     mNonceCountMaxOrbiterAssign = 4;
+    int                                     mNonceCountMinOrbiterUpdate = 2;
+    int                                     mNonceCountMaxOrbiterUpdate = 4;
+    int                                     mNonceCountMinWandererUpdate = 2;
+    int                                     mNonceCountMaxWandererUpdate = 4;
     GAssignType                             mAssignType = GAssignType::kSet;
     GAXSKDiffuseKind                        mFixedDiffuse = GAXSKDiffuseKind::kInvalid;
     TwistDomain                             mDomain = TwistDomain::kInvalid;
@@ -151,14 +193,14 @@ struct GSeedRunStageConfig {
     int                                     mMaxBoundSourceCount = 8;
     int                                     mWarmupDestinationCount = 0;
     bool                                    mBindDuplicateSourceSlots = false;
-    bool                                    mUsesSpecialSixPassStarterGraph = false;
-    bool                                    mUsesSpecialSixPassTwistStarterGraph = false;
 
     std::vector<TwistWorkSpaceSlot>         mSaltsOrbiterAssign;
     std::vector<TwistWorkSpaceSlot>         mSaltsOrbiterUpdate;
     std::vector<TwistWorkSpaceSlot>         mSaltsWandererUpdate;
     std::vector<TwistDomain>                mSliceDomains;
     std::vector<GSeedRunStageSliceSpec>     mSlices;
+    std::vector<TwistWorkSpaceSlot>         mFlowSources;
+    std::vector<TwistWorkSpaceSlot>         mFlowDestinations;
 };
 
 #endif /* GSeedRunStageConfig_hpp */

@@ -16,8 +16,9 @@
 #include "GSeedRunKDF_A.hpp"
 #include "GSeedRunKDF_B.hpp"
 #include "GSeedRunKDF_C.hpp"
-#include "GSeedRunKDF_D.hpp"
+#include "GFlowPlans.hpp"
 #include "ResidualBucket.hpp"
+#include "ResidualKDFControl.hpp"
 
 #include "GRunMatrixDiffusion.hpp"
 namespace {
@@ -49,43 +50,39 @@ bool BuildKDFStage(TwistProgramBranch &pBranch,
     return true;
 }
 
-bool BuildMatrixDiffusionFromPreviousSix(
+bool BuildKDFMatrixDiffusion(
     TwistProgramBranch &pBranch,
     const std::string &pBranchName,
-    const std::vector<GSymbol> &pFuseLanes,
+    const std::vector<GSymbol> &pInputLanes,
     const std::vector<GSymbol> &pDiffusionOutputLanes,
-    const std::vector<GSymbol> &pPreviousSixLanes,
+    const std::vector<GSymbol> &pEntropyLanes,
     std::string *pErrorMessage) {
-    if ((pFuseLanes.size() != 4U) ||
+    if ((pInputLanes.size() != 4U) ||
         (pDiffusionOutputLanes.size() != 4U) ||
-        (pPreviousSixLanes.size() != 6U)) {
+        (pEntropyLanes.size() != 4U)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage =
                 pBranchName +
-                " matrix diffusion did not receive four Fuse lanes, "
-                "four output lanes, and six preceding lanes";
+                " matrix diffusion did not receive four input, output, "
+                "and entropy lanes";
         }
         return false;
     }
 
     GRunMatrixDiffusionConfig aDiffusion;
-    aDiffusion.mInputA = pFuseLanes[0];
-    aDiffusion.mInputB = pFuseLanes[1];
-    aDiffusion.mInputC = pFuseLanes[2];
-    aDiffusion.mInputD = pFuseLanes[3];
+    aDiffusion.mInputA = pInputLanes[0];
+    aDiffusion.mInputB = pInputLanes[1];
+    aDiffusion.mInputC = pInputLanes[2];
+    aDiffusion.mInputD = pInputLanes[3];
     aDiffusion.mOutputA = pDiffusionOutputLanes[0];
     aDiffusion.mOutputB = pDiffusionOutputLanes[1];
     aDiffusion.mOutputC = pDiffusionOutputLanes[2];
     aDiffusion.mOutputD = pDiffusionOutputLanes[3];
 
-    // Previous six:
-    //   [shuffle, shuffle, operation, operation, shuffle, shuffle]
-    aDiffusion.mShuffleEntropyA = pPreviousSixLanes[0];
-    aDiffusion.mShuffleEntropyB = pPreviousSixLanes[1];
-    aDiffusion.mShuffleEntropyC = pPreviousSixLanes[4];
-    aDiffusion.mShuffleEntropyD = pPreviousSixLanes[5];
-    aDiffusion.mOperationSourceA = pPreviousSixLanes[2];
-    aDiffusion.mOperationSourceB = pPreviousSixLanes[3];
+    aDiffusion.mEntropyA = pEntropyLanes[0];
+    aDiffusion.mEntropyB = pEntropyLanes[1];
+    aDiffusion.mEntropyC = pEntropyLanes[2];
+    aDiffusion.mEntropyD = pEntropyLanes[3];
 
     GBatch aBatchDiffusion;
     aBatchDiffusion.mName = pBranchName + "-matrix-diffusion";
@@ -105,11 +102,9 @@ bool BuildMatrixDiffusionFromPreviousSix(
 
 template <typename Runner>
 bool BuildKDFStyleBranch(TwistProgramBranch &pBranch,
-                         const std::array<GSeedRunStageConfig, 4> &pConfigs,
+                         const std::array<GSeedRunStageConfig, 3> &pConfigs,
                          const char pKDFLetter,
-                         const std::vector<GSymbol> &pFuseLanes,
-                         const std::vector<GSymbol> &pDiffusionOutputLanes,
-                         const std::vector<GSymbol> &pPreviousSixLanes,
+                         const GFlowPlan &pFlowPlan,
                          std::string *pErrorMessage) {
     const char aUpperText[] = {pKDFLetter, '\0'};
     const char aLowerText[] = {
@@ -119,43 +114,52 @@ bool BuildKDFStyleBranch(TwistProgramBranch &pBranch,
     const std::string aBranchName = std::string("kdf-") + aLowerText;
     const std::string aStagePrefix = std::string("GSeedRunKDF_") + aUpperText + "_";
 
-    if (!BuildKDFStage<Runner>(pBranch,
-                                pConfigs[0],
-                                true,
-                                (aStagePrefix + "A").c_str(),
-                                aBranchName.c_str(),
-                                pErrorMessage) ||
-        !BuildKDFStage<Runner>(pBranch,
-                                pConfigs[1],
-                                false,
-                                (aStagePrefix + "B").c_str(),
-                                aBranchName.c_str(),
-                                pErrorMessage) ||
-        !BuildKDFStage<Runner>(pBranch,
-                                pConfigs[2],
-                                false,
-                                (aStagePrefix + "C").c_str(),
-                                aBranchName.c_str(),
-                                pErrorMessage)) {
+    if (pConfigs.size() != GFlowPlans::ARXStepCount(pFlowPlan)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = aBranchName +
+                " stage configuration count did not match its flow plan";
+        }
         return false;
     }
 
-    if (!BuildMatrixDiffusionFromPreviousSix(pBranch,
-                                             aBranchName,
-                                             pFuseLanes,
-                                             pDiffusionOutputLanes,
-                                             pPreviousSixLanes,
-                                             pErrorMessage)) {
-        return false;
-    }
-
-    if (!BuildKDFStage<Runner>(pBranch,
-                                pConfigs[3],
-                                false,
-                                (aStagePrefix + "D").c_str(),
-                                aBranchName.c_str(),
-                                pErrorMessage)) {
-        return false;
+    std::size_t aStageIndex = 0U;
+    for (const GFlowStep &aStep : pFlowPlan.mSteps) {
+        if (aStep.mKind == GFlowStepKind::kARX) {
+            const std::string aStageName =
+                aStagePrefix + std::string(1U, aStep.mLetter);
+            if (!BuildKDFStage<Runner>(pBranch,
+                                       pConfigs[aStageIndex],
+                                       aStageIndex == 0U,
+                                       aStageName.c_str(),
+                                       aBranchName.c_str(),
+                                       pErrorMessage)) {
+                return false;
+            }
+            ++aStageIndex;
+            continue;
+        }
+        if (aStep.mKind == GFlowStepKind::kDiffuse) {
+            const GFlowPlans::SlotArray4 aInputs =
+                GFlowPlans::FamilySlots(aStep.mInputs[0]);
+            const GFlowPlans::SlotArray4 aOutputs =
+                GFlowPlans::FamilySlots(aStep.mOutput);
+            const GFlowPlans::SlotArray4 aEntropy =
+                GFlowPlans::FamilySlots(aStep.mEntropy);
+            const auto Symbols = [](const GFlowPlans::SlotArray4 &pSlots) {
+                return std::vector<GSymbol> {
+                    BufSymbol(pSlots[0]), BufSymbol(pSlots[1]),
+                    BufSymbol(pSlots[2]), BufSymbol(pSlots[3]),
+                };
+            };
+            if (!BuildKDFMatrixDiffusion(pBranch,
+                                         aBranchName,
+                                         Symbols(aInputs),
+                                         Symbols(aOutputs),
+                                         Symbols(aEntropy),
+                                         pErrorMessage)) {
+                return false;
+            }
+        }
     }
 
     if (pBranch.GetBatchJsonText().empty() &&
@@ -169,9 +173,41 @@ bool BuildKDFStyleBranch(TwistProgramBranch &pBranch,
     return true;
 }
 
+char KDFDomainSuffix(const std::size_t pDomainIndex) {
+    return static_cast<char>('A' + pDomainIndex);
+}
+
+template <typename ConfigArray>
+void RetagKDFConfigs(ConfigArray *pConfigs,
+                     const char pFamily,
+                     const char pDomain) {
+    if (pConfigs == nullptr) {
+        return;
+    }
+
+    for (std::size_t aStageIndex = 0U;
+         aStageIndex < pConfigs->size();
+         ++aStageIndex) {
+        const char aStage = static_cast<char>('A' + aStageIndex);
+        GSeedRunStageConfig &aConfig = (*pConfigs)[aStageIndex];
+        aConfig.mStageName =
+            std::string("GSeedRunKDF_") + pFamily + "_" + aStage + "_" + pDomain;
+        aConfig.mBatchName =
+            std::string("kdf_") +
+            static_cast<char>(pFamily - 'A' + 'a') +
+            "_loop_" + static_cast<char>(aStage - 'A' + 'a') +
+            "_" + static_cast<char>(pDomain - 'A' + 'a');
+        aConfig.mStartLine = "// " + aConfig.mStageName + " " +
+            aConfig.mBatchName + " (start)";
+        aConfig.mEndLine = "// " + aConfig.mStageName + " " +
+            aConfig.mBatchName + " (end)";
+    }
+}
+
 } // namespace
 
 bool Builder_KDF::Build(GTwistExpander *pExpander,
+                        ResidualBucket &pResidualBucket,
                         std::string *pErrorMessage) {
     if (pErrorMessage != nullptr) {
         pErrorMessage->clear();
@@ -184,214 +220,91 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         return false;
     }
 
-    std::vector<GSymbol> aFuseLanes;
-    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneA));
-    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneB));
-    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneC));
-    aFuseLanes.push_back(BufSymbol(TwistWorkSpaceSlot::kFuseLaneD));
-
-    const std::vector<GSymbol> aFireLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kFireLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kFireLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kFireLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kFireLaneD),
-    };
-
-    const std::vector<GSymbol> aAetherLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kAetherLaneD),
-    };
-
-    const std::vector<GSymbol> aKineticLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kKineticLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kKineticLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kKineticLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kKineticLaneD),
-    };
-
-    const std::vector<GSymbol> aWaterLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kWaterLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kWaterLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kWaterLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kWaterLaneD),
-    };
-
-    const std::vector<GSymbol> aSpiritLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kSpiritLaneD),
-    };
-
-    const std::vector<GSymbol> aWindLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kWindLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kWindLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kWindLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kWindLaneD),
-    };
-
-    const std::vector<GSymbol> aSoilLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kSoilLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kSoilLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kSoilLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kSoilLaneD),
-    };
-
-    const std::vector<GSymbol> aLightningLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kLightningLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kLightningLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kLightningLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kLightningLaneD),
-    };
-
-    const std::vector<GSymbol> aIceLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kIceLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kIceLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kIceLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kIceLaneD),
-    };
-
-    const std::vector<GSymbol> aMagmaLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kMagmaLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kMagmaLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kMagmaLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kMagmaLaneD),
-    };
-
-    const std::vector<GSymbol> aPlasmaLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kPlasmaLaneD),
-    };
-
-    const std::vector<GSymbol> aShadowLanes = {
-        BufSymbol(TwistWorkSpaceSlot::kShadowLaneA),
-        BufSymbol(TwistWorkSpaceSlot::kShadowLaneB),
-        BufSymbol(TwistWorkSpaceSlot::kShadowLaneC),
-        BufSymbol(TwistWorkSpaceSlot::kShadowLaneD),
-    };
-
-    ResidualBucket aResidualBucket;
-
-    const GSeedRunKDF_AConfig::KDFStageConfigs aKDFAConfigs =
-        GSeedRunKDF_AConfig::MakeKDF_AConfig(
-            aResidualBucket,
-            pExpander->mControlCandidateIndex);
-
-    if (!BuildKDFStage<GSeedRunKDF_A>(pExpander->mKDF_A,
-                                       aKDFAConfigs[0],
-                                       true,
-                                       "GSeedRunKDF_A_A",
-                                       "kdf-a",
-                                       pErrorMessage)) {
-        return false;
-    }
-
-    if (!BuildKDFStage<GSeedRunKDF_A>(pExpander->mKDF_A,
-                                       aKDFAConfigs[1],
-                                       false,
-                                       "GSeedRunKDF_A_B",
-                                       "kdf-a",
-                                       pErrorMessage)) {
-        return false;
-    }
-
-    if (!BuildKDFStage<GSeedRunKDF_A>(pExpander->mKDF_A,
-                                       aKDFAConfigs[2],
-                                       false,
-                                       "GSeedRunKDF_A_C",
-                                       "kdf-a",
-                                       pErrorMessage)) {
-        return false;
-    }
-
-    if (pExpander->mKDF_A.GetBatchJsonText().empty() &&
-        pExpander->mKDF_A.GetStringLines().empty()) {
+    if (ResidualKDFControl::GeneratedCount() == 0U) {
+        ResidualKDFControl::Reset();
+        if (!ResidualKDFControl::LoadValues(
+                "Assets/residual_kdf_pre_planned",
+                pErrorMessage)) {
+            return false;
+        }
+    } else if (ResidualKDFControl::GeneratedCount() !=
+               ResidualKDFControl::kCandidateCount) {
         if (pErrorMessage != nullptr) {
-            *pErrorMessage = std::string("kdf branch export was empty for ") + std::string("kdf-a") + " (no batches and no lines)";
+            *pErrorMessage =
+                "ResidualKDFControl had a partial candidate family";
         }
         return false;
     }
+    if (!ResidualKDFControl::ApplyCandidate(
+            pExpander->mControlCandidateIndex,
+            &pResidualBucket,
+            pErrorMessage)) {
+        return false;
+    }
 
-    const std::vector<GSymbol> aKDFAPreviousSixLanes = {
-        aFireLanes[2], aFireLanes[3],
-        aWindLanes[0], aWindLanes[1],
-        aWindLanes[2], aWindLanes[3],
-    };
-    if (!BuildMatrixDiffusionFromPreviousSix(pExpander->mKDF_A,
-                                             "kdf-a",
-                                             aFuseLanes,
-                                             aSpiritLanes,
-                                             aKDFAPreviousSixLanes,
+    pExpander->mKDFStageConfigs.clear();
+    pExpander->mKDFStageConfigs.reserve(54U);
+    for (std::size_t aDomainIndex = 0U; aDomainIndex < 6U; ++aDomainIndex) {
+        const char aDomainSuffix = KDFDomainSuffix(aDomainIndex);
+        const std::size_t aCandidateIndex =
+            pExpander->mControlCandidateIndex + aDomainIndex;
+        const std::size_t aBranchBase = aDomainIndex * 3U;
+
+        GSeedRunKDF_AConfig::KDFStageConfigs aKDFAConfigs =
+            GSeedRunKDF_AConfig::MakeKDF_AConfig(pResidualBucket,
+                                                 aCandidateIndex);
+        RetagKDFConfigs(&aKDFAConfigs, 'A', aDomainSuffix);
+        TwistProgramBranch &aKDFABranch =
+            pExpander->mKDFDomainBranches[aBranchBase + 0U];
+        aKDFABranch.Clear();
+        if (!BuildKDFStyleBranch<GSeedRunKDF_A>(aKDFABranch,
+                                                aKDFAConfigs, 'A',
+                                                GFlowPlans::KDFA(),
+                                                pErrorMessage)) {
+            return false;
+        }
+        pExpander->mKDFStageConfigs.insert(
+            pExpander->mKDFStageConfigs.end(),
+            aKDFAConfigs.begin(), aKDFAConfigs.end());
+
+        GSeedRunKDF_BConfig::KDFStageConfigs aKDFBConfigs =
+            GSeedRunKDF_BConfig::MakeKDF_BConfig(pResidualBucket,
+                                                 aCandidateIndex);
+        RetagKDFConfigs(&aKDFBConfigs, 'B', aDomainSuffix);
+        TwistProgramBranch &aKDFBBranch =
+            pExpander->mKDFDomainBranches[aBranchBase + 1U];
+        aKDFBBranch.Clear();
+        if (!BuildKDFStyleBranch<GSeedRunKDF_B>(aKDFBBranch,
+                                                aKDFBConfigs, 'B',
+                                                GFlowPlans::KDFB(),
+                                                pErrorMessage)) {
+            return false;
+        }
+        pExpander->mKDFStageConfigs.insert(
+            pExpander->mKDFStageConfigs.end(),
+            aKDFBConfigs.begin(), aKDFBConfigs.end());
+
+        GSeedRunKDF_CConfig::KDFStageConfigs aKDFCConfigs =
+            GSeedRunKDF_CConfig::MakeKDF_CConfig(pResidualBucket,
+                                                 aCandidateIndex);
+        RetagKDFConfigs(&aKDFCConfigs, 'C', aDomainSuffix);
+        TwistProgramBranch &aKDFCBranch =
+            pExpander->mKDFDomainBranches[aBranchBase + 2U];
+        aKDFCBranch.Clear();
+        if (!BuildKDFStyleBranch<GSeedRunKDF_C>(aKDFCBranch,
+                                                aKDFCConfigs, 'C',
+                                                GFlowPlans::KDFC(),
+                                                pErrorMessage)) {
+            return false;
+        }
+        pExpander->mKDFStageConfigs.insert(
+            pExpander->mKDFStageConfigs.end(),
+            aKDFCConfigs.begin(), aKDFCConfigs.end());
+
+    }
+
+    if (!ResidualKDFControl::FinishCandidate(&pResidualBucket,
                                              pErrorMessage)) {
-        return false;
-    }
-
-    if (!BuildKDFStage<GSeedRunKDF_A>(pExpander->mKDF_A,
-                                       aKDFAConfigs[3],
-                                       false,
-                                       "GSeedRunKDF_A_D",
-                                       "kdf-a",
-                                       pErrorMessage)) {
-        return false;
-    }
-    const GSeedRunKDF_BConfig::KDFStageConfigs aKDFBConfigs =
-        GSeedRunKDF_BConfig::MakeKDF_BConfig(
-            aResidualBucket,
-            pExpander->mControlCandidateIndex);
-    const std::vector<GSymbol> aKDFBPreviousSixLanes = {
-        aSoilLanes[2], aSoilLanes[3],
-        aLightningLanes[0], aLightningLanes[1],
-        aLightningLanes[2], aLightningLanes[3],
-    };
-    if (!BuildKDFStyleBranch<GSeedRunKDF_B>(pExpander->mKDF_B,
-                                            aKDFBConfigs,
-                                            'B',
-                                            aFuseLanes,
-                                            aIceLanes,
-                                            aKDFBPreviousSixLanes,
-                                            pErrorMessage)) {
-        return false;
-    }
-
-    const GSeedRunKDF_CConfig::KDFStageConfigs aKDFCConfigs =
-        GSeedRunKDF_CConfig::MakeKDF_CConfig(
-            aResidualBucket,
-            pExpander->mControlCandidateIndex);
-    const std::vector<GSymbol> aKDFCPreviousSixLanes = {
-        aMagmaLanes[2], aMagmaLanes[3],
-        aPlasmaLanes[0], aPlasmaLanes[1],
-        aPlasmaLanes[2], aPlasmaLanes[3],
-    };
-    if (!BuildKDFStyleBranch<GSeedRunKDF_C>(pExpander->mKDF_C,
-                                            aKDFCConfigs,
-                                            'C',
-                                            aFuseLanes,
-                                            aShadowLanes,
-                                            aKDFCPreviousSixLanes,
-                                            pErrorMessage)) {
-        return false;
-    }
-
-    const GSeedRunKDF_DConfig::KDFStageConfigs aKDFDConfigs =
-        GSeedRunKDF_DConfig::MakeKDF_DConfig(
-            aResidualBucket,
-            pExpander->mControlCandidateIndex);
-    const std::vector<GSymbol> aKDFDPreviousSixLanes = {
-        aAetherLanes[2], aAetherLanes[3],
-        aKineticLanes[0], aKineticLanes[1],
-        aKineticLanes[2], aKineticLanes[3],
-    };
-    if (!BuildKDFStyleBranch<GSeedRunKDF_D>(pExpander->mKDF_D,
-                                            aKDFDConfigs,
-                                            'D',
-                                            aFuseLanes,
-                                            aWaterLanes,
-                                            aKDFDPreviousSixLanes,
-                                            pErrorMessage)) {
         return false;
     }
 

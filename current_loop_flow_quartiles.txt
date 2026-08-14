@@ -1,0 +1,420 @@
+CURRENT LOOP FLOW BASELINE
+recipes=19800 hearts=180 heads_per_heart=110
+Quantiles use the sorted inclusive index floor((count - 1) * q).
+This file measures the existing selected population; it does not yet declare final acceptance thresholds.
+
+GLOBAL METRIC QUARTILES
+  metric                                            min    p25    p50    p75    max        mean  preference
+  first minimum wanderer influence                   15     15     15     15     15       15.00  higher
+  first minimum input coverage                       11     11     11     11     11       11.00  higher
+  second minimum wanderer influence                  17     17     17     17     17       17.00  higher
+  second minimum input coverage                      11     11     11     11     11       11.00  higher
+  minimum pair union                                 14     15     15     15     15       14.85  higher
+  minimum heart separation                            2      2      2      2      3        2.00  higher
+  total heart separation                             22     33     39     45     71       39.58  higher
+  minimum pair balance                                0      0      0      0      1        0.01  higher
+  minimum complement                                  0      0      1      2      4        1.17  higher
+  dominated pair count                                0      4      6      8     11        5.95  lower
+  flow area                                        6072   6142   6165   6193   6280     6168.12  higher
+  arrival total                                    3894   3894   3894   3894   3894     3894.00  lower
+  maximum arrival skew                               24     24     24     24     24       24.00  lower
+  directed diameter                                   3      4      4      4      8        4.08  lower
+  mean wanderer shortest path x1000                3227   3318   3336   3363   3500     3338.92  lower
+  worst wanderer mean shortest path x1000          3300   3500   3500   3600   3900     3510.95  lower
+  minimum influenced wanderers                       10     10     10     10     10       10.00  higher
+  minimum wanderers reached within four edges         6      8      8      9     10        8.19  higher
+  mean four-edge wanderer reach x1000              8272   9181   9363   9545  10000     9343.86  higher
+  redundant early-branch fraction x1000             400    509    527    554    645      530.22  higher
+  pair component count                                1      1      1      1      1        1.00  lower
+  minimum subset expansion                          102    307    384    384    409      368.88  higher
+  total subset expansion                         489013 717272 717279 717284 717298   711009.22  higher
+  spectral gap                                    40507  40507  40507  40507  40510    40507.08  higher
+  minimum one-round wanderer fanout                   7     10     10     10     10        9.85  higher
+  mean one-round wanderer fanout x1000              972   1000   1000   1000   1000      998.30  higher
+  minimum source orbiter journey area                22     26     29     30     37       28.22  higher
+  minimum dual-tail wanderer reach                    0      1      2      2      5        1.83  higher
+  mean dual-tail wanderer reach x1000               445    572    609    663    863      621.23  higher
+  maximum orbiter shortest-path load x1000          200    214    218    224    257      219.27  lower
+  maximum ordered source orphan area                 61     68     71     75     90       71.57  lower
+  mean ordered source orphan area x1000           42636  48727  50090  51454  57181    50106.24  lower
+  maximum last-orphan latency                        10     11     11     11     12       11.12  lower
+  maximum orphan straggler gap                        0      2      3      3      7        2.75  lower
+  maximum midpoint source orphans                     8      8      8      8      9        8.04  lower
+  maximum midpoint destination orphan load            5      7      7      7      9        7.07  lower
+  maximum midpoint co-orphan load                     3      5      5      6      7        5.27  lower
+  maximum source meeting orphans                      0      0      0      0      0        0.00  lower
+  maximum source meeting area                       110    126    131    138    150      131.72  lower
+  mean source-pair meeting latency x1000           8909  10181  10709  11127  11963    10645.73  lower
+  maximum robust orphans                              6      7      8      8      9        7.58  lower
+  mean robust orphans x1000                        3636   5090   5363   5636   6909     5351.34  lower
+  maximum ordered destination orphan area            50     59     62     65     80       62.25  lower
+  maximum dual-tail source orphan area              106    115    117    119    120      116.94  lower
+  mean dual-tail source orphan area x1000         88454  97272  99909 101909 107545    99429.02  lower
+  maximum robust destination orphans                  6      7      7      8      9        7.33  lower
+  maximum single-orbiter ordered-pair damage         10     14     15     17     25       15.55  lower
+  mean single-orbiter ordered-pair damage x1000    5727   8909   9636  10363  14181     9666.65  lower
+  minimum surviving fanout after one orbiter removal      3      3      3      4      4        3.43  higher
+  maximum dual-tail arrival skew                      9     11     11     11     11       10.97  lower
+
+GLOBAL METRIC CARDINALITY
+  first minimum wanderer influence              1 distinct values
+  first minimum input coverage                  1 distinct values
+  second minimum wanderer influence             1 distinct values
+  second minimum input coverage                 1 distinct values
+  minimum pair union                            2 distinct values
+  minimum heart separation                      2 distinct values
+  total heart separation                        49 distinct values
+  minimum pair balance                          2 distinct values
+  minimum complement                            5 distinct values
+  dominated pair count                          12 distinct values
+  flow area                                     184 distinct values
+  arrival total                                 1 distinct values
+  maximum arrival skew                          1 distinct values
+  directed diameter                             6 distinct values
+  mean wanderer shortest path x1000             31 distinct values
+  worst wanderer mean shortest path x1000       7 distinct values
+  minimum influenced wanderers                  1 distinct values
+  minimum wanderers reached within four edges   5 distinct values
+  mean four-edge wanderer reach x1000           20 distinct values
+  redundant early-branch fraction x1000         28 distinct values
+  pair component count                          1 distinct values
+  minimum subset expansion                      9 distinct values
+  total subset expansion                        179 distinct values
+  spectral gap                                  4 distinct values
+  minimum one-round wanderer fanout             4 distinct values
+  mean one-round wanderer fanout x1000          4 distinct values
+  minimum source orbiter journey area           15 distinct values
+  minimum dual-tail wanderer reach              6 distinct values
+  mean dual-tail wanderer reach x1000           47 distinct values
+  maximum orbiter shortest-path load x1000      58 distinct values
+  maximum ordered source orphan area            30 distinct values
+  mean ordered source orphan area x1000         150 distinct values
+  maximum last-orphan latency                   3 distinct values
+  maximum orphan straggler gap                  8 distinct values
+  maximum midpoint source orphans               2 distinct values
+  maximum midpoint destination orphan load      5 distinct values
+  maximum midpoint co-orphan load               5 distinct values
+  maximum source meeting orphans                1 distinct values
+  maximum source meeting area                   36 distinct values
+  mean source-pair meeting latency x1000        94 distinct values
+  maximum robust orphans                        4 distinct values
+  mean robust orphans x1000                     36 distinct values
+  maximum ordered destination orphan area       31 distinct values
+  maximum dual-tail source orphan area          15 distinct values
+  mean dual-tail source orphan area x1000       210 distinct values
+  maximum robust destination orphans            4 distinct values
+  maximum single-orbiter ordered-pair damage    16 distinct values
+  mean single-orbiter ordered-pair damage x1000 88 distinct values
+  minimum surviving fanout after one orbiter removal2 distinct values
+  maximum dual-tail arrival skew                3 distinct values
+
+STRONG SPEARMAN CORRELATIONS (absolute rho >= 0.75)
+High absolute correlation means the pair should normally not receive two independent hard thresholds.
+  minimum one-round wanderer fanout            <-> mean one-round wanderer fanout x1000         rho=0.999
+  minimum one-round wanderer fanout            <-> maximum last-orphan latency                  rho=-0.965
+  mean one-round wanderer fanout x1000         <-> maximum last-orphan latency                  rho=-0.964
+  minimum pair union                           <-> minimum one-round wanderer fanout            rho=0.896
+  minimum pair union                           <-> mean one-round wanderer fanout x1000         rho=0.895
+  minimum pair union                           <-> maximum last-orphan latency                  rho=-0.869
+  minimum dual-tail wanderer reach             <-> maximum dual-tail source orphan area         rho=-0.855
+  minimum source orbiter journey area          <-> maximum ordered source orphan area           rho=-0.817
+  mean wanderer shortest path x1000            <-> mean four-edge wanderer reach x1000          rho=-0.787
+  mean robust orphans x1000                    <-> mean single-orbiter ordered-pair damage x1000 rho=0.771
+  mean dual-tail wanderer reach x1000          <-> mean dual-tail source orphan area x1000      rho=-0.760
+
+METRIC UTILITY DIAGNOSTICS
+These describe statistical usefulness, not cryptographic strength. Mode is the largest tie group; effective values is exp(Shannon entropy); within-heart is the median number of values among one heart's 110 recipes; heart share is the fraction of variance explained by heart identity.
+  metric                                        distinct    mode%   eff vals within p50 heart share  max |rho|
+  first minimum wanderer influence                     1   100.0%       1.00          1       0.000      0.000
+  first minimum input coverage                         1   100.0%       1.00          1       0.000      0.000
+  second minimum wanderer influence                    1   100.0%       1.00          1       0.000      0.000
+  second minimum input coverage                        1   100.0%       1.00          1       0.000      0.000
+  minimum pair union                                   2    84.6%       1.54          1       0.969      0.896
+  minimum heart separation                             2    99.9%       1.01          1       0.019      0.040
+  total heart separation                              49     6.5%      30.95         17       0.632      0.553
+  minimum pair balance                                 2    99.2%       1.05          1       0.542      0.214
+  minimum complement                                   5    32.2%       3.71          2       0.565      0.432
+  dominated pair count                                12    21.5%       8.29          2       0.963      0.526
+  flow area                                          184     1.7%     137.31         10       0.929      0.726
+  arrival total                                        1   100.0%       1.00          1       0.000      0.000
+  maximum arrival skew                                 1   100.0%       1.00          1       0.000      0.000
+  directed diameter                                    6    91.9%       1.36          2       0.385      0.386
+  mean wanderer shortest path x1000                   31    10.6%      16.12         17       0.259      0.787
+  worst wanderer mean shortest path x1000              7    49.7%       3.36          4       0.147      0.625
+  minimum influenced wanderers                         1   100.0%       1.00          1       0.000      0.000
+  minimum wanderers reached within four edges          5    61.9%       2.44          3       0.135      0.625
+  mean four-edge wanderer reach x1000                 20    15.0%      10.68         11       0.308      0.787
+  redundant early-branch fraction x1000               28    11.0%      15.05         17       0.135      0.297
+  pair component count                                 1   100.0%       1.00          1       0.000      0.000
+  minimum subset expansion                             9    49.5%       3.13          2       0.627      0.390
+  total subset expansion                             179     9.6%      38.96         32       0.324      0.386
+  spectral gap                                         4    92.5%       1.33          2       0.007      0.019
+  minimum one-round wanderer fanout                    4    87.2%       1.55          1       0.714      0.999
+  mean one-round wanderer fanout x1000                 4    87.2%       1.61          1       0.699      0.999
+  minimum source orbiter journey area                 15    18.3%      11.67          1       1.000      0.817
+  minimum dual-tail wanderer reach                     6    35.0%       4.18          2       0.827      0.855
+  mean dual-tail wanderer reach x1000                 47     7.1%      29.60          7       0.977      0.760
+  maximum orbiter shortest-path load x1000            58     6.2%      29.19         29       0.066      0.355
+  maximum ordered source orphan area                  30     9.4%      17.41          9       0.718      0.817
+  mean ordered source orphan area x1000              150     2.0%      88.12         43       0.696      0.604
+  maximum last-orphan latency                          3    86.2%       1.55          1       0.738      0.965
+  maximum orphan straggler gap                         8    38.0%       4.14          4       0.244      0.122
+  maximum midpoint source orphans                      2    96.4%       1.17          2       0.095      0.305
+  maximum midpoint destination orphan load             5    63.7%       2.49          3       0.283      0.430
+  maximum midpoint co-orphan load                      5    61.4%       2.45          3       0.141      0.430
+  maximum source meeting orphans                       1   100.0%       1.00          1       0.000      0.000
+  maximum source meeting area                         36     8.3%      28.81          1       1.000      0.559
+  mean source-pair meeting latency x1000              94     3.9%      80.20          1       1.000      0.690
+  maximum robust orphans                               4    56.9%       2.25          3       0.310      0.406
+  mean robust orphans x1000                           36     8.1%      18.93         12       0.702      0.771
+  maximum ordered destination orphan area             31    10.6%      16.63         12       0.304      0.468
+  maximum dual-tail source orphan area                15    23.5%       8.07          5       0.731      0.855
+  mean dual-tail source orphan area x1000            210     1.3%     148.05         39       0.919      0.760
+  maximum robust destination orphans                   4    55.5%       2.42          2       0.395      0.344
+  maximum single-orbiter ordered-pair damage          16    19.6%       8.09          7       0.534      0.446
+  mean single-orbiter ordered-pair damage x1000       88     3.4%      49.71         27       0.706      0.771
+  minimum surviving fanout after one orbiter removal       2    56.5%       1.98          2       0.039      0.167
+  maximum dual-tail arrival skew                       3    97.1%       1.15          1       0.277      0.099
+
+PERCENTILE-RANK THRESHOLD VALUES
+Top 80% means percentile rank 80 or better: raw p80 for higher-is-better metrics and raw p20 for lower-is-better metrics. The most-important metric uses percentile rank 95 or better. Ties can retain more than the nominal share.
+  metric                                                rank     threshold  comparison
+  first minimum wanderer influence                       80%            15  >=
+  first minimum input coverage                           80%            11  >=
+  second minimum wanderer influence                      80%            17  >=
+  second minimum input coverage                          80%            11  >=
+  minimum pair union                                     80%            15  >=
+  minimum heart separation                               80%             2  >=
+  total heart separation                                 80%            47  >=
+  minimum pair balance                                   80%             0  >=
+  minimum complement                                     80%             2  >=
+  dominated pair count                                   80%             4  <=
+  flow area                                              80%          6200  >=
+  arrival total                                          80%          3894  <=
+  maximum arrival skew                                   80%            24  <=
+  directed diameter                                      80%             4  <=
+  mean wanderer shortest path x1000                      80%          3309  <=
+  worst wanderer mean shortest path x1000                80%          3400  <=
+  minimum influenced wanderers                           80%            10  >=
+  minimum wanderers reached within four edges            80%             9  >=
+  mean four-edge wanderer reach x1000                    80%          9545  >=
+  redundant early-branch fraction x1000                  80%           554  >=
+  pair component count                                   80%             1  <=
+  minimum subset expansion                               80%           409  >=
+  total subset expansion                                 80%        717285  >=
+  spectral gap                                           80%         40507  >=
+  minimum one-round wanderer fanout                      80%            10  >=
+  mean one-round wanderer fanout x1000                   80%          1000  >=
+  minimum source orbiter journey area                    80%            30  >=
+  minimum dual-tail wanderer reach                       80%             3  >=
+  mean dual-tail wanderer reach x1000                    80%           672  >=
+  maximum orbiter shortest-path load x1000               95%           209  <=
+  maximum ordered source orphan area                     80%            68  <=
+  mean ordered source orphan area x1000                  80%         48454  <=
+  maximum last-orphan latency                            80%            11  <=
+  maximum orphan straggler gap                           80%             2  <=
+  maximum midpoint source orphans                        80%             8  <=
+  maximum midpoint destination orphan load               80%             7  <=
+  maximum midpoint co-orphan load                        80%             5  <=
+  maximum source meeting orphans                         80%             0  <=
+  maximum source meeting area                            80%           126  <=
+  mean source-pair meeting latency x1000                 80%         10090  <=
+  maximum robust orphans                                 80%             7  <=
+  mean robust orphans x1000                              80%          5000  <=
+  maximum ordered destination orphan area                80%            59  <=
+  maximum dual-tail source orphan area                   80%           115  <=
+  mean dual-tail source orphan area x1000                80%         96636  <=
+  maximum robust destination orphans                     80%             7  <=
+  maximum single-orbiter ordered-pair damage             80%            14  <=
+  mean single-orbiter ordered-pair damage x1000          80%          8727  <=
+  minimum surviving fanout after one orbiter removal         80%             4  >=
+  maximum dual-tail arrival skew                         80%            11  <=
+
+DISTRIBUTION OF PER-HEART WORST VALUES
+Each sample is the weakest of the 110 recipes assigned to one heart.
+  metric                                            min    p25    p50    p75    max        mean  preference
+  first minimum wanderer influence                   15     15     15     15     15       15.00  higher
+  first minimum input coverage                       11     11     11     11     11       11.00  higher
+  second minimum wanderer influence                  17     17     17     17     17       17.00  higher
+  second minimum input coverage                      11     11     11     11     11       11.00  higher
+  minimum pair union                                 14     15     15     15     15       14.83  higher
+  minimum heart separation                            2      2      2      2      2        2.00  higher
+  total heart separation                             22     26     28     33     59       30.01  higher
+  minimum pair balance                                0      0      0      0      0        0.00  higher
+  minimum complement                                  0      0      0      1      3        0.52  higher
+  dominated pair count                                2      4      6      8     11        6.51  lower
+  flow area                                        6072   6120   6145   6179   6264     6150.26  higher
+  arrival total                                    3894   3894   3894   3894   3894     3894.00  lower
+  maximum arrival skew                               24     24     24     24     24       24.00  lower
+  directed diameter                                   4      4      5      5      8        4.60  lower
+  mean wanderer shortest path x1000                3363   3390   3409   3436   3500     3416.56  lower
+  worst wanderer mean shortest path x1000          3600   3700   3700   3800   3900     3723.33  lower
+  minimum influenced wanderers                       10     10     10     10     10       10.00  higher
+  minimum wanderers reached within four edges         6      7      7      7      8        6.86  higher
+  mean four-edge wanderer reach x1000              8272   8727   8818   9000   9272     8833.56  higher
+  redundant early-branch fraction x1000             400    445    454    472    500      453.36  higher
+  pair component count                                1      1      1      1      1        1.00  lower
+  minimum subset expansion                          102    307    307    384    384      337.96  higher
+  total subset expansion                         489013 652071 684664 684680 717276   667647.92  higher
+  spectral gap                                    40507  40507  40507  40507  40507    40507.00  higher
+  minimum one-round wanderer fanout                   7     10     10     10     10        9.64  higher
+  mean one-round wanderer fanout x1000              972   1000   1000   1000   1000      995.68  higher
+  minimum source orbiter journey area                22     26     29     30     37       28.22  higher
+  minimum dual-tail wanderer reach                    0      0      2      2      4        1.20  higher
+  mean dual-tail wanderer reach x1000               445    545    581    636    836      595.49  higher
+  maximum orbiter shortest-path load x1000          229    236    240    245    257      241.11  lower
+  maximum ordered source orphan area                 68     75     78     82     90       78.64  lower
+  mean ordered source orphan area x1000           48545  51454  52909  54000  57181    52838.41  lower
+  maximum last-orphan latency                        11     11     11     11     12       11.17  lower
+  maximum orphan straggler gap                        3      4      5      6      7        4.91  lower
+  maximum midpoint source orphans                     8      8      9      9      9        8.64  lower
+  maximum midpoint destination orphan load            7      8      8      8      9        8.03  lower
+  maximum midpoint co-orphan load                     6      6      7      7      7        6.54  lower
+  maximum source meeting orphans                      0      0      0      0      0        0.00  lower
+  maximum source meeting area                       110    126    131    138    150      131.72  lower
+  mean source-pair meeting latency x1000           8909  10181  10709  11127  11963    10645.73  lower
+  maximum robust orphans                              8      8      8      9      9        8.40  lower
+  mean robust orphans x1000                        4909   5636   5909   6181   6909     5903.60  lower
+  maximum ordered destination orphan area            62     68     70     73     80       70.35  lower
+  maximum dual-tail source orphan area              114    118    118    120    120      118.72  lower
+  mean dual-tail source orphan area x1000         91818  99454 102090 104090 107545   101603.59  lower
+  maximum robust destination orphans                  7      8      8      8      9        8.08  lower
+  maximum single-orbiter ordered-pair damage         15     18     19     20     25       19.06  lower
+  mean single-orbiter ordered-pair damage x1000    8090  10272  11090  11909  14181    11150.02  lower
+  minimum surviving fanout after one orbiter removal      3      3      3      3      3        3.00  higher
+  maximum dual-tail arrival skew                     11     11     11     11     11       11.00  lower
+
+DISTRIBUTION OF PER-HEART MEDIANS
+Each sample is the median of the 110 recipes assigned to one heart.
+  metric                                            min    p25    p50    p75    max        mean  preference
+  first minimum wanderer influence                   15     15     15     15     15       15.00  higher
+  first minimum input coverage                       11     11     11     11     11       11.00  higher
+  second minimum wanderer influence                  17     17     17     17     17       17.00  higher
+  second minimum input coverage                      11     11     11     11     11       11.00  higher
+  minimum pair union                                 14     15     15     15     15       14.84  higher
+  minimum heart separation                            2      2      2      2      2        2.00  higher
+  total heart separation                             26     36     39     44     61       39.52  higher
+  minimum pair balance                                0      0      0      0      1        0.01  higher
+  minimum complement                                  0      0      1      2      3        1.18  higher
+  dominated pair count                                0      4      6      8     11        5.98  lower
+  flow area                                        6098   6146   6164   6193   6275     6170.12  higher
+  arrival total                                    3894   3894   3894   3894   3894     3894.00  lower
+  maximum arrival skew                               24     24     24     24     24       24.00  lower
+  directed diameter                                   4      4      4      4      5        4.05  lower
+  mean wanderer shortest path x1000                3300   3327   3336   3345   3390     3337.80  lower
+  worst wanderer mean shortest path x1000          3400   3500   3500   3500   3600     3505.00  lower
+  minimum influenced wanderers                       10     10     10     10     10       10.00  higher
+  minimum wanderers reached within four edges         8      8      8      8      9        8.10  higher
+  mean four-edge wanderer reach x1000              8909   9272   9363   9454   9636     9346.84  higher
+  redundant early-branch fraction x1000             463    518    527    536    563      529.74  higher
+  pair component count                                1      1      1      1      1        1.00  lower
+  minimum subset expansion                          256    384    384    384    409      368.55  higher
+  total subset expansion                         684651 717276 717279 717281 717283   714923.32  higher
+  spectral gap                                    40507  40507  40507  40507  40507    40507.00  higher
+  minimum one-round wanderer fanout                   9     10     10     10     10        9.84  higher
+  mean one-round wanderer fanout x1000              981   1000   1000   1000   1000      998.34  higher
+  minimum source orbiter journey area                22     26     29     30     37       28.22  higher
+  minimum dual-tail wanderer reach                    1      1      2      2      5        1.82  higher
+  mean dual-tail wanderer reach x1000               472    572    609    654    854      621.35  higher
+  maximum orbiter shortest-path load x1000          214    217    218    220    225      218.52  lower
+  maximum ordered source orphan area                 64     68     71     74     79       71.10  lower
+  mean ordered source orphan area x1000           46545  48727  50090  51090  54363    50071.76  lower
+  maximum last-orphan latency                        11     11     11     11     12       11.15  lower
+  maximum orphan straggler gap                        1      2      3      3      5        2.66  lower
+  maximum midpoint source orphans                     8      8      8      8      8        8.00  lower
+  maximum midpoint destination orphan load            6      7      7      7      8        7.07  lower
+  maximum midpoint co-orphan load                     5      5      5      5      6        5.12  lower
+  maximum source meeting orphans                      0      0      0      0      0        0.00  lower
+  maximum source meeting area                       110    126    131    138    150      131.72  lower
+  mean source-pair meeting latency x1000           8909  10181  10709  11127  11963    10645.73  lower
+  maximum robust orphans                              7      7      8      8      8        7.61  lower
+  mean robust orphans x1000                        4272   5090   5363   5636   6272     5348.54  lower
+  maximum ordered destination orphan area            57     60     62     63     71       61.92  lower
+  maximum dual-tail source orphan area              111    116    117    119    119      117.01  lower
+  mean dual-tail source orphan area x1000         90363  97545  99909 101727 106090    99437.42  lower
+  maximum robust destination orphans                  6      7      7      8      8        7.32  lower
+  maximum single-orbiter ordered-pair damage         12     14     16     16     20       15.48  lower
+  mean single-orbiter ordered-pair damage x1000    6818   8909   9636  10363  12090     9646.52  lower
+  minimum surviving fanout after one orbiter removal      3      3      3      3      4        3.21  higher
+  maximum dual-tail arrival skew                     10     11     11     11     11       10.99  lower
+
+JOINT THRESHOLD SURVIVAL
+Inclusive quartile keeps the better 75% side of each individual metric; strong quartile keeps the better 25% side. Joint survival is the intersection, not an expected fixed percentage.
+
+CURRENT SIX-METRIC SAFE SET
+  inclusive quartile   survivors=12885/19800 empty_hearts=26 per_heart=0/49/81/105/110 (min/p25/p50/p75/max)
+  median               survivors=8229/19800 empty_hearts=30 per_heart=0/4/36/93/105 (min/p25/p50/p75/max)
+  strong quartile      survivors=3331/19800 empty_hearts=40 per_heart=0/1/14/36/49 (min/p25/p50/p75/max)
+
+ALL METRICS
+  inclusive quartile   survivors=457/19800 empty_hearts=131 per_heart=0/0/0/1/40 (min/p25/p50/p75/max)
+  median               survivors=3/19800 empty_hearts=179 per_heart=0/0/0/0/3 (min/p25/p50/p75/max)
+  strong quartile      survivors=0/19800 empty_hearts=180 per_heart=0/0/0/0/0 (min/p25/p50/p75/max)
+
+CONFIGURED 80/95 POLICY
+  survivors=0/19800 empty_hearts=180 per_heart=0/0/0/0/0 (min/p25/p50/p75/max)
+
+PROPOSED STRUCTURAL FLOOR POLICY
+These are bottom-quality rejection floors, not a demand that every metric independently land in its top 20%. The weak one-round fanout floor is retained as an inverse-flow safety check, but it must not receive a second score weight beside minimum pair union.
+  minimum pair union                             >= 15
+  total heart separation                         >= 33
+  minimum complement                             >= 1
+  dominated pair count                           <= 8
+  flow area                                      >= 6142
+  mean wanderer shortest path x1000              <= 3363
+  worst wanderer mean shortest path x1000        <= 3700
+  minimum wanderers reached within four edges    >= 8
+  redundant early-branch fraction x1000          >= 509
+  minimum subset expansion                       >= 307
+  minimum one-round wanderer fanout              >= 9
+  minimum source orbiter journey area            >= 26
+  minimum dual-tail wanderer reach               >= 1
+  mean dual-tail wanderer reach x1000            >= 572
+  maximum orbiter shortest-path load x1000       <= 224
+  maximum ordered source orphan area             <= 75
+  maximum orphan straggler gap                   <= 3
+  maximum midpoint source orphans                <= 8
+  maximum midpoint destination orphan load       <= 7
+  maximum midpoint co-orphan load                <= 6
+  maximum source meeting orphans                 <= 0
+  maximum source meeting area                    <= 138
+  mean source-pair meeting latency x1000         <= 11127
+  maximum robust orphans                         <= 8
+  mean robust orphans x1000                      <= 5636
+  survivors=482/19800 empty_hearts=132 per_heart=0/0/0/1/47 (min/p25/p50/p75/max)
+
+PRIMARY EVIDENCE SET SURVIVAL
+Uses redundant early-branch fraction >=554, maximum orbiter shortest-path load <=209, and maximum single-orbiter ordered-pair damage <=14. These are two top-80% references plus the designated top-95% path-load reference.
+  primary evidence only            survivors=151/19800 empty_hearts=103 per_heart=0/0/0/1/6 (min/p25/p50/p75/max)
+  primary plus structural floors   survivors=12/19800 empty_hearts=172 per_heart=0/0/0/0/3 (min/p25/p50/p75/max)
+  Pareto frontier                 recipes=20/19800 unique_metric_tuples=20/4564
+  Pareto directions: maximize early-branch redundancy; minimize path load and single-orbiter damage.
+    recipe=7235 heart=65 head=85 branch=645 path_load=210 cut_damage=14
+    recipe=18704 heart=170 head=4 branch=636 path_load=208 cut_damage=18
+    recipe=12920 heart=117 head=50 branch=636 path_load=209 cut_damage=15
+    recipe=11292 heart=102 head=72 branch=636 path_load=219 cut_damage=13
+    recipe=18235 heart=165 head=85 branch=627 path_load=207 cut_damage=17
+    recipe=13392 heart=121 head=82 branch=627 path_load=208 cut_damage=16
+    recipe=6300 heart=57 head=30 branch=627 path_load=209 cut_damage=13
+    recipe=7114 heart=64 head=74 branch=627 path_load=211 cut_damage=12
+    recipe=15775 heart=143 head=45 branch=618 path_load=202 cut_damage=14
+    recipe=14561 heart=132 head=41 branch=618 path_load=207 cut_damage=12
+    recipe=13331 heart=121 head=21 branch=609 path_load=206 cut_damage=12
+    recipe=10261 heart=93 head=31 branch=600 path_load=224 cut_damage=11
+    recipe=19061 heart=173 head=31 branch=590 path_load=205 cut_damage=11
+    recipe=5052 heart=45 head=102 branch=590 path_load=214 cut_damage=10
+    recipe=9352 heart=85 head=2 branch=581 path_load=204 cut_damage=12
+    recipe=10290 heart=93 head=60 branch=572 path_load=202 cut_damage=11
+    recipe=12275 heart=111 head=65 branch=563 path_load=200 cut_damage=16
+    recipe=1018 heart=9 head=28 branch=545 path_load=201 cut_damage=13
+    recipe=1130 heart=10 head=30 branch=536 path_load=208 cut_damage=10
+    recipe=10324 heart=93 head=94 branch=509 path_load=200 cut_damage=14
+
+EXACT STRUCTURAL DIFFERENCE BASELINE
+Skipped. Re-run with exact pair distances enabled to measure all-pair and nearest-neighbor heart/head/tail distance distributions.
+
+INTERPRETATION FOR THE NEXT FARMER
+1. Treat hard validity (allowed tail pairs and strong connectivity) as immediate rejection, not as a score.
+2. Select provisional flow floors from the global table, then inspect joint survival and empty-heart counts. Independent medians are not automatically a viable joint threshold.
+3. Use nearest-neighbor heart/head distances to seed minimum structural-distance cutoffs. All-pair medians are too permissive for this purpose.
+4. The replacement farmer should draw a random canonical heart and a random head, build valid tails, and accept only complete recipes that clear every chosen flow floor and the distance floors against the accepted set.

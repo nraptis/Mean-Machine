@@ -10,10 +10,59 @@
 
 namespace {
 
+constexpr std::size_t kDispatchCount = 256U;
+constexpr std::size_t kDispatchEntropyByteCount =
+    M88::kOperationByteCount;
+constexpr std::size_t kDispatchOutputByteCount = 64U;
+constexpr std::size_t kInputPairByteCount =
+    2U * kDispatchOutputByteCount;
+constexpr std::size_t kShuffleByteCount = 512U;
+constexpr std::size_t kOperationSetByteCount =
+    kDispatchCount * kDispatchEntropyByteCount;
+constexpr std::size_t kFirstShuffleGroupStart = 0U;
+constexpr std::size_t kOperationSetAStart =
+    kFirstShuffleGroupStart + (4U * kShuffleByteCount);
+constexpr std::size_t kSecondShuffleGroupStart =
+    kOperationSetAStart + kOperationSetByteCount;
+constexpr std::size_t kThirdShuffleGroupStart =
+    kSecondShuffleGroupStart + (4U * kShuffleByteCount);
+constexpr std::size_t kOperationSetBStart =
+    kThirdShuffleGroupStart + (4U * kShuffleByteCount);
+constexpr std::size_t kFourthShuffleGroupStart =
+    kOperationSetBStart + kOperationSetByteCount;
+
+constexpr std::size_t kKeyByteCount = 2048U;
+constexpr std::size_t kKeyDispatchCount = 16U;
+constexpr std::size_t kKeyShuffleByteCount = 256U;
+constexpr std::size_t kKeyOperationSetStart = 256U;
+constexpr std::size_t kKeyOperationSetByteCount = 1536U;
+constexpr std::size_t kKeyFinalShuffleStart = 1792U;
+
+static_assert(S_BLOCK == 32768U);
+static_assert(kShuffleByteCount == 512U);
+static_assert(kOperationSetByteCount == 12288U);
+static_assert(kOperationSetAStart == 2048U);
+static_assert(kSecondShuffleGroupStart == 14336U);
+static_assert(kThirdShuffleGroupStart == 16384U);
+static_assert(kOperationSetBStart == 18432U);
+static_assert(kFourthShuffleGroupStart == 30720U);
+static_assert(kFourthShuffleGroupStart +
+              (4U * kShuffleByteCount) == S_BLOCK);
+static_assert(kDispatchCount * 2U * kDispatchOutputByteCount ==
+              S_BLOCK);
+static_assert(W_KEY == kKeyByteCount);
+static_assert(kKeyDispatchCount * kInputPairByteCount == kKeyByteCount);
+static_assert(kKeyOperationSetByteCount ==
+              2U * kKeyDispatchCount * kDispatchEntropyByteCount);
+static_assert(kKeyOperationSetStart + kKeyOperationSetByteCount ==
+              kKeyFinalShuffleStart);
+static_assert(kKeyFinalShuffleStart + kKeyShuffleByteCount ==
+              kKeyByteCount);
+
 void DiffuseLaneWithDomainWords(std::uint8_t *pInputLaneA,
                                 std::uint8_t *pInputLaneB,
                                 std::uint8_t *pOutputLane,
-                                std::uint8_t *pOperationSourceLane,
+                                std::uint8_t *pEntropyLane,
                                 std::size_t *pIndexListLeft,
                                 std::size_t *pIndexListRight,
                                 M88 *pMatrix,
@@ -25,63 +74,154 @@ void DiffuseLaneWithDomainWords(std::uint8_t *pInputLaneA,
                                 std::uint8_t pMatrixArgB,
                                 std::uint8_t pMatrixArgC,
                                 std::uint8_t pMatrixArgD) {
-    std::size_t aWriteIndex = 0U;
-    std::size_t aReadIndexA = 0U;
-    std::size_t aReadIndexB = 0U;
+    std::size_t aDestinationIndex = 0U;
     
-    for (std::size_t aMatrixDiffusionIndex = 0U; aMatrixDiffusionIndex < static_cast<std::size_t>(256); aMatrixDiffusionIndex += 1U) {
-        aReadIndexA = (pIndexListLeft[aMatrixDiffusionIndex & 255] * 128U) + static_cast<std::size_t>(pInputOffsetA);
-        aReadIndexB = (pIndexListRight[aMatrixDiffusionIndex & 255] * 128U) + static_cast<std::size_t>(pInputOffsetB);
-        if (((pOperationSourceLane[aWriteIndex] ^ pMatrixSelect) & 0x7E) > 62) {
-            pMatrix->Dispatch(pOperationSourceLane,
-                              aWriteIndex,
+    for (std::size_t aMatrixDiffusionIndex = 0U;
+         aMatrixDiffusionIndex < kDispatchCount;
+         aMatrixDiffusionIndex += 1U) {
+        const std::size_t aReadIndexA =
+            (pIndexListLeft[aMatrixDiffusionIndex] * kInputPairByteCount) +
+            static_cast<std::size_t>(pInputOffsetA);
+        const std::size_t aReadIndexB =
+            (pIndexListRight[aMatrixDiffusionIndex] * kInputPairByteCount) +
+            static_cast<std::size_t>(pInputOffsetB);
+        const std::size_t aOperationIndexA =
+            kOperationSetAStart +
+            (aMatrixDiffusionIndex * kDispatchEntropyByteCount);
+        const std::size_t aOperationIndexB =
+            kOperationSetBStart +
+            (aMatrixDiffusionIndex * kDispatchEntropyByteCount);
+
+        if (((pEntropyLane[aOperationIndexA] ^ pMatrixSelect) & 0x7E) > 62) {
+            pMatrix->Dispatch(pEntropyLane,
+                              aOperationIndexA,
                               pInputLaneA,
                               aReadIndexA,
-                              pOutputLane,
-                              aWriteIndex,
+                              pOutputLane + aDestinationIndex,
                               pMatrixUnroll,
                               pMatrixArgA,
                               pMatrixArgB,
                               pMatrixArgC,
                               pMatrixArgD);
-            aWriteIndex = aWriteIndex + 64U;
-            pMatrix->Dispatch(pOperationSourceLane,
-                              aWriteIndex,
+            aDestinationIndex += kDispatchOutputByteCount;
+            pMatrix->Dispatch(pEntropyLane,
+                              aOperationIndexB,
                               pInputLaneB,
                               aReadIndexB,
-                              pOutputLane,
-                              aWriteIndex,
+                              pOutputLane + aDestinationIndex,
                               pMatrixUnroll,
                               pMatrixArgA,
                               pMatrixArgB,
                               pMatrixArgC,
                               pMatrixArgD);
         } else {
-            pMatrix->Dispatch(pOperationSourceLane,
-                              aWriteIndex,
+            pMatrix->Dispatch(pEntropyLane,
+                              aOperationIndexA,
                               pInputLaneB,
                               aReadIndexB,
-                              pOutputLane,
-                              aWriteIndex,
+                              pOutputLane + aDestinationIndex,
                               pMatrixUnroll,
                               pMatrixArgA,
                               pMatrixArgB,
                               pMatrixArgC,
                               pMatrixArgD);
-            aWriteIndex = aWriteIndex + 64U;
-            pMatrix->Dispatch(pOperationSourceLane,
-                              aWriteIndex,
+            aDestinationIndex += kDispatchOutputByteCount;
+            pMatrix->Dispatch(pEntropyLane,
+                              aOperationIndexB,
                               pInputLaneA,
                               aReadIndexA,
-                              pOutputLane,
-                              aWriteIndex,
+                              pOutputLane + aDestinationIndex,
                               pMatrixUnroll,
                               pMatrixArgA,
                               pMatrixArgB,
                               pMatrixArgC,
                               pMatrixArgD);
         }
-        aWriteIndex = aWriteIndex + 64U;
+        aDestinationIndex += kDispatchOutputByteCount;
+    }
+}
+
+void KeyDiffuseLaneWithDomainWords(std::uint8_t *pInputLaneA,
+                                   std::uint8_t *pInputLaneB,
+                                   std::uint8_t *pOutputLane,
+                                   std::uint8_t *pOperationEntropyLane,
+                                   std::size_t *pIndexListLeft,
+                                   std::size_t *pIndexListRight,
+                                   M88 *pMatrix,
+                                   const std::size_t pInputOffsetA,
+                                   const std::size_t pInputOffsetB,
+                                   const std::uint64_t pMatrixSelect,
+                                   const std::uint8_t pMatrixUnroll,
+                                   const std::uint8_t pMatrixArgA,
+                                   const std::uint8_t pMatrixArgB,
+                                   const std::uint8_t pMatrixArgC,
+                                   const std::uint8_t pMatrixArgD) {
+    std::size_t aDestinationIndex = 0U;
+
+    for (std::size_t aMatrixDiffusionIndex = 0U;
+         aMatrixDiffusionIndex < kKeyDispatchCount;
+         aMatrixDiffusionIndex += 1U) {
+        const std::size_t aReadIndexA =
+            (pIndexListLeft[aMatrixDiffusionIndex] * kInputPairByteCount) +
+            pInputOffsetA;
+        const std::size_t aReadIndexB =
+            (pIndexListRight[aMatrixDiffusionIndex] * kInputPairByteCount) +
+            pInputOffsetB;
+        const std::size_t aOperationIndexA =
+            kKeyOperationSetStart +
+            (aMatrixDiffusionIndex * kDispatchEntropyByteCount);
+        const std::size_t aOperationIndexB =
+            kKeyOperationSetStart +
+            ((aMatrixDiffusionIndex + kKeyDispatchCount) *
+             kDispatchEntropyByteCount);
+
+        if (((pOperationEntropyLane[aOperationIndexA] ^ pMatrixSelect) &
+             0x7EU) > 62U) {
+            pMatrix->Dispatch(pOperationEntropyLane,
+                              aOperationIndexA,
+                              pInputLaneA,
+                              aReadIndexA,
+                              pOutputLane + aDestinationIndex,
+                              pMatrixUnroll,
+                              pMatrixArgA,
+                              pMatrixArgB,
+                              pMatrixArgC,
+                              pMatrixArgD);
+            aDestinationIndex += kDispatchOutputByteCount;
+            pMatrix->Dispatch(pOperationEntropyLane,
+                              aOperationIndexB,
+                              pInputLaneB,
+                              aReadIndexB,
+                              pOutputLane + aDestinationIndex,
+                              pMatrixUnroll,
+                              pMatrixArgA,
+                              pMatrixArgB,
+                              pMatrixArgC,
+                              pMatrixArgD);
+        } else {
+            pMatrix->Dispatch(pOperationEntropyLane,
+                              aOperationIndexA,
+                              pInputLaneB,
+                              aReadIndexB,
+                              pOutputLane + aDestinationIndex,
+                              pMatrixUnroll,
+                              pMatrixArgA,
+                              pMatrixArgB,
+                              pMatrixArgC,
+                              pMatrixArgD);
+            aDestinationIndex += kDispatchOutputByteCount;
+            pMatrix->Dispatch(pOperationEntropyLane,
+                              aOperationIndexB,
+                              pInputLaneA,
+                              aReadIndexA,
+                              pOutputLane + aDestinationIndex,
+                              pMatrixUnroll,
+                              pMatrixArgA,
+                              pMatrixArgB,
+                              pMatrixArgC,
+                              pMatrixArgD);
+        }
+        aDestinationIndex += kDispatchOutputByteCount;
     }
 }
 
@@ -95,12 +235,10 @@ void TwistDiffuse::DiffuseWithDomainWords(std::uint8_t *pInputLaneA,
                                           std::uint8_t *pOutputLaneB,
                                           std::uint8_t *pOutputLaneC,
                                           std::uint8_t *pOutputLaneD,
-                                          std::uint8_t *pShuffleEntropyLaneA,
-                                          std::uint8_t *pShuffleEntropyLaneB,
-                                          std::uint8_t *pShuffleEntropyLaneC,
-                                          std::uint8_t *pShuffleEntropyLaneD,
-                                          std::uint8_t *pOperationSourceLaneA,
-                                          std::uint8_t *pOperationSourceLaneB,
+                                          std::uint8_t *pEntropyLaneA,
+                                          std::uint8_t *pEntropyLaneB,
+                                          std::uint8_t *pEntropyLaneC,
+                                          std::uint8_t *pEntropyLaneD,
                                           std::size_t *pIndexList256A,
                                           std::size_t *pIndexList256B,
                                           std::size_t *pIndexList256C,
@@ -114,16 +252,74 @@ void TwistDiffuse::DiffuseWithDomainWords(std::uint8_t *pInputLaneA,
                                           std::uint8_t pMatrixArgB,
                                           std::uint8_t pMatrixArgC,
                                           std::uint8_t pMatrixArgD) {
-    TwistShuffle::Execute(pIndexList256A, pShuffleEntropyLaneA);
-    TwistShuffle::Execute(pIndexList256B, pShuffleEntropyLaneB);
-    TwistShuffle::Execute(pIndexList256C, pShuffleEntropyLaneC);
-    TwistShuffle::Execute(pIndexList256D, pShuffleEntropyLaneD);
+    for (std::size_t aIndex = 0U; aIndex < kDispatchCount; aIndex += 1U) {
+        pIndexList256A[aIndex] = aIndex;
+        pIndexList256B[aIndex] = aIndex;
+        pIndexList256C[aIndex] = aIndex;
+        pIndexList256D[aIndex] = aIndex;
+    }
+
+    // Shuffles 1-4
+    TwistShuffle::ShuffleList256(pIndexList256A, pEntropyLaneA,
+                                 kFirstShuffleGroupStart + (0U * kShuffleByteCount),
+                                 kFirstShuffleGroupStart + (1U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256B, pEntropyLaneB,
+                                 kFirstShuffleGroupStart + (1U * kShuffleByteCount),
+                                 kFirstShuffleGroupStart + (2U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256C, pEntropyLaneC,
+                                 kFirstShuffleGroupStart + (2U * kShuffleByteCount),
+                                 kFirstShuffleGroupStart + (3U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256D, pEntropyLaneD,
+                                 kFirstShuffleGroupStart + (3U * kShuffleByteCount),
+                                 kFirstShuffleGroupStart + (4U * kShuffleByteCount), 1U);
+
+    // Shuffles 5-8
+    TwistShuffle::ShuffleList256(pIndexList256A, pEntropyLaneA,
+                                 kSecondShuffleGroupStart + (0U * kShuffleByteCount),
+                                 kSecondShuffleGroupStart + (1U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256B, pEntropyLaneB,
+                                 kSecondShuffleGroupStart + (1U * kShuffleByteCount),
+                                 kSecondShuffleGroupStart + (2U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256C, pEntropyLaneC,
+                                 kSecondShuffleGroupStart + (2U * kShuffleByteCount),
+                                 kSecondShuffleGroupStart + (3U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256D, pEntropyLaneD,
+                                 kSecondShuffleGroupStart + (3U * kShuffleByteCount),
+                                 kSecondShuffleGroupStart + (4U * kShuffleByteCount), 1U);
+
+    // Shuffles 9-12
+    TwistShuffle::ShuffleList256(pIndexList256A, pEntropyLaneA,
+                                 kThirdShuffleGroupStart + (0U * kShuffleByteCount),
+                                 kThirdShuffleGroupStart + (1U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256B, pEntropyLaneB,
+                                 kThirdShuffleGroupStart + (1U * kShuffleByteCount),
+                                 kThirdShuffleGroupStart + (2U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256C, pEntropyLaneC,
+                                 kThirdShuffleGroupStart + (2U * kShuffleByteCount),
+                                 kThirdShuffleGroupStart + (3U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256D, pEntropyLaneD,
+                                 kThirdShuffleGroupStart + (3U * kShuffleByteCount),
+                                 kThirdShuffleGroupStart + (4U * kShuffleByteCount), 1U);
+
+    // Shuffles 13-16
+    TwistShuffle::ShuffleList256(pIndexList256A, pEntropyLaneA,
+                                 kFourthShuffleGroupStart + (0U * kShuffleByteCount),
+                                 kFourthShuffleGroupStart + (1U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256B, pEntropyLaneB,
+                                 kFourthShuffleGroupStart + (1U * kShuffleByteCount),
+                                 kFourthShuffleGroupStart + (2U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256C, pEntropyLaneC,
+                                 kFourthShuffleGroupStart + (2U * kShuffleByteCount),
+                                 kFourthShuffleGroupStart + (3U * kShuffleByteCount), 1U);
+    TwistShuffle::ShuffleList256(pIndexList256D, pEntropyLaneD,
+                                 kFourthShuffleGroupStart + (3U * kShuffleByteCount),
+                                 kFourthShuffleGroupStart + (4U * kShuffleByteCount), 1U);
     
     // A @ 0, C @ 64
     DiffuseLaneWithDomainWords(pInputLaneA,
                                pInputLaneC,
                                pOutputLaneA,
-                               pOperationSourceLaneA,
+                               pEntropyLaneA,
                                pIndexList256A,
                                pIndexList256B,
                                pMatrix,
@@ -140,7 +336,7 @@ void TwistDiffuse::DiffuseWithDomainWords(std::uint8_t *pInputLaneA,
     DiffuseLaneWithDomainWords(pInputLaneA,
                                pInputLaneD,
                                pOutputLaneB,
-                               pOperationSourceLaneB,
+                               pEntropyLaneB,
                                pIndexList256C,
                                pIndexList256D,
                                pMatrix,
@@ -157,7 +353,7 @@ void TwistDiffuse::DiffuseWithDomainWords(std::uint8_t *pInputLaneA,
     DiffuseLaneWithDomainWords(pInputLaneB,
                                pInputLaneC,
                                pOutputLaneC,
-                               pOperationSourceLaneA,
+                               pEntropyLaneC,
                                pIndexList256A,
                                pIndexList256B,
                                pMatrix,
@@ -174,7 +370,7 @@ void TwistDiffuse::DiffuseWithDomainWords(std::uint8_t *pInputLaneA,
     DiffuseLaneWithDomainWords(pInputLaneB,
                                pInputLaneD,
                                pOutputLaneD,
-                               pOperationSourceLaneB,
+                               pEntropyLaneD,
                                pIndexList256C,
                                pIndexList256D,
                                pMatrix,
@@ -186,4 +382,238 @@ void TwistDiffuse::DiffuseWithDomainWords(std::uint8_t *pInputLaneA,
                                pMatrixArgB,
                                pMatrixArgC,
                                pMatrixArgD);
+}
+
+void TwistDiffuse::KeyDiffuseWithDomainWords(
+    std::uint8_t *pInputLaneA,
+    std::uint8_t *pInputLaneB,
+    std::uint8_t *pInputLaneC,
+    std::uint8_t *pInputLaneD,
+    std::uint8_t *pOutputLaneA,
+    std::uint8_t *pOutputLaneB,
+    std::uint8_t *pOutputLaneC,
+    std::uint8_t *pOutputLaneD,
+    std::uint8_t *pEntropyLaneA,
+    std::uint8_t *pEntropyLaneB,
+    std::uint8_t *pEntropyLaneC,
+    std::uint8_t *pEntropyLaneD,
+    std::size_t *pIndexList16A,
+    std::size_t *pIndexList16B,
+    std::size_t *pIndexList16C,
+    std::size_t *pIndexList16D,
+    M88 *pMatrix,
+    std::uint64_t pMatrixSelectA,
+    std::uint64_t pMatrixSelectB,
+    std::uint8_t pMatrixUnrollA,
+    std::uint8_t pMatrixUnrollB,
+    std::uint8_t pMatrixArgA,
+    std::uint8_t pMatrixArgB,
+    std::uint8_t pMatrixArgC,
+    std::uint8_t pMatrixArgD) {
+    for (std::size_t aIndex = 0U;
+         aIndex < kKeyDispatchCount;
+         aIndex += 1U) {
+        pIndexList16A[aIndex] = aIndex;
+        pIndexList16B[aIndex] = aIndex;
+        pIndexList16C[aIndex] = aIndex;
+        pIndexList16D[aIndex] = aIndex;
+    }
+
+    TwistShuffle::ShuffleList16(pIndexList16A,
+                                pEntropyLaneA,
+                                0U,
+                                kKeyShuffleByteCount,
+                                3U);
+    TwistShuffle::ShuffleList16(pIndexList16B,
+                                pEntropyLaneB,
+                                0U,
+                                kKeyShuffleByteCount,
+                                3U);
+    TwistShuffle::ShuffleList16(pIndexList16C,
+                                pEntropyLaneC,
+                                0U,
+                                kKeyShuffleByteCount,
+                                3U);
+    TwistShuffle::ShuffleList16(pIndexList16D,
+                                pEntropyLaneD,
+                                0U,
+                                kKeyShuffleByteCount,
+                                3U);
+
+    TwistShuffle::ShuffleList16(pIndexList16A,
+                                pEntropyLaneA,
+                                kKeyFinalShuffleStart,
+                                kKeyByteCount,
+                                3U);
+    TwistShuffle::ShuffleList16(pIndexList16B,
+                                pEntropyLaneB,
+                                kKeyFinalShuffleStart,
+                                kKeyByteCount,
+                                3U);
+    TwistShuffle::ShuffleList16(pIndexList16C,
+                                pEntropyLaneC,
+                                kKeyFinalShuffleStart,
+                                kKeyByteCount,
+                                3U);
+    TwistShuffle::ShuffleList16(pIndexList16D,
+                                pEntropyLaneD,
+                                kKeyFinalShuffleStart,
+                                kKeyByteCount,
+                                3U);
+
+    // A @ 0, C @ 64
+    KeyDiffuseLaneWithDomainWords(pInputLaneA,
+                                  pInputLaneC,
+                                  pOutputLaneA,
+                                  pEntropyLaneA,
+                                  pIndexList16A,
+                                  pIndexList16B,
+                                  pMatrix,
+                                  0U,
+                                  64U,
+                                  pMatrixSelectA,
+                                  pMatrixUnrollA,
+                                  pMatrixArgA,
+                                  pMatrixArgB,
+                                  pMatrixArgC,
+                                  pMatrixArgD);
+
+    // A @ 64, D @ 0
+    KeyDiffuseLaneWithDomainWords(pInputLaneA,
+                                  pInputLaneD,
+                                  pOutputLaneB,
+                                  pEntropyLaneB,
+                                  pIndexList16C,
+                                  pIndexList16D,
+                                  pMatrix,
+                                  64U,
+                                  0U,
+                                  pMatrixSelectB,
+                                  pMatrixUnrollB,
+                                  pMatrixArgA,
+                                  pMatrixArgB,
+                                  pMatrixArgC,
+                                  pMatrixArgD);
+
+    // B @ 64, C @ 0
+    KeyDiffuseLaneWithDomainWords(pInputLaneB,
+                                  pInputLaneC,
+                                  pOutputLaneC,
+                                  pEntropyLaneC,
+                                  pIndexList16A,
+                                  pIndexList16B,
+                                  pMatrix,
+                                  64U,
+                                  0U,
+                                  pMatrixSelectA,
+                                  pMatrixUnrollA,
+                                  pMatrixArgA,
+                                  pMatrixArgB,
+                                  pMatrixArgC,
+                                  pMatrixArgD);
+
+    // B @ 0, D @ 64
+    KeyDiffuseLaneWithDomainWords(pInputLaneB,
+                                  pInputLaneD,
+                                  pOutputLaneD,
+                                  pEntropyLaneD,
+                                  pIndexList16C,
+                                  pIndexList16D,
+                                  pMatrix,
+                                  0U,
+                                  64U,
+                                  pMatrixSelectB,
+                                  pMatrixUnrollB,
+                                  pMatrixArgA,
+                                  pMatrixArgB,
+                                  pMatrixArgC,
+                                  pMatrixArgD);
+}
+
+void TwistDiffuse::KeyDiffuseWithDomainWordsA(
+    std::uint8_t *pInputLaneA,
+    std::uint8_t *pInputLaneB,
+    std::uint8_t *pInputLaneC,
+    std::uint8_t *pInputLaneD,
+    std::uint8_t *pOutputLaneA,
+    std::uint8_t *pOutputLaneB,
+    std::uint8_t *pOutputLaneC,
+    std::uint8_t *pOutputLaneD,
+    std::uint8_t *pEntropyLaneA,
+    std::uint8_t *pEntropyLaneB,
+    std::uint8_t *pEntropyLaneC,
+    std::uint8_t *pEntropyLaneD,
+    std::size_t *pIndexList16A,
+    std::size_t *pIndexList16B,
+    std::size_t *pIndexList16C,
+    std::size_t *pIndexList16D,
+    M88 *pMatrix,
+    std::uint64_t pMatrixSelectA,
+    std::uint64_t pMatrixSelectB,
+    std::uint8_t pMatrixUnrollA,
+    std::uint8_t pMatrixUnrollB,
+    std::uint8_t pMatrixArgA,
+    std::uint8_t pMatrixArgB,
+    std::uint8_t pMatrixArgC,
+    std::uint8_t pMatrixArgD) {
+    KeyDiffuseWithDomainWords(pInputLaneA, pInputLaneB,
+                              pInputLaneC, pInputLaneD,
+                              pOutputLaneA, pOutputLaneB,
+                              pOutputLaneC, pOutputLaneD,
+                              pEntropyLaneA, pEntropyLaneB,
+                              pEntropyLaneC, pEntropyLaneD,
+                              pIndexList16A, pIndexList16B,
+                              pIndexList16C, pIndexList16D,
+                              pMatrix,
+                              pMatrixSelectA, pMatrixSelectB,
+                              pMatrixUnrollA, pMatrixUnrollB,
+                              pMatrixArgA, pMatrixArgB,
+                              pMatrixArgC, pMatrixArgD);
+}
+
+void TwistDiffuse::KeyDiffuseWithDomainWordsB(
+    std::uint8_t *pInputLaneA,
+    std::uint8_t *pInputLaneB,
+    std::uint8_t *pInputLaneC,
+    std::uint8_t *pInputLaneD,
+    std::uint8_t *pOutputLaneA,
+    std::uint8_t *pOutputLaneB,
+    std::uint8_t *pOutputLaneC,
+    std::uint8_t *pOutputLaneD,
+    std::uint8_t *pEntropyLaneA,
+    std::uint8_t *pEntropyLaneB,
+    std::uint8_t *pEntropyLaneC,
+    std::uint8_t *pEntropyLaneD,
+    std::size_t *pIndexList16A,
+    std::size_t *pIndexList16B,
+    std::size_t *pIndexList16C,
+    std::size_t *pIndexList16D,
+    M88 *pMatrix,
+    std::uint64_t pMatrixSelectA,
+    std::uint64_t pMatrixSelectB,
+    std::uint8_t pMatrixUnrollA,
+    std::uint8_t pMatrixUnrollB,
+    std::uint8_t pMatrixArgA,
+    std::uint8_t pMatrixArgB,
+    std::uint8_t pMatrixArgC,
+    std::uint8_t pMatrixArgD) {
+    KeyDiffuseWithDomainWords(pInputLaneA + W_KEY,
+                              pInputLaneB + W_KEY,
+                              pInputLaneC + W_KEY,
+                              pInputLaneD + W_KEY,
+                              pOutputLaneA + W_KEY,
+                              pOutputLaneB + W_KEY,
+                              pOutputLaneC + W_KEY,
+                              pOutputLaneD + W_KEY,
+                              pEntropyLaneA + W_KEY,
+                              pEntropyLaneB + W_KEY,
+                              pEntropyLaneC + W_KEY,
+                              pEntropyLaneD + W_KEY,
+                              pIndexList16A, pIndexList16B,
+                              pIndexList16C, pIndexList16D,
+                              pMatrix,
+                              pMatrixSelectA, pMatrixSelectB,
+                              pMatrixUnrollA, pMatrixUnrollB,
+                              pMatrixArgA, pMatrixArgB,
+                              pMatrixArgC, pMatrixArgD);
 }

@@ -44,6 +44,21 @@
     pWandererJ, \
     pWandererK
 
+#define MUTABLE_PARAMS_ARE_NULL \
+    ((pIngress == nullptr) || \
+     (pCarry == nullptr) || \
+     (pWandererA == nullptr) || \
+     (pWandererB == nullptr) || \
+     (pWandererC == nullptr) || \
+     (pWandererD == nullptr) || \
+     (pWandererE == nullptr) || \
+     (pWandererF == nullptr) || \
+     (pWandererG == nullptr) || \
+     (pWandererH == nullptr) || \
+     (pWandererI == nullptr) || \
+     (pWandererJ == nullptr) || \
+     (pWandererK == nullptr))
+
 #define ARX_STATE_VARS \
     &aIngress, \
     &aCarry, \
@@ -82,6 +97,8 @@
 
 #define PARAMS_GROW \
     pWorkSpace, \
+    pCrossLaneA, \
+    pCrossLaneB, \
     MUTABLE_PARAMS_PASSED
 
 #define READ_IN_MUTABLE_PARAMS \
@@ -140,48 +157,31 @@ public:
                                                 TwistDomainConstants *pDomainConstants,
                                                 TwistDomainSaltSet *pDomainSaltSet);
     
-    virtual void                            KDF_A(TwistWorkSpace *pWorkSpace,
-                                                  std::uint64_t pNonce,
-                                                  TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet,
-                                                  MUTABLE_PARAMS);
-    
-    virtual void                            KDF_B(TwistWorkSpace *pWorkSpace,
-                                                  std::uint64_t pNonce,
-                                                  TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet,
-                                                  MUTABLE_PARAMS);
-
-    virtual void                            KDF_C(TwistWorkSpace *pWorkSpace,
-                                                  std::uint64_t pNonce,
-                                                  TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet,
-                                                  MUTABLE_PARAMS);
-
-    virtual void                            KDF_D(TwistWorkSpace *pWorkSpace,
-                                                  std::uint64_t pNonce,
-                                                  TwistDomainConstants *pDomainConstants,
-                                                  TwistDomainSaltSet *pDomainSaltSet,
-                                                  MUTABLE_PARAMS);
-    
     virtual void                            Seed(TwistWorkSpace *pWorkSpace,
                                                  TwistFarmSalt *pFarmSalt,
                                                  std::uint64_t pNonce,
                                                  std::uint8_t *pPassword,
                                                  std::size_t pPasswordByteLength,
-                                                 std::uint8_t *pDestination);
-    
+                                                 std::uint8_t *pDestination,
+                                                 MUTABLE_PARAMS);
+
     virtual void                            TwistBlock(TwistWorkSpace *pWorkSpace,
                                                        std::uint8_t *pSource,
                                                        std::uint8_t *pCrossLaneA,
                                                        std::uint8_t *pCrossLaneB,
                                                        std::uint8_t *pCrossLaneC,
                                                        std::uint8_t *pCrossLaneD,
-                                                       std::uint8_t *pDestination);
+                                                       std::uint8_t *pDestination,
+                                                       bool pStifleKey,
+                                                       MUTABLE_PARAMS);
 
     virtual void                            GrowKeyA(TwistWorkSpace *pWorkSpace,
+                                                     std::uint8_t *pCrossLaneA,
+                                                     std::uint8_t *pCrossLaneB,
                                                      MUTABLE_PARAMS);
     virtual void                            GrowKeyB(TwistWorkSpace *pWorkSpace,
+                                                     std::uint8_t *pCrossLaneA,
+                                                     std::uint8_t *pCrossLaneB,
                                                      MUTABLE_PARAMS);
     
     
@@ -193,7 +193,8 @@ public:
                                                   std::uint8_t *pCrossLaneC,
                                                   std::uint8_t *pCrossLaneD,
                                                   std::uint8_t *pDestination,
-                                                  std::size_t pDestinationByteLength);
+                                                  std::size_t pDestinationByteLength,
+                                                  MUTABLE_PARAMS);
     
     void                                    AutoSeedThenTwist(TwistWorkSpace *pWorkSpace,
                                                               TwistFarmSalt *pFarmSalt,
@@ -205,7 +206,8 @@ public:
                                                               std::uint8_t *pCrossLaneC,
                                                               std::uint8_t *pCrossLaneD,
                                                               std::uint8_t *pDestination,
-                                                              std::size_t pDestinationByteLength);
+                                                              std::size_t pDestinationByteLength,
+                                                              MUTABLE_PARAMS);
     
     // Assumes the work space is seeded...
     // Assumes pSource has at least S_BLOCK bytes...
@@ -216,7 +218,8 @@ public:
                                                       std::uint8_t *pCrossLaneC,
                                                       std::uint8_t *pCrossLaneD,
                                                       std::uint8_t *pDestination,
-                                                      std::size_t pDestinationByteLength);
+                                                      std::size_t pDestinationByteLength,
+                                                      MUTABLE_PARAMS);
     
     M88                                     mMatrix;
     
@@ -226,11 +229,17 @@ public:
     const TwistDomainBundle                 *GetDomainBundleInbuilt() const {
         return &mDomainBundleInbuilt;
     }
-    TwistDomainBundle                       *GetDomainBundleEphemeral() {
-        return &mDomainBundleEphemeral;
+    TwistDomainBundle                       *GetDomainBundleEphemeralA() {
+        return &mDomainBundleEphemeralA;
     }
-    const TwistDomainBundle                 *GetDomainBundleEphemeral() const {
-        return &mDomainBundleEphemeral;
+    const TwistDomainBundle                 *GetDomainBundleEphemeralA() const {
+        return &mDomainBundleEphemeralA;
+    }
+    TwistDomainBundle                       *GetDomainBundleEphemeralB() {
+        return &mDomainBundleEphemeralB;
+    }
+    const TwistDomainBundle                 *GetDomainBundleEphemeralB() const {
+        return &mDomainBundleEphemeralB;
     }
     
     void                                    Zero_PostSeed();
@@ -240,7 +249,8 @@ public:
 protected:
     
     TwistDomainBundle                       mDomainBundleInbuilt;
-    TwistDomainBundle                       mDomainBundleEphemeral;
+    TwistDomainBundle                       mDomainBundleEphemeralA;
+    TwistDomainBundle                       mDomainBundleEphemeralB;
     
 };
 

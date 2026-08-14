@@ -38,13 +38,28 @@ RoundMaterialSuffixSet DomainRoundMaterialSuffixSet(TwistDomain pDomain) {
 
 std::string BundlePrefix(const GKDFMaterialBundle pBundle) {
     switch (pBundle) {
-        case GKDFMaterialBundle::kEphemeral:
-            return "mDomainBundleEphemeral";
+        case GKDFMaterialBundle::kEphemeralA:
+            return "mDomainBundleEphemeralA";
+        case GKDFMaterialBundle::kEphemeralB:
+            return "mDomainBundleEphemeralB";
         case GKDFMaterialBundle::kWorkspace:
             return "pWorkSpace->mDomainBundle";
         case GKDFMaterialBundle::kInbuilt:
         default:
             return "mDomainBundleInbuilt";
+    }
+}
+
+char DomainFunctionSuffix(const TwistDomain pDomain) {
+    switch (pDomain) {
+        case TwistDomain::kKeyRotateA: return 'A';
+        case TwistDomain::kKeyRotateB: return 'B';
+        case TwistDomain::kKeySpawnA: return 'C';
+        case TwistDomain::kKeySpawnB: return 'D';
+        case TwistDomain::kTwist: return 'E';
+        case TwistDomain::kSeed: return 'F';
+        case TwistDomain::kInvalid:
+        default: return 'A';
     }
 }
 
@@ -66,7 +81,8 @@ bool BakeKDFCall(const char *pFunctionName,
 
     const RoundMaterialSuffixSet aSet = DomainRoundMaterialSuffixSet(pDomain);
     const std::string aBundle = BundlePrefix(pBundle);
-    std::string aCall = std::string(pFunctionName) + "(pWorkSpace, pNonce, "
+    std::string aCall = std::string(pFunctionName) + "_" +
+        DomainFunctionSuffix(pDomain) + "(pWorkSpace, pNonce, "
         "&(" + aBundle + "." + std::string(aSet.mConstants) + "), "
         "&(" + aBundle + "." + std::string(aSet.mSalts) + ")";
     aCall +=
@@ -108,17 +124,6 @@ bool GKDF_C::Bake(TwistDomain pDomain,
                   std::vector<GStatement> *pStatements,
                   std::string *pErrorMessage) {
     return BakeKDFCall("KDF_C",
-                       pDomain,
-                       pBundle,
-                       pStatements,
-                       pErrorMessage);
-}
-
-bool GKDF_D::Bake(TwistDomain pDomain,
-                  GKDFMaterialBundle pBundle,
-                  std::vector<GStatement> *pStatements,
-                  std::string *pErrorMessage) {
-    return BakeKDFCall("KDF_D",
                        pDomain,
                        pBundle,
                        pStatements,

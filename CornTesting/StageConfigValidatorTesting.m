@@ -377,10 +377,10 @@
         Slot::kFireLaneA,
     };
     const GPassFactoryMidstage::SlotArray4 aDestinations = {
-        Slot::kHeartLaneA,
-        Slot::kHeartLaneB,
-        Slot::kHeartLaneC,
-        Slot::kHeartLaneD,
+        Slot::kRainbowLaneA,
+        Slot::kRainbowLaneB,
+        Slot::kRainbowLaneC,
+        Slot::kRainbowLaneD,
     };
 
     GSeedRunStageConfig aConfig;
@@ -433,10 +433,10 @@
         Slot::kEarthLaneA,
     };
     const GPassFactoryMidstage::SlotArray6 aDestinations = {
-        Slot::kHeartLaneA,
-        Slot::kHeartLaneB,
-        Slot::kHeartLaneC,
-        Slot::kHeartLaneD,
+        Slot::kRainbowLaneA,
+        Slot::kRainbowLaneB,
+        Slot::kRainbowLaneC,
+        Slot::kRainbowLaneD,
         Slot::kIceLaneA,
         Slot::kIceLaneB,
     };
@@ -490,10 +490,10 @@
         Slot::kSpiritLaneA, Slot::kSpiritLaneB,
     };
     const GPassFactoryMidstage::SlotArray4 aDestinations = {
-        Slot::kHeartLaneA,
-        Slot::kHeartLaneB,
-        Slot::kHeartLaneC,
-        Slot::kHeartLaneD,
+        Slot::kRainbowLaneA,
+        Slot::kRainbowLaneB,
+        Slot::kRainbowLaneC,
+        Slot::kRainbowLaneD,
     };
 
     GSeedRunStageConfig aConfig;
@@ -533,10 +533,10 @@
         Slot::kFireLaneA,
     };
     const GPassFactoryMidstage::SlotArray4 aDestinations = {
-        Slot::kHeartLaneA,
-        Slot::kHeartLaneB,
-        Slot::kHeartLaneC,
-        Slot::kHeartLaneD,
+        Slot::kRainbowLaneA,
+        Slot::kRainbowLaneB,
+        Slot::kRainbowLaneC,
+        Slot::kRainbowLaneD,
     };
 
     GSeedRunStageConfig aConfig;
@@ -576,10 +576,10 @@
         Slot::kFireLaneA,
     };
     const GPassFactoryMidstage::SlotArray4 aDestinations = {
-        Slot::kHeartLaneA,
-        Slot::kHeartLaneB,
-        Slot::kHeartLaneC,
-        Slot::kHeartLaneD,
+        Slot::kRainbowLaneA,
+        Slot::kRainbowLaneB,
+        Slot::kRainbowLaneC,
+        Slot::kRainbowLaneD,
     };
 
     GSeedRunStageConfig aConfig;

@@ -33,6 +33,10 @@ struct CSPRNGV2Slice {
     std::vector<GSymbol>        mSaltsOrbiterUpdate;
     std::vector<GSymbol>        mSaltsWandererUpdate;
     std::vector<GSymbol>        mNonceBytes;
+    GAXPLNoncePlan              mNoncePlan;
+    int                         mNonceCountOrbiterAssign = 2;
+    int                         mNonceCountOrbiterUpdate = 2;
+    int                         mNonceCountWandererUpdate = 2;
     
     std::vector<GSymbol>        mOrbiters;
     std::vector<GSymbol>        mWanderers;

@@ -14,10 +14,10 @@
 class GFarm {
 public:
     bool                                Bake(GKDFMaterialBundle pBundle,
-                                             GSymbol pBufferSymbolOrbiterAssign,
-                                             GSymbol pBufferSymbolOrbiterUpdate,
-                                             GSymbol pBufferSymbolWandererUpdate,
-                                             GSymbol pBufferSymbolConstants,
+                                             GSymbol pBufferSymbolLaneA,
+                                             GSymbol pBufferSymbolLaneB,
+                                             GSymbol pBufferSymbolLaneC,
+                                             GSymbol pBufferSymbolLaneD,
                                              const std::string &pPhaseSubWord,
                                              std::vector<GStatement> *pStatements,
                                              std::string *pErrorMessage) const {
@@ -29,10 +29,10 @@ public:
             SetError(pErrorMessage, "GFarm::Bake requires statement output.");
             return false;
         }
-        if (!ValidateSource(pBufferSymbolOrbiterAssign, "orbiter assign", pErrorMessage) ||
-            !ValidateSource(pBufferSymbolOrbiterUpdate, "orbiter update", pErrorMessage) ||
-            !ValidateSource(pBufferSymbolWandererUpdate, "wanderer update", pErrorMessage) ||
-            !ValidateSource(pBufferSymbolConstants, "constants", pErrorMessage)) {
+        if (!ValidateSource(pBufferSymbolLaneA, "lane A constants", pErrorMessage) ||
+            !ValidateSource(pBufferSymbolLaneB, "lane B salts", pErrorMessage) ||
+            !ValidateSource(pBufferSymbolLaneC, "lane C salts", pErrorMessage) ||
+            !ValidateSource(pBufferSymbolLaneD, "lane D salts", pErrorMessage)) {
             return false;
         }
 
@@ -51,62 +51,79 @@ public:
         }
 
         const std::string aSaltSet = aBundlePrefix + "." + aPhaseMember + "Salts";
-        AddFarm(BufAliasName(pBufferSymbolOrbiterAssign),
-                BufAliasName(pBufferSymbolOrbiterUpdate),
-                BufAliasName(pBufferSymbolWandererUpdate),
-                BufAliasName(pBufferSymbolConstants),
+        AddFarm(BufAliasName(pBufferSymbolLaneB),
+                BufAliasName(pBufferSymbolLaneC),
+                BufAliasName(pBufferSymbolLaneD),
+                BufAliasName(pBufferSymbolLaneA),
                 aSaltSet,
                 aBundlePrefix + "." + aPhaseMember + "Constants",
                 pStatements);
         return true;
     }
 
-    bool                                BakeEphemeral(GSymbol pBufferSymbolOrbiterAssign,
-                                                      GSymbol pBufferSymbolOrbiterUpdate,
-                                                      GSymbol pBufferSymbolWandererUpdate,
-                                                      GSymbol pBufferSymbolConstants,
-                                                      const std::string &pPhaseSubWord,
-                                                      std::vector<GStatement> *pStatements,
-                                                      std::string *pErrorMessage) const {
-        return Bake(GKDFMaterialBundle::kEphemeral,
-                    pBufferSymbolOrbiterAssign,
-                    pBufferSymbolOrbiterUpdate,
-                    pBufferSymbolWandererUpdate,
-                    pBufferSymbolConstants,
+    bool                                BakeEphemeralA(GSymbol pBufferSymbolLaneA,
+                                                       GSymbol pBufferSymbolLaneB,
+                                                       GSymbol pBufferSymbolLaneC,
+                                                       GSymbol pBufferSymbolLaneD,
+                                                       const std::string &pPhaseSubWord,
+                                                       std::vector<GStatement> *pStatements,
+                                                       std::string *pErrorMessage) const {
+        return Bake(GKDFMaterialBundle::kEphemeralA,
+                    pBufferSymbolLaneA,
+                    pBufferSymbolLaneB,
+                    pBufferSymbolLaneC,
+                    pBufferSymbolLaneD,
                     pPhaseSubWord,
                     pStatements,
                     pErrorMessage);
     }
 
-    bool                                BakeWorkspace(GSymbol pBufferSymbolOrbiterAssign,
-                                                      GSymbol pBufferSymbolOrbiterUpdate,
-                                                      GSymbol pBufferSymbolWandererUpdate,
-                                                      GSymbol pBufferSymbolConstants,
+    bool                                BakeEphemeralB(GSymbol pBufferSymbolLaneA,
+                                                       GSymbol pBufferSymbolLaneB,
+                                                       GSymbol pBufferSymbolLaneC,
+                                                       GSymbol pBufferSymbolLaneD,
+                                                       const std::string &pPhaseSubWord,
+                                                       std::vector<GStatement> *pStatements,
+                                                       std::string *pErrorMessage) const {
+        return Bake(GKDFMaterialBundle::kEphemeralB,
+                    pBufferSymbolLaneA,
+                    pBufferSymbolLaneB,
+                    pBufferSymbolLaneC,
+                    pBufferSymbolLaneD,
+                    pPhaseSubWord,
+                    pStatements,
+                    pErrorMessage);
+    }
+
+    bool                                BakeWorkspace(GSymbol pBufferSymbolLaneA,
+                                                      GSymbol pBufferSymbolLaneB,
+                                                      GSymbol pBufferSymbolLaneC,
+                                                      GSymbol pBufferSymbolLaneD,
                                                       const std::string &pPhaseSubWord,
                                                       std::vector<GStatement> *pStatements,
                                                       std::string *pErrorMessage) const {
         return Bake(GKDFMaterialBundle::kWorkspace,
-                    pBufferSymbolOrbiterAssign,
-                    pBufferSymbolOrbiterUpdate,
-                    pBufferSymbolWandererUpdate,
-                    pBufferSymbolConstants,
+                    pBufferSymbolLaneA,
+                    pBufferSymbolLaneB,
+                    pBufferSymbolLaneC,
+                    pBufferSymbolLaneD,
                     pPhaseSubWord,
                     pStatements,
                     pErrorMessage);
     }
 
-    bool                                BakeInbuilt(GSymbol pBufferSymbolOrbiterAssign,
-                                                    GSymbol pBufferSymbolOrbiterUpdate,
-                                                    GSymbol pBufferSymbolWandererUpdate,
-                                                    GSymbol pBufferSymbolConstants,
+    bool                                BakeInbuilt(GSymbol pBufferSymbolLaneA,
+                                                    GSymbol pBufferSymbolLaneB,
+                                                    GSymbol pBufferSymbolLaneC,
+                                                    GSymbol pBufferSymbolLaneD,
                                                     const std::string &pPhaseSubWord,
                                                     std::vector<GStatement> *pStatements,
                                                     std::string *pErrorMessage) const {
         return Bake(GKDFMaterialBundle::kInbuilt,
-                    pBufferSymbolOrbiterAssign,
-                    pBufferSymbolOrbiterUpdate,
-                    pBufferSymbolWandererUpdate,
-                    pBufferSymbolConstants,
+                    pBufferSymbolLaneA,
+                    pBufferSymbolLaneB,
+                    pBufferSymbolLaneC,
+                    pBufferSymbolLaneD,
                     pPhaseSubWord,
                     pStatements,
                     pErrorMessage);
@@ -135,8 +152,10 @@ private:
         switch (pBundle) {
             case GKDFMaterialBundle::kInbuilt:
                 return "mDomainBundleInbuilt";
-            case GKDFMaterialBundle::kEphemeral:
-                return "mDomainBundleEphemeral";
+            case GKDFMaterialBundle::kEphemeralA:
+                return "mDomainBundleEphemeralA";
+            case GKDFMaterialBundle::kEphemeralB:
+                return "mDomainBundleEphemeralB";
             case GKDFMaterialBundle::kWorkspace:
                 return "pWorkSpace->mDomainBundle";
             default:
@@ -204,7 +223,7 @@ private:
             pSaltLaneB + ", " +
             pSaltLaneC + ", " +
             pConstantLane + ", // farm lanes\n"
-            "                aFuseLaneA, aFuseLaneB, aFuseLaneC, // temp/fold lanes\n"
+            "                aStasisLaneA, aStasisLaneB, aStasisLaneC, // temp/fold lanes\n"
             "                &" +
             pSaltSet + ",\n"
             "                &(" +

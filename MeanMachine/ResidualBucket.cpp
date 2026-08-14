@@ -18,28 +18,40 @@ constexpr const char *kReportRule =
 struct ResidualLaneFamily {
     TwistWorkSpaceSlot                      mFirst;
     const char                              *mName;
+    std::size_t                             mLaneCount;
 };
 
-constexpr std::array<ResidualLaneFamily, 21> kResidualLaneFamilies = {{
-    {TwistWorkSpaceSlot::kEarthLaneA, "earth"},
-    {TwistWorkSpaceSlot::kFireLaneA, "fire"},
-    {TwistWorkSpaceSlot::kWindLaneA, "wind"},
-    {TwistWorkSpaceSlot::kWaterLaneA, "water"},
-    {TwistWorkSpaceSlot::kHeartLaneA, "heart"},
-    {TwistWorkSpaceSlot::kSoilLaneA, "soil"},
-    {TwistWorkSpaceSlot::kLightningLaneA, "lightning"},
-    {TwistWorkSpaceSlot::kIceLaneA, "ice"},
-    {TwistWorkSpaceSlot::kWoodLaneA, "wood"},
-    {TwistWorkSpaceSlot::kMagmaLaneA, "magma"},
-    {TwistWorkSpaceSlot::kPlasmaLaneA, "plasma"},
-    {TwistWorkSpaceSlot::kShadowLaneA, "shadow"},
-    {TwistWorkSpaceSlot::kCrystalLaneA, "crystal"},
-    {TwistWorkSpaceSlot::kAetherLaneA, "aether"},
-    {TwistWorkSpaceSlot::kCelestialLaneA, "celestial"},
-    {TwistWorkSpaceSlot::kKineticLaneA, "kinetic"},
-    {TwistWorkSpaceSlot::kVaporLaneA, "vapor"},
-    {TwistWorkSpaceSlot::kSpiritLaneA, "spirit"},
-    {TwistWorkSpaceSlot::kFuseLaneA, "fuse"},
+constexpr std::array<ResidualLaneFamily, 30> kResidualLaneFamilies = {{
+    {TwistWorkSpaceSlot::kEarthLaneA, "earth", 4U},
+    {TwistWorkSpaceSlot::kFireLaneA, "fire", 4U},
+    {TwistWorkSpaceSlot::kWindLaneA, "wind", 4U},
+    {TwistWorkSpaceSlot::kWaterLaneA, "water", 4U},
+    {TwistWorkSpaceSlot::kRainbowLaneA, "rainbow", 4U},
+    {TwistWorkSpaceSlot::kLightningLaneA, "lightning", 4U},
+    {TwistWorkSpaceSlot::kIceLaneA, "ice", 4U},
+    {TwistWorkSpaceSlot::kPlasmaLaneA, "plasma", 4U},
+    {TwistWorkSpaceSlot::kShadowLaneA, "shadow", 4U},
+    {TwistWorkSpaceSlot::kCrystalLaneA, "crystal", 4U},
+    {TwistWorkSpaceSlot::kAetherLaneA, "aether", 4U},
+    {TwistWorkSpaceSlot::kCelestialLaneA, "celestial", 4U},
+    {TwistWorkSpaceSlot::kVaporLaneA, "vapor", 4U},
+    {TwistWorkSpaceSlot::kKineticLaneA, "kinetic", 4U},
+    {TwistWorkSpaceSlot::kSonicLaneA, "sonic", 4U},
+    {TwistWorkSpaceSlot::kPlanarLaneA, "planar", 4U},
+    {TwistWorkSpaceSlot::kFrostLaneA, "frost", 4U},
+    {TwistWorkSpaceSlot::kArcaneLaneA, "arcane", 4U},
+    {TwistWorkSpaceSlot::kLunarLaneA, "lunar", 4U},
+    {TwistWorkSpaceSlot::kRunicLaneA, "runic", 4U},
+    {TwistWorkSpaceSlot::kGloomLaneA, "gloom", 4U},
+    {TwistWorkSpaceSlot::kAbjurationLaneA, "abjuration", 4U},
+    {TwistWorkSpaceSlot::kDivinationLaneA, "divination", 4U},
+    {TwistWorkSpaceSlot::kEvocationLaneA, "evocation", 4U},
+    {TwistWorkSpaceSlot::kStasisLaneA, "stasis", 3U},
+    {TwistWorkSpaceSlot::kAlchemyLaneA, "alchemy", 4U},
+    {TwistWorkSpaceSlot::kAuguryLaneA, "augury", 4U},
+    {TwistWorkSpaceSlot::kPsychicLaneA, "psychic", 4U},
+    {TwistWorkSpaceSlot::kVoodooLaneA, "voodoo", 4U},
+    {TwistWorkSpaceSlot::kSpiritLaneA, "spirit", 4U},
 }};
 
 std::string ResidualName(const TwistWorkSpaceSlot pResidual) {
@@ -47,7 +59,8 @@ std::string ResidualName(const TwistWorkSpaceSlot pResidual) {
     for (const ResidualLaneFamily &aFamily : kResidualLaneFamilies) {
         const int aOffset =
             aResidualValue - static_cast<int>(aFamily.mFirst);
-        if ((aOffset >= 0) && (aOffset < 4)) {
+        if ((aOffset >= 0) &&
+            (aOffset < static_cast<int>(aFamily.mLaneCount))) {
             std::string aName = aFamily.mName;
             aName += "_";
             aName.push_back(static_cast<char>('a' + aOffset));
@@ -179,7 +192,7 @@ void ResidualBucket::AddResidualsInternal(
             aAddedResiduals.push_back(aResidual);
         }
     }
-    if (pPrintAddedResiduals) {
+    if (pPrintAddedResiduals && mVerbose) {
         PrintResidualList("Added", aAddedResiduals);
         printf("\n");
     }
@@ -201,6 +214,19 @@ void ResidualBucket::Remove(
     );
 }
 
+void ResidualBucket::FlattenUsageCounts(
+    const std::uint8_t pUsageCount) {
+    if (pUsageCount > kMaximumUsageCount) {
+        printf("ResidualBucket::FlattenUsageCounts received usage count %u\n",
+               static_cast<unsigned int>(pUsageCount));
+        exit(0);
+    }
+
+    for (Entry &aEntry : mEntries) {
+        aEntry.mUsageCount = pUsageCount;
+    }
+}
+
 std::size_t ResidualBucket::CountValidResiduals() const {
     return static_cast<std::size_t>(
         std::count_if(
@@ -215,6 +241,9 @@ std::size_t ResidualBucket::CountValidResiduals() const {
 
 void ResidualBucket::Print(
     const std::string &pStageName) const {
+    if (!mVerbose) {
+        return;
+    }
     std::array<std::vector<TwistWorkSpaceSlot>,
                kMaximumUsageCount + 1U> aReportTiers;
     for (const Entry &aEntry : mEntries) {
@@ -258,22 +287,26 @@ std::vector<TwistWorkSpaceSlot> ResidualBucket::Withdraw(
         aReportTiers[aTierIndex].push_back(aEntry.mResidual);
     }
 
-    printf("%s\n", kReportRule);
-    printf("-------- %s --------\n", pStageName.c_str());
-    PrintResidualList("Stale", aReportTiers[4]);
-    PrintResidualList("Three", aReportTiers[3]);
-    PrintResidualList("Two", aReportTiers[2]);
-    PrintResidualList("One", aReportTiers[1]);
-    PrintResidualList("Zero", aReportTiers[0]);
-    printf("--------\n");
+    if (mVerbose) {
+        printf("%s\n", kReportRule);
+        printf("-------- %s --------\n", pStageName.c_str());
+        PrintResidualList("Stale", aReportTiers[4]);
+        PrintResidualList("Three", aReportTiers[3]);
+        PrintResidualList("Two", aReportTiers[2]);
+        PrintResidualList("One", aReportTiers[1]);
+        PrintResidualList("Zero", aReportTiers[0]);
+        printf("--------\n");
+    }
 
     if ((pCount < 0) ||
         (static_cast<std::size_t>(pCount) > aEligibleCount)) {
-        printf("Fetched (%zu)\n", aEligibleCount);
-        printf("OVER-WITHDRAW: requested %d residuals, but only %zu were available\n",
-               pCount,
-               aEligibleCount);
-        printf("%s\n\n", kReportRule);
+        if (mVerbose) {
+            printf("Fetched (%zu)\n", aEligibleCount);
+            printf("OVER-WITHDRAW: requested %d residuals, but only %zu were available\n",
+                   pCount,
+                   aEligibleCount);
+            printf("%s\n\n", kReportRule);
+        }
         exit(0);
     }
 
@@ -292,31 +325,160 @@ std::vector<TwistWorkSpaceSlot> ResidualBucket::Withdraw(
         }
     }
 
-    for (std::size_t aUsageCount = 0U;
-         aUsageCount < aUsageTiers.size();
-         ++aUsageCount) {
-        std::vector<std::size_t> &aTier = aUsageTiers[aUsageCount];
-        Random::Shuffle(&aTier);
-    }
+    if (!mPlannedWithdrawals.empty()) {
+        if (mPlannedWithdrawalIndex >= mPlannedWithdrawals.size()) {
+            printf("ResidualBucket exhausted its planned withdrawals at %s\n",
+                   pStageName.c_str());
+            exit(0);
+        }
+        const std::vector<TwistWorkSpaceSlot> &aPlanned =
+            mPlannedWithdrawals[mPlannedWithdrawalIndex++];
+        if (aPlanned.size() != aWithdrawCount) {
+            printf("ResidualBucket planned %zu lanes but %zu were requested at %s\n",
+                   aPlanned.size(),
+                   aWithdrawCount,
+                   pStageName.c_str());
+            exit(0);
+        }
 
-    for (const std::vector<std::size_t> &aTier : aUsageTiers) {
-        for (const std::size_t aEntryIndex : aTier) {
+        std::array<std::size_t, kMaximumUsageCount> aRemainingPerTier{};
+        for (std::size_t aTier = 0U; aTier < aUsageTiers.size(); ++aTier) {
+            aRemainingPerTier[aTier] = aUsageTiers[aTier].size();
+        }
+        std::vector<std::size_t> aSelectedIndices;
+        aSelectedIndices.reserve(aWithdrawCount);
+
+        for (const TwistWorkSpaceSlot aResidual : aPlanned) {
+            const auto aMatch = std::find_if(
+                mEntries.begin(),
+                mEntries.end(),
+                [aResidual](const Entry &pEntry) {
+                    return pEntry.mResidual == aResidual;
+                }
+            );
+            if ((aMatch == mEntries.end()) ||
+                (aMatch->mUsageCount >= kMaximumUsageCount)) {
+                printf("ResidualBucket planned an unavailable lane at %s\n",
+                       pStageName.c_str());
+                exit(0);
+            }
+            const std::size_t aEntryIndex = static_cast<std::size_t>(
+                std::distance(mEntries.begin(), aMatch)
+            );
+            if (std::find(aSelectedIndices.begin(),
+                          aSelectedIndices.end(),
+                          aEntryIndex) != aSelectedIndices.end()) {
+                printf("ResidualBucket planned the same lane twice at %s\n",
+                       pStageName.c_str());
+                exit(0);
+            }
+
+            const std::size_t aUsageCount = aMatch->mUsageCount;
+            for (std::size_t aLower = 0U;
+                 aLower < aUsageCount;
+                 ++aLower) {
+                if (aRemainingPerTier[aLower] != 0U) {
+                    printf("ResidualBucket planned a higher-use lane before exhausting a lower tier at %s\n",
+                           pStageName.c_str());
+                    exit(0);
+                }
+            }
+            --aRemainingPerTier[aUsageCount];
+            aSelectedIndices.push_back(aEntryIndex);
+            aResult.push_back(aResidual);
+        }
+
+        for (const std::size_t aEntryIndex : aSelectedIndices) {
+            ++mEntries[aEntryIndex].mUsageCount;
+        }
+    } else {
+        for (std::size_t aUsageCount = 0U;
+             aUsageCount < aUsageTiers.size();
+             ++aUsageCount) {
+            std::vector<std::size_t> &aTier = aUsageTiers[aUsageCount];
+            Random::Shuffle(&aTier);
+        }
+
+        for (const std::vector<std::size_t> &aTier : aUsageTiers) {
+            for (const std::size_t aEntryIndex : aTier) {
+                if (aResult.size() == aWithdrawCount) {
+                    break;
+                }
+
+                Entry &aEntry = mEntries[aEntryIndex];
+                ++aEntry.mUsageCount;
+                aResult.push_back(aEntry.mResidual);
+            }
             if (aResult.size() == aWithdrawCount) {
                 break;
             }
-
-            Entry &aEntry = mEntries[aEntryIndex];
-            ++aEntry.mUsageCount;
-            aResult.push_back(aEntry.mResidual);
-        }
-        if (aResult.size() == aWithdrawCount) {
-            break;
         }
     }
 
-    printf("Fetched (%zu)\n", aResult.size());
-    PrintResidualList("Chosen", aResult);
-    printf("%s\n", kReportRule);
+    if (mRecordWithdrawals) {
+        mRecordedWithdrawals.push_back(aResult);
+    }
+    if (mVerbose) {
+        printf("Fetched (%zu)\n", aResult.size());
+        PrintResidualList("Chosen", aResult);
+        printf("%s\n", kReportRule);
+    }
 
     return aResult;
+}
+
+void ResidualBucket::SetVerbose(const bool pVerbose) {
+    mVerbose = pVerbose;
+}
+
+void ResidualBucket::BeginWithdrawalRecording() {
+    mRecordedWithdrawals.clear();
+    mRecordWithdrawals = true;
+}
+
+const std::vector<std::vector<TwistWorkSpaceSlot>> &
+ResidualBucket::RecordedWithdrawals() const {
+    return mRecordedWithdrawals;
+}
+
+bool ResidualBucket::SetPlannedWithdrawals(
+    const std::vector<std::vector<TwistWorkSpaceSlot>> &pWithdrawals,
+    std::string *pErrorMessage) {
+    if (pWithdrawals.empty()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "ResidualBucket received an empty withdrawal plan";
+        }
+        return false;
+    }
+    mPlannedWithdrawals = pWithdrawals;
+    mPlannedWithdrawalIndex = 0U;
+    if (pErrorMessage != nullptr) {
+        pErrorMessage->clear();
+    }
+    return true;
+}
+
+bool ResidualBucket::FinishPlannedWithdrawals(
+    std::string *pErrorMessage) {
+    if (mPlannedWithdrawals.empty()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "ResidualBucket had no active withdrawal plan";
+        }
+        return false;
+    }
+    if (mPlannedWithdrawalIndex != mPlannedWithdrawals.size()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "ResidualBucket consumed " +
+                std::to_string(mPlannedWithdrawalIndex) + " of " +
+                std::to_string(mPlannedWithdrawals.size()) +
+                " planned withdrawals";
+        }
+        return false;
+    }
+    mPlannedWithdrawals.clear();
+    mPlannedWithdrawalIndex = 0U;
+    if (pErrorMessage != nullptr) {
+        pErrorMessage->clear();
+    }
+    return true;
 }

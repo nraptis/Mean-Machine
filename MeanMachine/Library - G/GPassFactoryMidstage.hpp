@@ -11,6 +11,7 @@
 
 #include <array>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 class GPassFactoryMidstage {
@@ -181,151 +182,21 @@ public:
         return FourPassResidualSlices(pPrimary, pResiduals, pDestinations);
     }
 
-    static std::vector<GSeedRunStageSliceSpec> SixPassNoResidualSlices(const SlotArray4 &pPrimary,
-                                                                       const SlotArray6 &pDestinations) {
-        std::vector<GSeedRunStageSliceSpec> aSlices =
-            SixPassResidualBaseSlices(pPrimary, pDestinations);
-        aSlices[0].mIsLastIngressDirectionLocked = true;
-        aSlices[0].mIsLastCrossDirectionLocked = true;
-        return aSlices;
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassOneResidualSlices(const SlotArray4 &pPrimary,
-                                                                        const SlotArray1 &pResiduals,
-                                                                        const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassTwoResidualSlices(const SlotArray4 &pPrimary,
-                                                                        const SlotArray2 &pResiduals,
-                                                                        const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassThreeResidualSlices(const SlotArray4 &pPrimary,
-                                                                          const SlotArray3 &pResiduals,
-                                                                          const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassFourResidualSlices(const SlotArray4 &pPrimary,
-                                                                         const SlotArray4 &pResiduals,
-                                                                         const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassFiveResidualSlices(const SlotArray4 &pPrimary,
-                                                                         const SlotArray5 &pResiduals,
-                                                                         const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassSixResidualSlices(const SlotArray4 &pPrimary,
-                                                                        const SlotArray6 &pResiduals,
-                                                                        const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassSevenResidualSlices(const SlotArray4 &pPrimary,
-                                                                          const SlotArray7 &pResiduals,
-                                                                          const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassEightResidualSlices(const SlotArray4 &pPrimary,
-                                                                          const SlotArray8 &pResiduals,
-                                                                          const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassNineResidualSlices(const SlotArray4 &pPrimary,
-                                                                         const SlotArray9 &pResiduals,
-                                                                         const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassTenResidualSlices(const SlotArray4 &pPrimary,
-                                                                         const SlotArray10 &pResiduals,
-                                                                         const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassElevenResidualSlices(const SlotArray4 &pPrimary,
-                                                                           const SlotArray11 &pResiduals,
-                                                                           const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassTwelveResidualSlices(const SlotArray4 &pPrimary,
-                                                                           const SlotArray12 &pResiduals,
-                                                                           const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassThirteenResidualSlices(const SlotArray4 &pPrimary,
-                                                                             const SlotArray13 &pResiduals,
-                                                                             const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassFourteenResidualSlices(const SlotArray4 &pPrimary,
-                                                                             const SlotArray14 &pResiduals,
-                                                                             const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassFifteenResidualSlices(const SlotArray4 &pPrimary,
-                                                                            const SlotArray15 &pResiduals,
-                                                                            const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassSixteenResidualSlices(const SlotArray4 &pPrimary,
-                                                                            const SlotArray16 &pResiduals,
-                                                                            const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassSeventeenResidualSlices(const SlotArray4 &pPrimary,
-                                                                              const SlotArray17 &pResiduals,
-                                                                              const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassEighteenResidualSlices(const SlotArray4 &pPrimary,
-                                                                             const SlotArray18 &pResiduals,
-                                                                             const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassNineteenResidualSlices(const SlotArray4 &pPrimary,
-                                                                             const SlotArray19 &pResiduals,
-                                                                             const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassTwentyOneResidualSlices(const SlotArray4 &pPrimary,
-                                                                              const SlotArray21 &pResiduals,
-                                                                              const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassTwentyTwoResidualSlices(const SlotArray4 &pPrimary,
-                                                                              const SlotArray22 &pResiduals,
-                                                                              const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassTwentyThreeResidualSlices(const SlotArray4 &pPrimary,
-                                                                                const SlotArray23 &pResiduals,
-                                                                                const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassTwentyFourResidualSlices(const SlotArray4 &pPrimary,
-                                                                               const SlotArray24 &pResiduals,
-                                                                               const SlotArray6 &pDestinations) {
-        return SixPassResidualSlices(pPrimary, pResiduals, pDestinations);
+    static std::vector<GSeedRunStageSliceSpec> FourPassVariableResidualSlices(
+        const SlotArray4 &pPrimary,
+        const std::vector<Slot> &pResiduals,
+        const SlotArray4 &pDestinations) {
+        if (pResiduals.empty()) {
+            return FourPassNoResidualSlices(pPrimary,
+                                            pDestinations);
+        }
+        if (pResiduals.size() > 16U) {
+            return {};
+        }
+        return AddShortestContextResiduals(
+            FourPassResidualBaseSlices(pPrimary,
+                                       pDestinations),
+            pResiduals);
     }
 
 private:
@@ -341,21 +212,6 @@ private:
     }
 
     template <std::size_t N>
-    static std::vector<GSeedRunStageSliceSpec> SixPassResidualSlices(const SlotArray4 &pPrimary,
-                                                                     const std::array<Slot, N> &pResiduals,
-                                                                     const SlotArray6 &pDestinations) {
-        static_assert(((N >= 1U) && (N <= 13U)) ||
-                      (N == 14U) || (N == 15U) || (N == 16U) ||
-                      (N == 17U) || (N == 18U) || (N == 19U) ||
-                      (N == 21U) ||
-                      (N == 22U) || (N == 23U) || (N == 24U));
-        return AddShortestContextResiduals(
-            SixPassResidualBaseSlices(pPrimary,
-                                      pDestinations),
-            pResiduals);
-    }
-
-    template <std::size_t N>
     static std::vector<GSeedRunStageSliceSpec> AddShortestContextResiduals(
         std::vector<GSeedRunStageSliceSpec> pSlices,
         const std::array<Slot, N> &pResiduals) {
@@ -363,12 +219,30 @@ private:
         std::array<Slot, N> aResiduals = pResiduals;
         ShuffleArray(&aResiduals);
 
+        return AddShortestContextResidualsDynamic(
+            std::move(pSlices),
+            std::vector<Slot>(aResiduals.begin(), aResiduals.end()));
+    }
+
+    static std::vector<GSeedRunStageSliceSpec> AddShortestContextResiduals(
+        std::vector<GSeedRunStageSliceSpec> pSlices,
+        const std::vector<Slot> &pResiduals) {
+        std::vector<Slot> aResiduals = pResiduals;
+        Random::Shuffle(&aResiduals);
+        return AddShortestContextResidualsDynamic(std::move(pSlices),
+                                                  std::move(aResiduals));
+    }
+
+    static std::vector<GSeedRunStageSliceSpec> AddShortestContextResidualsDynamic(
+        std::vector<GSeedRunStageSliceSpec> pSlices,
+        std::vector<Slot> aResiduals) {
+
         // Water-fill the contexts. Each residual goes to the currently
         // shortest ingress/cross list. Ties are resolved mechanically from
         // the first pass to the last, ingress before cross within a pass.
         // No context may contain more than four sources.
         for (std::size_t aResidualIndex = 0U;
-             aResidualIndex < N;
+             aResidualIndex < aResiduals.size();
              ++aResidualIndex) {
             std::size_t aChosenPass = pSlices.size();
             std::size_t aChosenCount = 5U;
@@ -444,50 +318,6 @@ private:
              {pDestinations[1], pPrimary[3]},
              pDestinations[3],
              true},
-        };
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassResidualBaseSlices(
-        const SlotArray4 &pPrimary,
-        const SlotArray6 &pDestinations) {
-        return {
-            {{pPrimary[3], pPrimary[1]},
-             {pPrimary[2], pPrimary[0]},
-             pDestinations[0],
-             false},
-
-            GSeedRunStageSliceSpec({pDestinations[0], pPrimary[2]},
-                                   true,
-                                   {pPrimary[3], pPrimary[1]},
-                                   true,
-                                   pDestinations[1],
-                                   true),
-
-            GSeedRunStageSliceSpec({pDestinations[1], pPrimary[3]},
-                                   true,
-                                   {pDestinations[0], pPrimary[2]},
-                                   false,
-                                   pDestinations[2],
-                                   false),
-
-            GSeedRunStageSliceSpec({pDestinations[2], pDestinations[0]},
-                                   true,
-                                   {pDestinations[1], pPrimary[3]},
-                                   false,
-                                   pDestinations[3],
-                                   true),
-
-            {{pDestinations[3], pDestinations[1]},
-             {pDestinations[2], pDestinations[0]},
-             pDestinations[4],
-             false},
-
-            GSeedRunStageSliceSpec({pDestinations[4], pDestinations[2]},
-                                   false,
-                                   {pDestinations[3], pDestinations[1]},
-                                   true,
-                                   pDestinations[5],
-                                   true),
         };
     }
 

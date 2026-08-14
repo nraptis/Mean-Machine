@@ -16,6 +16,10 @@
 
 class M88 {
 public:
+    static constexpr std::size_t                kOperationByteCount = 48U;
+    static constexpr std::size_t                kOperationBytesUsed = 48U;
+    static_assert(kOperationBytesUsed <= kOperationByteCount);
+
     M88();
     
     void                                        Reset();
@@ -24,25 +28,26 @@ public:
 
     std::uint8_t                                mData[64];
 
-    // ignores bytes 1 and 2, uses last byte to unroll
-    void                                        Dispatch(std::uint8_t *pOperationData,
-                                                         std::size_t pOperationIndex,
-                                                         std::uint8_t *pSource,
-                                                         std::size_t pSourceIndex,
-                                                         std::uint8_t *pDestination,
-                                                         std::size_t pDestinationIndex,
-                                                         std::uint8_t pUnrollDomainWord,
-                                                         std::uint8_t pArgADomainWord,
-                                                         std::uint8_t pArgBDomainWord,
-                                                         std::uint8_t pArgCDomainWord,
-                                                         std::uint8_t pArgDDomainWord);
+    // Dispatch consumes one kOperationByteCount-sized operation record.
     
     void                                        Dispatch(std::uint8_t *pOperationData,
                                                          std::size_t pOperationIndex,
                                                          std::uint8_t *pSource,
                                                          std::size_t pSourceIndex,
                                                          std::uint8_t *pDestination,
-                                                         std::size_t pDestinationIndex);
+                                                         std::uint8_t pUnrollDomainWord,
+                                                         std::uint8_t pArgADomainWord,
+                                                         std::uint8_t pArgBDomainWord,
+                                                         std::uint8_t pArgCDomainWord,
+                                                         std::uint8_t pArgDDomainWord);
+    
+    /*
+    void                                        Dispatch(std::uint8_t *pOperationData,
+                                                         std::size_t pOperationIndex,
+                                                         std::uint8_t *pSource,
+                                                         std::size_t pSourceIndex,
+                                                         std::uint8_t *pDestination);
+    */
     
     void                                        DispatchUnroll(std::uint8_t *pDestination,
                                                                 std::uint8_t pByteSwapsA,

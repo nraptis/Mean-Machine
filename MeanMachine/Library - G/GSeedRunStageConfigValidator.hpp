@@ -36,6 +36,14 @@ public:
                                                                                          std::vector<TwistWorkSpaceSlot> pResidualSources,
                                                                                          std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
                                                                                          std::string *pErrorMessage);
+
+    // Exact four-pass Grow entry graph: four persistent branch lanes, two
+    // cross parameters, twelve scheduled residual reads, and four destinations.
+    static bool                                             ValidateGrowSixInput(const GSeedRunStageConfig &pConfig,
+                                                                                 std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                 std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                 std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+                                                                                 std::string *pErrorMessage);
     
     // entry point #2
     
@@ -105,29 +113,11 @@ private:
     //      +2 pass: cross[0]
     //      +3 pass: ingress[1]
     // If another pass is available, it must appear exactly once more at
-    // cross[1]. Four-pass flavors require +4. Six-pass flavors permit +4,
-    // +5, or +6. It may not appear again outside that window.
+    // cross[1] at +4. It may not appear again outside that window.
     // Every required appearance is exact and exclusive within its pass.
     static bool                                             ValidateSourceGraph(const GSeedRunStageConfig &pConfig,
                                                                                 std::vector<TwistWorkSpaceSlot> pSources,
                                                                                           std::string *pErrorMessage);
-
-    // KDF-A-A and Seed-A use an explicit six-pass source graph. Their first
-    // two passes are fixed; their final four passes select from a small,
-    // mechanically enumerated set of source pairs.
-    static bool                                             ValidateSourceGraphSpecialSixPassStarter(
-                                                                                const GSeedRunStageConfig &pConfig,
-                                                                                std::vector<TwistWorkSpaceSlot> pSources,
-                                                                                std::string *pErrorMessage);
-
-    // Twist-A has three primary lanes and an exact 36-candidate six-pass
-    // starter graph. Source alternates ingress/cross from passes three
-    // through six while key placement supplies the candidate variation.
-    static bool                                             ValidateSourceGraphSpecialSixPassTwistStarter(
-                                                                                const GSeedRunStageConfig &pConfig,
-                                                                                std::vector<TwistWorkSpaceSlot> pPrimarySources,
-                                                                                std::vector<TwistWorkSpaceSlot> pResidualSources,
-                                                                                std::string *pErrorMessage);
 
     // Apply the source graph to primary lanes written immediately before this
     // midstage, then continue normally through this stage's destinations.

@@ -1,0 +1,8 @@
+column_name,direction,maximum,observed_heart_count,complete_180_heart_run
+first_minimum_wanderer_influence,higher,15,180,True
+first_minimum_input_coverage,higher,11,180,True
+pair_component_count,lower,3,180,True
+maximum_midpoint_source_orphans,lower,9,180,True
+maximum_robust_orphans,lower,9,180,True
+minimum_surviving_fanout_after_one_orbiter_removal,higher,4,180,True
+maximum_dual_tail_arrival_skew,lower,11,180,True

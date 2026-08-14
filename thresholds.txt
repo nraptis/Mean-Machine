@@ -1,0 +1,459 @@
+LOOP RECIPE THRESHOLDS
+======================
+
+Baseline
+--------
+
+These thresholds were derived from all 19,800 current heart/head/tail
+recipes. The complete quartile and distance report is in:
+
+    current_loop_flow_quartiles.txt
+
+Percentile meaning
+------------------
+
+Quartiles remain diagnostics for comparing populations. They are no longer
+independent acceptance demands. Requiring every metric to land on its best
+20% side accepted 0 of 19,800 recipes because partially independent metrics
+compound much faster than their individual percentiles suggest.
+
+Refreshed percentile references
+-------------------------------
+
+The complete 19,800-recipe audit was rerun after the 33-expander export on
+2026-08-02. The individual top-80% cutoffs (and the top-95% cutoff for
+maximum orbiter shortest-path load) are recorded in both
+current_loop_flow_quartiles.txt and knobs.json under
+percentile_reference_thresholds. These are reference values for diagnostics
+and ranking. They do not replace the looser simultaneous structural floors
+below; applying every individual percentile cutoff as a hard gate still
+over-constrains the joint population.
+
+Policy
+------
+
+Hard validity rules reject malformed tails. Ascendency ranking now uses four
+integer measurements only. The remaining measurements are diagnostics for
+studying the graph; collecting a diagnostic does not give it a vote.
+
+The four active measurements are:
+
+    maximum single-orbiter ordered-pair damage (lower is better)
+        Remove one non-root orbiter and count the destroyed ordered
+        wanderer-to-wanderer relationships. This is the most direct test of
+        concentration around one failure point.
+
+    minimum surviving fanout after one orbiter removal (higher is better)
+        After the same removal, find the weakest source and count how many
+        other wanderers it still reaches. This prevents a good total-damage
+        value from hiding one badly isolated source.
+
+    minimum dual-tail wanderer reach (higher is better)
+        Count destinations for which the weakest source reaches both tail
+        operands before the operands reconverge. This directly measures
+        braid-and-rejoin behavior in the actual ordered loop.
+
+    maximum ordered source orphan area (lower is better)
+        Execute the heart in order and sum how long the worst source remains
+        separated from its destinations. This penalizes delayed diffusion,
+        not merely eventual connectivity.
+
+These measurements are integer counts derived from exact reachability. There
+is no floating-point spectral estimate in active evaluation. The serialized
+score record retains a zero-valued legacy slot only so existing binary farm
+records keep their established layout.
+
+For every heart, its 110 current recipes establish fixed cutoffs. Tier 0 means
+that a candidate simultaneously reaches the best-five-percent side of all
+four distributions; Tier 1 uses the best 20%; Tier 2 uses the better half.
+The references never move while farming, so finding better candidates does
+not move the goalposts.
+
+The older global 25-metric threshold experiment accepted 482 of 19,800
+recipes and left 132 heart buckets empty. Those figures explain why it was
+replaced; they do not describe the Ascendency tier policy. The old threshold
+table remains below as reproducible experimental history, not as the active
+farmer's gate list.
+
+Derived numeric thresholds
+--------------------------
+
+Metric                                   Rule       Threshold
+------                                   ----       ---------
+minimum pair union                       >=              15
+total heart separation                   >=              33
+minimum complement                       >=               1
+dominated pair count                     <=               8
+flow area                                >=            6142
+mean wanderer shortest path x1000       <=            3363
+worst wanderer mean shortest path x1000 <=            3700
+minimum four-edge wanderer reach         >=               8
+redundant early-branch fraction x1000     >=             509
+minimum subset expansion                 >=             307
+minimum one-round wanderer fanout        >=               9
+minimum source orbiter journey area      >=              26
+minimum dual-tail wanderer reach         >=               1
+mean dual-tail wanderer reach x1000      >=             572
+maximum orbiter path load x1000          <=             224
+maximum ordered source orphan area       <=              75
+maximum orphan straggler gap             <=               3
+maximum midpoint source orphans          <=               8
+maximum midpoint destination orphan load <=               7
+maximum midpoint co-orphan load          <=               6
+maximum source meeting orphans           <=               0
+maximum source meeting area              <=             138
+mean source-pair meeting latency x1000   <=           11127
+maximum robust orphans                   <=               8
+mean robust orphans x1000                <=            5636
+
+Metric utility decisions
+------------------------
+
+Active evidence set
+-------------------
+
+The active four were retained because they describe separate, concrete
+failure modes and all varied in each of five fixed-heart/fixed-head samples
+of 50 random valid tails. Lexicographic ranking used single-orbiter damage
+first; it made the first decision in all five samples. Surviving fanout,
+dual-tail reach, and ordered orphan area each made a further reduction in two
+of five samples. The average survivor counts after their successive decisions
+were 4.0, 2.8, 2.4, and 1.0 candidates.
+
+This is intentionally not a weighted composite. One excellent number cannot
+pay for a bad number elsewhere. Tier gates require every measurement, then
+the same four-value lexicographic order selects the best loop within a tier.
+
+Static shortest-path load and redundant early-branch fraction remain useful
+exploratory diagnostics, but no longer rank Ascendency candidates. Their
+collapsed graph can traverse heart rounds out of execution order. The active
+ordered metrics do not have that ambiguity.
+
+Tier-yield check
+----------------
+
+The exact five-sample and farming results are recorded in
+ascendency_metric_cut_analysis.txt. In brief, all four active metrics varied
+in five out of five fixed-heart/fixed-head 50-tail samples. A full 550,000-tail
+run on heart 6 placed all 110 tasks in Tier 0. The percentile intersection is
+therefore selective but demonstrably farmable.
+
+Weakest measurements
+--------------------
+
+The following should not be used to sell or rank the loops:
+
+1. arrival total
+
+   It is exactly 3,894 for all 19,800 recipes. It is an invariant/assertion,
+   not a discriminator.
+
+2. spectral gap
+
+   It has only four values, 92.5% of the population has the same value, its
+   effective cardinality is 1.33, and its maximum absolute correlation with
+   another metric is only 0.019. In this graph family it sounds more
+   informative than it is.
+
+3. maximum dual-tail arrival skew
+
+   It has three values, 97.1% of recipes tie at the mode, its effective
+   cardinality is 1.15, and the median heart contains only one value. Keep it
+   as a regression assertion, not as evidence of stronger flow.
+
+The audit now emits a METRIC UTILITY DIAGNOSTICS table containing distinct
+count, modal tie share, effective Shannon cardinality, median within-heart
+cardinality, variance explained by heart identity, and maximum absolute
+Spearman correlation. These statistical diagnostics do not establish
+cryptographic strength; they establish whether a proposed structural metric
+actually distinguishes the loop population and contributes independent
+evidence.
+
+Additional diagnostics worth retaining in reports:
+
+    maximum orbiter shortest-path load
+    minimum source orbiter journey area
+    mean dual-tail reach
+    mean and worst-source shortest path
+    minimum subset expansion
+    flow area
+    minimum complement and dominated-pair count
+    maximum source meeting area and mean pair-meeting latency
+    maximum and mean robust-orphan count
+
+Validity and regression floors, not ranking weights:
+
+    minimum pair union
+    total heart separation
+    minimum four-edge reach
+    redundant early-branch fraction
+    minimum one-round fanout
+    orphan straggler gap
+    midpoint source, destination, and co-orphan loads
+    zero source-pair meeting orphans
+
+Diagnostic or disabled for this population:
+
+    mean single-orbiter damage (rho=0.771 with mean robust orphans)
+    maximum dual-tail arrival skew (11 in nearly the whole population)
+    all constant influence/arrival/component metrics
+    mean one-round fanout (rho=0.999 with its minimum)
+    mean four-edge reach (rho=-0.787 with mean shortest path)
+    directed diameter (coarse version of the path distribution)
+    spectral gap (only four observed values)
+    total subset expansion (useful report context, but its minimum is easier
+    to interpret as a bottleneck floor)
+    mean ordered source orphan area (the worst-source area is more protective)
+    maximum last-orphan latency (rho=-0.965 with one-round fanout)
+
+Structural difference thresholds
+---------------------------------
+
+heart minimum distance: 5
+head minimum distance:  5
+tail minimum distance: 13
+
+Heart distance counts unequal canonical lead/source/feedback slots out of 33.
+The current heart nearest-neighbor distribution is min/p25/p50/p75/max =
+2/3/5/8/15, so 5 starts at its median rather than preserving the closest
+current hearts.
+
+Head distance counts unequal orbiter-to-wanderer assignments out of 11. Every
+current head has nearest-neighbor distance 5, making 5 the direct preservation
+threshold.
+
+Tail distance counts unequal wanderer-update assignments out of 22. The
+current nearest-neighbor range is 13..14, so 13 preserves the current floor.
+
+Wanderer path graph
+-------------------
+
+The transition graph has 22 nodes: eleven wanderers and eleven orbiters. Its
+directed edges spell out the real data-flow route:
+
+    source wanderer -> head-assigned orbiter
+    heart source orbiter -> lead orbiter -> feedback orbiter
+    selected tail orbiters -> destination wanderer
+
+Breadth-first search runs from every wanderer. Directed diameter remains the
+longest individual shortest path. Two additional lower-is-better measurements
+now cover the rest of the distance matrix:
+
+    mean wanderer shortest path x1000
+        Mean BFS distance over all 110 ordered pairs of distinct wanderers.
+        Current min/p25/p50/p75/max = 3227/3318/3336/3363/3500.
+
+    worst wanderer mean shortest path x1000
+        For each source wanderer, mean distance to the other ten is measured;
+        this is the worst of those eleven means. It prevents one peripheral
+        wanderer from hiding behind a good global average.
+        Current min/p25/p50/p75/max = 3300/3500/3500/3600/3900.
+
+Both values are stored as fixed-point integers scaled by 1,000. The structural
+floors are <=3363 and <=3700 respectively.
+
+Every current source wanderer eventually influences all ten other wanderers.
+That final count is therefore retained as a hard floor, but it cannot rank the
+current recipes. Early reach is discriminating:
+
+    minimum wanderers reached within four edges
+        The weakest source reaches 6..10 other wanderers. Its current
+        min/p25/p50/p75/max is 6/8/8/9/10; the floor is >=8.
+
+    mean four-edge wanderer reach x1000
+        Average early reach over all eleven sources. Its current
+        min/p25/p50/p75/max is 8272/9181/9363/9545/10000. This metric is
+        diagnostic because it has rho=-0.787 with mean shortest path.
+
+The knottiness experiment counts, for every source/destination pair, whether
+at least two different first orbiter branches can reach the destination within
+the same bounded early window. Unlimited reach was rejected as a metric
+because strong connectivity made it constant. The bounded version varies:
+
+    redundant early-branch fraction x1000
+        Current min/p25/p50/p75/max = 400/509/527/554/645.
+        The structural floor is >=509.
+
+This is a branch/reconvergence measurement, not a claim that the routes are
+fully vertex-disjoint. Minimum subset expansion remains a separate global
+measurement. Spectral gap is diagnostic only: it has just four distinct
+values in this population and should not receive an acceptance threshold.
+
+A literal average branch factor of a BFS tree is intentionally omitted. Every
+spanning tree has the same edge count, and which equal-length parent BFS picks
+depends on traversal order. Early reach measures the useful fan-out result;
+the redundant early-branch fraction measures whether that spread has more than
+one first branch instead of being carried by a single bottleneck route.
+
+Ordered one-round journey
+-------------------------
+
+The ordered model starts each source wanderer in its head-assigned orbiter,
+executes the eleven heart rounds in their real order, and then follows both
+tail orbiters into each destination wanderer. This prevents a static cycle
+from pretending that an edge was available earlier in the same iteration.
+
+    minimum one-round wanderer fanout
+        Other destinations reached by the weakest source in one iteration.
+        Distribution = 7/10/10/10/10; floor >=9.
+
+    minimum source orbiter journey area
+        For each source, count how many orbiter slots carry it after every
+        ordered heart round, then sum that curve. The weakest source wins.
+        Distribution = 22/26/29/30/37; floor >=26.
+
+    minimum and mean dual-tail wanderer reach
+        Count destinations where a source reaches both tail operands before
+        they recombine. This rewards fan-out followed by reconvergence, while
+        minimum complement prevents overlap from replacing fresh material.
+        Minimum floor >=1; mean x1000 floor >=572.
+
+    maximum orbiter shortest-path load x1000
+        Shortest paths are divided fractionally when alternatives exist. The
+        busiest orbiter's share over all 110 ordered wanderer pairs is the
+        score; lower means less dependence on one hub. Distribution =
+        200/214/218/224/257; floor <=224.
+
+Mean one-round fanout is disabled because its Spearman correlation with the
+minimum is 0.999. Minimum one-round fanout is retained only as a weak inverse-
+flow safety check; it must not receive a second score weight beside minimum
+pair union, with which it has rho=0.896.
+
+Ordered orphan and encounter tests
+----------------------------------
+
+The eleven-by-eleven ordered relationship matrix records the first completed
+heart round in which each source wanderer reaches each destination wanderer.
+An unreachable destination receives the sentinel round 12. This supports:
+
+    maximum ordered source orphan area
+        Sum the ten destination arrival rounds for each source and retain the
+        worst source. This is the area under that source's orphan-count curve:
+        every additional round of isolation adds one point per orphan.
+        Distribution = 61/68/71/75/90; floor <=75.
+
+    maximum orphan straggler gap
+        For each source, subtract its second-latest arrival from its latest.
+        This catches one relationship lagging behind an otherwise good list.
+        Distribution = 0/2/3/3/7; floor <=3.
+
+    midpoint orphan loads
+        After five heart rounds, separately count the worst source's remaining
+        orphans, the most-neglected destination, and the destination pair most
+        often orphaned together. The floors are <=8, <=7, and <=6. The pair
+        measurement is an early warning for a semi-isolated subflow.
+
+The source-meeting matrix samples after each individual lead and feedback
+operation. It records when every pair of original source wanderers first
+coexists inside an orbiter:
+
+    maximum source meeting orphans
+        Must be zero. It is constant for the current recipes, but it is a
+        useful validity test for newly generated recipes.
+
+    maximum source meeting area
+        Worst source's sum of first-meeting operation numbers.
+        Distribution = 110/126/131/138/150; floor <=138.
+
+    mean source-pair meeting latency x1000
+        Global mean over all 110 directed source/partner relationships.
+        Distribution = 8909/10181/10709/11127/11963; floor <=11127.
+
+Robust-orphan testing removes every non-root orbiter role one at a time and
+replays the ordered heart. A source/destination relationship is robust only if
+at least one route survives every removal. The obligatory head-assigned source
+orbiter is not removed. This is a structural bottleneck experiment, not a
+literal cryptographic fault model:
+
+    maximum robust orphans
+        Worst source distribution = 6/7/8/8/9; floor <=8.
+
+    mean robust orphans x1000
+        Mean per-source distribution = 3636/5090/5363/5636/6909;
+        floor <=5636.
+
+Single-orbiter cut concentration
+--------------------------------
+
+The previous robust-orphan measurements ask whether each individual
+source/destination relationship has any single-orbiter weak point. They do
+not reveal whether the same orbiter is the shared weak point for many
+relationships. The new cut experiment removes each non-root orbiter, replays
+the ordered heart, and measures the whole source/destination matrix. A
+source's mandatory head-assigned root orbiter is excluded because removing
+that root trivially erases that source before the heart begins.
+
+    maximum single-orbiter ordered-pair damage
+        The largest number of ordered source/destination relationships lost
+        to one removal. Distribution = 10/14/15/17/25. Lower is better.
+        Unlike the mean measurements, it has no absolute Spearman
+        correlation >=0.75 with an existing metric. It is therefore retained
+        as a ranking discriminator, coarsened into two-relationship buckets
+        so a one-pair difference cannot dominate the other flow tests.
+
+    mean single-orbiter ordered-pair damage x1000
+        Mean damage over all eleven possible removals. Distribution =
+        5727/8909/9636/10363/14181. It remains diagnostic because it has
+        rho=0.771 with mean robust-orphan count and would mostly score the
+        same weakness twice.
+
+    minimum surviving fanout after one orbiter removal
+        Worst number of other destinations still reached by any source after
+        any eligible removal. Distribution = 3/3/3/4/4. It is a useful
+        coarse connectedness floor and a ranking refinement, but its two-value
+        range is too small to carry a large independent weight.
+
+    maximum dual-tail arrival skew
+        Largest round gap between a source reaching the two tail operands of
+        one destination. Distribution = 9/11/11/11/11. This experiment is
+        retained for diagnostics but excluded from ranking because it is
+        almost saturated and did not distinguish selected candidates.
+
+In the 110-pair, 88,000-candidate random experiment, the connectedness-aware
+Safe selection preserved minimum four-edge reach in all 110 pairs. Relative
+to Exploration-best it improved maximum single-orbiter damage in 57 pairs,
+tied 46, and regressed 7; minimum surviving fanout improved in 35, tied 70,
+and regressed 5. All 11,000 Safe top-100 candidates remained inside their
+corresponding Exploration top-500 pools.
+
+The expanded structural policy currently retains 482 of 19,800 recipes
+(2.43%). These tests are intentionally being kept separately for now. Later
+correlation and farming-yield measurements can remove redundant tests rather
+than collapsing them prematurely.
+
+Hard failures
+-------------
+
+The following are validity requirements, not ranked scores:
+
+1. The heart satisfies the canonical heart laws.
+2. Every tail pair is allowed by the heart/head pair graph.
+3. The complete transition graph is strongly connected.
+4. The candidate clears the configured heart, head, and tail distance floors
+   against the already accepted population.
+5. The candidate clears every enabled metric threshold.
+
+Feasibility
+-----------
+
+The explicit policy has demonstrated survivors. The random farmer must still
+count and print rejections by individual threshold. Do not silently relax a
+floor; use those rejection counts to make an explicit knobs.json change.
+
+Metrics with no current variation
+---------------------------------
+
+These measurements are constant in the current population:
+
+    first minimum wanderer influence = 15
+    first minimum input coverage = 11
+    second minimum wanderer influence = 17
+    second minimum input coverage = 11
+    arrival total = 3894
+    maximum arrival skew = 24
+    minimum influenced wanderers = 10
+    pair component count = 1
+
+They remain measured as assertions but are disabled as acceptance thresholds.
+They should not receive score weight or break ties unless a wider random
+search makes them vary.

@@ -1,0 +1,109 @@
+ASCENDENCY INTEGER SCORECARD REVIEW
+===================================
+
+Date: 2026-08-02
+
+Decision
+--------
+
+Spectral analysis is retired. It is not an active threshold, rank, or tie
+breaker. Across the full 19,800-recipe audit it produced only four values and
+92.5% of recipes had the same value. That is too little discrimination to
+justify a floating-point eigensolver or a security-sounding label. The binary
+record retains one zero-valued legacy field solely to preserve its layout.
+
+The active scorecard contains four exact integer measurements:
+
+1. maximum single-orbiter ordered-pair damage (lower is better)
+2. minimum surviving fanout after one orbiter removal (higher is better)
+3. minimum dual-tail wanderer reach (higher is better)
+4. maximum ordered source orphan area (lower is better)
+
+They cover four distinct questions: concentration around one orbiter,
+isolation of the weakest source after a removal, braid/reconvergence at the
+tail, and ordered diffusion delay. Tier gates require all four; a strong value
+cannot compensate for a weak value. Within a tier they are compared in the
+order above.
+
+Five-heart, 50-spin experiment
+------------------------------
+
+Pairs tested: heart/head 0/0, 1/1, 2/2, 3/3, and 4/4.
+Valid candidates: 50 per pair, 250 total.
+
+Every active measurement varied in all five pairs. Successive lexicographic
+survivor counts were:
+
+    metric                                      reductions   mean survivors
+    maximum single-orbiter damage                  5/5             4.0
+    minimum surviving fanout                       2/5             2.8
+    minimum dual-tail reach                        2/5             2.4
+    maximum ordered source orphan area             2/5             1.0
+
+Single-orbiter damage made the first ranking decision in all five samples.
+The remaining measurements still resolved real ties, rather than stacking
+three decorative names onto the first score.
+
+Metrics cut from active ranking
+-------------------------------
+
+    spectral gap
+        Almost constant in the complete population and not needed for an
+        exact, very small graph.
+
+    arrival/influence/component invariants
+        Useful assertions, but constant within the tested population.
+
+    mean versions of worst-case measurements
+        Usually restate the same behavior less protectively. They remain
+        diagnostic where useful.
+
+    static shortest-path load and early-branch measurements
+        Useful exploratory views, but the collapsed graph can traverse heart
+        rounds out of execution order. Ordered journey measurements are more
+        faithful to the generated loop.
+
+    source-meeting and source-orbiter-area measurements
+        Some are meaningful across hearts but fixed within a fixed heart/head
+        tail search, so they cannot help select that task's tail.
+
+Tier interpretation
+-------------------
+
+Each heart's 110 current recipes establish fixed, inclusive reference
+cutoffs. Tier 0 is the best-five-percent side of all four measurements and is
+the operational 10/10. Tier 1 uses best 20%; Tier 2 uses the better half.
+Inclusive ties are intentional because several exact integer measurements
+have only a few attainable values.
+
+Farm experiments
+----------------
+
+Early-stop experiment, heart 5:
+
+    budget:             up to 5,000 valid candidates per head task
+    valid candidates:  129,283
+    raw attempts:       129,689
+    result:             107 Tier 0, 3 Tier 1, 0 lower
+
+Full-budget experiment, heart 6:
+
+    budget:             exactly 5,000 valid candidates x 110 tasks
+    valid candidates:  550,000
+    raw attempts:       551,682
+    tier gates:         dual reach >= 4
+                        source orphan area <= 69
+                        single-orbiter damage <= 12
+                        surviving fanout >= 4
+    result:             110 Tier 0
+
+Conclusion
+----------
+
+Tier 0 appears readily enough to farm but not so readily that a single random
+tail is normally sufficient. A few thousand trials per fixed heart/head task
+were enough to fill an entire tested heart with Tier-0 loops. The four-metric
+intersection is therefore a practical target. This does not prove
+cryptographic security; it gives a clear, reproducible structural standard.
+
+The complete per-candidate five-heart printout is in head_tail_analysis.txt.

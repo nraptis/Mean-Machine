@@ -7,14 +7,50 @@
 
 #include "CSPRNGV2.hpp"
 #include "TwistArray.hpp"
+#include <algorithm>
+#include <array>
 #include <cstdio>
+#include <limits>
 
 namespace {
 
 constexpr std::size_t kSaltLaneCount = 8U;
+constexpr std::size_t kNonceWordCount = 16U;
 
-std::vector<GSymbol> MakeShuffledWanderers() {
-    std::vector<GSymbol> aWanderers = {
+int NonceKindIndex(const GAXSKNonceByteKind pKind) {
+    switch (pKind) {
+        case GAXSKNonceByteKind::kNonceA: return 0;
+        case GAXSKNonceByteKind::kNonceB: return 1;
+        case GAXSKNonceByteKind::kNonceC: return 2;
+        case GAXSKNonceByteKind::kNonceD: return 3;
+        case GAXSKNonceByteKind::kNonceE: return 4;
+        case GAXSKNonceByteKind::kNonceF: return 5;
+        case GAXSKNonceByteKind::kNonceG: return 6;
+        case GAXSKNonceByteKind::kNonceH: return 7;
+        case GAXSKNonceByteKind::kNonceI: return 8;
+        case GAXSKNonceByteKind::kNonceJ: return 9;
+        case GAXSKNonceByteKind::kNonceK: return 10;
+        case GAXSKNonceByteKind::kNonceL: return 11;
+        case GAXSKNonceByteKind::kNonceM: return 12;
+        case GAXSKNonceByteKind::kNonceN: return 13;
+        case GAXSKNonceByteKind::kNonceO: return 14;
+        case GAXSKNonceByteKind::kNonceP: return 15;
+        default: return -1;
+    }
+}
+
+int SymbolIndex(const std::vector<GSymbol> &pNonceWords,
+                const GSymbol &pSymbol) {
+    for (std::size_t i = 0U; i < pNonceWords.size(); ++i) {
+        if (pNonceWords[i] == pSymbol) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+std::vector<GSymbol> MakeCanonicalWanderers() {
+    return {
         GSymbol::Var(TwistVariable::kWandererA),
         GSymbol::Var(TwistVariable::kWandererB),
         GSymbol::Var(TwistVariable::kWandererC),
@@ -27,9 +63,6 @@ std::vector<GSymbol> MakeShuffledWanderers() {
         GSymbol::Var(TwistVariable::kWandererJ),
         GSymbol::Var(TwistVariable::kWandererK),
     };
-
-    Random::Shuffle(&aWanderers);
-    return aWanderers;
 }
 
 bool FillSaltBag(const std::vector<GSymbol> &pSaltsOrbiterAssign,
@@ -57,6 +90,190 @@ bool FillSaltBag(const std::vector<GSymbol> &pSaltsOrbiterAssign,
     pSaltBag->mOrbiterAssign = pSaltsOrbiterAssign;
     pSaltBag->mOrbiterUpdate = pSaltsOrbiterUpdate;
     pSaltBag->mWandererUpdate = pSaltsWandererUpdate;
+    return true;
+}
+
+bool PlanNonceWords(const std::vector<GSymbol> &pNonceWords,
+                    std::vector<CSPRNGV2Slice> *pSlices,
+                    std::string *pErrorMessage) {
+    if ((pSlices == nullptr) ||
+        (pNonceWords.size() != kNonceWordCount)) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage = "CSPRNGV2::PlanNonceWords received invalid inputs";
+        }
+        return false;
+    }
+
+    std::array<int, kNonceWordCount> aUsage = {};
+
+    for (CSPRNGV2Slice &aSlice : *pSlices) {
+        aSlice.mNoncePlan = GAXPLNoncePlan();
+        if (!aSlice.mARXSkeleton.HasNonceSlots()) {
+            aSlice.mNonceBytes.clear();
+            continue;
+        }
+
+        const auto IsValidRoleCount = [](const int pCount) {
+            return (pCount >= 2) && (pCount <= 4);
+        };
+        if (!IsValidRoleCount(aSlice.mNonceCountOrbiterAssign) ||
+            !IsValidRoleCount(aSlice.mNonceCountOrbiterUpdate) ||
+            !IsValidRoleCount(aSlice.mNonceCountWandererUpdate)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "CSPRNGV2 nonce role counts must be between two and four";
+            }
+            return false;
+        }
+
+        const int aPlannedWordCount =
+            3 +
+            aSlice.mNonceCountOrbiterAssign +
+            aSlice.mNonceCountOrbiterUpdate +
+            aSlice.mNonceCountWandererUpdate;
+        if (aPlannedWordCount > static_cast<int>(kNonceWordCount)) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "CSPRNGV2 nonce plan exceeded the A-P word pool";
+            }
+            return false;
+        }
+
+        std::vector<int> aContextIndexes;
+        for (const GAXSKStatement &aStatement :
+             aSlice.mARXSkeleton.mStatements) {
+            if (aStatement.mKind !=
+                GAXSKStatementKind::kContextWordAssign) {
+                continue;
+            }
+            for (const GAXSKInputSlot &aSlot :
+                 aStatement.mContextWord.mSlots) {
+                if (aSlot.mKind != GAXSKInputSlotKind::kNonceByte) {
+                    continue;
+                }
+                const int aContextIndex = NonceKindIndex(aSlot.mNonceByte);
+                if ((aContextIndex < 0) ||
+                    (std::find(aContextIndexes.begin(),
+                               aContextIndexes.end(),
+                               aContextIndex) != aContextIndexes.end())) {
+                    if (pErrorMessage != nullptr) {
+                        *pErrorMessage =
+                            "CSPRNGV2 found invalid context nonce slots";
+                    }
+                    return false;
+                }
+                aContextIndexes.push_back(aContextIndex);
+            }
+        }
+        if (aContextIndexes.size() != 2U) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "CSPRNGV2 expected exactly two context nonce slots";
+            }
+            return false;
+        }
+
+        aSlice.mNonceBytes = pNonceWords;
+        Random::Shuffle(&aSlice.mNonceBytes);
+
+        std::array<bool, kNonceWordCount> aSelected = {};
+        int aContextCount = 0;
+
+        for (const GAXSKStatement &aStatement :
+             aSlice.mARXSkeleton.mStatements) {
+            if (aStatement.mKind !=
+                GAXSKStatementKind::kContextWordAssign) {
+                continue;
+            }
+            for (const GAXSKInputSlot &aSlot :
+                 aStatement.mContextWord.mSlots) {
+                if (aSlot.mKind != GAXSKInputSlotKind::kNonceByte) {
+                    continue;
+                }
+                const int aMappedIndex = NonceKindIndex(aSlot.mNonceByte);
+                if ((aMappedIndex < 0) ||
+                    (static_cast<std::size_t>(aMappedIndex) >=
+                     aSlice.mNonceBytes.size())) {
+                    if (pErrorMessage != nullptr) {
+                        *pErrorMessage =
+                            "CSPRNGV2 could not resolve a context nonce";
+                    }
+                    return false;
+                }
+                const int aWordIndex =
+                    SymbolIndex(pNonceWords,
+                                aSlice.mNonceBytes[
+                                    static_cast<std::size_t>(aMappedIndex)]);
+                if (aWordIndex < 0) {
+                    if (pErrorMessage != nullptr) {
+                        *pErrorMessage =
+                            "CSPRNGV2 could not identify a context nonce word";
+                    }
+                    return false;
+                }
+                if (!aSelected[static_cast<std::size_t>(aWordIndex)]) {
+                    aSelected[static_cast<std::size_t>(aWordIndex)] = true;
+                    aUsage[static_cast<std::size_t>(aWordIndex)] += 1;
+                    aContextCount += 1;
+                }
+            }
+        }
+
+        if (aContextCount != 2) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "CSPRNGV2 expected exactly two context nonce words";
+            }
+            return false;
+        }
+
+        auto Withdraw = [&]() -> GSymbol {
+            int aLowestUsage = std::numeric_limits<int>::max();
+            std::vector<int> aCandidates;
+            for (std::size_t i = 0U;
+                 i < kNonceWordCount;
+                 ++i) {
+                if (aSelected[i]) {
+                    continue;
+                }
+                if (aUsage[i] < aLowestUsage) {
+                    aLowestUsage = aUsage[i];
+                    aCandidates.clear();
+                }
+                if (aUsage[i] == aLowestUsage) {
+                    aCandidates.push_back(static_cast<int>(i));
+                }
+            }
+            if (aCandidates.empty()) {
+                return GSymbol();
+            }
+            const int aCandidateIndex =
+                aCandidates[static_cast<std::size_t>(
+                    Random::Get(static_cast<int>(aCandidates.size())))];
+            aSelected[static_cast<std::size_t>(aCandidateIndex)] = true;
+            aUsage[static_cast<std::size_t>(aCandidateIndex)] += 1;
+            return pNonceWords[static_cast<std::size_t>(aCandidateIndex)];
+        };
+
+        aSlice.mNoncePlan.mScatter = Withdraw();
+        for (int i = 0; i < aSlice.mNonceCountOrbiterAssign; ++i) {
+            aSlice.mNoncePlan.mOrbiterAssign.push_back(Withdraw());
+        }
+        for (int i = 0; i < aSlice.mNonceCountOrbiterUpdate; ++i) {
+            aSlice.mNoncePlan.mOrbiterUpdate.push_back(Withdraw());
+        }
+        for (int i = 0; i < aSlice.mNonceCountWandererUpdate; ++i) {
+            aSlice.mNoncePlan.mWandererUpdate.push_back(Withdraw());
+        }
+
+        if (aSlice.mNoncePlan.mScatter.IsInvalid()) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage = "CSPRNGV2 exhausted the nonce-word pool";
+            }
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -138,23 +355,21 @@ bool CSPRNGV2::Bake(bool pIsNonKDF,
         }
     }
     
+    if (!PlanNonceWords(aNonceWords, &pSlices, pErrorMessage)) {
+        return false;
+    }
+
     for (int aSliceIndex=0; aSliceIndex<pSlices.size(); aSliceIndex++) {
-        if (pSlices[aSliceIndex].mARXSkeleton.HasNonceSlots()) {
-            pSlices[aSliceIndex].mNonceBytes = aNonceWords;
-            Random::Shuffle(&pSlices[aSliceIndex].mNonceBytes);
-        } else {
-            pSlices[aSliceIndex].mNonceBytes.clear();
-        }
-        
-        
+        // GAXSK has already applied the saved per-loop role permutations.
+        // Keep these symbol maps canonical so that no second, unreported
+        // permutation is composed over the selected orbiter and wanderer maps.
         pSlices[aSliceIndex].mOrbiters = {
             aOrbiterA, aOrbiterB, aOrbiterC, aOrbiterD,
             aOrbiterE, aOrbiterF, aOrbiterG, aOrbiterH,
             aOrbiterI, aOrbiterJ, aOrbiterK,
         };
-        Random::Shuffle(&pSlices[aSliceIndex].mOrbiters);
-        
-        pSlices[aSliceIndex].mWanderers = MakeShuffledWanderers();
+
+        pSlices[aSliceIndex].mWanderers = MakeCanonicalWanderers();
     }
     
     GAXPL *aPlan = new GAXPL();
@@ -193,6 +408,7 @@ bool CSPRNGV2::Bake(bool pIsNonKDF,
                          &aSlice.mARXSkeleton,
                          aSlice.mSaltBag,
                          aSlice.mNonceBytes,
+                         aSlice.mNoncePlan,
                          aSlice.mSources,
                          aSlice.mOrbiters,
                          aSlice.mWanderers,

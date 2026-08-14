@@ -350,11 +350,6 @@ bool GAXPL::BuildNonceExprMapForRole(GAXSKSaltRole pRole,
         return true;
     }
 
-    pNonceCount = std::min(pNonceCount, static_cast<int>(mNonceChoices.size()) - *pChoiceIndex);
-    if (pNonceCount <= 0) {
-        return true;
-    }
-
     if ((*pChoiceIndex + pNonceCount) > static_cast<int>(mNonceChoices.size())) {
         SetError(pErrorMessage, "GAXPL::BuildNonceExprMapForRole did not have enough nonce choices");
         return false;
@@ -402,7 +397,11 @@ bool GAXPL::BuildNonceExprMapForRole(GAXSKSaltRole pRole,
     }
 
     Random::Shuffle(&aCandidateStatementIndexes);
-    pNonceCount = std::min(pNonceCount, static_cast<int>(aCandidateStatementIndexes.size()));
+    if (pNonceCount > static_cast<int>(aCandidateStatementIndexes.size())) {
+        SetError(pErrorMessage,
+                 "GAXPL::BuildNonceExprMapForRole did not have enough candidate statements");
+        return false;
+    }
 
 
     for (int i = 0; i < pNonceCount; ++i) {
@@ -437,9 +436,12 @@ bool GAXPL::BuildNonceExprMapForRole(GAXSKSaltRole pRole,
 bool GAXPL::BuildNonceExprMap(std::string *pErrorMessage) {
     mNonceExprMap.clear();
 
-    const int kNonceCountOrbiterAssign = Random::Get(2, 4);
-    const int kNonceCountOrbiterUpdate = Random::Get(2, 4);
-    const int kNonceCountWandererUpdate = Random::Get(2, 4);
+    const int kNonceCountOrbiterAssign =
+        static_cast<int>(mNoncePlan.mOrbiterAssign.size());
+    const int kNonceCountOrbiterUpdate =
+        static_cast<int>(mNoncePlan.mOrbiterUpdate.size());
+    const int kNonceCountWandererUpdate =
+        static_cast<int>(mNoncePlan.mWandererUpdate.size());
 
     int aChoiceIndex = 0;
 
@@ -825,6 +827,7 @@ void GAXPL::Reset() {
     mSaltsWandererUpdate.clear();
 
     mNonceBytes.clear();
+    mNoncePlan = GAXPLNoncePlan();
     mSources.clear();
     mOrbiters.clear();
     mWanderers.clear();
@@ -852,6 +855,7 @@ void GAXPL::Reset() {
 bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
                  const GAXPLSaltBag &pSaltBag,
                  const std::vector<GSymbol> &pNonceBytes,
+                 const GAXPLNoncePlan &pNoncePlan,
                  const std::vector<GSymbol> &pSources,
                  const std::vector<GSymbol> &pOrbiters,
                  const std::vector<GSymbol> &pWanderers,
@@ -898,9 +902,11 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
     const bool aHasNonceSlots = pSkeleton->HasNonceSlots();
     if (aHasNonceSlots) {
         TwistArray::Replace(&mNonceBytes, &(pNonceBytes));
+        mNoncePlan = pNoncePlan;
         mUseFullNonce = pUseFullNonce;
     } else {
         mNonceBytes.clear();
+        mNoncePlan = GAXPLNoncePlan();
         mUseFullNonce = false;
     }
 
@@ -916,6 +922,66 @@ bool GAXPL::Configure(const GAXSKSkeleton *pSkeleton,
     
     if (!BuildSourceMap(pErrorMessage)) { return false; }
     if (!BuildNonceMap(pErrorMessage)) { return false; }
+    if (aHasNonceSlots) {
+        if ((mNonceMap.size() != 2U) ||
+            mNoncePlan.mScatter.IsInvalid()) {
+            SetError(pErrorMessage,
+                     "GAXPL::Configure requires two context nonces and one scatter nonce");
+            return false;
+        }
+
+        const auto IsValidRoleCount = [](const std::size_t pCount) {
+            return (pCount >= 2U) && (pCount <= 4U);
+        };
+        if (!IsValidRoleCount(mNoncePlan.mOrbiterAssign.size()) ||
+            !IsValidRoleCount(mNoncePlan.mOrbiterUpdate.size()) ||
+            !IsValidRoleCount(mNoncePlan.mWandererUpdate.size())) {
+            SetError(pErrorMessage,
+                     "GAXPL::Configure nonce role counts must be between two and four");
+            return false;
+        }
+
+        std::vector<GSymbol> aSelected;
+        const auto AddUnique = [&](const GSymbol &pSymbol) -> bool {
+            if (pSymbol.IsInvalid() ||
+                (std::find(aSelected.begin(), aSelected.end(), pSymbol) !=
+                 aSelected.end())) {
+                return false;
+            }
+            aSelected.push_back(pSymbol);
+            return true;
+        };
+
+        for (const auto &aPair : mNonceMap) {
+            if (!AddUnique(aPair.second)) {
+                SetError(pErrorMessage,
+                         "GAXPL::Configure found duplicate context nonce words");
+                return false;
+            }
+        }
+        if (!AddUnique(mNoncePlan.mScatter)) {
+            SetError(pErrorMessage,
+                     "GAXPL::Configure found a duplicate scatter nonce word");
+            return false;
+        }
+        const auto AddRole = [&](const std::vector<GSymbol> &pSymbols) {
+            for (const GSymbol &aSymbol : pSymbols) {
+                if (!AddUnique(aSymbol)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (!AddRole(mNoncePlan.mOrbiterAssign) ||
+            !AddRole(mNoncePlan.mOrbiterUpdate) ||
+            !AddRole(mNoncePlan.mWandererUpdate) ||
+            (aSelected.size() < 9U) ||
+            (aSelected.size() > 15U)) {
+            SetError(pErrorMessage,
+                     "GAXPL::Configure nonce plan was not 9-15 distinct words");
+            return false;
+        }
+    }
     if (!BuildOrbiterMap(pErrorMessage)) { return false; }
     if (!BuildWandererMap(pErrorMessage)) { return false; }
     
@@ -928,6 +994,7 @@ bool GAXPL::Bake(int pOffsetRangeLo,
                  const GAXSKSkeleton *pSkeleton,
                  const GAXPLSaltBag &pSaltBag,
                  const std::vector<GSymbol> &pNonceBytes,
+                 const GAXPLNoncePlan &pNoncePlan,
                  const std::vector<GSymbol> &pSources,
                  const std::vector<GSymbol> &pOrbiters,
                  const std::vector<GSymbol> &pWanderers,
@@ -937,7 +1004,8 @@ bool GAXPL::Bake(int pOffsetRangeLo,
                  bool pDestWriteInverted,
                  GLoop *pLoop,
                  std::string *pErrorMessage) {
-    if (!Configure(pSkeleton, pSaltBag, pNonceBytes, pSources, pOrbiters, pWanderers,
+    if (!Configure(pSkeleton, pSaltBag, pNonceBytes, pNoncePlan,
+                   pSources, pOrbiters, pWanderers,
                    pHotPack, pUseFullNonce, pDest, pDestWriteInverted, pLoop, pErrorMessage)) {
         return false;
     }
@@ -1767,10 +1835,12 @@ bool GAXPL::GenerateScatterMixStatement(const GAXSKStatement &pStatement,
     }
 
     if (!mNonceBytes.empty()) {
-        GExpr aNonceExpr;
-        if (!BuildRandomNonceMixExpr(1, 1, &aNonceExpr, pErrorMessage)) {
+        if (mNoncePlan.mScatter.IsInvalid()) {
+            SetError(pErrorMessage,
+                     "GAXPL::GenerateScatterMixStatement had no planned scatter nonce");
             return false;
         }
+        GExpr aNonceExpr = GExpr::Symbol(mNoncePlan.mScatter);
 
         aFinalizeExpr = GExpr::Xor(aFinalizeExpr, aNonceExpr);
         if (aFinalizeExpr.IsInvalid()) {
@@ -2054,10 +2124,10 @@ bool GAXPL::GenerateUpdateStatement(int pStatementIndex,
 }
 
 bool GAXPL::BuildNonceChoices(std::string *pErrorMessage) {
-    static constexpr int kNonceChoiceCount = 12;
-
     mNonceChoices.clear();
-    mNonceChoices.reserve(kNonceChoiceCount);
+    mNonceChoices.reserve(mNoncePlan.mOrbiterAssign.size() +
+                          mNoncePlan.mOrbiterUpdate.size() +
+                          mNoncePlan.mWandererUpdate.size());
 
     if (mNonceBytes.empty()) {
         SetError(pErrorMessage, "GAXPL::BuildNonceChoices had no nonce symbols");
@@ -2071,51 +2141,35 @@ bool GAXPL::BuildNonceChoices(std::string *pErrorMessage) {
         }
     }
 
-    auto PushSymbolChoice = [&](const GSymbol &pSymbol, bool pPreferred) -> bool {
+    auto PushSymbolChoice = [&](const GSymbol &pSymbol) -> bool {
         if (pSymbol.IsInvalid()) {
             return false;
         }
 
         NonceSymbolChoice aChoice;
         aChoice.mSymbol = pSymbol;
-        aChoice.mPreferred = pPreferred;
+        aChoice.mPreferred = true;
 
         mNonceChoices.push_back(aChoice);
         return true;
     };
 
-    for (const GSymbol &aSymbol : mPreferredNonceSymbols) {
-        if (static_cast<int>(mNonceChoices.size()) >= kNonceChoiceCount) {
-            break;
+    const auto PushRole = [&](const std::vector<GSymbol> &pSymbols) -> bool {
+        for (const GSymbol &aSymbol : pSymbols) {
+            if (!PushSymbolChoice(aSymbol)) {
+                return false;
+            }
         }
+        return true;
+    };
 
-        if (!PushSymbolChoice(aSymbol, true)) {
-            SetError(pErrorMessage, "GAXPL::BuildNonceChoices failed to push preferred nonce");
-            return false;
-        }
+    if (!PushRole(mNoncePlan.mOrbiterAssign) ||
+        !PushRole(mNoncePlan.mOrbiterUpdate) ||
+        !PushRole(mNoncePlan.mWandererUpdate)) {
+        SetError(pErrorMessage,
+                 "GAXPL::BuildNonceChoices found an invalid planned nonce");
+        return false;
     }
-
-    for (const GSymbol &aSymbol : mFallbackNonceSymbols) {
-        if (static_cast<int>(mNonceChoices.size()) >= kNonceChoiceCount) {
-            break;
-        }
-
-        if (!PushSymbolChoice(aSymbol, false)) {
-            SetError(pErrorMessage, "GAXPL::BuildNonceChoices failed to push fallback nonce");
-            return false;
-        }
-    }
-
-    while (static_cast<int>(mNonceChoices.size()) < kNonceChoiceCount) {
-        const int aIndex = Random::Get(static_cast<int>(mNonceBytes.size()));
-
-        if (!PushSymbolChoice(mNonceBytes[static_cast<std::size_t>(aIndex)], false)) {
-            SetError(pErrorMessage, "GAXPL::BuildNonceChoices failed to reuse nonce");
-            return false;
-        }
-    }
-
-    Random::Shuffle(&mNonceChoices);
 
     return true;
 }
@@ -2135,52 +2189,9 @@ bool GAXPL::GenerateStatements(int pOffsetRangeLo,
     
     
     
-    mPreferredNonceSymbols.clear();
-    mFallbackNonceSymbols.clear();
-    
-    std::vector<bool> aUsed(mNonceBytes.size(), false);
-    bool aHasNonceSlots = false;
-
-    for (const GAXSKStatement &aStatement : mSkeleton->mStatements) {
-        if (aStatement.mKind != GAXSKStatementKind::kContextWordAssign) {
-            continue;
-        }
-
-        for (const GAXSKInputSlot &aSlot : aStatement.mContextWord.mSlots) {
-            if (aSlot.mKind != GAXSKInputSlotKind::kNonceByte) {
-                continue;
-            }
-
-            aHasNonceSlots = true;
-            const int aNonceIndex = GetNonceByteIndex(aSlot.mNonceByte);
-            if (aNonceIndex >= 0 && static_cast<std::size_t>(aNonceIndex) < aUsed.size()) {
-                aUsed[static_cast<std::size_t>(aNonceIndex)] = true;
-            }
-        }
-    }
+    const bool aHasNonceSlots = mSkeleton->HasNonceSlots();
 
     if (aHasNonceSlots) {
-        for (std::size_t i = 0U; i < mNonceBytes.size(); ++i) {
-            if (static_cast<std::size_t>(i) >= mNonceBytes.size()) {
-                SetError(pErrorMessage, "GAXPL::BuildNonceExprMap missing nonce byte symbol");
-                return false;
-            }
-
-            if (mNonceBytes[i].IsInvalid()) {
-                SetError(pErrorMessage, "GAXPL::BuildNonceExprMap found invalid nonce byte symbol");
-                return false;
-            }
-
-            if (aUsed[i]) {
-                mFallbackNonceSymbols.push_back(mNonceBytes[i]);
-            } else {
-                mPreferredNonceSymbols.push_back(mNonceBytes[i]);
-            }
-        }
-    
-        Random::Shuffle(&mPreferredNonceSymbols);
-        Random::Shuffle(&mFallbackNonceSymbols);
-        
         if (!BuildNonceChoices(pErrorMessage)) {
             return false;
         }

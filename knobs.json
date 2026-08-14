@@ -1,0 +1,408 @@
+{
+  "schema_version": 2,
+  "baseline": {
+    "recipe_count": 19800,
+    "report": "current_loop_flow_quartiles.txt",
+    "threshold_notes": "thresholds.txt",
+    "refreshed_after_export": "2026-08-02T20:56:41-04:00",
+    "percentile_method": "floor((count - 1) * percentile / 100)",
+    "ties": "inclusive"
+  },
+  "ascendency_policy": {
+    "active": true,
+    "score_math": "integer_only",
+    "ranking": "tier_first_then_lexicographic",
+    "reference_population": "the 110 current recipes belonging to each heart",
+    "reference_is_fixed_during_farming": true,
+    "tiers": {
+      "tier_0_best_side_percentile": 95,
+      "tier_1_best_side_percentile": 80,
+      "tier_2_best_side_percentile": 50
+    },
+    "require_every_metric": true,
+    "metrics_in_priority_order": [
+      {
+        "name": "maximum_single_orbiter_ordered_pair_damage",
+        "direction": "lower"
+      },
+      {
+        "name": "minimum_surviving_fanout_after_one_orbiter_removal",
+        "direction": "higher"
+      },
+      {
+        "name": "minimum_dual_tail_wanderer_reach",
+        "direction": "higher"
+      },
+      {
+        "name": "maximum_ordered_source_orphan_area",
+        "direction": "lower"
+      }
+    ],
+    "spectral_analysis": "retired; serialized legacy field is always zero"
+  },
+  "percentile_policy": {
+    "meaning": "legacy whole-population diagnostic policy; Ascendency uses ascendency_policy",
+    "default_minimum_rank": 0,
+    "require_every_enabled_metric": true,
+    "most_important_metric": "maximum_orbiter_shortest_path_load_x1000",
+    "most_important_minimum_rank": 0
+  },
+  "percentile_reference_thresholds": {
+    "purpose": "Individual refreshed percentile cutoffs for diagnostics and ranking; these are not simultaneous hard acceptance gates.",
+    "first_minimum_wanderer_influence": { "rank": 80, "threshold": 15, "comparison": ">=" },
+    "first_minimum_input_coverage": { "rank": 80, "threshold": 11, "comparison": ">=" },
+    "second_minimum_wanderer_influence": { "rank": 80, "threshold": 17, "comparison": ">=" },
+    "second_minimum_input_coverage": { "rank": 80, "threshold": 11, "comparison": ">=" },
+    "minimum_pair_union": { "rank": 80, "threshold": 15, "comparison": ">=" },
+    "minimum_heart_separation": { "rank": 80, "threshold": 2, "comparison": ">=" },
+    "total_heart_separation": { "rank": 80, "threshold": 47, "comparison": ">=" },
+    "minimum_pair_balance": { "rank": 80, "threshold": 0, "comparison": ">=" },
+    "minimum_complement": { "rank": 80, "threshold": 2, "comparison": ">=" },
+    "dominated_pair_count": { "rank": 80, "threshold": 4, "comparison": "<=" },
+    "flow_area": { "rank": 80, "threshold": 6200, "comparison": ">=" },
+    "arrival_total": { "rank": 80, "threshold": 3894, "comparison": "<=" },
+    "maximum_arrival_skew": { "rank": 80, "threshold": 24, "comparison": "<=" },
+    "directed_diameter": { "rank": 80, "threshold": 4, "comparison": "<=" },
+    "mean_wanderer_shortest_path_x1000": { "rank": 80, "threshold": 3309, "comparison": "<=" },
+    "worst_wanderer_mean_shortest_path_x1000": { "rank": 80, "threshold": 3400, "comparison": "<=" },
+    "minimum_influenced_wanderers": { "rank": 80, "threshold": 10, "comparison": ">=" },
+    "minimum_wanderers_reached_within_four_edges": { "rank": 80, "threshold": 9, "comparison": ">=" },
+    "mean_four_edge_wanderer_reach_x1000": { "rank": 80, "threshold": 9545, "comparison": ">=" },
+    "redundant_early_branch_fraction_x1000": { "rank": 80, "threshold": 554, "comparison": ">=" },
+    "pair_component_count": { "rank": 80, "threshold": 1, "comparison": "<=" },
+    "minimum_subset_expansion": { "rank": 80, "threshold": 409, "comparison": ">=" },
+    "total_subset_expansion": { "rank": 80, "threshold": 717285, "comparison": ">=" },
+    "spectral_gap": { "rank": 80, "threshold": 40507, "comparison": ">=" },
+    "minimum_one_round_wanderer_fanout": { "rank": 80, "threshold": 10, "comparison": ">=" },
+    "mean_one_round_wanderer_fanout_x1000": { "rank": 80, "threshold": 1000, "comparison": ">=" },
+    "minimum_source_orbiter_journey_area": { "rank": 80, "threshold": 30, "comparison": ">=" },
+    "minimum_dual_tail_wanderer_reach": { "rank": 80, "threshold": 3, "comparison": ">=" },
+    "mean_dual_tail_wanderer_reach_x1000": { "rank": 80, "threshold": 672, "comparison": ">=" },
+    "maximum_orbiter_shortest_path_load_x1000": { "rank": 95, "threshold": 209, "comparison": "<=" },
+    "maximum_ordered_source_orphan_area": { "rank": 80, "threshold": 68, "comparison": "<=" },
+    "mean_ordered_source_orphan_area_x1000": { "rank": 80, "threshold": 48454, "comparison": "<=" },
+    "maximum_last_orphan_latency": { "rank": 80, "threshold": 11, "comparison": "<=" },
+    "maximum_orphan_straggler_gap": { "rank": 80, "threshold": 2, "comparison": "<=" },
+    "maximum_midpoint_source_orphans": { "rank": 80, "threshold": 8, "comparison": "<=" },
+    "maximum_midpoint_destination_orphan_load": { "rank": 80, "threshold": 7, "comparison": "<=" },
+    "maximum_midpoint_co_orphan_load": { "rank": 80, "threshold": 5, "comparison": "<=" },
+    "maximum_source_meeting_orphans": { "rank": 80, "threshold": 0, "comparison": "<=" },
+    "maximum_source_meeting_area": { "rank": 80, "threshold": 126, "comparison": "<=" },
+    "mean_source_pair_meeting_latency_x1000": { "rank": 80, "threshold": 10090, "comparison": "<=" },
+    "maximum_robust_orphans": { "rank": 80, "threshold": 7, "comparison": "<=" },
+    "mean_robust_orphans_x1000": { "rank": 80, "threshold": 5000, "comparison": "<=" },
+    "maximum_ordered_destination_orphan_area": { "rank": 80, "threshold": 59, "comparison": "<=" },
+    "maximum_dual_tail_source_orphan_area": { "rank": 80, "threshold": 115, "comparison": "<=" },
+    "mean_dual_tail_source_orphan_area_x1000": { "rank": 80, "threshold": 96636, "comparison": "<=" },
+    "maximum_robust_destination_orphans": { "rank": 80, "threshold": 7, "comparison": "<=" },
+    "maximum_single_orbiter_ordered_pair_damage": { "rank": 80, "threshold": 14, "comparison": "<=" },
+    "mean_single_orbiter_ordered_pair_damage_x1000": { "rank": 80, "threshold": 8727, "comparison": "<=" },
+    "minimum_surviving_fanout_after_one_orbiter_removal": { "rank": 80, "threshold": 4, "comparison": ">=" },
+    "maximum_dual_tail_arrival_skew": { "rank": 80, "threshold": 11, "comparison": "<=" }
+  },
+  "threshold_policy": {
+    "mode": "legacy_explicit_structural_floors",
+    "intent": "Reject clearly weak flow while leaving independent metrics for ranking instead of demanding top-20-percent performance in every dimension.",
+    "baseline_survivors": 482,
+    "baseline_recipe_count": 19800
+  },
+  "structural_distance": {
+    "heart_minimum": 5,
+    "head_minimum": 5,
+    "tail_minimum": 13
+  },
+  "hard_failures": {
+    "require_canonical_heart": true,
+    "require_allowed_tail_pairs": true,
+    "require_strong_connectivity": true,
+    "require_structural_distance": true
+  },
+  "metrics": {
+    "first_minimum_wanderer_influence": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 15
+    },
+    "first_minimum_input_coverage": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 11
+    },
+    "second_minimum_wanderer_influence": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 17
+    },
+    "second_minimum_input_coverage": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 11
+    },
+    "minimum_pair_union": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 15
+    },
+    "minimum_heart_separation": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 2
+    },
+    "total_heart_separation": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 33
+    },
+    "minimum_pair_balance": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 0
+    },
+    "minimum_complement": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 1
+    },
+    "dominated_pair_count": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 8
+    },
+    "flow_area": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 6142
+    },
+    "arrival_total": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 80,
+      "baseline_threshold": 3894
+    },
+    "maximum_arrival_skew": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 80,
+      "baseline_threshold": 24
+    },
+    "directed_diameter": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 80,
+      "baseline_threshold": 4
+    },
+    "mean_wanderer_shortest_path_x1000": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 3363
+    },
+    "worst_wanderer_mean_shortest_path_x1000": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 3700
+    },
+    "minimum_influenced_wanderers": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 10
+    },
+    "minimum_wanderers_reached_within_four_edges": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 8
+    },
+    "mean_four_edge_wanderer_reach_x1000": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 9545
+    },
+    "redundant_early_branch_fraction_x1000": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 509
+    },
+    "pair_component_count": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 80,
+      "baseline_threshold": 1
+    },
+    "minimum_subset_expansion": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 307
+    },
+    "total_subset_expansion": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 717285
+    },
+    "spectral_gap": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 80,
+      "baseline_threshold": 40507
+    },
+    "minimum_one_round_wanderer_fanout": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 9
+    },
+    "mean_one_round_wanderer_fanout_x1000": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 1000
+    },
+    "minimum_source_orbiter_journey_area": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 26
+    },
+    "minimum_dual_tail_wanderer_reach": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 1
+    },
+    "mean_dual_tail_wanderer_reach_x1000": {
+      "enabled": true,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 572
+    },
+    "maximum_orbiter_shortest_path_load_x1000": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 224
+    },
+    "maximum_ordered_source_orphan_area": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 75
+    },
+    "mean_ordered_source_orphan_area_x1000": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 51454
+    },
+    "maximum_last_orphan_latency": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 11
+    },
+    "maximum_orphan_straggler_gap": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 3
+    },
+    "maximum_midpoint_source_orphans": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 8
+    },
+    "maximum_midpoint_destination_orphan_load": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 7
+    },
+    "maximum_midpoint_co_orphan_load": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 6
+    },
+    "maximum_source_meeting_orphans": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 0
+    },
+    "maximum_source_meeting_area": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 138
+    },
+    "mean_source_pair_meeting_latency_x1000": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 11127
+    },
+    "maximum_robust_orphans": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 8
+    },
+    "mean_robust_orphans_x1000": {
+      "enabled": true,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 5636
+    },
+    "maximum_single_orbiter_ordered_pair_damage": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 17,
+      "note": "Independent ranking discriminator; enable as a hard floor only after farmer-yield testing."
+    },
+    "mean_single_orbiter_ordered_pair_damage_x1000": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 10363,
+      "note": "Diagnostic because rho=0.771 with mean robust orphans."
+    },
+    "minimum_surviving_fanout_after_one_orbiter_removal": {
+      "enabled": false,
+      "direction": "higher",
+      "minimum_rank": 0,
+      "baseline_threshold": 3,
+      "note": "Coarse 3-or-4 connectedness result; currently used for ranking, not rejection."
+    },
+    "maximum_dual_tail_arrival_skew": {
+      "enabled": false,
+      "direction": "lower",
+      "minimum_rank": 0,
+      "baseline_threshold": 11,
+      "note": "Nearly saturated diagnostic; excluded from ranking."
+    }
+  },
+  "diagnostics": {
+    "print_rejection_counts_by_rule": true,
+    "print_every_attempts": 100000,
+    "stop_after_accepted_recipes": 19800,
+    "maximum_attempts": 0
+  }
+}

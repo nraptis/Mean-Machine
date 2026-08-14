@@ -24,13 +24,10 @@ struct GRunMatrixDiffusionConfig {
     GSymbol                                 mOutputC;
     GSymbol                                 mOutputD;
 
-    GSymbol                                 mShuffleEntropyA;
-    GSymbol                                 mShuffleEntropyB;
-    GSymbol                                 mShuffleEntropyC;
-    GSymbol                                 mShuffleEntropyD;
-    
-    GSymbol                                 mOperationSourceA;
-    GSymbol                                 mOperationSourceB;
+    GSymbol                                 mEntropyA;
+    GSymbol                                 mEntropyB;
+    GSymbol                                 mEntropyC;
+    GSymbol                                 mEntropyD;
 };
 
 class GRunMatrixDiffusion {

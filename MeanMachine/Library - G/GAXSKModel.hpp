@@ -36,6 +36,23 @@ struct GAXSKModelOrbiterRound {
     GAXSKVariable mFeedback = GAXSKVariable::kInvalid;
 };
 
+struct GAXSKModelOrbiterAssignment {
+    GAXSKVariable mTarget = GAXSKVariable::kInvalid;
+    GAXSKVariable mWanderer = GAXSKVariable::kInvalid;
+    GAXSKVariable mContext = GAXSKVariable::kInvalid;
+    bool mUseCarry = false;
+};
+
+struct GAXSKModelWandererUpdate {
+    GAXSKVariable mTarget = GAXSKVariable::kInvalid;
+    GAXSKVariable mContext = GAXSKVariable::kInvalid;
+    GAXSKVariable mOrbiterA = GAXSKVariable::kInvalid;
+    GAXSKVariable mOrbiterB = GAXSKVariable::kInvalid;
+    bool mUseXor = false;
+    bool mUseCarry = false;
+    bool mRotateFirst = false;
+};
+
 class GAXSKModel {
 public:
     std::string mName;
@@ -60,13 +77,11 @@ public:
     
     static GAXSKVariable            WandererForIndex(int pIndex);
     
-    static void                     AppendOrbiterAssignStatements(const std::vector<GAXSKVariable> &pOrbiters,
-                                                                  const std::vector<GAXSKVariable> &pWanderers,
+    static void                     AppendOrbiterAssignStatements(std::span<const GAXSKModelOrbiterAssignment> pAssignments,
                                                                   int pHotIndexBase,
                                                                   std::vector<GAXSKModelStatement> *pStatements);
     
-    static void                     AppendWandererUpdateStatements(const std::vector<GAXSKVariable> &pOrbiters,
-                                                                   int pWandererCount,
+    static void                     AppendWandererUpdateStatements(std::span<const GAXSKModelWandererUpdate> pUpdates,
                                                                    std::vector<GAXSKModelStatement> *pStatements);
     
     
@@ -75,7 +90,9 @@ public:
                                                                  std::vector<GAXSKModelStatement> *pStatements);
     
     
-    static GAXSKModel               MakeOrbiterPlan(std::span<const GAXSKModelOrbiterRound> pRounds);
+    static GAXSKModel               MakeOrbiterPlan(std::span<const GAXSKModelOrbiterRound> pRounds,
+                                                    std::span<const GAXSKModelOrbiterAssignment> pAssignments,
+                                                    std::span<const GAXSKModelWandererUpdate> pUpdates);
     
     
     

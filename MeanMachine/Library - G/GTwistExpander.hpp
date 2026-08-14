@@ -10,6 +10,7 @@
 #include "GSeedRunStageConfig.hpp"
 #include "TwistExpander.hpp"
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -54,46 +55,29 @@ public:
                                             TwistDomainConstants *pDomainConstants,
                                             TwistDomainSaltSet *pDomainSaltSet) override;
 
-    void                                KDF_A(TwistWorkSpace *pWorkSpace,
-                                              std::uint64_t pNonce,
-                                              TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet,
-                                              MUTABLE_PARAMS) override;
-
-    void                                KDF_B(TwistWorkSpace *pWorkSpace,
-                                              std::uint64_t pNonce,
-                                              TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet,
-                                              MUTABLE_PARAMS) override;
-
-    void                                KDF_C(TwistWorkSpace *pWorkSpace,
-                                              std::uint64_t pNonce,
-                                              TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet,
-                                              MUTABLE_PARAMS) override;
-
-    void                                KDF_D(TwistWorkSpace *pWorkSpace,
-                                              std::uint64_t pNonce,
-                                              TwistDomainConstants *pDomainConstants,
-                                              TwistDomainSaltSet *pDomainSaltSet,
-                                              MUTABLE_PARAMS) override;
-
     void                                Seed(TwistWorkSpace *pWorkSpace,
                                              TwistFarmSalt *pFarmSalt,
                                              std::uint64_t pNonce,
                                              std::uint8_t *pPassword,
                                              std::size_t pPasswordByteLength,
-                                             std::uint8_t *pDestination) override;
+                                             std::uint8_t *pDestination,
+                                             MUTABLE_PARAMS) override;
     void                                TwistBlock(TwistWorkSpace *pWorkSpace,
                                                    std::uint8_t *pSource,
                                                    std::uint8_t *pCrossLaneA,
                                                    std::uint8_t *pCrossLaneB,
                                                    std::uint8_t *pCrossLaneC,
                                                    std::uint8_t *pCrossLaneD,
-                                                   std::uint8_t *pDestination) override;
+                                                   std::uint8_t *pDestination,
+                                                   bool pStifleKey,
+                                                   MUTABLE_PARAMS) override;
     void                                GrowKeyA(TwistWorkSpace *pWorkSpace,
+                                                 std::uint8_t *pCrossLaneA,
+                                                 std::uint8_t *pCrossLaneB,
                                                  MUTABLE_PARAMS) override;
     void                                GrowKeyB(TwistWorkSpace *pWorkSpace,
+                                                 std::uint8_t *pCrossLaneA,
+                                                 std::uint8_t *pCrossLaneB,
                                                  MUTABLE_PARAMS) override;
 
     bool                                ExportCPPProjectRoot(const std::string &pRootPath,
@@ -106,10 +90,11 @@ public:
     void                                RefreshTablePointers();
 
     std::string                         mNameBase;
-    TwistProgramBranch                  mKDF_A; // KDF-A branch
-    TwistProgramBranch                  mKDF_B; // KDF-B branch
-    TwistProgramBranch                  mKDF_C; // KDF-C branch
-    TwistProgramBranch                  mKDF_D; // KDF-D branch
+    // Domain-major order: Rotate-A, Rotate-B, Spawn-A, Spawn-B, Twist, Seed.
+    // Within each domain: KDF-A, KDF-B, KDF-C.
+    std::array<TwistProgramBranch, 18>  mKDFDomainBranches;
+    // Domain-major, then KDF family A-C, then stage A-D.
+    std::vector<GSeedRunStageConfig>    mKDFStageConfigs;
     TwistProgramBranch                  mSeed; // Seed branch
     TwistProgramBranch                  mTwister; // Twist branch
     TwistProgramBranch                  mGrowKeyA; // Grow key A branch
@@ -119,6 +104,35 @@ public:
     std::vector<TwistDomain>            mSeedMatrixDomains;
     std::vector<GSeedRunStageConfig>    mTwistStageConfigs;
     std::vector<TwistDomain>            mTwistMatrixDomains;
+    // The lane family written by Twist's final stage.  The generated
+    // TwistForkKeyHalfA/B methods consume this plan, so changing Twist's
+    // terminal family does not require editing the fold renderer.
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkSourceLanes = {{
+        TwistWorkSpaceSlot::kCrystalLaneA,
+        TwistWorkSpaceSlot::kCrystalLaneB,
+        TwistWorkSpaceSlot::kCrystalLaneC,
+        TwistWorkSpaceSlot::kCrystalLaneD,
+    }};
+    // Both forks occupy disjoint 8,192-byte regions of the shared Celestial
+    // middle lanes. Their final W_KEY regions live in separate families.
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkMiddleLanes = {{
+        TwistWorkSpaceSlot::kCelestialLaneA,
+        TwistWorkSpaceSlot::kCelestialLaneB,
+        TwistWorkSpaceSlot::kCelestialLaneC,
+        TwistWorkSpaceSlot::kCelestialLaneD,
+    }};
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkFinalALanes = {{
+        TwistWorkSpaceSlot::kSpiritLaneA,
+        TwistWorkSpaceSlot::kSpiritLaneB,
+        TwistWorkSpaceSlot::kSpiritLaneC,
+        TwistWorkSpaceSlot::kSpiritLaneD,
+    }};
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkFinalBLanes = {{
+        TwistWorkSpaceSlot::kDivinationLaneA,
+        TwistWorkSpaceSlot::kDivinationLaneB,
+        TwistWorkSpaceSlot::kDivinationLaneC,
+        TwistWorkSpaceSlot::kDivinationLaneD,
+    }};
     std::vector<GSeedRunStageConfig>    mGrowAStageConfigs;
     std::vector<GSeedRunStageConfig>    mGrowBStageConfigs;
     TwistDomain                         mGrowAMatrixDomain = TwistDomain::kInvalid;

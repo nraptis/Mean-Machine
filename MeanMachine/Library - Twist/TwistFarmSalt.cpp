@@ -34,58 +34,27 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
                            std::uint64_t *pSaltF,
                            std::uint64_t *pSaltG,
                            std::uint64_t *pSaltH) {
-    if (pSource == nullptr) {
-        return;
-    }
-
-    const std::uint8_t *aSaltSliceA =
-        pSource + (0U * kSaltByteCount);
-    const std::uint8_t *aSaltSliceB =
-        pSource + (1U * kSaltByteCount);
-    const std::uint8_t *aSaltSliceC =
-        pSource + (2U * kSaltByteCount);
-    const std::uint8_t *aSaltSliceD =
-        pSource + (3U * kSaltByteCount);
-    const std::uint8_t *aSaltSliceE =
-        pSource + (4U * kSaltByteCount);
-    const std::uint8_t *aSaltSliceF =
-        pSource + (5U * kSaltByteCount);
-    const std::uint8_t *aSaltSliceG =
-        pSource + (6U * kSaltByteCount);
-    const std::uint8_t *aSaltSliceH =
-        pSource + (7U * kSaltByteCount);
-
-    if (pSaltA != nullptr) {
-        std::memcpy(pSaltA, aSaltSliceA, kSaltByteCount);
-    }
-    if (pSaltB != nullptr) {
-        std::memcpy(pSaltB, aSaltSliceB, kSaltByteCount);
-    }
-    if (pSaltC != nullptr) {
-        std::memcpy(pSaltC, aSaltSliceC, kSaltByteCount);
-    }
-    if (pSaltD != nullptr) {
-        std::memcpy(pSaltD, aSaltSliceD, kSaltByteCount);
-    }
-    if (pSaltE != nullptr) {
-        std::memcpy(pSaltE, aSaltSliceE, kSaltByteCount);
-    }
-    if (pSaltF != nullptr) {
-        std::memcpy(pSaltF, aSaltSliceF, kSaltByteCount);
-    }
-    if (pSaltG != nullptr) {
-        std::memcpy(pSaltG, aSaltSliceG, kSaltByteCount);
-    }
-    if (pSaltH != nullptr) {
-        std::memcpy(pSaltH, aSaltSliceH, kSaltByteCount);
-    }
+    
+    const std::uint8_t *aSaltSliceA = pSource + (0U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceB = pSource + (1U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceC = pSource + (2U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceD = pSource + (3U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceE = pSource + (4U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceF = pSource + (5U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceG = pSource + (6U * kSaltByteCount);
+    const std::uint8_t *aSaltSliceH = pSource + (7U * kSaltByteCount);
+    
+    std::memcpy(pSaltA, aSaltSliceA, kSaltByteCount);
+    std::memcpy(pSaltB, aSaltSliceB, kSaltByteCount);
+    std::memcpy(pSaltC, aSaltSliceC, kSaltByteCount);
+    std::memcpy(pSaltD, aSaltSliceD, kSaltByteCount);
+    std::memcpy(pSaltE, aSaltSliceE, kSaltByteCount);
+    std::memcpy(pSaltF, aSaltSliceF, kSaltByteCount);
+    std::memcpy(pSaltG, aSaltSliceG, kSaltByteCount);
+    std::memcpy(pSaltH, aSaltSliceH, kSaltByteCount);
 }
 
-void TwistFarmSalt::Derive(const std::uint8_t *pSource,
-                           TwistDomainSeedRoundMaterial *pRoundMaterial) {
-    if (pRoundMaterial == nullptr) {
-        return;
-    }
+void TwistFarmSalt::Derive(const std::uint8_t *pSource, TwistDomainSeedRoundMaterial *pRoundMaterial) {
     Derive(pSource,
            pRoundMaterial->mSaltA,
            pRoundMaterial->mSaltB,
@@ -95,8 +64,4 @@ void TwistFarmSalt::Derive(const std::uint8_t *pSource,
            pRoundMaterial->mSaltF,
            pRoundMaterial->mSaltG,
            pRoundMaterial->mSaltH);
-}
-
-void TwistFarmSalt::Zero() {
-    
 }

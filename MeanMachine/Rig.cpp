@@ -82,6 +82,19 @@ void Rig::Run(TwistExpander *pExpander,
     std::array<std::uint8_t, S_BLOCK> aCrossLaneB{};
     std::array<std::uint8_t, S_BLOCK> aCrossLaneC{};
     std::array<std::uint8_t, S_BLOCK> aCrossLaneD{};
+    std::uint64_t aIngress = 0U;
+    std::uint64_t aCarry = 0U;
+    std::uint64_t aWandererA = 0U;
+    std::uint64_t aWandererB = 0U;
+    std::uint64_t aWandererC = 0U;
+    std::uint64_t aWandererD = 0U;
+    std::uint64_t aWandererE = 0U;
+    std::uint64_t aWandererF = 0U;
+    std::uint64_t aWandererG = 0U;
+    std::uint64_t aWandererH = 0U;
+    std::uint64_t aWandererI = 0U;
+    std::uint64_t aWandererJ = 0U;
+    std::uint64_t aWandererK = 0U;
 
     TwistExpander::UnrollPassword(aWorkSpace.mSourceLane,
                                   pPassword,
@@ -92,7 +105,8 @@ void Rig::Run(TwistExpander *pExpander,
                     0ULL,
                     pPassword,
                     static_cast<std::size_t>(pPasswordLength),
-                    mData);
+                    mData,
+                    ARX_STATE_VARS);
     
     for (int aBlockIndex=1; aBlockIndex<mBlockCount; aBlockIndex++) {
         
@@ -106,7 +120,9 @@ void Rig::Run(TwistExpander *pExpander,
                               aCrossLaneB.data(),
                               aCrossLaneC.data(),
                               aCrossLaneD.data(),
-                              aDest);
+                              aDest,
+                              false,
+                              ARX_STATE_VARS);
         
     }
     

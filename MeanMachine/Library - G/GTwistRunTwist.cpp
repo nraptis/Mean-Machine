@@ -8,13 +8,14 @@
 #include "GPassFactoryMidstage.hpp"
 #include "GPassFactoryStarter.hpp"
 #include "GPassFactoryTrunk.hpp"
-#include "GQuick.hpp"
-#include "Random.hpp"
+#include "GFlowPlans.hpp"
+#include "GMagicNumbers.hpp"
 #include "ResidualBucket.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 namespace {
 
@@ -82,20 +83,43 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     return aConfig;
 }
 
-void AddTwistPrologue(TwistProgramBranch &pBranch) {
-    GBatch aInitBatch;
-    aInitBatch.mName = "init varz";
-    aInitBatch.mExportsAsBlock = false;
+bool AddTwistPrologue(TwistProgramBranch &pBranch,
+                      std::string *pErrorMessage) {
+    static_assert(G_HOT_PACK_SIZE >= kInitialRandomVariables.size(),
+                  "A HotPack must contain every Twist ARX-state addition");
 
-    std::vector<GStatement> aInitStatements;
-    for (TwistVariable aVariable : kInitialRandomVariables) {
-        aInitStatements.push_back(
-                                  GQuick::MakeAssignVariableStatement(GSymbol::Var(aVariable),
-                                                                      GExpr::Const64Hex(Random::Get64High())));
+    const std::vector<GHotPack> aHotPacks =
+        GMagicNumbers::GetHotPacks(1);
+    if (aHotPacks.empty()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                "GTwistRunTwist could not obtain a HotPack for the "
+                "Twist ARX-state additions";
+        }
+        return false;
     }
-    aInitBatch.CommitStatements(&aInitStatements);
-    pBranch.AddBatch(aInitBatch);
+    const GHotPack &aHotPack = aHotPacks.front();
+
+    for (std::size_t aIndex = 0U;
+         aIndex < kInitialRandomVariables.size();
+         ++aIndex) {
+        const TwistVariable aVariable =
+            kInitialRandomVariables[aIndex];
+        const std::string aName = GSymbol::Var(aVariable).mName;
+        const std::uint64_t aAddWord =
+            aHotPack.mPair[aIndex].mAdd;
+        char aLiteral[32] = {};
+        std::snprintf(aLiteral,
+                      sizeof(aLiteral),
+                      "0x%016llXULL",
+                      static_cast<unsigned long long>(aAddWord));
+        pBranch.AddLine(
+            "std::uint64_t " + aName + " = *p" +
+            aName.substr(1U) + " + " + aLiteral + ";"
+        );
+    }
     pBranch.AddLine("");
+    return true;
 }
 
 } // namespace
@@ -106,520 +130,195 @@ TwistStageConfigs MakeTwistConfig(ResidualBucket &pResidualBucket,
                                   const std::size_t pCandidateIndex) {
     using Slot = TwistWorkSpaceSlot;
 
+    TwistStageConfigs aConfigs;
     std::vector<Slot> aResidualsPool;
 
-    std::vector<Slot> aRandomCross = {
-        Slot::kParamCrossA, Slot::kParamCrossB,
-        Slot::kParamCrossC, Slot::kParamCrossD,
-    };
-    Random::Shuffle(&aRandomCross);
-
-    TwistStageConfigs aConfigs;
-
     // Lane Plan
+    const std::vector<GFlowStep> aLanePlans =
+        GFlowPlans::ARXSteps(GFlowPlans::Twist());
 
     //
     // Twist — Stage A
     //
+    const std::vector<Slot> aPrimarySourcesAVector =
+        GFlowPlans::InputSlots(aLanePlans[0]);
     const GPassFactoryMidstage::SlotArray3 aPrimarySourcesA = {
-        Slot::kSourceLane, Slot::kKeyRowReadA, Slot::kKeyRowReadB,
+        aPrimarySourcesAVector[0],
+        aPrimarySourcesAVector[1],
+        aPrimarySourcesAVector[2],
     };
-    const GPassFactoryMidstage::SlotArray2 aWarmUpLanesA = {
-        Slot::kFireLaneA, Slot::kFireLaneB,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsA = {
-        Slot::kEarthLaneA, Slot::kEarthLaneB,
-        Slot::kEarthLaneC, Slot::kEarthLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray6 aExpectedDestinationsA =
-        GPassFactoryMidstage::Concat(aWarmUpLanesA,
-                             aDestinationsA);
-
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesA));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aExpectedDestinationsA));
-
+    const GPassFactoryMidstage::SlotArray4 aDestinationsA =
+        GFlowPlans::FamilySlots(aLanePlans[0].mOutput);
     const GPassFactoryMidstage::SlotArray4 aResidualsA = {
         Slot::kParamCrossA, Slot::kParamCrossB,
         Slot::kParamCrossC, Slot::kParamCrossD,
     };
 
-    pResidualBucket.AddResiduals("Twist — Stage A", {
-        Slot::kFireLaneA, Slot::kFireLaneB,
-    });
+    pResidualBucket.Remove(
+        GPassFactoryMidstage::ToVector(aPrimarySourcesA));
+    pResidualBucket.Remove(
+        GPassFactoryMidstage::ToVector(aDestinationsA));
+
+    pResidualBucket.AddResiduals(
+        "Twist — Stage A inputs",
+        GFlowPlans::InputSlots(aLanePlans[0]));
+    pResidualBucket.AddResiduals("Twist — Stage A cross lanes", {
+        GFlowPlans::FirstSlot(GFlowLane::kCrossA),
+        GFlowPlans::FirstSlot(GFlowLane::kCrossB),
+        GFlowPlans::FirstSlot(GFlowLane::kCrossC),
+        GFlowPlans::FirstSlot(GFlowLane::kCrossD),
+    }, 1U);
 
     //
     // Twist — Stage B
     //
-    const GPassFactoryMidstage::SlotArray4 aInputsB = {
-        Slot::kEarthLaneA, Slot::kEarthLaneB,
-        Slot::kEarthLaneC, Slot::kEarthLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray6 aDestinationsB = {
-        Slot::kFireLaneC, Slot::kFireLaneD,
-        Slot::kWaterLaneA, Slot::kWaterLaneB,
-        Slot::kWaterLaneC, Slot::kWaterLaneD,
-    };
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsB));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsB));
+    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesB =
+        GFlowPlans::FamilySlots(aLanePlans[1].mInputs[0]);
+    const GPassFactoryMidstage::SlotArray4 aDestinationsB =
+        GFlowPlans::FamilySlots(aLanePlans[1].mOutput);
 
-    aResidualsPool = pResidualBucket.Withdraw("Twist — Stage B", 9 - 7); // we are using 7 fixed ones.
+    pResidualBucket.Remove(
+        GPassFactoryMidstage::ToVector(aPrimarySourcesB));
+    pResidualBucket.Remove(
+        GPassFactoryMidstage::ToVector(aDestinationsB));
 
-    const GPassFactoryMidstage::SlotArray9 aResidualsB = {
-        Slot::kParamCrossA, Slot::kParamCrossB,
-        Slot::kParamCrossC, Slot::kParamCrossD,
-        Slot::kKeyRowReadA, Slot::kKeyRowReadB, Slot::kSourceLane,
+    aResidualsPool =
+        pResidualBucket.Withdraw("Twist — Stage B", 7);
+    const GPassFactoryMidstage::SlotArray7 aResidualsB = {
         aResidualsPool[0], aResidualsPool[1],
+        aResidualsPool[2], aResidualsPool[3],
+        aResidualsPool[4], aResidualsPool[5],
+        aResidualsPool[6],
     };
 
-    pResidualBucket.AddResiduals("Twist — Stage B", {
-        Slot::kEarthLaneA, Slot::kEarthLaneB,
-        Slot::kEarthLaneC, Slot::kEarthLaneD,
-        Slot::kFireLaneC, Slot::kFireLaneD,
-    });
+    pResidualBucket.AddResiduals(
+        "Twist — After diffusion",
+        GFlowPlans::FamilySlotVector({
+            aLanePlans[0].mOutput,
+            aLanePlans[1].mOutput,
+        }));
 
     //
     // Twist — Stage C
     //
-    const GPassFactoryMidstage::SlotArray4 aInputsC = {
-        Slot::kWaterLaneA, Slot::kWaterLaneB,
-        Slot::kWaterLaneC, Slot::kWaterLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsC = {
-        Slot::kFuseLaneA, Slot::kFuseLaneB,
-        Slot::kFuseLaneC, Slot::kFuseLaneD,
-    };
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsC));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsC));
+    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesC =
+        GFlowPlans::FamilySlots(aLanePlans[2].mInputs[0]);
+    const GPassFactoryMidstage::SlotArray4 aDestinationsC =
+        GFlowPlans::FamilySlots(aLanePlans[2].mOutput);
 
-    aResidualsPool = pResidualBucket.Withdraw("Twist — Stage C", 14 - 6); // we are using 6 fixed ones.
+    pResidualBucket.Remove(
+        GPassFactoryMidstage::ToVector(aPrimarySourcesC));
+    pResidualBucket.Remove(
+        GPassFactoryMidstage::ToVector(aDestinationsC));
 
-    const GPassFactoryMidstage::SlotArray14 aResidualsC = {
-        Slot::kParamCrossA, Slot::kParamCrossB,
-        Slot::kParamCrossC, Slot::kParamCrossD,
-        Slot::kKeyRowReadA, Slot::kSourceLane,
-        aResidualsPool[0], aResidualsPool[1],
-        aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7],
-    };
-
-    pResidualBucket.AddResiduals("Twist — Stage C", {
-        Slot::kWaterLaneA, Slot::kWaterLaneB,
-        Slot::kWaterLaneC, Slot::kWaterLaneD,
-    });
-    
-    /*
-    TwistDiffuse::DiffuseWithDomainWords(
-                aFuseLaneA, aFuseLaneB, aFuseLaneC, aFuseLaneD,  // input lanes
-                aHeartLaneA, aHeartLaneB, aHeartLaneC, aHeartLaneD, // output lanes
-                aFireLaneC, aFireLaneD, aWaterLaneC, aWaterLaneD, // index shuffle seeds
-                aWaterLaneA, aWaterLaneB); // operation seeds
-    */
-    
-    //
-    // Twist — Stage D
-    //
-    const GPassFactoryMidstage::SlotArray4 aInputsD = {
-        Slot::kHeartLaneA, Slot::kHeartLaneB,
-        Slot::kHeartLaneC, Slot::kHeartLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray6 aDestinationsD = {
-        Slot::kLightningLaneA, Slot::kLightningLaneB,
-        Slot::kSoilLaneA, Slot::kSoilLaneB,
-        Slot::kSoilLaneC, Slot::kSoilLaneD,
-    };
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsD));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsD));
-
-    aResidualsPool = pResidualBucket.Withdraw("Twist — Stage D", 16 - 6); // we are using 6 fixed ones.
-
-    const GPassFactoryMidstage::SlotArray16 aResidualsD = {
-        Slot::kParamCrossA, Slot::kParamCrossB,
-        Slot::kParamCrossC, Slot::kParamCrossD,
-        Slot::kKeyRowReadB, Slot::kSourceLane,
+    aResidualsPool =
+        pResidualBucket.Withdraw("Twist — Stage C", 15);
+    const GPassFactoryMidstage::SlotArray15 aResidualsC = {
         aResidualsPool[0], aResidualsPool[1],
         aResidualsPool[2], aResidualsPool[3],
         aResidualsPool[4], aResidualsPool[5],
         aResidualsPool[6], aResidualsPool[7],
         aResidualsPool[8], aResidualsPool[9],
+        aResidualsPool[10], aResidualsPool[11],
+        aResidualsPool[12], aResidualsPool[13],
+        aResidualsPool[14],
     };
 
-
-
-    pResidualBucket.AddResiduals("Twist — Stage D", {
-        Slot::kHeartLaneA, Slot::kHeartLaneB,
-        Slot::kHeartLaneC, Slot::kHeartLaneD,
-        Slot::kLightningLaneA, Slot::kLightningLaneB,
-    });
-
-    //
-    // Twist — Stage E
-    //
-    const GPassFactoryMidstage::SlotArray4 aInputsE = {
-        Slot::kSoilLaneA, Slot::kSoilLaneB,
-        Slot::kSoilLaneC, Slot::kSoilLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray6 aDestinationsE = {
-        Slot::kLightningLaneC, Slot::kLightningLaneD,
-        Slot::kIceLaneA, Slot::kIceLaneB,
-        Slot::kIceLaneC, Slot::kIceLaneD,
-    };
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aInputsE));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsE));
-
-    aResidualsPool = pResidualBucket.Withdraw("Twist — Stage E", 16 - 3); // we are using 3 fixed ones.
-
-    const GPassFactoryMidstage::SlotArray16 aResidualsE = {
-        aRandomCross[0], Slot::kKeyRowReadA, Slot::kSourceLane,
-        aResidualsPool[0], aResidualsPool[1], aResidualsPool[2],
-        aResidualsPool[3], aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7], aResidualsPool[8],
-        aResidualsPool[9], aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12],
-    };
-
-    pResidualBucket.AddResiduals("Twist — Stage E", {
-        Slot::kSoilLaneA, Slot::kSoilLaneB,
-        Slot::kSoilLaneC, Slot::kSoilLaneD,
-        Slot::kLightningLaneC, Slot::kLightningLaneD,
-    });
-
-    //
-    // Twist — Stage F
-    //
-
-    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesF = {
-        Slot::kIceLaneA, Slot::kIceLaneB,
-        Slot::kIceLaneC, Slot::kIceLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsF = {
-        Slot::kFuseLaneA, Slot::kFuseLaneB,
-        Slot::kFuseLaneC, Slot::kFuseLaneD,
-    };
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesF));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aDestinationsF));
-
-    aResidualsPool = pResidualBucket.Withdraw("Twist — Stage F", 16 - 3); // we are using 3 fixed ones.
-
-    const GPassFactoryMidstage::SlotArray16 aResidualsF = {
-        aRandomCross[1], Slot::kKeyRowReadB, Slot::kSourceLane,
-        aResidualsPool[0], aResidualsPool[1], aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5], aResidualsPool[6], aResidualsPool[7],
-        aResidualsPool[8], aResidualsPool[9], aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12],
-    };
-
-    pResidualBucket.AddResiduals("Twist — Stage F", {
-        Slot::kIceLaneA, Slot::kIceLaneB,
-        Slot::kIceLaneC, Slot::kIceLaneD,
-    });
-    
-    /*
-    TwistDiffuse::DiffuseWithDomainWords(
-            aFuseLaneA, aFuseLaneB, aFuseLaneC, aFuseLaneD,  // input lanes
-            aWoodLaneA, aWoodLaneB, aWoodLaneC, aWoodLaneD, // output lanes
-            aLightningLaneC, aLightningLaneD, aIceLaneC, aIceLaneD, // index shuffle seeds
-            aIceLaneA, aIceLaneB); // operation seeds
-    */
-
-    //
-    // Twist — Stage G
-    //
-    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesG = {
-        Slot::kWoodLaneA, Slot::kWoodLaneB,
-        Slot::kWoodLaneC, Slot::kWoodLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray2 aWarmUpLanesG = {
-        Slot::kPlasmaLaneA, Slot::kPlasmaLaneB,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsG = {
-        Slot::kMagmaLaneA, Slot::kMagmaLaneB,
-        Slot::kMagmaLaneC, Slot::kMagmaLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray6 aExpectedDestinationsG =
-        GPassFactoryMidstage::Concat(aWarmUpLanesG,
-                             aDestinationsG);
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesG));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aExpectedDestinationsG));
-
-    aResidualsPool = pResidualBucket.Withdraw("Twist — Stage G", 16 - 3); // we are using 3 fixed ones.
-
-    const GPassFactoryMidstage::SlotArray16 aResidualsG = {
-        aRandomCross[2], Slot::kKeyRowReadA, Slot::kKeyRowReadB,
-        aResidualsPool[0], aResidualsPool[1], aResidualsPool[2],
-        aResidualsPool[3], aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7], aResidualsPool[8],
-        aResidualsPool[9], aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12],
-    };
-
-
-
-    pResidualBucket.AddResiduals("Twist — Stage G", {
-        Slot::kWoodLaneA, Slot::kWoodLaneB,
-        Slot::kWoodLaneC, Slot::kWoodLaneD,
-        Slot::kPlasmaLaneA, Slot::kPlasmaLaneB,
-    });
-
-    //
-    // Twist — Stage H
-    //
-    const GPassFactoryMidstage::SlotArray4 aPrimarySourcesH = {
-        Slot::kMagmaLaneA, Slot::kMagmaLaneB,
-        Slot::kMagmaLaneC, Slot::kMagmaLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray2 aWarmUpLanesH = {
-        Slot::kPlasmaLaneC, Slot::kPlasmaLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray4 aDestinationsH = {
-        Slot::kCrystalLaneA, Slot::kCrystalLaneB,
-        Slot::kCrystalLaneC, Slot::kCrystalLaneD,
-    };
-    const GPassFactoryMidstage::SlotArray6 aExpectedDestinationsH =
-        GPassFactoryMidstage::Concat(aWarmUpLanesH,
-                             aDestinationsH);
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aPrimarySourcesH));
-    pResidualBucket.Remove(GPassFactoryMidstage::ToVector(aExpectedDestinationsH));
-
-    aResidualsPool = pResidualBucket.Withdraw("Twist — Stage H", 16 - 1); // we are using 1 fixed one.
-
-    const GPassFactoryMidstage::SlotArray16 aResidualsH = {
-        aRandomCross[3],
-        aResidualsPool[0], aResidualsPool[1], aResidualsPool[2],
-        aResidualsPool[3], aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7], aResidualsPool[8],
-        aResidualsPool[9], aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12], aResidualsPool[13], aResidualsPool[14],
-    };
-
-    pResidualBucket.AddResiduals("Twist — Stage H", {
-        Slot::kMagmaLaneA, Slot::kMagmaLaneB,
-        Slot::kMagmaLaneC, Slot::kMagmaLaneD,
-        Slot::kPlasmaLaneC, Slot::kPlasmaLaneD,
-    });
-
+    pResidualBucket.AddResiduals(
+        "Twist — Stage C",
+        GFlowPlans::FamilySlotVector(aLanePlans[2].mInputs[0]));
     pResidualBucket.Print("Twist — Final");
-    
+
     // Stage Construction
-    
+
     GSeedRunStageConfig aConfigA = BaseConfig("GTwistRunTwist_A",
-                                             "twist_loop_a",
-                                             GAXSFormat::kN11);
+                                              "twist_loop_a",
+                                              GAXSFormat::kN11);
     aConfigA.mMaxContextSourceCount = 4;
     aConfigA.mMaxBoundSourceCount = 8;
-    aConfigA.mWarmupDestinationCount =
-        static_cast<int>(aWarmUpLanesA.size());
     aConfigA.mBindDuplicateSourceSlots = false;
-    aConfigA.mUsesSpecialSixPassTwistStarterGraph = true;
     aConfigA.mSlices =
-        GPassFactoryStarter::Twist_AStarterSlices(
+        GPassFactoryStarter::FourPassStarterFourResidualSlices(
             aPrimarySourcesA,
             aResidualsA,
-            aWarmUpLanesA,
-            aDestinationsA,
-            pCandidateIndex);
-    aConfigA.mExpectedSkeletonCount = 6;
-    aConfigA.mHotPackCount = 6;
+            aDestinationsA);
+    aConfigA.mExpectedSkeletonCount = 4;
+    aConfigA.mHotPackCount = 4;
 
     std::string aErrorMessageA;
     if (!GSeedRunStageConfigValidator::ValidateStarterWithResiduals(
             aConfigA,
             GPassFactoryMidstage::ToVector(aPrimarySourcesA),
             GPassFactoryMidstage::ToVector(aResidualsA),
-            GPassFactoryMidstage::ToVector(aExpectedDestinationsA),
+            GPassFactoryMidstage::ToVector(aDestinationsA),
             &aErrorMessageA)) {
         printf("MakeTwistConfig stage A was not valid with ValidateStarterWithResiduals");
         printf("%s\n", aErrorMessageA.c_str());
         exit(0);
     }
+    aConfigA.SetLaneFlow(aPrimarySourcesA, aDestinationsA);
     aConfigs[0] = aConfigA;
-    
+
     // --------------------------
-    
+
     GSeedRunStageConfig aConfigB = BaseConfig("GTwistRunTwist_B",
-                                             "twist_loop_b",
-                                             GAXSFormat::kN9);
-    aConfigB.mSlices = GPassFactoryMidstage::SixPassNineResidualSlices(aInputsB,
-                                                               aResidualsB,
-                                                               aDestinationsB);
-    aConfigB.mWarmupDestinationCount = 2;
-    aConfigB.mExpectedSkeletonCount = 6;
-    aConfigB.mHotPackCount = 6;
+                                              "twist_loop_b",
+                                              GAXSFormat::kN11);
+    aConfigB.mSlices =
+        GPassFactoryMidstage::FourPassSevenResidualSlices(
+            aPrimarySourcesB,
+            aResidualsB,
+            aDestinationsB);
+    aConfigB.mExpectedSkeletonCount = 4;
+    aConfigB.mHotPackCount = 4;
 
     std::string aErrorMessageB;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfigB,
-                                                        GPassFactoryMidstage::ToVector(aInputsB),
-                                                        GPassFactoryMidstage::ToVector(aResidualsB),
-                                                        GPassFactoryMidstage::ToVector(aDestinationsB),
-                                                        &aErrorMessageB)) {
+    if (!GSeedRunStageConfigValidator::ValidateMidstage(
+            aConfigB,
+            GPassFactoryMidstage::ToVector(aPrimarySourcesB),
+            GPassFactoryMidstage::ToVector(aResidualsB),
+            GPassFactoryMidstage::ToVector(aDestinationsB),
+            &aErrorMessageB)) {
         printf("MakeTwistConfig stage B was not valid with ValidateMidstage");
         printf("%s\n", aErrorMessageB.c_str());
         exit(0);
     }
+    aConfigB.SetLaneFlow(aPrimarySourcesB, aDestinationsB);
     aConfigs[1] = aConfigB;
-    
+
     // --------------------------
-    
+
+    const ArrangementFour::SlotArray4 aArrangedPrimarySourcesC =
+        ArrangementFour::Arrange(aPrimarySourcesC,
+                                 static_cast<int>(pCandidateIndex),
+                                 aLanePlans[2].mArrangementOffset);
+
     GSeedRunStageConfig aConfigC = BaseConfig("GTwistRunTwist_C",
-                                             "twist_loop_c",
-                                             GAXSFormat::kN7);
-    aConfigC.mSlices = GPassFactoryMidstage::FourPassFourteenResidualSlices(aInputsC,
-                                                                    aResidualsC,
-                                                                    aDestinationsC);
+                                              "twist_loop_c",
+                                              GAXSFormat::kN11);
+    aConfigC.mSlices =
+        GPassFactoryTrunk::FourPassTrunkSlices(
+            aArrangedPrimarySourcesC,
+            aResidualsC,
+            aDestinationsC);
     aConfigC.mExpectedSkeletonCount = 4;
     aConfigC.mHotPackCount = 4;
 
     std::string aErrorMessageC;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfigC,
-                                                        GPassFactoryMidstage::ToVector(aInputsC),
-                                                        GPassFactoryMidstage::ToVector(aResidualsC),
-                                                        GPassFactoryMidstage::ToVector(aDestinationsC),
-                                                        &aErrorMessageC)) {
-        printf("MakeTwistConfig stage C was not valid with ValidateMidstage");
+    if (!GSeedRunStageConfigValidator::ValidateTrunk(
+            aConfigC,
+            GPassFactoryMidstage::ToVector(aArrangedPrimarySourcesC),
+            GPassFactoryMidstage::ToVector(aResidualsC),
+            GPassFactoryMidstage::ToVector(aDestinationsC),
+            &aErrorMessageC)) {
+        printf("MakeTwistConfig stage C was not valid with ValidateTrunk");
         printf("%s\n", aErrorMessageC.c_str());
         exit(0);
     }
+    aConfigC.SetLaneFlow(aPrimarySourcesC, aDestinationsC);
     aConfigs[2] = aConfigC;
-    
-    // --------------------------
-    
-    const ArrangementFour::SlotArray4 aArrangedInputsD =
-        ArrangementFour::Arrange(aInputsD,
-                                 static_cast<int>(pCandidateIndex),
-                                 11);
 
-    GSeedRunStageConfig aConfigD = BaseConfig("GTwistRunTwist_D",
-                                             "twist_loop_d",
-                                             GAXSFormat::kN9);
-    aConfigD.mSlices = GPassFactoryTrunk::SixPassTrunkSlices(aArrangedInputsD,
-                                                        aResidualsD,
-                                                        aDestinationsD);
-    aConfigD.mWarmupDestinationCount = 2;
-    aConfigD.mExpectedSkeletonCount = 6;
-    aConfigD.mHotPackCount = 6;
-
-    std::string aErrorMessageD;
-    if (!GSeedRunStageConfigValidator::ValidateTrunk(aConfigD,
-                                                     GPassFactoryMidstage::ToVector(aArrangedInputsD),
-                                                     GPassFactoryMidstage::ToVector(aResidualsD),
-                                                     GPassFactoryMidstage::ToVector(aDestinationsD),
-                                                     &aErrorMessageD)) {
-        printf("MakeTwistConfig stage D was not valid with ValidateTrunk");
-        printf("%s\n", aErrorMessageD.c_str());
-        exit(0);
-    }
-    aConfigs[3] = aConfigD;
-    
-    // --------------------------
-    
-    GSeedRunStageConfig aConfigE = BaseConfig("GTwistRunTwist_E",
-                                             "twist_loop_e",
-                                             GAXSFormat::kN11);
-    aConfigE.mSlices = GPassFactoryMidstage::SixPassSixteenResidualSlices(aInputsE,
-                                                                  aResidualsE,
-                                                                  aDestinationsE);
-    aConfigE.mWarmupDestinationCount = 2;
-    aConfigE.mExpectedSkeletonCount = 6;
-    aConfigE.mHotPackCount = 6;
-
-    std::string aErrorMessageE;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfigE,
-                                                        GPassFactoryMidstage::ToVector(aInputsE),
-                                                        GPassFactoryMidstage::ToVector(aResidualsE),
-                                                        GPassFactoryMidstage::ToVector(aDestinationsE),
-                                                        &aErrorMessageE)) {
-        printf("MakeTwistConfig stage E was not valid with ValidateMidstage");
-        printf("%s\n", aErrorMessageE.c_str());
-        exit(0);
-    }
-    aConfigs[4] = aConfigE;
-    
-    // --------------------------
-    
-    GSeedRunStageConfig aConfigF = BaseConfig("GTwistRunTwist_F",
-                                              "twist_loop_f",
-                                              GAXSFormat::kN9);
-    aConfigF.mSlices = GPassFactoryMidstage::FourPassSixteenResidualSlices(aPrimarySourcesF,
-                                                                   aResidualsF,
-                                                                   aDestinationsF);
-    aConfigF.mExpectedSkeletonCount = 4;
-    aConfigF.mHotPackCount = 4;
-
-    std::string aErrorMessageF;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(aConfigF,
-                                                        GPassFactoryMidstage::ToVector(aPrimarySourcesF),
-                                                        GPassFactoryMidstage::ToVector(aResidualsF),
-                                                        GPassFactoryMidstage::ToVector(aDestinationsF),
-                                                        &aErrorMessageF)) {
-        printf("MakeTwistConfig stage F was not valid with ValidateMidstage");
-        printf("%s\n", aErrorMessageF.c_str());
-        exit(0);
-    }
-    aConfigs[5] = aConfigF;
-    
-    // --------------------------
-    
-    const ArrangementFour::SlotArray4 aArrangedPrimarySourcesG =
-        ArrangementFour::Arrange(aPrimarySourcesG,
-                                 static_cast<int>(pCandidateIndex),
-                                 9);
-
-    GSeedRunStageConfig aConfigG = BaseConfig("GTwistRunTwist_G",
-                                              "twist_loop_g",
-                                              GAXSFormat::kN7);
-    aConfigG.mSlices = GPassFactoryTrunk::SixPassTrunkSlices(aArrangedPrimarySourcesG,
-                                                        aResidualsG,
-                                                        aExpectedDestinationsG);
-    aConfigG.mWarmupDestinationCount =
-        static_cast<int>(aWarmUpLanesG.size());
-    aConfigG.mExpectedSkeletonCount =
-        static_cast<int>(aExpectedDestinationsG.size());
-    aConfigG.mHotPackCount =
-        static_cast<int>(aExpectedDestinationsG.size());
-
-    std::string aErrorMessageG;
-    if (!GSeedRunStageConfigValidator::ValidateTrunk(
-            aConfigG,
-            GPassFactoryMidstage::ToVector(aArrangedPrimarySourcesG),
-            GPassFactoryMidstage::ToVector(aResidualsG),
-            GPassFactoryMidstage::ToVector(aExpectedDestinationsG),
-            &aErrorMessageG)) {
-        printf("MakeTwistConfig stage G was not valid with ValidateTrunk");
-        printf("%s\n", aErrorMessageG.c_str());
-        exit(0);
-    }
-    aConfigs[6] = aConfigG;
-    
-    // --------------------------
-    
-    GSeedRunStageConfig aConfigH = BaseConfig("GTwistRunTwist_H",
-                                              "twist_loop_h",
-                                              GAXSFormat::kN9);
-    aConfigH.mSlices = GPassFactoryMidstage::SixPassSixteenResidualSlices(aPrimarySourcesH,
-                                                                  aResidualsH,
-                                                                  aExpectedDestinationsH);
-    aConfigH.mWarmupDestinationCount =
-        static_cast<int>(aWarmUpLanesH.size());
-    aConfigH.mExpectedSkeletonCount =
-        static_cast<int>(aExpectedDestinationsH.size());
-    aConfigH.mHotPackCount =
-        static_cast<int>(aExpectedDestinationsH.size());
-
-    std::string aErrorMessageH;
-    if (!GSeedRunStageConfigValidator::ValidateMidstage(
-            aConfigH,
-            GPassFactoryMidstage::ToVector(aPrimarySourcesH),
-            GPassFactoryMidstage::ToVector(aResidualsH),
-            GPassFactoryMidstage::ToVector(aExpectedDestinationsH),
-            &aErrorMessageH)) {
-        printf("MakeTwistConfig stage H was not valid with ValidateMidstage");
-        printf("%s\n", aErrorMessageH.c_str());
-        exit(0);
-    }
-    aConfigs[7] = aConfigH;
-    
     return aConfigs;
-    
 }
 
 } // namespace GTwistRunTwistConfig
@@ -638,7 +337,9 @@ bool GTwistRunTwist::Plan(std::string *pErrorMessage) {
 bool GTwistRunTwist::Build(TwistProgramBranch &pBranch,
                            std::string *pErrorMessage) {
     if (mEmitPrologue) {
-        AddTwistPrologue(pBranch);
+        if (!AddTwistPrologue(pBranch, pErrorMessage)) {
+            return false;
+        }
     }
     return mStage.Build(pBranch, pErrorMessage);
 }

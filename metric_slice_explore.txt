@@ -1,0 +1,266 @@
+LONG METRIC SLICE EXPLORE
+=========================
+
+trials_per_head=100
+heads_per_heart=110
+first_heart=0
+requested_hearts=1
+completed_hearts=1
+valid_loops=11000
+raw_attempts=11032
+
+Directional best means maximum for higher-is-better and minimum for lower-is-better. The one-percent clamp is the weakest head-local top-one-percent threshold in each heart.
+
+GLOBAL INVARIANTS (NO OBSERVED VARIATION)
+  1. first minimum wanderer influence = 15
+  2. first minimum input coverage = 11
+  3. second minimum wanderer influence = 17
+  4. second minimum input coverage = 11
+  5. minimum pair union = 15
+  6. minimum heart separation = 2
+  8. minimum pair balance = 0
+  9. minimum complement = 0
+  10. dominated pair count = 11
+  12. arrival total = 3894
+  13. maximum arrival skew = 24
+  17. minimum influenced wanderers = 10
+  24. reserved legacy spectral gap = 0
+  25. minimum one-round wanderer fanout = 10
+  26. mean one-round wanderer fanout x1000 = 1000
+  27. minimum source orbiter journey area = 29
+  38. maximum source meeting orphans = 0
+  39. maximum source meeting area = 120
+  40. mean source-pair meeting latency x1000 = 9545
+  count=19
+
+PROPOSED GATES PASSED BY EVERY OBSERVED LOOP
+  34. maximum orphan straggler gap <= 4
+  21. pair component count <= 3
+  41. maximum robust orphans <= 9
+  46. maximum robust destination orphans <= 9
+  43. maximum ordered destination orphan area <= 69
+  36. maximum midpoint destination orphan load <= 9
+  33. maximum last-orphan latency <= 11
+  35. maximum midpoint source orphans <= 9
+  50. maximum dual-tail arrival skew <= 11
+  24. reserved legacy spectral gap >= 0
+  25. minimum one-round wanderer fanout >= 10
+  26. mean one-round wanderer fanout x1000 >= 1000
+  27. minimum source orbiter journey area >= 29
+  1. first minimum wanderer influence >= 15
+  2. first minimum input coverage >= 11
+  3. second minimum wanderer influence >= 17
+  4. second minimum input coverage >= 11
+  5. minimum pair union >= 15
+  8. minimum pair balance >= 0
+  9. minimum complement >= 0
+  10. dominated pair count <= 11
+  12. arrival total <= 3894
+  13. maximum arrival skew <= 24
+  17. minimum influenced wanderers >= 10
+  38. maximum source meeting orphans <= 0
+  39. maximum source meeting area <= 120
+  40. mean source-pair meeting latency x1000 <= 9545
+  count=27/32
+
+PROPOSED GATE SURVIVAL
+  34. maximum orphan straggler gap                     <=      4         11000/11000  100.0000%
+  21. pair component count                             <=      3         11000/11000  100.0000%
+  41. maximum robust orphans                           <=      9         11000/11000  100.0000%
+  46. maximum robust destination orphans               <=      9         11000/11000  100.0000%
+  43. maximum ordered destination orphan area          <=     69         11000/11000  100.0000%
+  36. maximum midpoint destination orphan load         <=      9         11000/11000  100.0000%
+  18. minimum wanderers reached within four edges      >=      9           964/11000  8.7636%
+  11. flow area                                        >=   6280          1000/11000  9.0909%
+  33. maximum last-orphan latency                      <=     11         11000/11000  100.0000%
+  28. minimum dual-tail wanderer reach                 >=      5          1343/11000  12.2091%
+  29. mean dual-tail wanderer reach x1000              >=    863          1343/11000  12.2091%
+  35. maximum midpoint source orphans                  <=      9         11000/11000  100.0000%
+  49. minimum surviving fanout after one orbiter removal >=      4          4592/11000  41.7455%
+  50. maximum dual-tail arrival skew                   <=     11         11000/11000  100.0000%
+  24. reserved legacy spectral gap                     >=      0         11000/11000  100.0000%
+  25. minimum one-round wanderer fanout                >=     10         11000/11000  100.0000%
+  26. mean one-round wanderer fanout x1000             >=   1000         11000/11000  100.0000%
+  27. minimum source orbiter journey area              >=     29         11000/11000  100.0000%
+   1. first minimum wanderer influence                 >=     15         11000/11000  100.0000%
+   2. first minimum input coverage                     >=     11         11000/11000  100.0000%
+   3. second minimum wanderer influence                >=     17         11000/11000  100.0000%
+   4. second minimum input coverage                    >=     11         11000/11000  100.0000%
+   5. minimum pair union                               >=     15         11000/11000  100.0000%
+   8. minimum pair balance                             >=      0         11000/11000  100.0000%
+   9. minimum complement                               >=      0         11000/11000  100.0000%
+  10. dominated pair count                             <=     11         11000/11000  100.0000%
+  12. arrival total                                    <=   3894         11000/11000  100.0000%
+  13. maximum arrival skew                             <=     24         11000/11000  100.0000%
+  17. minimum influenced wanderers                     >=     10         11000/11000  100.0000%
+  38. maximum source meeting orphans                   <=      0         11000/11000  100.0000%
+  39. maximum source meeting area                      <=    120         11000/11000  100.0000%
+  40. mean source-pair meeting latency x1000           <=   9545         11000/11000  100.0000%
+
+SAME RAW MAXIMUM IN EVERY COMPLETED HEART
+  1. first minimum wanderer influence = 15  heart tie counts=11000..11000
+  2. first minimum input coverage = 11  heart tie counts=11000..11000
+  3. second minimum wanderer influence = 17  heart tie counts=11000..11000
+  4. second minimum input coverage = 11  heart tie counts=11000..11000
+  5. minimum pair union = 15  heart tie counts=11000..11000
+  6. minimum heart separation = 2  heart tie counts=11000..11000
+  7. total heart separation = 40  heart tie counts=6..6
+  8. minimum pair balance = 0  heart tie counts=11000..11000
+  9. minimum complement = 0  heart tie counts=11000..11000
+  10. dominated pair count = 11  heart tie counts=11000..11000
+  11. flow area = 6280  heart tie counts=1000..1000
+  12. arrival total = 3894  heart tie counts=11000..11000
+  13. maximum arrival skew = 24  heart tie counts=11000..11000
+  14. directed diameter = 10  heart tie counts=2..2
+  15. mean wanderer shortest path x1000 = 3554  heart tie counts=1..1
+  16. worst wanderer mean shortest path x1000 = 3900  heart tie counts=31..31
+  17. minimum influenced wanderers = 10  heart tie counts=11000..11000
+  18. minimum wanderers reached within four edges = 9  heart tie counts=964..964
+  19. mean four-edge wanderer reach x1000 = 9818  heart tie counts=4..4
+  20. redundant early-branch fraction x1000 = 618  heart tie counts=6..6
+  21. pair component count = 3  heart tie counts=936..936
+  22. minimum subset expansion = 409  heart tie counts=29..29
+  23. total subset expansion = 717295  heart tie counts=2..2
+  24. reserved legacy spectral gap = 0  heart tie counts=11000..11000
+  25. minimum one-round wanderer fanout = 10  heart tie counts=11000..11000
+  26. mean one-round wanderer fanout x1000 = 1000  heart tie counts=11000..11000
+  27. minimum source orbiter journey area = 29  heart tie counts=11000..11000
+  28. minimum dual-tail wanderer reach = 5  heart tie counts=1343..1343
+  29. mean dual-tail wanderer reach x1000 = 863  heart tie counts=1343..1343
+  30. maximum orbiter shortest-path load x1000 = 263  heart tie counts=1..1
+  31. maximum ordered source orphan area = 86  heart tie counts=3..3
+  32. mean ordered source orphan area x1000 = 53454  heart tie counts=1..1
+  33. maximum last-orphan latency = 11  heart tie counts=10584..10584
+  34. maximum orphan straggler gap = 4  heart tie counts=217..217
+  35. maximum midpoint source orphans = 9  heart tie counts=1949..1949
+  36. maximum midpoint destination orphan load = 9  heart tie counts=664..664
+  37. maximum midpoint co-orphan load = 8  heart tie counts=35..35
+  38. maximum source meeting orphans = 0  heart tie counts=11000..11000
+  39. maximum source meeting area = 120  heart tie counts=11000..11000
+  40. mean source-pair meeting latency x1000 = 9545  heart tie counts=11000..11000
+  41. maximum robust orphans = 9  heart tie counts=150..150
+  42. mean robust orphans x1000 = 5818  heart tie counts=2..2
+  43. maximum ordered destination orphan area = 69  heart tie counts=631..631
+  44. maximum dual-tail source orphan area = 116  heart tie counts=110..110
+  45. mean dual-tail source orphan area x1000 = 92727  heart tie counts=3..3
+  46. maximum robust destination orphans = 9  heart tie counts=670..670
+  47. maximum single-orbiter ordered-pair damage = 22  heart tie counts=1..1
+  48. mean single-orbiter ordered-pair damage x1000 = 10181  heart tie counts=1..1
+  49. minimum surviving fanout after one orbiter removal = 4  heart tie counts=4592..4592
+  50. maximum dual-tail arrival skew = 11  heart tie counts=10968..10968
+
+SAME DIRECTIONAL BEST IN EVERY COMPLETED HEART
+  1. first minimum wanderer influence = 15  heart tie counts=11000..11000
+  2. first minimum input coverage = 11  heart tie counts=11000..11000
+  3. second minimum wanderer influence = 17  heart tie counts=11000..11000
+  4. second minimum input coverage = 11  heart tie counts=11000..11000
+  5. minimum pair union = 15  heart tie counts=11000..11000
+  6. minimum heart separation = 2  heart tie counts=11000..11000
+  7. total heart separation = 40  heart tie counts=6..6
+  8. minimum pair balance = 0  heart tie counts=11000..11000
+  9. minimum complement = 0  heart tie counts=11000..11000
+  10. dominated pair count = 11  heart tie counts=11000..11000
+  11. flow area = 6280  heart tie counts=1000..1000
+  12. arrival total = 3894  heart tie counts=11000..11000
+  13. maximum arrival skew = 24  heart tie counts=11000..11000
+  14. directed diameter = 4  heart tie counts=1177..1177
+  15. mean wanderer shortest path x1000 = 3245  heart tie counts=2..2
+  16. worst wanderer mean shortest path x1000 = 3300  heart tie counts=2..2
+  17. minimum influenced wanderers = 10  heart tie counts=11000..11000
+  18. minimum wanderers reached within four edges = 9  heart tie counts=964..964
+  19. mean four-edge wanderer reach x1000 = 9818  heart tie counts=4..4
+  20. redundant early-branch fraction x1000 = 618  heart tie counts=6..6
+  21. pair component count = 1  heart tie counts=4623..4623
+  22. minimum subset expansion = 409  heart tie counts=29..29
+  23. total subset expansion = 717295  heart tie counts=2..2
+  24. reserved legacy spectral gap = 0  heart tie counts=11000..11000
+  25. minimum one-round wanderer fanout = 10  heart tie counts=11000..11000
+  26. mean one-round wanderer fanout x1000 = 1000  heart tie counts=11000..11000
+  27. minimum source orbiter journey area = 29  heart tie counts=11000..11000
+  28. minimum dual-tail wanderer reach = 5  heart tie counts=1343..1343
+  29. mean dual-tail wanderer reach x1000 = 863  heart tie counts=1343..1343
+  30. maximum orbiter shortest-path load x1000 = 202  heart tie counts=1..1
+  31. maximum ordered source orphan area = 70  heart tie counts=287..287
+  32. mean ordered source orphan area x1000 = 44727  heart tie counts=2..2
+  33. maximum last-orphan latency = 10  heart tie counts=416..416
+  34. maximum orphan straggler gap = 0  heart tie counts=19..19
+  35. maximum midpoint source orphans = 8  heart tie counts=9051..9051
+  36. maximum midpoint destination orphan load = 6  heart tie counts=265..265
+  37. maximum midpoint co-orphan load = 3  heart tie counts=1..1
+  38. maximum source meeting orphans = 0  heart tie counts=11000..11000
+  39. maximum source meeting area = 120  heart tie counts=11000..11000
+  40. mean source-pair meeting latency x1000 = 9545  heart tie counts=11000..11000
+  41. maximum robust orphans = 6  heart tie counts=626..626
+  42. mean robust orphans x1000 = 3727  heart tie counts=5..5
+  43. maximum ordered destination orphan area = 50  heart tie counts=2..2
+  44. maximum dual-tail source orphan area = 108  heart tie counts=5..5
+  45. mean dual-tail source orphan area x1000 = 86545  heart tie counts=1..1
+  46. maximum robust destination orphans = 6  heart tie counts=571..571
+  47. maximum single-orbiter ordered-pair damage = 10  heart tie counts=6..6
+  48. mean single-orbiter ordered-pair damage x1000 = 5636  heart tie counts=1..1
+  49. minimum surviving fanout after one orbiter removal = 4  heart tie counts=4592..4592
+  50. maximum dual-tail arrival skew = 10  heart tie counts=32..32
+
+JOINT ATTAINABILITY
+  all head-local directional bests simultaneously: 0/11000
+  all head-local one-percent clamps simultaneously: 0/11000
+  all proposed universal gates simultaneously: 2/11000
+
+PER-METRIC SLICES
+ # | DIR | GLOBAL RANGE | HEART MAX RANGE | HEART BEST RANGE | 1% CLAMP RANGE
+---+-----+--------------+-----------------+------------------+----------------
+ 1 | HI  |     15..    15 |     15..    15 |     15..    15 |     15..    15  first minimum wanderer influence
+ 2 | HI  |     11..    11 |     11..    11 |     11..    11 |     11..    11  first minimum input coverage
+ 3 | HI  |     17..    17 |     17..    17 |     17..    17 |     17..    17  second minimum wanderer influence
+ 4 | HI  |     11..    11 |     11..    11 |     11..    11 |     11..    11  second minimum input coverage
+ 5 | HI  |     15..    15 |     15..    15 |     15..    15 |     15..    15  minimum pair union
+ 6 | HI  |      2..     2 |      2..     2 |      2..     2 |      2..     2  minimum heart separation
+ 7 | HI  |     22..    40 |     40..    40 |     40..    40 |     35..    35  total heart separation
+ 8 | HI  |      0..     0 |      0..     0 |      0..     0 |      0..     0  minimum pair balance
+ 9 | HI  |      0..     0 |      0..     0 |      0..     0 |      0..     0  minimum complement
+10 | LO  |     11..    11 |     11..    11 |     11..    11 |     11..    11  dominated pair count
+11 | HI  |   6264..  6280 |   6280..  6280 |   6280..  6280 |   6264..  6264  flow area
+12 | LO  |   3894..  3894 |   3894..  3894 |   3894..  3894 |   3894..  3894  arrival total
+13 | LO  |     24..    24 |     24..    24 |     24..    24 |     24..    24  maximum arrival skew
+14 | LO  |      4..    10 |     10..    10 |      4..     4 |      4..     4  directed diameter
+15 | LO  |   3245..  3554 |   3554..  3554 |   3245..  3245 |   3318..  3318  mean wanderer shortest path x1000
+16 | LO  |   3300..  3900 |   3900..  3900 |   3300..  3300 |   3500..  3500  worst wanderer mean shortest path x1000
+17 | HI  |     10..    10 |     10..    10 |     10..    10 |     10..    10  minimum influenced wanderers
+18 | HI  |      6..     9 |      9..     9 |      9..     9 |      9..     9  minimum wanderers reached within four edges
+19 | HI  |   8272..  9818 |   9818..  9818 |   9818..  9818 |   9545..  9545  mean four-edge wanderer reach x1000
+20 | HI  |    390..   618 |    618..   618 |    618..   618 |    563..   563  redundant early-branch fraction x1000
+21 | LO  |      1..     3 |      3..     3 |      1..     1 |      1..     1  pair component count
+22 | HI  |    102..   409 |    409..   409 |    409..   409 |    307..   307  minimum subset expansion
+23 | HI  | 456387..717295 | 717295..717295 | 717295..717295 | 717276..717276  total subset expansion
+24 | HI  |      0..     0 |      0..     0 |      0..     0 |      0..     0  reserved legacy spectral gap
+25 | HI  |     10..    10 |     10..    10 |     10..    10 |     10..    10  minimum one-round wanderer fanout
+26 | HI  |   1000..  1000 |   1000..  1000 |   1000..  1000 |   1000..  1000  mean one-round wanderer fanout x1000
+27 | HI  |     29..    29 |     29..    29 |     29..    29 |     29..    29  minimum source orbiter journey area
+28 | HI  |      4..     5 |      5..     5 |      5..     5 |      5..     5  minimum dual-tail wanderer reach
+29 | HI  |    836..   863 |    863..   863 |    863..   863 |    863..   863  mean dual-tail wanderer reach x1000
+30 | LO  |    202..   263 |    263..   263 |    202..   202 |    214..   214  maximum orbiter shortest-path load x1000
+31 | LO  |     70..    86 |     86..    86 |     70..    70 |     71..    71  maximum ordered source orphan area
+32 | LO  |  44727.. 53454 |  53454.. 53454 |  44727.. 44727 |  46545.. 46545  mean ordered source orphan area x1000
+33 | LO  |     10..    11 |     11..    11 |     10..    10 |     11..    11  maximum last-orphan latency
+34 | LO  |      0..     4 |      4..     4 |      0..     0 |      1..     1  maximum orphan straggler gap
+35 | LO  |      8..     9 |      9..     9 |      8..     8 |      8..     8  maximum midpoint source orphans
+36 | LO  |      6..     9 |      9..     9 |      6..     6 |      7..     7  maximum midpoint destination orphan load
+37 | LO  |      3..     8 |      8..     8 |      3..     3 |      5..     5  maximum midpoint co-orphan load
+38 | LO  |      0..     0 |      0..     0 |      0..     0 |      0..     0  maximum source meeting orphans
+39 | LO  |    120..   120 |    120..   120 |    120..   120 |    120..   120  maximum source meeting area
+40 | LO  |   9545..  9545 |   9545..  9545 |   9545..  9545 |   9545..  9545  mean source-pair meeting latency x1000
+41 | LO  |      6..     9 |      9..     9 |      6..     6 |      6..     6  maximum robust orphans
+42 | LO  |   3727..  5818 |   5818..  5818 |   3727..  3727 |   4090..  4090  mean robust orphans x1000
+43 | LO  |     50..    69 |     69..    69 |     50..    50 |     55..    55  maximum ordered destination orphan area
+44 | LO  |    108..   116 |    116..   116 |    108..   108 |    110..   110  maximum dual-tail source orphan area
+45 | LO  |  86545.. 92727 |  92727.. 92727 |  86545.. 86545 |  88272.. 88272  mean dual-tail source orphan area x1000
+46 | LO  |      6..     9 |      9..     9 |      6..     6 |      6..     6  maximum robust destination orphans
+47 | LO  |     10..    22 |     22..    22 |     10..    10 |     12..    12  maximum single-orbiter ordered-pair damage
+48 | LO  |   5636.. 10181 |  10181.. 10181 |   5636..  5636 |   6545..  6545  mean single-orbiter ordered-pair damage x1000
+49 | HI  |      3..     4 |      4..     4 |      4..     4 |      4..     4  minimum surviving fanout after one orbiter removal
+50 | LO  |     10..    11 |     11..    11 |     10..    10 |     11..    11  maximum dual-tail arrival skew
+
+PER-HEART JOINT SURVIVAL
+heart | valid      | exact best | all 1% clamps | proposed
+------+------------+------------+---------------+------------
+    0 |      11000 |          0 |             0 |          2

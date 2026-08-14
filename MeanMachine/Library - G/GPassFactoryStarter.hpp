@@ -20,39 +20,114 @@ public:
     using SlotArray2 = std::array<Slot, 2U>;
     using SlotArray3 = std::array<Slot, 3U>;
     using SlotArray4 = std::array<Slot, 4U>;
+    using SlotArray6 = std::array<Slot, 6U>;
+    using SlotArray8 = std::array<Slot, 8U>;
+    using SlotArray12 = std::array<Slot, 12U>;
 
-    static constexpr std::size_t kKDF_A_AStarterCandidateCount = 36U;
+    static constexpr std::size_t kKDF_A_AStarterCandidateCount = 4U;
     static constexpr std::size_t kSeed_AStarterCandidateCount = 36U;
     static constexpr std::size_t kTwist_AStarterCandidateCount = 36U;
 
+    // Four-pass Grow starter with four persistent branch lanes and two
+    // external cross lanes. Every context is deliberately full: six fixed
+    // inputs establish the branch, then twelve scheduled residual reads fill
+    // the remaining positions.
+    static std::vector<GSeedRunStageSliceSpec>
+    WideFourPassSixInputTwelveResidualSlices(
+        const SlotArray6 &pInputs,
+        const SlotArray12 &pResiduals,
+        const SlotArray4 &pDestinations) {
+        return {
+            GSeedRunStageSliceSpec(
+                {pInputs[3], pInputs[1], pInputs[4], pResiduals[0]},
+                true,
+                {pInputs[2], pInputs[0], pInputs[4], pResiduals[1]},
+                true,
+                pDestinations[0],
+                false),
+
+            GSeedRunStageSliceSpec(
+                {pDestinations[0], pInputs[2], pInputs[5], pResiduals[2]},
+                true,
+                {pInputs[3], pInputs[1], pInputs[4], pResiduals[3]},
+                true,
+                pDestinations[1],
+                true),
+
+            GSeedRunStageSliceSpec(
+                {pDestinations[1], pInputs[3], pResiduals[4], pResiduals[5]},
+                true,
+                {pDestinations[0], pInputs[2], pResiduals[6], pResiduals[7]},
+                true,
+                pDestinations[2],
+                false),
+
+            GSeedRunStageSliceSpec(
+                {pDestinations[2], pDestinations[0], pResiduals[8], pResiduals[9]},
+                true,
+                {pDestinations[1], pInputs[3], pResiduals[10], pResiduals[11]},
+                true,
+                pDestinations[3],
+                true),
+        };
+    }
+
+    // Four-pass key starter with eight fixed input lanes. The first pass
+    // consumes all eight inputs. The remaining passes make ten residual
+    // reads from eight residual lanes; residuals F and G deliberately bridge
+    // passes three and four.
+    static std::vector<GSeedRunStageSliceSpec>
+    WideFourPassTenResidualSlices(
+        const SlotArray8 &pInputs,
+        const SlotArray8 &pResiduals,
+        const SlotArray4 &pDestinations) {
+        return {
+            // Crystal A-D forward; Ice A-D backward.
+            GSeedRunStageSliceSpec(
+                {pInputs[0], pInputs[1], pInputs[2], pInputs[3]},
+                true,
+                {pInputs[4], pInputs[5], pInputs[6], pInputs[7]},
+                true,
+                pDestinations[0],
+                false),
+
+            GSeedRunStageSliceSpec(
+                {pDestinations[0], pInputs[4], pInputs[5], pResiduals[0]},
+                false,
+                {pInputs[0], pInputs[1], pResiduals[1], pResiduals[2]},
+                false,
+                pDestinations[1],
+                true),
+
+            GSeedRunStageSliceSpec(
+                {pDestinations[1], pInputs[6], pResiduals[3], pResiduals[4]},
+                false,
+                {pDestinations[0], pInputs[2], pResiduals[5], pResiduals[6]},
+                false,
+                pDestinations[2],
+                false),
+
+            GSeedRunStageSliceSpec(
+                {pDestinations[2], pDestinations[0],
+                 pInputs[7], pResiduals[5]},
+                false,
+                {pDestinations[1], pInputs[3],
+                 pResiduals[6], pResiduals[7]},
+                false,
+                pDestinations[3],
+                true),
+        };
+    }
+
     static std::vector<GSeedRunStageSliceSpec> KDF_A_AStarterSlices(
         const SlotArray2 &pSources,
-        const SlotArray2 &pWarmUpLanes,
         const SlotArray4 &pDestinations,
         const std::size_t pCandidateIndex) {
         const std::size_t aCandidateIndex =
             pCandidateIndex % kKDF_A_AStarterCandidateCount;
 
-        //
-        // Source is pSources[0].
-        // Nonce is pSources[1].
-        //
-        // Passes 1 and 2 are fixed. The remaining decisions subdivide the
-        // 36 candidates in order:
-        //
-        //   pass 3: two halves of 18
-        //   pass 4: two quarters of 9 within each half
-        //   pass 5: three groups of 3 within each quarter
-        //   pass 6: three candidates within each group
-        //
-        const std::size_t aPassThreeConfig =
-            aCandidateIndex / 18U;
-        const std::size_t aPassFourConfig =
-            (aCandidateIndex / 9U) % 2U;
-        const std::size_t aPassFiveConfig =
-            (aCandidateIndex / 3U) % 3U;
-        const std::size_t aPassSixConfig =
-            aCandidateIndex % 3U;
+        const std::size_t aPassThreeConfig = aCandidateIndex / 2U;
+        const std::size_t aPassFourConfig = aCandidateIndex % 2U;
 
         const Slot aPassThreeIngressLane =
             (aPassThreeConfig == 0U) ? pSources[0] : pSources[1];
@@ -63,20 +138,6 @@ public:
             (aPassFourConfig == 0U) ? pSources[0] : pSources[1];
         const Slot aPassFourCrossLane =
             (aPassFourConfig == 0U) ? pSources[1] : pSources[0];
-
-        const Slot aPassFiveIngressLane =
-            (aPassFiveConfig == 1U) ? pSources[1] : pSources[0];
-        const Slot aPassFiveCrossLane =
-            (aPassFiveConfig == 0U) ? pSources[1] :
-            (aPassFiveConfig == 1U) ? pSources[0] :
-                                      pWarmUpLanes[0];
-
-        const Slot aPassSixIngressLane =
-            (aPassSixConfig == 1U) ? pSources[1] : pSources[0];
-        const Slot aPassSixCrossLane =
-            (aPassSixConfig == 0U) ? pSources[1] :
-            (aPassSixConfig == 1U) ? pSources[0] :
-                                     pWarmUpLanes[1];
 
         return {
             //
@@ -90,7 +151,7 @@ public:
                                    true,
                                    {pSources[1], pSources[0]},
                                    true,
-                                   pWarmUpLanes[0],
+                                   pDestinations[0],
                                    false),
 
             //
@@ -100,11 +161,11 @@ public:
             // Cross:   source, nonce
             // Write:   destination B
             //
-            GSeedRunStageSliceSpec({pWarmUpLanes[0], pSources[0]},
+            GSeedRunStageSliceSpec({pDestinations[0], pSources[0]},
                                    true,
                                    {pSources[0], pSources[1]},
                                    true,
-                                   pWarmUpLanes[1],
+                                   pDestinations[1],
                                    true),
 
             //
@@ -114,9 +175,9 @@ public:
             // Cross:   destination A, DC
             // Write:   destination C
             //
-            {{pWarmUpLanes[1], aPassThreeIngressLane},
-             {pWarmUpLanes[0], aPassThreeCrossLane},
-             pDestinations[0],
+            {{pDestinations[1], aPassThreeIngressLane},
+             {pDestinations[0], aPassThreeCrossLane},
+             pDestinations[2],
              false},
 
             //
@@ -126,38 +187,10 @@ public:
             // Cross:   destination B, DC
             // Write:   destination D
             //
-            {{pDestinations[0],
-              pWarmUpLanes[0],
-              aPassFourIngressLane},
-             {pWarmUpLanes[1], aPassFourCrossLane},
-             pDestinations[1],
-             true},
-
-            //
-            // Pass 5
-            //
-            // Ingress: destination D, destination B, DC
-            // Cross:   destination C, DC
-            // Write:   destination E
-            //
-            {{pDestinations[1],
-              pWarmUpLanes[1],
-              aPassFiveIngressLane},
-             {pDestinations[0], aPassFiveCrossLane},
-             pDestinations[2],
-             false},
-
-            //
-            // Pass 6
-            //
-            // Ingress: destination E, destination C, DC
-            // Cross:   destination D, DC
-            // Write:   destination F
-            //
             {{pDestinations[2],
               pDestinations[0],
-              aPassSixIngressLane},
-             {pDestinations[1], aPassSixCrossLane},
+              aPassFourIngressLane},
+             {pDestinations[1], aPassFourCrossLane},
              pDestinations[3],
              true},
         };
@@ -544,253 +577,6 @@ public:
         }
 
         return aSlices;
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassThreeInputStarterSlices(
-        const SlotArray3 &pPrimary,
-        const SlotArray2 &pWarmUpLanes,
-        const SlotArray4 &pDestinations) {
-        return {
-            GSeedRunStageSliceSpec({pPrimary[0], pPrimary[1]},
-                                   true,
-                                   {pPrimary[0], pPrimary[2]},
-                                   true,
-                                   pWarmUpLanes[0],
-                                   false),
-
-            GSeedRunStageSliceSpec({pWarmUpLanes[0], pPrimary[2]},
-                                   true,
-                                   {pPrimary[0], pPrimary[1]},
-                                   true,
-                                   pWarmUpLanes[1],
-                                   true),
-
-            GSeedRunStageSliceSpec({pWarmUpLanes[1], pPrimary[0], pPrimary[2]},
-                                   true,
-                                   {pWarmUpLanes[0], pPrimary[1]},
-                                   false,
-                                   pDestinations[0],
-                                   false),
-
-            {{pDestinations[0], pWarmUpLanes[0]},
-             {pWarmUpLanes[1], pPrimary[2]},
-             pDestinations[1],
-             true},
-
-            {{pDestinations[1], pWarmUpLanes[1]},
-             {pDestinations[0], pWarmUpLanes[0]},
-             pDestinations[2],
-             false},
-
-            {{pDestinations[2], pDestinations[0]},
-             {pDestinations[1], pWarmUpLanes[1]},
-             pDestinations[3],
-             true},
-        };
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassOneInputStarterSlices(
-        const SlotArray1 &pInput,
-        const SlotArray2 &pWarmUpLanes,
-        const SlotArray4 &pDestinations,
-        const std::size_t pCandidateIndex) {
-        // The candidate index is intentionally available at the factory
-        // boundary. Candidate-specific starter selection will be introduced
-        // here without reaching back into a builder or global.
-        static_cast<void>(pCandidateIndex);
-
-        return {
-            //
-            // Pass 1: bootstrap both ARX sides from the sole external source.
-            //
-            GSeedRunStageSliceSpec({pInput[0], pInput[0]},
-                                   true,
-                                   {pInput[0], pInput[0]},
-                                   true,
-                                   pWarmUpLanes[0],
-                                   false),
-
-            //
-            // Pass 2: consume the first warm-up at ingress[0].
-            //
-            GSeedRunStageSliceSpec({pWarmUpLanes[0], pInput[0]},
-                                   false,
-                                   {pInput[0], pInput[0]},
-                                   false,
-                                   pWarmUpLanes[1],
-                                   true),
-
-            //
-            // Pass 3: consume the second warm-up at ingress[0] and the first
-            // warm-up at cross[0].
-            //
-            GSeedRunStageSliceSpec({pWarmUpLanes[1], pInput[0]},
-                                   false,
-                                   {pWarmUpLanes[0], pInput[0]},
-                                   false,
-                                   pDestinations[0],
-                                   false),
-
-            //
-            // Passes 4-6 continue the exact ingress[0], cross[0],
-            // ingress[1], required cross[1] destination schedule.
-            //
-            GSeedRunStageSliceSpec({pDestinations[0], pWarmUpLanes[0]},
-                                   false,
-                                   {pWarmUpLanes[1], pInput[0]},
-                                   false,
-                                   pDestinations[1],
-                                   true),
-
-            GSeedRunStageSliceSpec({pDestinations[1], pWarmUpLanes[1]},
-                                   false,
-                                   {pDestinations[0], pWarmUpLanes[0]},
-                                   false,
-                                   pDestinations[2],
-                                   false),
-
-            GSeedRunStageSliceSpec({pDestinations[2], pDestinations[0]},
-                                   false,
-                                   {pDestinations[1], pWarmUpLanes[1]},
-                                   true,
-                                   pDestinations[3],
-                                   true),
-        };
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassStarterFourResidualSlices(
-        const SlotArray3 &pPrimary,
-        const SlotArray4 &pResiduals,
-        const SlotArray2 &pWarmUpLanes,
-        const SlotArray4 &pDestinations) {
-        std::vector<GSeedRunStageSliceSpec> aSlices =
-            SixPassThreeInputStarterSlices(pPrimary,
-                                           pWarmUpLanes,
-                                           pDestinations);
-        SlotArray4 aResiduals = pResiduals;
-        ShuffleArray(&aResiduals);
-
-        // FFB: once residuals make four sources available, Source may no
-        // longer appear on both ingress and cross as it does in the bare
-        // three-input starter.
-        aSlices[0].mCrossSources.erase(
-            aSlices[0].mCrossSources.begin()
-        );
-        aSlices[0].mCrossSources.push_back(aResiduals[0]);
-        aSlices[0].mIsLastCrossDirectionLocked = false;
-
-        // BBF
-        aSlices[1].mCrossSources.push_back(aResiduals[1]);
-        aSlices[1].mIsLastCrossDirectionLocked = false;
-
-        // FBF
-        aSlices[2].mCrossSources.push_back(aResiduals[2]);
-        aSlices[2].mIsLastCrossDirectionLocked = false;
-
-        // BFB
-        aSlices[3].mIngressSources.push_back(pPrimary[1]);
-        aSlices[3].mIsLastIngressDirectionLocked = true;
-        aSlices[3].mCrossSources.push_back(pPrimary[0]);
-        aSlices[3].mCrossSources.push_back(aResiduals[3]);
-        aSlices[3].mIsLastCrossDirectionLocked = false;
-
-        // Primary B now receives its fourth required use in the BFB pass.
-        // Reuse the first warm-up result in pass five instead of reading
-        // Primary B a fifth time.
-        aSlices[4].mCrossSources.back() = pWarmUpLanes[0];
-        return aSlices;
-    }
-
-    static std::vector<GSeedRunStageSliceSpec> SixPassOneInputFourResidualSlices(
-        const SlotArray1 &pInput,
-        const SlotArray4 &pResiduals,
-        const SlotArray2 &pWarmUpLanes,
-        const SlotArray4 &pDestinations) {
-        return {
-            //
-            // Pass 1
-            //
-            // Ingress: input, residual A
-            // Cross:   input, residual B
-            // Write:   warm-up A
-            //
-            GSeedRunStageSliceSpec({pInput[0], pResiduals[0]},
-                                   false,
-                                   {pInput[0], pResiduals[1]},
-                                   false,
-                                   pWarmUpLanes[0],
-                                   false),
-
-            //
-            // Pass 2
-            //
-            // Ingress: warm-up A, residual C
-            // Cross:   input, residual D
-            // Write:   warm-up B
-            //
-            GSeedRunStageSliceSpec({pWarmUpLanes[0], pResiduals[2]},
-                                   false,
-                                   {pInput[0], pResiduals[3]},
-                                   false,
-                                   pWarmUpLanes[1],
-                                   true),
-
-            //
-            // Pass 3
-            //
-            // Ingress: warm-up B, input
-            // Cross:   warm-up A, input
-            // Write:   destination A
-            //
-            GSeedRunStageSliceSpec({pWarmUpLanes[1], pInput[0]},
-                                   false,
-                                   {pWarmUpLanes[0], pInput[0]},
-                                   false,
-                                   pDestinations[0],
-                                   false),
-
-            //
-            // Pass 4
-            //
-            // Ingress: destination A, warm-up A
-            // Cross:   warm-up B, input
-            // Write:   destination B
-            //
-            GSeedRunStageSliceSpec({pDestinations[0], pWarmUpLanes[0]},
-                                   false,
-                                   {pWarmUpLanes[1], pInput[0]},
-                                   true,
-                                   pDestinations[1],
-                                   true),
-
-            //
-            // Pass 5
-            //
-            // Ingress: destination B, warm-up B
-            // Cross:   destination A, warm-up A
-            // Write:   destination C
-            //
-            GSeedRunStageSliceSpec({pDestinations[1], pWarmUpLanes[1]},
-                                   false,
-                                   {pDestinations[0], pWarmUpLanes[0]},
-                                   false,
-                                   pDestinations[2],
-                                   false),
-
-            //
-            // Pass 6
-            //
-            // Ingress: destination C, destination A
-            // Cross:   destination B, warm-up B
-            // Write:   destination D
-            //
-            GSeedRunStageSliceSpec({pDestinations[2], pDestinations[0]},
-                                   true,
-                                   {pDestinations[1], pWarmUpLanes[1]},
-                                   false,
-                                   pDestinations[3],
-                                   true),
-        };
     }
 
     static std::vector<GSeedRunStageSliceSpec> FourPassStarterFourResidualSlices(

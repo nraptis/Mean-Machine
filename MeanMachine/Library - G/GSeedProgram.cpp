@@ -189,10 +189,6 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateG,
         TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateH,
-        TwistWorkSpaceSlot::kHeartLaneA,
-        TwistWorkSpaceSlot::kHeartLaneB,
-        TwistWorkSpaceSlot::kHeartLaneC,
-        TwistWorkSpaceSlot::kHeartLaneD,
         TwistWorkSpaceSlot::kSpiritLaneA,
         TwistWorkSpaceSlot::kSpiritLaneB,
         TwistWorkSpaceSlot::kSpiritLaneC,
@@ -209,6 +205,10 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kWaterLaneB,
         TwistWorkSpaceSlot::kWaterLaneC,
         TwistWorkSpaceSlot::kWaterLaneD,
+        TwistWorkSpaceSlot::kRainbowLaneA,
+        TwistWorkSpaceSlot::kRainbowLaneB,
+        TwistWorkSpaceSlot::kRainbowLaneC,
+        TwistWorkSpaceSlot::kRainbowLaneD,
         TwistWorkSpaceSlot::kEarthLaneA,
         TwistWorkSpaceSlot::kEarthLaneB,
         TwistWorkSpaceSlot::kEarthLaneC,
@@ -217,26 +217,10 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kWindLaneB,
         TwistWorkSpaceSlot::kWindLaneC,
         TwistWorkSpaceSlot::kWindLaneD,
-        TwistWorkSpaceSlot::kFuseLaneA,
-        TwistWorkSpaceSlot::kFuseLaneB,
-        TwistWorkSpaceSlot::kFuseLaneC,
-        TwistWorkSpaceSlot::kFuseLaneD,
-        TwistWorkSpaceSlot::kWoodLaneA,
-        TwistWorkSpaceSlot::kWoodLaneB,
-        TwistWorkSpaceSlot::kWoodLaneC,
-        TwistWorkSpaceSlot::kWoodLaneD,
         TwistWorkSpaceSlot::kLightningLaneA,
         TwistWorkSpaceSlot::kLightningLaneB,
         TwistWorkSpaceSlot::kLightningLaneC,
         TwistWorkSpaceSlot::kLightningLaneD,
-        TwistWorkSpaceSlot::kMagmaLaneA,
-        TwistWorkSpaceSlot::kMagmaLaneB,
-        TwistWorkSpaceSlot::kMagmaLaneC,
-        TwistWorkSpaceSlot::kMagmaLaneD,
-        TwistWorkSpaceSlot::kSoilLaneA,
-        TwistWorkSpaceSlot::kSoilLaneB,
-        TwistWorkSpaceSlot::kSoilLaneC,
-        TwistWorkSpaceSlot::kSoilLaneD,
         TwistWorkSpaceSlot::kPlasmaLaneA,
         TwistWorkSpaceSlot::kPlasmaLaneB,
         TwistWorkSpaceSlot::kPlasmaLaneC,
@@ -257,14 +241,73 @@ std::vector<TwistWorkSpaceSlot> BuildKnownWorkspaceSlots() {
         TwistWorkSpaceSlot::kCelestialLaneB,
         TwistWorkSpaceSlot::kCelestialLaneC,
         TwistWorkSpaceSlot::kCelestialLaneD,
-        TwistWorkSpaceSlot::kKineticLaneA,
-        TwistWorkSpaceSlot::kKineticLaneB,
-        TwistWorkSpaceSlot::kKineticLaneC,
-        TwistWorkSpaceSlot::kKineticLaneD,
         TwistWorkSpaceSlot::kVaporLaneA,
         TwistWorkSpaceSlot::kVaporLaneB,
         TwistWorkSpaceSlot::kVaporLaneC,
         TwistWorkSpaceSlot::kVaporLaneD,
+        TwistWorkSpaceSlot::kKineticLaneA,
+        TwistWorkSpaceSlot::kKineticLaneB,
+        TwistWorkSpaceSlot::kKineticLaneC,
+        TwistWorkSpaceSlot::kKineticLaneD,
+        TwistWorkSpaceSlot::kSonicLaneA,
+        TwistWorkSpaceSlot::kSonicLaneB,
+        TwistWorkSpaceSlot::kSonicLaneC,
+        TwistWorkSpaceSlot::kSonicLaneD,
+        TwistWorkSpaceSlot::kPlanarLaneA,
+        TwistWorkSpaceSlot::kPlanarLaneB,
+        TwistWorkSpaceSlot::kPlanarLaneC,
+        TwistWorkSpaceSlot::kPlanarLaneD,
+        TwistWorkSpaceSlot::kFrostLaneA,
+        TwistWorkSpaceSlot::kFrostLaneB,
+        TwistWorkSpaceSlot::kFrostLaneC,
+        TwistWorkSpaceSlot::kFrostLaneD,
+        TwistWorkSpaceSlot::kArcaneLaneA,
+        TwistWorkSpaceSlot::kArcaneLaneB,
+        TwistWorkSpaceSlot::kArcaneLaneC,
+        TwistWorkSpaceSlot::kArcaneLaneD,
+        TwistWorkSpaceSlot::kLunarLaneA,
+        TwistWorkSpaceSlot::kLunarLaneB,
+        TwistWorkSpaceSlot::kLunarLaneC,
+        TwistWorkSpaceSlot::kLunarLaneD,
+        TwistWorkSpaceSlot::kRunicLaneA,
+        TwistWorkSpaceSlot::kRunicLaneB,
+        TwistWorkSpaceSlot::kRunicLaneC,
+        TwistWorkSpaceSlot::kRunicLaneD,
+        TwistWorkSpaceSlot::kGloomLaneA,
+        TwistWorkSpaceSlot::kGloomLaneB,
+        TwistWorkSpaceSlot::kGloomLaneC,
+        TwistWorkSpaceSlot::kGloomLaneD,
+        TwistWorkSpaceSlot::kAbjurationLaneA,
+        TwistWorkSpaceSlot::kAbjurationLaneB,
+        TwistWorkSpaceSlot::kAbjurationLaneC,
+        TwistWorkSpaceSlot::kAbjurationLaneD,
+        TwistWorkSpaceSlot::kDivinationLaneA,
+        TwistWorkSpaceSlot::kDivinationLaneB,
+        TwistWorkSpaceSlot::kDivinationLaneC,
+        TwistWorkSpaceSlot::kDivinationLaneD,
+        TwistWorkSpaceSlot::kEvocationLaneA,
+        TwistWorkSpaceSlot::kEvocationLaneB,
+        TwistWorkSpaceSlot::kEvocationLaneC,
+        TwistWorkSpaceSlot::kEvocationLaneD,
+        TwistWorkSpaceSlot::kStasisLaneA,
+        TwistWorkSpaceSlot::kStasisLaneB,
+        TwistWorkSpaceSlot::kStasisLaneC,
+        TwistWorkSpaceSlot::kAlchemyLaneA,
+        TwistWorkSpaceSlot::kAlchemyLaneB,
+        TwistWorkSpaceSlot::kAlchemyLaneC,
+        TwistWorkSpaceSlot::kAlchemyLaneD,
+        TwistWorkSpaceSlot::kAuguryLaneA,
+        TwistWorkSpaceSlot::kAuguryLaneB,
+        TwistWorkSpaceSlot::kAuguryLaneC,
+        TwistWorkSpaceSlot::kAuguryLaneD,
+        TwistWorkSpaceSlot::kPsychicLaneA,
+        TwistWorkSpaceSlot::kPsychicLaneB,
+        TwistWorkSpaceSlot::kPsychicLaneC,
+        TwistWorkSpaceSlot::kPsychicLaneD,
+        TwistWorkSpaceSlot::kVoodooLaneA,
+        TwistWorkSpaceSlot::kVoodooLaneB,
+        TwistWorkSpaceSlot::kVoodooLaneC,
+        TwistWorkSpaceSlot::kVoodooLaneD,
         TwistWorkSpaceSlot::kIceLaneA,
         TwistWorkSpaceSlot::kIceLaneB,
         TwistWorkSpaceSlot::kIceLaneC,
@@ -339,10 +382,6 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateF: return "param_domain_salt_Wanderer_f";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateG: return "param_domain_salt_Wanderer_g";
         case TwistWorkSpaceSlot::kParamDomainSaltWandererUpdateH: return "param_domain_salt_Wanderer_h";
-        case TwistWorkSpaceSlot::kHeartLaneA: return "seed_lane_a";
-        case TwistWorkSpaceSlot::kHeartLaneB: return "seed_lane_b";
-        case TwistWorkSpaceSlot::kHeartLaneC: return "seed_lane_c";
-        case TwistWorkSpaceSlot::kHeartLaneD: return "seed_lane_d";
         case TwistWorkSpaceSlot::kSpiritLaneA: return "operation_lane_a";
         case TwistWorkSpaceSlot::kSpiritLaneB: return "operation_lane_b";
         case TwistWorkSpaceSlot::kSpiritLaneC: return "operation_lane_c";
@@ -359,6 +398,10 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kWaterLaneB: return "water_lane_b";
         case TwistWorkSpaceSlot::kWaterLaneC: return "water_lane_c";
         case TwistWorkSpaceSlot::kWaterLaneD: return "water_lane_d";
+        case TwistWorkSpaceSlot::kRainbowLaneA: return "rainbow_lane_a";
+        case TwistWorkSpaceSlot::kRainbowLaneB: return "rainbow_lane_b";
+        case TwistWorkSpaceSlot::kRainbowLaneC: return "rainbow_lane_c";
+        case TwistWorkSpaceSlot::kRainbowLaneD: return "rainbow_lane_d";
         case TwistWorkSpaceSlot::kEarthLaneA: return "earth_lane_a";
         case TwistWorkSpaceSlot::kEarthLaneB: return "earth_lane_b";
         case TwistWorkSpaceSlot::kEarthLaneC: return "earth_lane_c";
@@ -367,26 +410,10 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kWindLaneB: return "wind_lane_b";
         case TwistWorkSpaceSlot::kWindLaneC: return "wind_lane_c";
         case TwistWorkSpaceSlot::kWindLaneD: return "wind_lane_d";
-        case TwistWorkSpaceSlot::kFuseLaneA: return "fuse_lane_a";
-        case TwistWorkSpaceSlot::kFuseLaneB: return "fuse_lane_b";
-        case TwistWorkSpaceSlot::kFuseLaneC: return "fuse_lane_c";
-        case TwistWorkSpaceSlot::kFuseLaneD: return "fuse_lane_d";
-        case TwistWorkSpaceSlot::kWoodLaneA: return "scrap_lane_a";
-        case TwistWorkSpaceSlot::kWoodLaneB: return "scrap_lane_b";
-        case TwistWorkSpaceSlot::kWoodLaneC: return "scrap_lane_c";
-        case TwistWorkSpaceSlot::kWoodLaneD: return "scrap_lane_d";
         case TwistWorkSpaceSlot::kLightningLaneA: return "lightning_lane_a";
         case TwistWorkSpaceSlot::kLightningLaneB: return "lightning_lane_b";
         case TwistWorkSpaceSlot::kLightningLaneC: return "lightning_lane_c";
         case TwistWorkSpaceSlot::kLightningLaneD: return "lightning_lane_d";
-        case TwistWorkSpaceSlot::kMagmaLaneA: return "magma_lane_a";
-        case TwistWorkSpaceSlot::kMagmaLaneB: return "magma_lane_b";
-        case TwistWorkSpaceSlot::kMagmaLaneC: return "magma_lane_c";
-        case TwistWorkSpaceSlot::kMagmaLaneD: return "magma_lane_d";
-        case TwistWorkSpaceSlot::kSoilLaneA: return "soil_lane_a";
-        case TwistWorkSpaceSlot::kSoilLaneB: return "soil_lane_b";
-        case TwistWorkSpaceSlot::kSoilLaneC: return "soil_lane_c";
-        case TwistWorkSpaceSlot::kSoilLaneD: return "soil_lane_d";
         case TwistWorkSpaceSlot::kPlasmaLaneA: return "plasma_lane_a";
         case TwistWorkSpaceSlot::kPlasmaLaneB: return "plasma_lane_b";
         case TwistWorkSpaceSlot::kPlasmaLaneC: return "plasma_lane_c";
@@ -407,14 +434,73 @@ std::string SlotToken(const TwistWorkSpaceSlot pSlot) {
         case TwistWorkSpaceSlot::kCelestialLaneB: return "celestial_lane_b";
         case TwistWorkSpaceSlot::kCelestialLaneC: return "celestial_lane_c";
         case TwistWorkSpaceSlot::kCelestialLaneD: return "celestial_lane_d";
-        case TwistWorkSpaceSlot::kKineticLaneA: return "kinetic_lane_a";
-        case TwistWorkSpaceSlot::kKineticLaneB: return "kinetic_lane_b";
-        case TwistWorkSpaceSlot::kKineticLaneC: return "kinetic_lane_c";
-        case TwistWorkSpaceSlot::kKineticLaneD: return "kinetic_lane_d";
         case TwistWorkSpaceSlot::kVaporLaneA: return "vapor_lane_a";
         case TwistWorkSpaceSlot::kVaporLaneB: return "vapor_lane_b";
         case TwistWorkSpaceSlot::kVaporLaneC: return "vapor_lane_c";
         case TwistWorkSpaceSlot::kVaporLaneD: return "vapor_lane_d";
+        case TwistWorkSpaceSlot::kKineticLaneA: return "kinetic_lane_a";
+        case TwistWorkSpaceSlot::kKineticLaneB: return "kinetic_lane_b";
+        case TwistWorkSpaceSlot::kKineticLaneC: return "kinetic_lane_c";
+        case TwistWorkSpaceSlot::kKineticLaneD: return "kinetic_lane_d";
+        case TwistWorkSpaceSlot::kSonicLaneA: return "sonic_lane_a";
+        case TwistWorkSpaceSlot::kSonicLaneB: return "sonic_lane_b";
+        case TwistWorkSpaceSlot::kSonicLaneC: return "sonic_lane_c";
+        case TwistWorkSpaceSlot::kSonicLaneD: return "sonic_lane_d";
+        case TwistWorkSpaceSlot::kPlanarLaneA: return "planar_lane_a";
+        case TwistWorkSpaceSlot::kPlanarLaneB: return "planar_lane_b";
+        case TwistWorkSpaceSlot::kPlanarLaneC: return "planar_lane_c";
+        case TwistWorkSpaceSlot::kPlanarLaneD: return "planar_lane_d";
+        case TwistWorkSpaceSlot::kFrostLaneA: return "frost_lane_a";
+        case TwistWorkSpaceSlot::kFrostLaneB: return "frost_lane_b";
+        case TwistWorkSpaceSlot::kFrostLaneC: return "frost_lane_c";
+        case TwistWorkSpaceSlot::kFrostLaneD: return "frost_lane_d";
+        case TwistWorkSpaceSlot::kArcaneLaneA: return "arcane_lane_a";
+        case TwistWorkSpaceSlot::kArcaneLaneB: return "arcane_lane_b";
+        case TwistWorkSpaceSlot::kArcaneLaneC: return "arcane_lane_c";
+        case TwistWorkSpaceSlot::kArcaneLaneD: return "arcane_lane_d";
+        case TwistWorkSpaceSlot::kLunarLaneA: return "lunar_lane_a";
+        case TwistWorkSpaceSlot::kLunarLaneB: return "lunar_lane_b";
+        case TwistWorkSpaceSlot::kLunarLaneC: return "lunar_lane_c";
+        case TwistWorkSpaceSlot::kLunarLaneD: return "lunar_lane_d";
+        case TwistWorkSpaceSlot::kRunicLaneA: return "runic_lane_a";
+        case TwistWorkSpaceSlot::kRunicLaneB: return "runic_lane_b";
+        case TwistWorkSpaceSlot::kRunicLaneC: return "runic_lane_c";
+        case TwistWorkSpaceSlot::kRunicLaneD: return "runic_lane_d";
+        case TwistWorkSpaceSlot::kGloomLaneA: return "gloom_lane_a";
+        case TwistWorkSpaceSlot::kGloomLaneB: return "gloom_lane_b";
+        case TwistWorkSpaceSlot::kGloomLaneC: return "gloom_lane_c";
+        case TwistWorkSpaceSlot::kGloomLaneD: return "gloom_lane_d";
+        case TwistWorkSpaceSlot::kAbjurationLaneA: return "abjuration_lane_a";
+        case TwistWorkSpaceSlot::kAbjurationLaneB: return "abjuration_lane_b";
+        case TwistWorkSpaceSlot::kAbjurationLaneC: return "abjuration_lane_c";
+        case TwistWorkSpaceSlot::kAbjurationLaneD: return "abjuration_lane_d";
+        case TwistWorkSpaceSlot::kDivinationLaneA: return "divination_lane_a";
+        case TwistWorkSpaceSlot::kDivinationLaneB: return "divination_lane_b";
+        case TwistWorkSpaceSlot::kDivinationLaneC: return "divination_lane_c";
+        case TwistWorkSpaceSlot::kDivinationLaneD: return "divination_lane_d";
+        case TwistWorkSpaceSlot::kEvocationLaneA: return "evocation_lane_a";
+        case TwistWorkSpaceSlot::kEvocationLaneB: return "evocation_lane_b";
+        case TwistWorkSpaceSlot::kEvocationLaneC: return "evocation_lane_c";
+        case TwistWorkSpaceSlot::kEvocationLaneD: return "evocation_lane_d";
+        case TwistWorkSpaceSlot::kStasisLaneA: return "stasis_lane_a";
+        case TwistWorkSpaceSlot::kStasisLaneB: return "stasis_lane_b";
+        case TwistWorkSpaceSlot::kStasisLaneC: return "stasis_lane_c";
+        case TwistWorkSpaceSlot::kAlchemyLaneA: return "alchemy_lane_a";
+        case TwistWorkSpaceSlot::kAlchemyLaneB: return "alchemy_lane_b";
+        case TwistWorkSpaceSlot::kAlchemyLaneC: return "alchemy_lane_c";
+        case TwistWorkSpaceSlot::kAlchemyLaneD: return "alchemy_lane_d";
+        case TwistWorkSpaceSlot::kAuguryLaneA: return "augury_lane_a";
+        case TwistWorkSpaceSlot::kAuguryLaneB: return "augury_lane_b";
+        case TwistWorkSpaceSlot::kAuguryLaneC: return "augury_lane_c";
+        case TwistWorkSpaceSlot::kAuguryLaneD: return "augury_lane_d";
+        case TwistWorkSpaceSlot::kPsychicLaneA: return "psychic_lane_a";
+        case TwistWorkSpaceSlot::kPsychicLaneB: return "psychic_lane_b";
+        case TwistWorkSpaceSlot::kPsychicLaneC: return "psychic_lane_c";
+        case TwistWorkSpaceSlot::kPsychicLaneD: return "psychic_lane_d";
+        case TwistWorkSpaceSlot::kVoodooLaneA: return "voodoo_lane_a";
+        case TwistWorkSpaceSlot::kVoodooLaneB: return "voodoo_lane_b";
+        case TwistWorkSpaceSlot::kVoodooLaneC: return "voodoo_lane_c";
+        case TwistWorkSpaceSlot::kVoodooLaneD: return "voodoo_lane_d";
         case TwistWorkSpaceSlot::kIceLaneA: return "invest_lane_a";
         case TwistWorkSpaceSlot::kIceLaneB: return "invest_lane_b";
         case TwistWorkSpaceSlot::kIceLaneC: return "invest_lane_c";
@@ -1124,11 +1210,11 @@ void CollectRuntimeDiffuseSlots(const std::string &pRawLine,
     std::vector<std::string> aArgs;
     if (!ParseRuntimeDiffuseLine(pRawLine, &aMethod, &aArgs) ||
         (aMethod != "DiffuseWithDomainWords") ||
-        (aArgs.size() < 18U)) {
+        (aArgs.size() < 16U)) {
         return;
     }
 
-    for (std::size_t aArgumentIndex = 0U; aArgumentIndex < 18U; aArgumentIndex += 1U) {
+    for (std::size_t aArgumentIndex = 0U; aArgumentIndex < 16U; aArgumentIndex += 1U) {
         TwistWorkSpaceSlot aSlot = TwistWorkSpaceSlot::kInvalid;
         if (ResolveRuntimeAliasSlot(aArgs[aArgumentIndex], &aSlot)) {
             AppendUnique(pSlots, aSlot);
@@ -1157,8 +1243,8 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
         *pExecuted = true;
     }
 
-    if (aArgs.size() != 11U) {
-        SetError(pError, "M88 Dispatch expected 11 arguments.");
+    if (aArgs.size() != 10U) {
+        SetError(pError, "M88 Dispatch expected 10 arguments.");
         return false;
     }
 
@@ -1192,39 +1278,33 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
         return false;
     }
 
-    std::size_t aDestinationIndex = 0U;
-    if (!ParseRuntimeSizeToken(aArgs[5], pVariables, &aDestinationIndex)) {
-        SetError(pError, "M88 Dispatch destination index was invalid: " + aArgs[5]);
-        return false;
-    }
-
     int aUnrollDomainWord = 0;
-    if (!ParseRuntimeIntToken(aArgs[6], pVariables, &aUnrollDomainWord)) {
-        SetError(pError, "M88 Dispatch unroll domain word was invalid: " + aArgs[6]);
+    if (!ParseRuntimeIntToken(aArgs[5], pVariables, &aUnrollDomainWord)) {
+        SetError(pError, "M88 Dispatch unroll domain word was invalid: " + aArgs[5]);
         return false;
     }
 
     int aArgADomainWord = 0;
-    if (!ParseRuntimeIntToken(aArgs[7], pVariables, &aArgADomainWord)) {
-        SetError(pError, "M88 Dispatch arg A domain word was invalid: " + aArgs[7]);
+    if (!ParseRuntimeIntToken(aArgs[6], pVariables, &aArgADomainWord)) {
+        SetError(pError, "M88 Dispatch arg A domain word was invalid: " + aArgs[6]);
         return false;
     }
 
     int aArgBDomainWord = 0;
-    if (!ParseRuntimeIntToken(aArgs[8], pVariables, &aArgBDomainWord)) {
-        SetError(pError, "M88 Dispatch arg B domain word was invalid: " + aArgs[8]);
+    if (!ParseRuntimeIntToken(aArgs[7], pVariables, &aArgBDomainWord)) {
+        SetError(pError, "M88 Dispatch arg B domain word was invalid: " + aArgs[7]);
         return false;
     }
 
     int aArgCDomainWord = 0;
-    if (!ParseRuntimeIntToken(aArgs[9], pVariables, &aArgCDomainWord)) {
-        SetError(pError, "M88 Dispatch arg C domain word was invalid: " + aArgs[9]);
+    if (!ParseRuntimeIntToken(aArgs[8], pVariables, &aArgCDomainWord)) {
+        SetError(pError, "M88 Dispatch arg C domain word was invalid: " + aArgs[8]);
         return false;
     }
 
     int aArgDDomainWord = 0;
-    if (!ParseRuntimeIntToken(aArgs[10], pVariables, &aArgDDomainWord)) {
-        SetError(pError, "M88 Dispatch arg D domain word was invalid: " + aArgs[10]);
+    if (!ParseRuntimeIntToken(aArgs[9], pVariables, &aArgDDomainWord)) {
+        SetError(pError, "M88 Dispatch arg D domain word was invalid: " + aArgs[9]);
         return false;
     }
 
@@ -1233,7 +1313,6 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
                                 aSource,
                                 aSourceIndex,
                                 aDestination,
-                                aDestinationIndex,
                                 static_cast<std::uint8_t>(aUnrollDomainWord),
                                 static_cast<std::uint8_t>(aArgADomainWord),
                                 static_cast<std::uint8_t>(aArgBDomainWord),
@@ -1245,6 +1324,7 @@ bool ExecuteRuntimeRawMatrixLine(const std::string &pRawLine,
 bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
                                        TwistWorkSpace *pWorkSpace,
                                        TwistExpander *pExpander,
+                                       const std::unordered_map<std::string, GRuntimeScalar> *pVariables,
                                        bool *pExecuted,
                                        std::string *pError) {
     if (pExecuted != nullptr) {
@@ -1265,7 +1345,7 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
         aLine = TrimRuntimeLine(aLine);
     }
 
-    const std::string aPrefix = "TwistShuffle::Execute";
+    const std::string aPrefix = "TwistShuffle::ShuffleList256";
     if (aLine.rfind(aPrefix, 0U) != 0U) {
         return true;
     }
@@ -1282,8 +1362,8 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
 
     std::vector<std::string> aArgs;
     if (!SplitRuntimeCallArguments(aLine.substr(aOpen + 1U, aClose - aOpen - 1U), &aArgs) ||
-        (aArgs.size() != 2U)) {
-        SetError(pError, "Index shuffle expected 2 arguments.");
+        (aArgs.size() != 5U)) {
+        SetError(pError, "Index shuffle expected 5 arguments.");
         return false;
     }
 
@@ -1309,8 +1389,22 @@ bool ExecuteRuntimeRawIndexShuffleLine(const std::string &pRawLine,
         return false;
     }
 
+    std::size_t aStartIndex = 0U;
+    std::size_t aCeiling = 0U;
+    std::size_t aMaxIterations = 0U;
+    if (!ParseRuntimeSizeToken(aArgs[2], pVariables, &aStartIndex) ||
+        !ParseRuntimeSizeToken(aArgs[3], pVariables, &aCeiling) ||
+        !ParseRuntimeSizeToken(aArgs[4], pVariables, &aMaxIterations)) {
+        SetError(pError, "Index shuffle bounds were invalid.");
+        return false;
+    }
+
     std::size_t *aDest = reinterpret_cast<std::size_t *>(aDestBytes);
-    TwistShuffle::Execute(aDest, aSourceBytes);
+    TwistShuffle::ShuffleList256(aDest,
+                                 aSourceBytes,
+                                 aStartIndex,
+                                 aCeiling,
+                                 aMaxIterations);
     return true;
 }
 
@@ -1415,7 +1509,7 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
         return false;
     }
 
-    const std::size_t aExpectedCount = 27U;
+    const std::size_t aExpectedCount = 25U;
     if (aArgs.size() != aExpectedCount) {
         SetError(pError, "Diffuse call expected " + std::to_string(aExpectedCount) + " arguments.");
         return false;
@@ -1462,12 +1556,10 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
     std::uint8_t *aOutputLaneB = nullptr;
     std::uint8_t *aOutputLaneC = nullptr;
     std::uint8_t *aOutputLaneD = nullptr;
-    std::uint8_t *aShuffleEntropyLaneA = nullptr;
-    std::uint8_t *aShuffleEntropyLaneB = nullptr;
-    std::uint8_t *aShuffleEntropyLaneC = nullptr;
-    std::uint8_t *aShuffleEntropyLaneD = nullptr;
-    std::uint8_t *aOperationSourceLaneA = nullptr;
-    std::uint8_t *aOperationSourceLaneB = nullptr;
+    std::uint8_t *aEntropyLaneA = nullptr;
+    std::uint8_t *aEntropyLaneB = nullptr;
+    std::uint8_t *aEntropyLaneC = nullptr;
+    std::uint8_t *aEntropyLaneD = nullptr;
     std::size_t *aIndexList256A = nullptr;
     std::size_t *aIndexList256B = nullptr;
     std::size_t *aIndexList256C = nullptr;
@@ -1481,21 +1573,19 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
         !ResolveBufferArg(5U, "output lane B", &aOutputLaneB) ||
         !ResolveBufferArg(6U, "output lane C", &aOutputLaneC) ||
         !ResolveBufferArg(7U, "output lane D", &aOutputLaneD) ||
-        !ResolveBufferArg(8U, "shuffle entropy lane A", &aShuffleEntropyLaneA) ||
-        !ResolveBufferArg(9U, "shuffle entropy lane B", &aShuffleEntropyLaneB) ||
-        !ResolveBufferArg(10U, "shuffle entropy lane C", &aShuffleEntropyLaneC) ||
-        !ResolveBufferArg(11U, "shuffle entropy lane D", &aShuffleEntropyLaneD) ||
-        !ResolveBufferArg(12U, "operation source lane A", &aOperationSourceLaneA) ||
-        !ResolveBufferArg(13U, "operation source lane B", &aOperationSourceLaneB) ||
-        !ResolveIndexListArg(14U, "index list 256 A", &aIndexList256A) ||
-        !ResolveIndexListArg(15U, "index list 256 B", &aIndexList256B) ||
-        !ResolveIndexListArg(16U, "index list 256 C", &aIndexList256C) ||
-        !ResolveIndexListArg(17U, "index list 256 D", &aIndexList256D)) {
+        !ResolveBufferArg(8U, "entropy lane A", &aEntropyLaneA) ||
+        !ResolveBufferArg(9U, "entropy lane B", &aEntropyLaneB) ||
+        !ResolveBufferArg(10U, "entropy lane C", &aEntropyLaneC) ||
+        !ResolveBufferArg(11U, "entropy lane D", &aEntropyLaneD) ||
+        !ResolveIndexListArg(12U, "index list 256 A", &aIndexList256A) ||
+        !ResolveIndexListArg(13U, "index list 256 B", &aIndexList256B) ||
+        !ResolveIndexListArg(14U, "index list 256 C", &aIndexList256C) ||
+        !ResolveIndexListArg(15U, "index list 256 D", &aIndexList256D)) {
         return false;
     }
 
-    if (TrimRuntimeLine(aArgs[18U]) != "&mMatrix") {
-        SetError(pError, "Diffuse matrix argument was invalid: " + aArgs[18U]);
+    if (TrimRuntimeLine(aArgs[16U]) != "&mMatrix") {
+        SetError(pError, "Diffuse matrix argument was invalid: " + aArgs[16U]);
         return false;
     }
 
@@ -1507,14 +1597,14 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
     int aMatrixArgB = 0;
     int aMatrixArgC = 0;
     int aMatrixArgD = 0;
-    if (!ParseRuntimeScalarToken(aArgs[19U], pVariables, &aMatrixSelectA) ||
-        !ParseRuntimeScalarToken(aArgs[20U], pVariables, &aMatrixSelectB) ||
-        !ParseRuntimeIntToken(aArgs[21U], pVariables, &aMatrixUnrollA) ||
-        !ParseRuntimeIntToken(aArgs[22U], pVariables, &aMatrixUnrollB) ||
-        !ParseRuntimeIntToken(aArgs[23U], pVariables, &aMatrixArgA) ||
-        !ParseRuntimeIntToken(aArgs[24U], pVariables, &aMatrixArgB) ||
-        !ParseRuntimeIntToken(aArgs[25U], pVariables, &aMatrixArgC) ||
-        !ParseRuntimeIntToken(aArgs[26U], pVariables, &aMatrixArgD)) {
+    if (!ParseRuntimeScalarToken(aArgs[17U], pVariables, &aMatrixSelectA) ||
+        !ParseRuntimeScalarToken(aArgs[18U], pVariables, &aMatrixSelectB) ||
+        !ParseRuntimeIntToken(aArgs[19U], pVariables, &aMatrixUnrollA) ||
+        !ParseRuntimeIntToken(aArgs[20U], pVariables, &aMatrixUnrollB) ||
+        !ParseRuntimeIntToken(aArgs[21U], pVariables, &aMatrixArgA) ||
+        !ParseRuntimeIntToken(aArgs[22U], pVariables, &aMatrixArgB) ||
+        !ParseRuntimeIntToken(aArgs[23U], pVariables, &aMatrixArgC) ||
+        !ParseRuntimeIntToken(aArgs[24U], pVariables, &aMatrixArgD)) {
         SetError(pError, "Diffuse domain word argument was invalid.");
         return false;
     }
@@ -1527,12 +1617,10 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
                                          aOutputLaneB,
                                          aOutputLaneC,
                                          aOutputLaneD,
-                                         aShuffleEntropyLaneA,
-                                         aShuffleEntropyLaneB,
-                                         aShuffleEntropyLaneC,
-                                         aShuffleEntropyLaneD,
-                                         aOperationSourceLaneA,
-                                         aOperationSourceLaneB,
+                                         aEntropyLaneA,
+                                         aEntropyLaneB,
+                                         aEntropyLaneC,
+                                         aEntropyLaneD,
                                          aIndexList256A,
                                          aIndexList256B,
                                          aIndexList256C,
@@ -3748,6 +3836,7 @@ bool ExecuteStatement(const GStatement &pStatement,
         if (!ExecuteRuntimeRawIndexShuffleLine(pStatement.mRawLine,
                                                pWorkSpace,
                                                pExpander,
+                                               pVariables,
                                                &aExecutedRawLine,
                                                pError)) {
             return false;

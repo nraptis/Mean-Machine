@@ -27,7 +27,6 @@ public:
                                                          GSymbol pSource,
                                                          GSymbol pSourceIndex,
                                                          GSymbol pDestination,
-                                                         GSymbol pDestinationIndex,                                                         
                                                          std::vector<GStatement> *pStatements,
                                                          std::string *pErrorMessage);
     
@@ -36,7 +35,6 @@ public:
                                                          GSymbol pSource,
                                                          GSymbol pSourceIndex,
                                                          GSymbol pDestination,
-                                                         GSymbol pDestinationIndex,
                                                          GSymbol pUnrollDomainWord,
                                                          GSymbol pArgADomainWord,
                                                          GSymbol pArgBDomainWord,

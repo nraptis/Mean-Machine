@@ -46,6 +46,26 @@ inline std::uint64_t ShiftR64(std::uint64_t pValue, std::uint64_t pAmount) {
     return static_cast<std::uint64_t>(pValue >> aAmount);
 }
 
+inline std::uint32_t Load32LE(const std::uint8_t *pSource) {
+    return
+        (static_cast<std::uint32_t>(pSource[0U]) <<  0U) |
+        (static_cast<std::uint32_t>(pSource[1U]) <<  8U) |
+        (static_cast<std::uint32_t>(pSource[2U]) << 16U) |
+        (static_cast<std::uint32_t>(pSource[3U]) << 24U);
+}
+
+inline std::uint64_t Load64LE(const std::uint8_t *pSource) {
+    return
+        (static_cast<std::uint64_t>(pSource[0U]) <<  0U) |
+        (static_cast<std::uint64_t>(pSource[1U]) <<  8U) |
+        (static_cast<std::uint64_t>(pSource[2U]) << 16U) |
+        (static_cast<std::uint64_t>(pSource[3U]) << 24U) |
+        (static_cast<std::uint64_t>(pSource[4U]) << 32U) |
+        (static_cast<std::uint64_t>(pSource[5U]) << 40U) |
+        (static_cast<std::uint64_t>(pSource[6U]) << 48U) |
+        (static_cast<std::uint64_t>(pSource[7U]) << 56U);
+}
+
 inline std::uint8_t RotR8(std::uint8_t pValue, std::uint8_t pAmount) {
     std::uint8_t aAmount = static_cast<std::uint8_t>(pAmount & 7U);
     if (aAmount == 0U) { return pValue; }

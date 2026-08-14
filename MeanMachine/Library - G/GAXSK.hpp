@@ -40,9 +40,7 @@ enum class GAXSKModelTermKind: std::uint8_t {
 
 enum class GAXSFormat : std::uint8_t {
     kInvalid = 0,
-    kN7 = 2,
-    kN9 = 3,
-    kN11 = 4
+    kN11
 };
 
 enum class GAXSKDiffuseKind : std::uint8_t {
@@ -287,6 +285,7 @@ struct GAXSKSkeleton {
     bool HasNonceSlots() const;
 
     std::vector<GAXSKStatement>             mStatements;
+    std::vector<std::string>                mLoopRecipeComments;
     GAssignType                             mAssignType;
 };
 
@@ -327,6 +326,10 @@ public:
                                                                   bool pAllowEvenRotation,
                                                                   std::vector<int> *pResult,
                                                                   std::string *pErrorMessage);
+
+    static bool                             LoadLoopPatterns11(std::string *pErrorMessage);
+    static std::size_t                      LoopPatternCandidateCount11();
+    static std::size_t                      LoopPatternCountPerCandidate11();
     
     
     void                                    Reset();
@@ -377,8 +380,8 @@ public:
 
     GAXSKDiffuseKind                        SelectDiffuseKind() const;
     
-    GAXSKModel                              MakeModelForFormatPass(GAXSFormat pFormat,
-                                                                   int pPassIndex);
+    GAXSKModel                              MakeModelForNextLoop(
+                                                std::vector<std::string> *pRecipeComments);
     
     GAXSKStatement                          MakeContextWordStatement(GAXSKVariable pTarget,
                                                                      GAXSKDiffuseKind pDiffuse,

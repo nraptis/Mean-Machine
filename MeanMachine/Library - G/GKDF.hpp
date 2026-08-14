@@ -17,8 +17,9 @@
 
 enum class GKDFMaterialBundle : std::uint8_t {
     kInbuilt = 0,
-    kEphemeral = 1,
-    kWorkspace = 2
+    kEphemeralA = 1,
+    kEphemeralB = 2,
+    kWorkspace = 3
 };
 
 class GKDF_A {
@@ -38,14 +39,6 @@ public:
 };
 
 class GKDF_C {
-public:
-    bool                                Bake(TwistDomain pDomain,
-                                             GKDFMaterialBundle pBundle,
-                                             std::vector<GStatement> *pStatements,
-                                             std::string *pErrorMessage);
-};
-
-class GKDF_D {
 public:
     bool                                Bake(TwistDomain pDomain,
                                              GKDFMaterialBundle pBundle,

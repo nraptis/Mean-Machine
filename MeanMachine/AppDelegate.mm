@@ -5,86 +5,27 @@
 //  Created by John Snow on 4/20/26.
 //
 
+// 17 expanders × 656 loops = 11,152 loops
+
 #import "AppDelegate.h"
 
-#include "FileIO.hpp"
-
-#include <algorithm>
 #include <array>
-#include <cstring>
 #include <cstdint>
 #include <cstdio>
-#include <filesystem>
-#include <limits>
+#include <cstdlib>
 #include <string>
 #include <vector>
-#include <unordered_map>
-#include "TwistWorkSpace.hpp"
-#include "TwistFunctional.hpp"
-#include "Random.hpp"
-#include "GTwistExpander.hpp"
-#include "GSeedRunKDF_A.hpp"
-#include "GSeedRunKeyBox.hpp"
-#include "TwistFarmSalt.hpp"
-#include "Rig.hpp"
-#include "GRunMatrixDiffusion.hpp"
-#include "GAXSK.hpp"
-#include "Builder.hpp"
-#include "Avalancher.hpp"
 
-#include "GrowAControl.hpp"
-#include "GrowBControl.hpp"
-#include "LaneSplitControl.hpp"
-#include "SaltTables.hpp"
+#include "Builder.hpp"
 #include "GMagicNumbers.hpp"
 
+#include "KeyForkControl.hpp"
+#include "KeyLaneControl.hpp"
+#include "LoopRolePermutations.hpp"
+#include "ResidualKDFControl.hpp"
+
 int gCandidateIndex = 0;
-
-/*
-
-#include "TwistExpander_Alcor.hpp"
-#include "TwistExpander_Aldebaran.hpp"
-#include "TwistExpander_Alioth.hpp"
-#include "TwistExpander_Alkaid.hpp"
-#include "TwistExpander_Alnitak.hpp"
-#include "TwistExpander_Altair.hpp"
-#include "TwistExpander_Ankaa.hpp"
-#include "TwistExpander_Antares.hpp"
-#include "TwistExpander_Arcturus.hpp"
-#include "TwistExpander_Athebyne.hpp"
-#include "TwistExpander_Bellatrix.hpp"
-#include "TwistExpander_Betelgeuse.hpp"
-#include "TwistExpander_Canopus.hpp"
-#include "TwistExpander_Capella.hpp"
-#include "TwistExpander_Castor.hpp"
-#include "TwistExpander_Gemma.hpp"
-#include "TwistExpander_Mebsuta.hpp"
-#include "TwistExpander_Menkent.hpp"
-#include "TwistExpander_Mimosa.hpp"
-#include "TwistExpander_Miram.hpp"
-#include "TwistExpander_Mirfak.hpp"
-#include "TwistExpander_Mothallah.hpp"
-#include "TwistExpander_Naos.hpp"
-#include "TwistExpander_Polaris.hpp"
-#include "TwistExpander_Pollux.hpp"
-#include "TwistExpander_Procyon.hpp"
-#include "TwistExpander_Regulus.hpp"
-#include "TwistExpander_Rigel.hpp"
-#include "TwistExpander_Saiph.hpp"
-#include "TwistExpander_Sirius.hpp"
-#include "TwistExpander_Suhail.hpp"
-#include "TwistExpander_Vega.hpp"
-
-*/
-
-// #include "TwistExpander_Achernar.hpp"
- 
-#include "Scanner_MagicNumbers.hpp"
-#include "OptimalCombinations.hpp"
-
-#include "DirtyWorkSpace.hpp"
-#include "CompareWorkSpace.hpp"
-
+int gLoopIndex = 0;
 
 namespace {
 
@@ -93,23 +34,67 @@ bool IsRunningUnderXCTest() {
     (std::getenv("XCTestBundlePath") != nullptr);
 }
 
-bool AddKeyBoxLaneSplitGroups(std::string *pErrorMessage) {
-    return LaneSplitControl::AddLaneGroup(
-               {
-                   TwistWorkSpaceSlot::kCrystalLaneA,
-                   TwistWorkSpaceSlot::kCrystalLaneB,
-                   TwistWorkSpaceSlot::kCrystalLaneC,
-                   TwistWorkSpaceSlot::kCrystalLaneD,
-               },
-               pErrorMessage) &&
-           LaneSplitControl::AddLaneGroup(
-               {
-                   TwistWorkSpaceSlot::kPlasmaLaneA,
-                   TwistWorkSpaceSlot::kPlasmaLaneB,
-                   TwistWorkSpaceSlot::kPlasmaLaneC,
-                   TwistWorkSpaceSlot::kPlasmaLaneD,
-               },
-               pErrorMessage);
+const std::array<const char *, 17> &ExpanderNames() {
+    static const std::array<const char *, 17> kNames = {{
+        "Aldebaran",
+        "Altair", "Antares", "Arcturus",
+        "Bellatrix", "Capella",
+        "Castor", "Mimosa",
+        "Polaris", "Pollux",
+        "Procyon", "Regulus", "Rigel", "Saiph",
+        "Sirius", "Vega", "Betelgeuse"
+    }};
+    return kNames;
+}
+
+bool PrintMutableParameterAdditions() {
+    static constexpr std::array<const char *, 13U> kStateNames = {{
+        "Ingress", "Carry",
+        "WandererA", "WandererB", "WandererC", "WandererD",
+        "WandererE", "WandererF", "WandererG", "WandererH",
+        "WandererI", "WandererJ", "WandererK",
+    }};
+    static constexpr std::size_t kSetCount = 3U;
+    static constexpr std::size_t kRequiredWordCount =
+        kStateNames.size() * kSetCount;
+    static constexpr std::size_t kWordsPerHotPair = 2U;
+    static_assert(
+        kRequiredWordCount <= (G_HOT_PACK_SIZE * kWordsPerHotPair),
+        "One HotPack must contain three mutable-parameter sets");
+
+    const std::vector<GHotPack> aHotPacks =
+        GMagicNumbers::GetHotPacks(1);
+    if (aHotPacks.empty()) {
+        std::printf(
+            "Could not load a HotPack for mutable-parameter additions.\n");
+        return false;
+    }
+    const GHotPack &aHotPack = aHotPacks.front();
+
+    std::printf("\n");
+    for (std::size_t aSetIndex = 0U;
+         aSetIndex < kSetCount;
+         ++aSetIndex) {
+        for (std::size_t aStateIndex = 0U;
+             aStateIndex < kStateNames.size();
+             ++aStateIndex) {
+            const std::size_t aWordIndex =
+                (aSetIndex * kStateNames.size()) + aStateIndex;
+            const GHotPair &aPair =
+                aHotPack.mPair[aWordIndex / kWordsPerHotPair];
+            const std::uint64_t aWord =
+                ((aWordIndex & 1U) == 0U) ? aPair.mAdd : aPair.mMul;
+            const char *aStateName = kStateNames[aStateIndex];
+            std::printf(
+                "std::uint64_t a%s = 0x%016llXULL;\n",
+                aStateName,
+                static_cast<unsigned long long>(aWord));
+        }
+        if (aSetIndex + 1U < kSetCount) {
+            std::printf("\n");
+        }
+    }
+    return true;
 }
 
 std::string ControlValueAssetFolder(const char *pStem,
@@ -122,80 +107,127 @@ std::string ControlValueAssetFolder(const char *pStem,
     return std::string("Assets/") + pStem + "_" + aCaseText;
 }
 
-bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
-                                std::string *pErrorMessage) {
-    const std::string aGrowAFolder =
-        ControlValueAssetFolder("grow_a_pre_planned",
-                                pExplorationCases);
-    const std::string aGrowBFolder =
-        ControlValueAssetFolder("grow_b_pre_planned",
-                                pExplorationCases);
-    const std::string aLaneSplitFolder =
-        ControlValueAssetFolder("lane_split_pre_planned",
-                                pExplorationCases);
-    std::printf("\nGenerating control values with %llu exploration cases...\n",
-                static_cast<unsigned long long>(pExplorationCases));
-
-    GrowAControl::Reset();
+bool GenerateKeyForkControlValueAssets(
+    const std::uint64_t pExplorationCases,
+    const std::string &pFolder,
+    std::string *pErrorMessage) {
+    KeyForkControl::Reset();
     for (std::size_t i = 0U;
-         i < GrowAControl::kCandidateCount;
+         i < KeyForkControl::kCandidateCount;
          ++i) {
-        GrowAControl::Generate(pExplorationCases);
-    }
-    if (!GrowAControl::SaveValues(aGrowAFolder,
-                                  pErrorMessage)) {
-        return false;
-    }
-    GrowAControl::Reset();
-    if (!GrowAControl::LoadValues(aGrowAFolder,
-                                  pErrorMessage)) {
-        return false;
-    }
-
-    GrowBControl::Reset();
-    for (std::size_t i = 0U;
-         i < GrowBControl::kCandidateCount;
-         ++i) {
-        GrowBControl::Generate(pExplorationCases);
-    }
-    if (!GrowBControl::SaveValues(aGrowBFolder,
-                                  pErrorMessage)) {
-        return false;
-    }
-    GrowBControl::Reset();
-    if (!GrowBControl::LoadValues(aGrowBFolder,
-                                  pErrorMessage)) {
-        return false;
-    }
-
-    LaneSplitControl::Reset();
-    if (!AddKeyBoxLaneSplitGroups(pErrorMessage)) {
-        return false;
-    }
-    for (std::size_t i = 0U;
-         i < LaneSplitControl::kCandidateCount;
-         ++i) {
-        if (LaneSplitControl::Generate(pExplorationCases).empty()) {
+        const std::string aSummary =
+            KeyForkControl::Generate(pExplorationCases);
+        if (aSummary.empty()) {
             if (pErrorMessage != nullptr) {
                 *pErrorMessage =
-                    "LaneSplitControl failed to generate candidate " +
+                    "KeyForkControl failed to generate candidate " +
                     std::to_string(i + 1U);
             }
             return false;
         }
+        std::printf("%s\n", aSummary.c_str());
     }
-    if (!LaneSplitControl::SaveValues(aLaneSplitFolder,
-                                      pErrorMessage)) {
+    if (!KeyForkControl::SaveValues(pFolder,
+                                    pErrorMessage)) {
         return false;
     }
 
-    // Verify that this generated family can be consumed from its files.
-    LaneSplitControl::Reset();
-    if (!AddKeyBoxLaneSplitGroups(pErrorMessage)) {
+    KeyForkControl::Reset();
+    return KeyForkControl::LoadValues(pFolder,
+                                      pErrorMessage);
+}
+
+bool GenerateKeyLaneControlValueAssets(
+    const std::uint64_t pExplorationCases,
+    const std::string &pFolder,
+    std::string *pErrorMessage) {
+    KeyLaneControl::Reset();
+    const std::string aSummary =
+        KeyLaneControl::Generate(pExplorationCases);
+    if (aSummary.empty()) {
+        if (pErrorMessage != nullptr) {
+            *pErrorMessage =
+                "KeyLaneControl failed to generate its assignment table";
+        }
         return false;
     }
-    if (!LaneSplitControl::LoadValues(aLaneSplitFolder,
-                                      pErrorMessage)) {
+    std::printf("%s\n", aSummary.c_str());
+    if (!KeyLaneControl::SaveValues(pFolder,
+                                    pErrorMessage)) {
+        return false;
+    }
+
+    // Verify the exact binary values before making them the frozen source.
+    KeyLaneControl::Reset();
+    if (!KeyLaneControl::LoadValues(pFolder,
+                                    pErrorMessage)) {
+        return false;
+    }
+    return KeyLaneControl::WriteAssignmentsHeader(
+        "MeanMachine/KeyLaneAssignments.hpp",
+        pErrorMessage
+    );
+}
+
+bool GenerateResidualKDFControlValueAssets(
+    const std::uint64_t pExplorationCases,
+    const std::string &pFolder,
+    std::string *pErrorMessage) {
+    ResidualKDFControl::Reset();
+    for (std::size_t i = 0U;
+         i < ResidualKDFControl::kCandidateCount;
+         ++i) {
+        const std::string aSummary =
+            ResidualKDFControl::Generate(pExplorationCases);
+        if (aSummary.empty()) {
+            if (pErrorMessage != nullptr) {
+                *pErrorMessage =
+                    "ResidualKDFControl failed to generate candidate " +
+                    std::to_string(i + 1U);
+            }
+            return false;
+        }
+        std::printf("%s\n", aSummary.c_str());
+    }
+    if (!ResidualKDFControl::SaveValues(pFolder,
+                                        pErrorMessage)) {
+        return false;
+    }
+
+    ResidualKDFControl::Reset();
+    return ResidualKDFControl::LoadValues(pFolder,
+                                          pErrorMessage);
+}
+
+bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
+                                std::string *pErrorMessage) {
+    const std::string aKeyForkFolder =
+        ControlValueAssetFolder("key_fork_pre_planned",
+                                pExplorationCases);
+    const std::string aKeyLaneFolder =
+        ControlValueAssetFolder("key_lane_pre_planned",
+                                pExplorationCases);
+    const std::string aResidualKDFFolder =
+        ControlValueAssetFolder("residual_kdf_pre_planned",
+                                pExplorationCases);
+    std::printf("\nGenerating control values with %llu exploration cases...\n",
+                static_cast<unsigned long long>(pExplorationCases));
+
+    if (!GenerateKeyForkControlValueAssets(pExplorationCases,
+                                           aKeyForkFolder,
+                                           pErrorMessage)) {
+        return false;
+    }
+
+    if (!GenerateKeyLaneControlValueAssets(pExplorationCases,
+                                           aKeyLaneFolder,
+                                           pErrorMessage)) {
+        return false;
+    }
+
+    if (!GenerateResidualKDFControlValueAssets(pExplorationCases,
+                                               aResidualKDFFolder,
+                                               pErrorMessage)) {
         return false;
     }
 
@@ -203,51 +235,24 @@ bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
                 "    %s\n"
                 "    %s\n"
                 "    %s\n",
-                aGrowAFolder.c_str(),
-                aGrowBFolder.c_str(),
-                aLaneSplitFolder.c_str());
+                aKeyForkFolder.c_str(),
+                aKeyLaneFolder.c_str(),
+                aResidualKDFFolder.c_str());
     return true;
 }
 
-bool GenerateFoldControlValueAssets(
-    const std::uint64_t pExplorationCases,
-    const std::string &pGrowAFolder,
-    const std::string &pGrowBFolder,
-    std::string *pErrorMessage) {
-    GrowAControl::Reset();
-    for (std::size_t i = 0U;
-         i < GrowAControl::kCandidateCount;
-         ++i) {
-        GrowAControl::Generate(pExplorationCases);
-    }
-    if (!GrowAControl::SaveValues(pGrowAFolder,
-                                  pErrorMessage)) {
-        return false;
-    }
-    GrowAControl::Reset();
-    if (!GrowAControl::LoadValues(pGrowAFolder,
-                                  pErrorMessage)) {
-        return false;
-    }
-
-    GrowBControl::Reset();
-    for (std::size_t i = 0U;
-         i < GrowBControl::kCandidateCount;
-         ++i) {
-        GrowBControl::Generate(pExplorationCases);
-    }
-    if (!GrowBControl::SaveValues(pGrowBFolder,
-                                  pErrorMessage)) {
-        return false;
-    }
-    GrowBControl::Reset();
-    return GrowBControl::LoadValues(pGrowBFolder,
-                                    pErrorMessage);
-}
-
 int RunControlValueExporter() {
-    std::uint64_t aExplorationCases = 100ULL;
-    for (;;) {
+    static constexpr std::array<std::uint64_t, 20U> kExplorationCases = {
+        1000ULL, 2500ULL, 5000ULL,
+        10000ULL, 25000ULL, 50000ULL,
+        100000ULL, 250000ULL, 500000ULL,
+        1000000ULL, 2500000ULL, 5000000ULL,
+        10000000ULL, 25000000ULL, 50000000ULL,
+        100000000ULL, 200000000ULL, 300000000ULL,
+        400000000ULL, 500000000ULL,
+    };
+
+    for (const std::uint64_t aExplorationCases : kExplorationCases) {
         std::string aError;
         if (!GenerateControlValueAssets(aExplorationCases, &aError)) {
             std::printf("Control value generation failed at %llu cases:\n%s\n",
@@ -255,15 +260,9 @@ int RunControlValueExporter() {
                         aError.c_str());
             return 1;
         }
-
-        if (aExplorationCases >
-            (std::numeric_limits<std::uint64_t>::max() / 5ULL)) {
-            std::printf("Control value generation reached the largest "
-                        "safe exploration count.\n");
-            return 0;
-        }
-        aExplorationCases *= 5ULL;
     }
+
+    return 0;
 }
 
 }
@@ -283,18 +282,107 @@ extern "C" int MeanMachineBuildTestExpander(void) {
     return 0;
 }
 
-extern "C" int MeanMachineRegenerateFoldControls(void) {
+extern "C" int MeanMachineBuildExpanderRange(int pStartIndex,
+                                               int pCount);
+
+extern "C" int MeanMachineBuildAllExpanders(void) {
+    return MeanMachineBuildExpanderRange(
+        0, static_cast<int>(ExpanderNames().size()));
+}
+
+extern "C" int MeanMachineBuildExpanderRange(const int pStartIndex,
+                                               const int pCount) {
+    if (!PrintMutableParameterAdditions()) {
+        return 1;
+    }
+
+    if ((pStartIndex < 0) || (pCount < 0) ||
+        (pStartIndex > static_cast<int>(ExpanderNames().size())) ||
+        (pCount > (static_cast<int>(ExpanderNames().size()) - pStartIndex))) {
+        std::printf("invalid expander range: start=%d count=%d\n",
+                    pStartIndex,
+                    pCount);
+        return 1;
+    }
+
     std::string aError;
-    if (!GenerateFoldControlValueAssets(
-            100ULL,
-            "Assets/grow_a_pre_planned",
-            "Assets/grow_b_pre_planned",
+    gCandidateIndex = pStartIndex;
+    const int aEndIndex = pStartIndex + pCount;
+    for (; gCandidateIndex < aEndIndex; ++gCandidateIndex) {
+        const char *aName = ExpanderNames()[
+            static_cast<std::size_t>(gCandidateIndex)];
+        std::printf("exporting candidate %d: %s\n",
+                    gCandidateIndex,
+                    aName);
+        if (!Builder::Go("CornTesting/Gen", aName, &aError)) {
+            std::printf("Builder::Go failed for %s:\n%s\n",
+                        aName,
+                        aError.c_str());
+            return 1;
+        }
+    }
+    return 0;
+}
+
+extern "C" int MeanMachineRegenerateKeyForkControl(
+    const std::uint64_t pExplorationCases) {
+    std::string aError;
+    if (!GenerateKeyForkControlValueAssets(
+            pExplorationCases,
+            "Assets/key_fork_pre_planned",
             &aError)) {
-        std::printf("Fold control generation failed:\n%s\n",
+        std::printf("Key-fork control generation failed:\n%s\n",
                     aError.c_str());
         return 1;
     }
-    std::printf("Regenerated mandatory GrowA and GrowB fold controls.\n");
+    std::printf("Regenerated mandatory KeyFork control with %llu cases.\n",
+                static_cast<unsigned long long>(pExplorationCases));
+    return 0;
+}
+
+extern "C" int MeanMachineRegenerateKeyLaneControl(
+    const std::uint64_t pExplorationCases) {
+    std::string aError;
+    if (!GenerateKeyLaneControlValueAssets(
+            pExplorationCases,
+            "Assets/key_lane_pre_planned",
+            &aError)) {
+        std::printf("Key-lane control generation failed:\n%s\n",
+                    aError.c_str());
+        return 1;
+    }
+    std::printf(
+        "Regenerated mandatory KeyLane assignment table with %llu cases "
+        "per family.\n",
+        static_cast<unsigned long long>(pExplorationCases));
+    return 0;
+}
+
+extern "C" int MeanMachineRegenerateResidualKDFControl(
+    const std::uint64_t pExplorationCases) {
+    std::string aError;
+    if (!GenerateResidualKDFControlValueAssets(
+            pExplorationCases,
+            "Assets/residual_kdf_pre_planned",
+            &aError)) {
+        std::printf("Residual KDF control generation failed:\n%s\n",
+                    aError.c_str());
+        return 1;
+    }
+    std::printf(
+        "Regenerated mandatory ResidualKDF control with %llu trials "
+        "per candidate.\n",
+        static_cast<unsigned long long>(pExplorationCases));
+    return 0;
+}
+
+extern "C" int MeanMachineGenerateLoopRolePermutations(void) {
+    std::string aError;
+    if (!LoopRolePermutations::Generate("Assets/permutations", &aError)) {
+        std::printf("Loop-role permutation generation failed:\n%s\n",
+                    aError.c_str());
+        return 1;
+    }
     return 0;
 }
 
@@ -316,270 +404,18 @@ extern "C" int MeanMachineRegenerateFoldControls(void) {
         printf("skipping app, xc test...\n");
         return;
     }
-    
-    /*
-    if (MeanMachineRunExporter() != 0) {
-        return;
-    }
-    printf("Done with export block...\n");
-    
-    return;
-    */
-     
-    
-    /*
-    {
-        std::vector<SaltTables::Salt> aSalts = SaltTables::Get();
-        std::vector<GHotPack> aPacks = GMagicNumbers::GetHotPacks(37500);
-        std::set<std::uint64_t> aMap;
-        int aCompareCount = 0;
-        for (auto aSalt : aSalts) {
-            for (int i=0;i<512;i++) {
-                std::uint64_t aValue = aSalt[i];
-                if (aMap.contains(aValue)) {
-                    printf("dupe from salt...\n");
-                    exit(0);
-                }
-                aMap.insert(aValue);
-                aCompareCount++;
-            }
-        }
-        
-        printf("compared all salts, no dupes (%d)\n", aCompareCount);
-        
-        for (auto aPack : aPacks) {
-            for (int i=0;i<G_HOT_PACK_SIZE;i++) {
-                GHotPair aPair = aPack.mPair[i];
-                std::uint64_t aValueA = aPair.mAdd;
-                if (aMap.contains(aValueA)) {
-                    printf("dupe from add...\n");
-                    exit(0);
-                }
-                aMap.insert(aValueA);
-                aCompareCount++;
-                
-                std::uint64_t aValueB = aPair.mMul;
-                if (aMap.contains(aValueB)) {
-                    printf("dupe from mul...\n");
-                    exit(0);
-                }
-                aMap.insert(aValueB);
-                aCompareCount++;
-            }
-        }
-        
-        printf("compared all pairs, no dupes (%d)\n", aCompareCount);
-    }
-     */
-    
-    /*
-    {
-        printf("exporting 1 test expander...\n");
-        std::string aError;
-        gCandidateIndex = 0;
-        if (!Builder::Go("CornTesting/Gen",
-                         "Achernar",
-                         &aError)) {
-            std::printf("Builder::Go failed for %s:\n%s\n",
-                        "Achernar",
-                        aError.c_str());
-        }
-        ++gCandidateIndex;
-        return;
-    }
-    */
-    
-    
-    
-    if (IsRunningUnderXCTest() == false) {
-        std::string aError;
-        std::vector<std::string> aNames = {
-            "Achernar",
-            "Alcor",
-            "Aldebaran",
-            "Alioth",
-            "Alkaid",
-            "Alnitak",
-            "Altair",
-            "Ankaa",
-            "Antares",
-            "Arcturus",
-            "Athebyne",
-            "Bellatrix",
-            "Betelgeuse",
-            "Canopus",
-            "Capella",
-            "Castor",
-            "Mebsuta",
-            "Menkent",
-            "Mimosa",
-            "Miram",
-            "Mirfak",
-            "Mothallah",
-            "Naos",
-            "Polaris",
-            "Pollux",
-            "Procyon",
-            "Regulus",
-            "Gemma",
-            "Rigel",
-            "Saiph",
-            "Sirius",
-            "Suhail",
-            "Vega"
-            
-        };
-        
-        printf("name count is %d\n", (int)aNames.size());
-        
-        gCandidateIndex = 0;
-        for (auto aName: aNames) {
-            if (!Builder::Go("CornTesting/Gen",
-                             aName,
-                             &aError)) {
-                printf("Builder::Go failed:\n%s\n", aError.c_str());
-                return;
-            }
-            gCandidateIndex++;
-        }
 
-        printf("done export...\n");
-    }
-    
-    
-    return;
-    
-    /*
-    printf("Done with optimal combinations...\n");
-    
-    
-    
-    TwistExpander_Achernar aExpander;
+    //MeanMachineRunExporter();
 
-    Rig aRig;
-    aRig.SetBlockCount(2);
+    //MeanMachineRegenerateKeyLaneControl(1000ULL);
 
-    std::uint8_t aPassword[32] = {
-        'c', 'o', 'r', 'r', 'e', 'c', 't', 'h', 'o', 'r', 's', 'e',
-        'b', 'a', 't', 't', 'e', 'r', 'y', 's', 't', 'a', 'p', 'l',
-        'e', 'r', 'o', 'c', 'k', 's',
-        0, 0
-    };
+    //MeanMachineRegenerateResidualKDFControl(1000ULL);
 
-    aRig.Run(&aExpander,
-             aPassword,
-             30);
+    //MeanMachineGenerateLoopRolePermutations();
 
-    printf("exported...\n");
+    MeanMachineBuildAllExpanders();
 
-    return;
-    */
-    
-    
-    
-    /*
-    unsigned char aPassword[3];
-
-    int aNumber = 0;
-    
-    int aRoundCounts[5];
-    aRoundCounts[0] = 1;
-    aRoundCounts[1] = 2;
-    aRoundCounts[2] = 4;
-    aRoundCounts[3] = 8;
-    aRoundCounts[4] = 16;
-    
-    for (int aLetter1 = 'a'; aLetter1 <= 'z'; aLetter1++) {
-        for (int aLetter2 = 'a'; aLetter2 <= 'z'; aLetter2++) {
-            for (int aLetter3 = 'a'; aLetter3 <= 'z'; aLetter3++) {
-                
-                
-                aPassword[0] = static_cast<unsigned char>(aLetter1);
-                aPassword[1] = static_cast<unsigned char>(aLetter2);
-                aPassword[2] = static_cast<unsigned char>(aLetter3);
-                
-                
-                for (int aRoundIndex=0; aRoundIndex<5; aRoundIndex++) {
-                    
-                    TwistExpander_Soccer aCandidate;
-                    
-                    Rig aRig;
-                    aRig.SetBlockCount(32);
-                    aRig.Run(&aCandidate, aPassword, 3);
-                    
-                    aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
-
-                    printf("exported %d\n", aNumber);
-                    
-                }
-            }
-        }
-    }
-    return;
-    */
-    
-    
-    
-    
-    
-
-    /*
-    if (IsRunningUnderXCTest() == false) {
-        Soccer aCandidate;
-        
-        std::string aPasswordA = "cat";
-        std::string aPasswordB = "eat";
-        
-        Avalancher aAva;
-        aAva.SetExpander(&aCandidate);
-        
-        auto aResult = aAva.DiffAB(aPasswordA, aPasswordB);
-        aResult.PrintExtended("Soccer");
-        aResult.PrintQuick("Soccer");
-        
-    }
-    */
-    
-    /*
-    unsigned char aPassword[3];
-
-    int aNumber = 0;
-    
-    int aRoundCounts[5];
-    aRoundCounts[0] = 1;
-    aRoundCounts[1] = 2;
-    aRoundCounts[2] = 4;
-    aRoundCounts[3] = 8;
-    aRoundCounts[4] = 16;
-    
-    for (int aLetter1 = 'a'; aLetter1 <= 'z'; aLetter1++) {
-        for (int aLetter2 = 'a'; aLetter2 <= 'z'; aLetter2++) {
-            for (int aLetter3 = 'a'; aLetter3 <= 'z'; aLetter3++) {
-                
-                
-                aPassword[0] = static_cast<unsigned char>(aLetter1);
-                aPassword[1] = static_cast<unsigned char>(aLetter2);
-                aPassword[2] = static_cast<unsigned char>(aLetter3);
-                
-                
-                for (int aRoundIndex=0; aRoundIndex<5; aRoundIndex++) {
-                    
-                    Soccer aCandidate;
-                    
-                    Rig aRig;
-                    aRig.SetBlockCount(32);
-                    aRig.Run(&aCandidate, aPassword, 3);
-                    
-                    aRig.SaveByteStreamProjectRoot("streams", "str_", aNumber++);
-
-                    printf("exported %d\n", aNumber);
-                    
-                }
-            }
-        }
-    }
-    */
-
+    //MeanMachineBuildExpanderRange(0, 1);
 }
 
 
