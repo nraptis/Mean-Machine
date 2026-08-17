@@ -37,7 +37,6 @@ using HeartBuckets = std::array<std::vector<LoopRecipe11>,
 
 static_assert(LoopNexusHearts::kHeartCount ==
               LoopStitcher::kHeartCount);
-static_assert(LoopStitcher::kRecipesPerExpander >= 656U);
 
 void SetError(std::string *pErrorMessage,
               const std::string &pMessage) {
@@ -524,29 +523,27 @@ bool LoopStitcher::Load(const std::string &pFolderPath,
     std::iota(aHeartOrder.begin(), aHeartOrder.end(), 0U);
     std::shuffle(aHeartOrder.begin(), aHeartOrder.end(), aGenerator);
 
+    std::array<std::array<std::size_t, kHeartCount>,
+               kExpanderCount> aAssignmentCounts{};
     std::size_t aExpanderIndex = 0U;
     for (const std::size_t aHeartIndex : aHeartOrder) {
         for (LoopRecipe11 &aRecipe : aHeartBuckets[aHeartIndex]) {
             (*pExpanderBuckets)[aExpanderIndex].push_back(
                 std::move(aRecipe));
+            ++aAssignmentCounts[aExpanderIndex][aHeartIndex];
             aExpanderIndex = (aExpanderIndex + 1U) % kExpanderCount;
         }
     }
-    std::array<std::size_t, kExpanderCount> aUniqueCounts{};
     for (std::size_t i = 0U; i < kExpanderCount; ++i) {
         std::vector<LoopRecipe11> &aBucket = (*pExpanderBuckets)[i];
-        aUniqueCounts[i] = aBucket.size();
-        if (aBucket.empty()) {
+        if (aBucket.size() < kRequiredRecipesPerExpander) {
             SetError(pErrorMessage,
-                     "Loop stitcher produced an empty expander bucket");
+                     "Loop stitcher assigned only " +
+                     std::to_string(aBucket.size()) +
+                     " unique recipes to expander_" +
+                     (i < 10U ? "0" : "") + std::to_string(i) +
+                     "; 656 are required");
             return false;
-        }
-        const std::vector<LoopRecipe11> aUniqueRecipes = aBucket;
-        std::size_t aDuplicateIndex = 0U;
-        while (aBucket.size() < kRecipesPerExpander) {
-            aBucket.push_back(
-                aUniqueRecipes[aDuplicateIndex % aUniqueRecipes.size()]);
-            ++aDuplicateIndex;
         }
         std::shuffle(aBucket.begin(), aBucket.end(), aGenerator);
     }
@@ -558,12 +555,24 @@ bool LoopStitcher::Load(const std::string &pFolderPath,
                     i, aHeartBuckets[i].size());
         aTotalCount += aHeartBuckets[i].size();
     }
-    std::printf("LOOP STITCHER — EXPANDER BUCKETS\n");
+    std::printf("LOOP STITCHER — ASSIGNMENTS BY EXPANDER\n");
+    std::printf("             ");
+    for (std::size_t i = 0U; i < kHeartCount; ++i) {
+        std::printf(" nx%02zu", i);
+    }
+    std::printf(" | total spare\n");
     for (std::size_t i = 0U; i < kExpanderCount; ++i) {
-        std::printf("  expander_%02zu: %zu (%zu unique records)\n",
-                    i,
-                    (*pExpanderBuckets)[i].size(),
-                    aUniqueCounts[i]);
+        std::printf("  expander_%02zu", i);
+        for (std::size_t aHeartIndex = 0U;
+             aHeartIndex < kHeartCount;
+             ++aHeartIndex) {
+            std::printf(" %4zu",
+                        aAssignmentCounts[i][aHeartIndex]);
+        }
+        const std::size_t aCount = (*pExpanderBuckets)[i].size();
+        std::printf(" | %5zu %5zu\n",
+                    aCount,
+                    aCount - kRequiredRecipesPerExpander);
     }
     std::printf("  total: %zu usable, %zu ignored\n\n",
                 aTotalCount, aIgnoredCount);

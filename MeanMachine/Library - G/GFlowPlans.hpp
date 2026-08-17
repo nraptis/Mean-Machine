@@ -79,6 +79,7 @@ struct GFlowStep {
     GFlowLane                           mEntropy = GFlowLane::kSource;
     GFlowARXShape                       mARXShape = GFlowARXShape::kMidstage;
     int                                 mArrangementOffset = 0;
+    std::vector<GFlowLane>              mForcedResiduals;
 };
 
 struct GFlowPlan {
@@ -101,7 +102,9 @@ inline GFlowStep ARX(const char pLetter,
                      const std::initializer_list<GFlowLane> pInputs,
                      const GFlowLane pOutput,
                      const GFlowARXShape pShape,
-                     const int pArrangementOffset = 0) {
+                     const int pArrangementOffset = 0,
+                     const std::initializer_list<GFlowLane>
+                         pForcedResiduals = {}) {
     GFlowStep aStep;
     aStep.mKind = GFlowStepKind::kARX;
     aStep.mLetter = pLetter;
@@ -109,7 +112,24 @@ inline GFlowStep ARX(const char pLetter,
     aStep.mOutput = pOutput;
     aStep.mARXShape = pShape;
     aStep.mArrangementOffset = pArrangementOffset;
+    aStep.mForcedResiduals.assign(pForcedResiduals.begin(),
+                                  pForcedResiduals.end());
     return aStep;
+}
+
+inline GFlowStep ARXWithResiduals(
+    const char pLetter,
+    const std::initializer_list<GFlowLane> pInputs,
+    const GFlowLane pOutput,
+    const GFlowARXShape pShape,
+    const std::initializer_list<GFlowLane> pForcedResiduals,
+    const int pArrangementOffset = 0) {
+    return ARX(pLetter,
+               pInputs,
+               pOutput,
+               pShape,
+               pArrangementOffset,
+               pForcedResiduals);
 }
 
 inline GFlowStep Diffuse(const GFlowLane pInput,
@@ -306,6 +326,19 @@ inline std::vector<Slot> InputSlots(const GFlowStep &pStep) {
     return aResult;
 }
 
+inline std::vector<Slot> ForcedResidualSlots(const GFlowStep &pStep) {
+    std::vector<Slot> aResult;
+    for (const GFlowLane aLane : pStep.mForcedResiduals) {
+        if (IsFamily(aLane)) {
+            const SlotArray4 aFamily = FamilySlots(aLane);
+            aResult.insert(aResult.end(), aFamily.begin(), aFamily.end());
+        } else {
+            aResult.push_back(FirstSlot(aLane));
+        }
+    }
+    return aResult;
+}
+
 inline std::vector<GFlowStep> ARXSteps(const GFlowPlan &pPlan) {
     std::vector<GFlowStep> aResult;
     for (const GFlowStep &aStep : pPlan.mSteps) {
@@ -383,35 +416,35 @@ inline const GFlowPlan &Seed() {
         "Seed",
         {
             ARX('A', {GFlowLane::kSource, GFlowLane::kNonce}, GFlowLane::kIce, GFlowARXShape::kStarter),
-            ARX('B', {GFlowLane::kIce}, GFlowLane::kRainbow, GFlowARXShape::kMidstage),
+            ARXWithResiduals('B', {GFlowLane::kIce}, GFlowLane::kRainbow, GFlowARXShape::kMidstage, {GFlowLane::kSource, GFlowLane::kNonce}),
             Diffuse(GFlowLane::kRainbow, GFlowLane::kIce, GFlowLane::kAlchemy),
 
-            ARX('C', {GFlowLane::kAlchemy}, GFlowLane::kAugury, GFlowARXShape::kTrunk, 7),
-            ARX('D', {GFlowLane::kAugury}, GFlowLane::kSpirit, GFlowARXShape::kMidstage),
+            ARXWithResiduals('C', {GFlowLane::kAlchemy}, GFlowLane::kAugury, GFlowARXShape::kTrunk, {GFlowLane::kSource, GFlowLane::kNonce}, 7),
+            ARXWithResiduals('D', {GFlowLane::kAugury}, GFlowLane::kSpirit, GFlowARXShape::kMidstage, {GFlowLane::kSource, GFlowLane::kNonce}),
             Diffuse(GFlowLane::kSpirit, GFlowLane::kAugury, GFlowLane::kDivination),
 
-            ARX('E', {GFlowLane::kDivination}, GFlowLane::kPsychic, GFlowARXShape::kTrunk, 9),
-            ARX('F', {GFlowLane::kPsychic}, GFlowLane::kVoodoo, GFlowARXShape::kMidstage),
-            Diffuse(GFlowLane::kVoodoo, GFlowLane::kPsychic, GFlowLane::kSpirit),
+            ARXWithResiduals('E', {GFlowLane::kDivination}, GFlowLane::kPsychic, GFlowARXShape::kTrunk, {GFlowLane::kSource, GFlowLane::kNonce}, 9),
+            ARXWithResiduals('F', {GFlowLane::kPsychic}, GFlowLane::kVoodoo, GFlowARXShape::kMidstage, {GFlowLane::kSource, GFlowLane::kNonce}),
+            Diffuse(GFlowLane::kVoodoo, GFlowLane::kPsychic, GFlowLane::kVapor),
 
-            ARX('G', {GFlowLane::kSpirit}, GFlowLane::kSonic, GFlowARXShape::kTrunk, 13),
-            ARX('H', {GFlowLane::kSonic}, GFlowLane::kPlanar, GFlowARXShape::kMidstage),
-            Diffuse(GFlowLane::kPlanar, GFlowLane::kSonic, GFlowLane::kDivination),
+            ARXWithResiduals('G', {GFlowLane::kVapor}, GFlowLane::kSonic, GFlowARXShape::kTrunk, {GFlowLane::kSource}, 13),
+            ARXWithResiduals('H', {GFlowLane::kSonic}, GFlowLane::kPlanar, GFlowARXShape::kMidstage, {GFlowLane::kSource}),
+            Diffuse(GFlowLane::kPlanar, GFlowLane::kSonic, GFlowLane::kFrost),
 
-            ARX('I', {GFlowLane::kDivination}, GFlowLane::kGloom, GFlowARXShape::kTrunk, 2),
-            ARX('J', {GFlowLane::kGloom}, GFlowLane::kLightning, GFlowARXShape::kMidstage),
+            ARXWithResiduals('I', {GFlowLane::kFrost}, GFlowLane::kGloom, GFlowARXShape::kTrunk, {GFlowLane::kSource}, 2),
+            ARXWithResiduals('J', {GFlowLane::kGloom}, GFlowLane::kLightning, GFlowARXShape::kMidstage, {GFlowLane::kSource}),
             Diffuse(GFlowLane::kLightning, GFlowLane::kGloom, GFlowLane::kWind),
 
-            ARX('K', {GFlowLane::kWind}, GFlowLane::kShadow, GFlowARXShape::kTrunk, 6),
-            ARX('L', {GFlowLane::kShadow}, GFlowLane::kFire, GFlowARXShape::kMidstage),
+            ARXWithResiduals('K', {GFlowLane::kWind}, GFlowLane::kShadow, GFlowARXShape::kTrunk, {GFlowLane::kNonce}, 6),
+            ARXWithResiduals('L', {GFlowLane::kShadow}, GFlowLane::kFire, GFlowARXShape::kMidstage, {GFlowLane::kNonce}),
             Diffuse(GFlowLane::kFire, GFlowLane::kShadow, GFlowLane::kKinetic),
 
-            ARX('M', {GFlowLane::kKinetic}, GFlowLane::kEvocation, GFlowARXShape::kTrunk, 11),
-            ARX('N', {GFlowLane::kEvocation}, GFlowLane::kRunic, GFlowARXShape::kMidstage),
+            ARXWithResiduals('M', {GFlowLane::kKinetic}, GFlowLane::kEvocation, GFlowARXShape::kTrunk, {GFlowLane::kSource}, 11),
+            ARXWithResiduals('N', {GFlowLane::kEvocation}, GFlowLane::kRunic, GFlowARXShape::kMidstage, {GFlowLane::kSource}),
             Diffuse(GFlowLane::kRunic, GFlowLane::kEvocation, GFlowLane::kAbjuration),
 
-            ARX('O', {GFlowLane::kAbjuration}, GFlowLane::kAether, GFlowARXShape::kTrunk, 5),
-            ARX('P', {GFlowLane::kAether}, GFlowLane::kLunar, GFlowARXShape::kMidstage),
+            ARXWithResiduals('O', {GFlowLane::kAbjuration}, GFlowLane::kAether, GFlowARXShape::kTrunk, {GFlowLane::kSource}, 5),
+            ARXWithResiduals('P', {GFlowLane::kAether}, GFlowLane::kLunar, GFlowARXShape::kMidstage, {GFlowLane::kSource}),
             Diffuse(GFlowLane::kLunar, GFlowLane::kAether, GFlowLane::kEarth),
 
             ARX('Q', {GFlowLane::kEarth}, GFlowLane::kCrystal, GFlowARXShape::kTrunk, 3),

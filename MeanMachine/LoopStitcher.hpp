@@ -17,16 +17,15 @@ class LoopStitcher {
 public:
     static constexpr std::size_t kHeartCount = 14U;
     static constexpr std::size_t kExpanderCount = 17U;
-    // The generated expander consumes 656 loop structures. Keep the same
-    // 72-record cushion that the previous 528/600 layout used.
-    static constexpr std::size_t kRecipesPerExpander = 728U;
+    static constexpr std::size_t kRequiredRecipesPerExpander = 656U;
 
     using ExpanderBuckets = std::array<std::vector<LoopRecipe11>,
                                        kExpanderCount>;
 
     // Load the fourteen nexus folders, validate every final loop record,
-    // shuffle each nexus bucket and the nexus order, then deal the recipes
-    // round-robin into seventeen independently shuffled expander buckets.
+    // shuffle each nexus bucket and the nexus order, then deal every unique
+    // recipe round-robin into seventeen independently shuffled expander
+    // buckets. Loading fails if any expander receives fewer than 656.
     static bool Load(const std::string &pFolderPath,
                      ExpanderBuckets *pExpanderBuckets,
                      std::string *pErrorMessage = nullptr);

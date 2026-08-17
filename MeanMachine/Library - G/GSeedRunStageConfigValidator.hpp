@@ -37,6 +37,15 @@ public:
                                                                                          std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
                                                                                          std::string *pErrorMessage);
 
+    // Exact four-pass key entry graph: eight fixed source lanes, eight
+    // inherited residual lanes, and four destinations. Two residual lanes
+    // deliberately bridge passes three and four.
+    static bool                                             ValidateKeyEightInput(const GSeedRunStageConfig &pConfig,
+                                                                                  std::vector<TwistWorkSpaceSlot> pPrimarySources,
+                                                                                  std::vector<TwistWorkSpaceSlot> pResidualSources,
+                                                                                  std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+                                                                                  std::string *pErrorMessage);
+
     // Exact four-pass Grow entry graph: four persistent branch lanes, two
     // cross parameters, twelve scheduled residual reads, and four destinations.
     static bool                                             ValidateGrowSixInput(const GSeedRunStageConfig &pConfig,

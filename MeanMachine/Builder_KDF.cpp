@@ -18,7 +18,6 @@
 #include "GSeedRunKDF_C.hpp"
 #include "GFlowPlans.hpp"
 #include "ResidualBucket.hpp"
-#include "ResidualKDFControl.hpp"
 
 #include "GRunMatrixDiffusion.hpp"
 namespace {
@@ -220,28 +219,6 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
         return false;
     }
 
-    if (ResidualKDFControl::GeneratedCount() == 0U) {
-        ResidualKDFControl::Reset();
-        if (!ResidualKDFControl::LoadValues(
-                "Assets/residual_kdf_pre_planned",
-                pErrorMessage)) {
-            return false;
-        }
-    } else if (ResidualKDFControl::GeneratedCount() !=
-               ResidualKDFControl::kCandidateCount) {
-        if (pErrorMessage != nullptr) {
-            *pErrorMessage =
-                "ResidualKDFControl had a partial candidate family";
-        }
-        return false;
-    }
-    if (!ResidualKDFControl::ApplyCandidate(
-            pExpander->mControlCandidateIndex,
-            &pResidualBucket,
-            pErrorMessage)) {
-        return false;
-    }
-
     pExpander->mKDFStageConfigs.clear();
     pExpander->mKDFStageConfigs.reserve(54U);
     for (std::size_t aDomainIndex = 0U; aDomainIndex < 6U; ++aDomainIndex) {
@@ -301,11 +278,6 @@ bool Builder_KDF::Build(GTwistExpander *pExpander,
             pExpander->mKDFStageConfigs.end(),
             aKDFCConfigs.begin(), aKDFCConfigs.end());
 
-    }
-
-    if (!ResidualKDFControl::FinishCandidate(&pResidualBucket,
-                                             pErrorMessage)) {
-        return false;
     }
 
     return true;

@@ -104,22 +104,40 @@ public:
     std::vector<TwistDomain>            mSeedMatrixDomains;
     std::vector<GSeedRunStageConfig>    mTwistStageConfigs;
     std::vector<TwistDomain>            mTwistMatrixDomains;
-    // The lane family written by Twist's final stage.  The generated
-    // TwistForkKeyHalfA/B methods consume this plan, so changing Twist's
-    // terminal family does not require editing the fold renderer.
-    std::array<TwistWorkSpaceSlot, 4>   mTwistForkSourceLanes = {{
+    // TwistForkKeyHalfA/B partition Twist's final Earth/Crystal pair with
+    // complementary odd/even parity alternating across source lanes. Every
+    // final block pairs source quarters 0/2 or 1/3, then braids each disjoint
+    // half through three shared scratch families. Each fork keeps its W_KEY
+    // results in a separate family for its Grow flow.
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkEarthLanes = {{
+        TwistWorkSpaceSlot::kEarthLaneA,
+        TwistWorkSpaceSlot::kEarthLaneB,
+        TwistWorkSpaceSlot::kEarthLaneC,
+        TwistWorkSpaceSlot::kEarthLaneD,
+    }};
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkCrystalLanes = {{
         TwistWorkSpaceSlot::kCrystalLaneA,
         TwistWorkSpaceSlot::kCrystalLaneB,
         TwistWorkSpaceSlot::kCrystalLaneC,
         TwistWorkSpaceSlot::kCrystalLaneD,
     }};
-    // Both forks occupy disjoint 8,192-byte regions of the shared Celestial
-    // middle lanes. Their final W_KEY regions live in separate families.
-    std::array<TwistWorkSpaceSlot, 4>   mTwistForkMiddleLanes = {{
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkMuLanes = {{
         TwistWorkSpaceSlot::kCelestialLaneA,
         TwistWorkSpaceSlot::kCelestialLaneB,
         TwistWorkSpaceSlot::kCelestialLaneC,
         TwistWorkSpaceSlot::kCelestialLaneD,
+    }};
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkLelLanes = {{
+        TwistWorkSpaceSlot::kAlchemyLaneA,
+        TwistWorkSpaceSlot::kAlchemyLaneB,
+        TwistWorkSpaceSlot::kAlchemyLaneC,
+        TwistWorkSpaceSlot::kAlchemyLaneD,
+    }};
+    std::array<TwistWorkSpaceSlot, 4>   mTwistForkGozLanes = {{
+        TwistWorkSpaceSlot::kAuguryLaneA,
+        TwistWorkSpaceSlot::kAuguryLaneB,
+        TwistWorkSpaceSlot::kAuguryLaneC,
+        TwistWorkSpaceSlot::kAuguryLaneD,
     }};
     std::array<TwistWorkSpaceSlot, 4>   mTwistForkFinalALanes = {{
         TwistWorkSpaceSlot::kSpiritLaneA,

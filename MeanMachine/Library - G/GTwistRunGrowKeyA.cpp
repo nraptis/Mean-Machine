@@ -272,8 +272,6 @@ GrowStageConfigs MakeGrowAConfig(ResidualBucket &pResidualBucket,
         aResidualsPool[0], aResidualsPool[1],
     };
 
-    pResidualBucket.Print("Grow A — Final");
-
     // Stage Construction
 
     GSeedRunStageConfig aConfigA = BaseConfig("GROW_A_A",

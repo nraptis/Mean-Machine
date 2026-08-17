@@ -652,6 +652,108 @@ bool GSeedRunStageConfigValidator::ValidateStarterWithResiduals(
     return true;
 }
 
+bool GSeedRunStageConfigValidator::ValidateKeyEightInput(
+    const GSeedRunStageConfig &pConfig,
+    std::vector<TwistWorkSpaceSlot> pPrimarySources,
+    std::vector<TwistWorkSpaceSlot> pResidualSources,
+    std::vector<TwistWorkSpaceSlot> pExpectedDestinations,
+    std::string *pErrorMessage) {
+    if ((pPrimarySources.size() != 8U) ||
+        (pResidualSources.size() != 8U) ||
+        (pExpectedDestinations.size() != 4U)) {
+        SetError(pErrorMessage,
+                 pConfig.mStageName +
+                 " key validation requires eight inputs, eight residuals, and four destinations");
+        return false;
+    }
+
+    std::vector<TwistWorkSpaceSlot> aSources;
+    for (TwistWorkSpaceSlot aSlot : pPrimarySources) {
+        if ((aSlot == TwistWorkSpaceSlot::kInvalid) ||
+            HasSlot(aSources, aSlot)) {
+            SetError(pErrorMessage,
+                     pConfig.mStageName +
+                     " key validation requires eight unique valid inputs");
+            return false;
+        }
+        aSources.push_back(aSlot);
+    }
+    for (TwistWorkSpaceSlot aSlot : pResidualSources) {
+        if ((aSlot == TwistWorkSpaceSlot::kInvalid) ||
+            HasSlot(aSources, aSlot)) {
+            SetError(pErrorMessage,
+                     pConfig.mStageName +
+                     " key validation requires eight unique residuals disjoint from its inputs");
+            return false;
+        }
+        aSources.push_back(aSlot);
+    }
+
+    if (!ValidateBasicShape(pConfig, pErrorMessage) ||
+        !ValidateDestinations(pConfig,
+                              pExpectedDestinations,
+                              pErrorMessage)) {
+        return false;
+    }
+
+    if (!ValidateList(pConfig,
+                      aSources,
+                      pExpectedDestinations,
+                      pErrorMessage) ||
+        !ValidateSourceGraph(pConfig,
+                             aSources,
+                             pErrorMessage) ||
+        !ValidateNonRedundancy(pConfig,
+                               pErrorMessage)) {
+        return false;
+    }
+
+    const auto Matches = [](
+        const std::vector<TwistWorkSpaceSlot> &pActual,
+        const std::initializer_list<TwistWorkSpaceSlot> pExpected) {
+        return std::vector<TwistWorkSpaceSlot>(pExpected) == pActual;
+    };
+
+    const GSeedRunStageSliceSpec &aPassA = pConfig.mSlices[0];
+    const GSeedRunStageSliceSpec &aPassB = pConfig.mSlices[1];
+    const GSeedRunStageSliceSpec &aPassC = pConfig.mSlices[2];
+    const GSeedRunStageSliceSpec &aPassD = pConfig.mSlices[3];
+
+    const bool aMatchesGraph =
+        Matches(aPassA.mIngressSources,
+                {pPrimarySources[0], pPrimarySources[1],
+                 pPrimarySources[2], pPrimarySources[3]}) &&
+        Matches(aPassA.mCrossSources,
+                {pPrimarySources[4], pPrimarySources[5],
+                 pPrimarySources[6], pPrimarySources[7]}) &&
+        Matches(aPassB.mIngressSources,
+                {pExpectedDestinations[0], pPrimarySources[4],
+                 pPrimarySources[5], pResidualSources[0]}) &&
+        Matches(aPassB.mCrossSources,
+                {pPrimarySources[0], pPrimarySources[1],
+                 pResidualSources[1], pResidualSources[2]}) &&
+        Matches(aPassC.mIngressSources,
+                {pExpectedDestinations[1], pPrimarySources[6],
+                 pResidualSources[3], pResidualSources[4]}) &&
+        Matches(aPassC.mCrossSources,
+                {pExpectedDestinations[0], pPrimarySources[2],
+                 pResidualSources[5], pResidualSources[6]}) &&
+        Matches(aPassD.mIngressSources,
+                {pExpectedDestinations[2], pExpectedDestinations[0],
+                 pPrimarySources[7], pResidualSources[5]}) &&
+        Matches(aPassD.mCrossSources,
+                {pExpectedDestinations[1], pPrimarySources[3],
+                 pResidualSources[6], pResidualSources[7]});
+    if (!aMatchesGraph) {
+        SetError(pErrorMessage,
+                 pConfig.mStageName +
+                 " did not match the exact eight-input key source graph");
+        return false;
+    }
+
+    return true;
+}
+
 bool GSeedRunStageConfigValidator::ValidateGrowSixInput(
     const GSeedRunStageConfig &pConfig,
     std::vector<TwistWorkSpaceSlot> pPrimarySources,

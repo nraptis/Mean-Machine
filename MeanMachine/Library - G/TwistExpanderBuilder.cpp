@@ -223,23 +223,43 @@ std::string WorkspaceLaneExpression(const TwistWorkSpaceSlot pSlot) {
     return "pWorkSpace->m" + aAlias.substr(1U);
 }
 
+std::size_t RandomKeyFoldOffset() {
+    return static_cast<std::size_t>(Random::Get(1, 511));
+}
+
 std::string RenderTwistForkKeyHalf(
     const std::string &pClassName,
-    const std::array<TwistWorkSpaceSlot, 4U> &pSourceLanes,
-    const std::array<TwistWorkSpaceSlot, 4U> &pMiddleLanes,
+    const std::array<TwistWorkSpaceSlot, 4U> &pEarthLanes,
+    const std::array<TwistWorkSpaceSlot, 4U> &pCrystalLanes,
+    const std::array<TwistWorkSpaceSlot, 4U> &pMuLanes,
+    const std::array<TwistWorkSpaceSlot, 4U> &pLelLanes,
+    const std::array<TwistWorkSpaceSlot, 4U> &pGozLanes,
     const std::array<TwistWorkSpaceSlot, 4U> &pFinalLanes,
     const KeyForkControl::Candidate &pCandidate,
     const bool pIsHalfB) {
     static_assert(S_BLOCK == 32768,
                   "Twist key forks require 32,768-byte source lanes.");
-    static_assert(S_HALF == 16384,
-                  "Twist key forks require 16,384-byte halves.");
     static_assert(W_KEY == 2048,
                   "Twist key forks require 2,048-byte key pieces.");
-    static_assert((S_HALF / 8U) == W_KEY,
-                  "Each source half must contain eight W_KEY blocks.");
-    static_assert((S_HALF / 2U) == 8192U,
-                  "Stage I must produce four 8,192-byte regions.");
+    static constexpr std::size_t kBlockSize = 512U;
+    static constexpr std::size_t kPhysicalBlocksPerQuarter =
+        (S_BLOCK / 4U) / kBlockSize;
+    static_assert(KeyForkControl::kSourceBlockCount * 2U * kBlockSize ==
+                      S_BLOCK,
+                  "Even and odd source blocks must cover one source lane.");
+    static_assert(KeyForkControl::kMuBlockCount * kBlockSize == 4096U,
+                  "Mu lane size changed.");
+    static_assert(KeyForkControl::kLelBlockCount * kBlockSize == W_KEY,
+                  "Lel lane size changed.");
+    static_assert(KeyForkControl::kGozBlockCount * kBlockSize == 1024U,
+                  "Goz lane size changed.");
+    static constexpr std::array<
+        std::array<KeyForkControl::BlockPick, 2U>, 4U> kFinalPairs = {{
+            {{{0U, 0U}, {1U, 0U}}},
+            {{{2U, 0U}, {3U, 0U}}},
+            {{{0U, 1U}, {2U, 1U}}},
+            {{{1U, 1U}, {3U, 1U}}},
+        }};
 
     const std::size_t aForkIndex = pIsHalfB ? 1U : 0U;
     const char aForkLetter = pIsHalfB ? 'B' : 'A';
@@ -248,29 +268,51 @@ std::string RenderTwistForkKeyHalf(
     aOut << "void " << pClassName << "::TwistForkKeyHalf"
          << aForkLetter << "(TwistWorkSpace *pWorkSpace) {\n"
          << "    static_assert(S_BLOCK == 32768, \"Twist fork source size changed.\");\n"
-         << "    static_assert(S_HALF == 16384, \"Twist fork half size changed.\");\n"
+         << "    static_assert(S_BLOCK / 64U == 512U, \"Twist fork block size changed.\");\n"
          << "    static_assert(W_KEY == 2048, \"Twist fork key size changed.\");\n\n";
 
     for (std::size_t aLane = 0U; aLane < 4U; ++aLane) {
         const std::string aExpression =
-            WorkspaceLaneExpression(pSourceLanes[aLane]);
+            WorkspaceLaneExpression(pEarthLanes[aLane]);
         if (aExpression.empty()) {
             return "";
         }
-        aOut << "    std::uint8_t *aSourceLane"
+        aOut << "    std::uint8_t *aEarthLane"
+             << static_cast<char>('A' + aLane)
+             << " = " << aExpression << ";\n";
+    }
+    for (std::size_t aLane = 0U; aLane < 4U; ++aLane) {
+        const std::string aExpression =
+            WorkspaceLaneExpression(pCrystalLanes[aLane]);
+        if (aExpression.empty()) {
+            return "";
+        }
+        aOut << "    std::uint8_t *aCrystalLane"
              << static_cast<char>('A' + aLane)
              << " = " << aExpression << ";\n";
     }
     aOut << "\n";
+
     for (std::size_t aLane = 0U; aLane < 4U; ++aLane) {
-        const std::string aExpression =
-            WorkspaceLaneExpression(pMiddleLanes[aLane]);
-        if (aExpression.empty()) {
+        const std::string aMuExpression =
+            WorkspaceLaneExpression(pMuLanes[aLane]);
+        const std::string aLelExpression =
+            WorkspaceLaneExpression(pLelLanes[aLane]);
+        const std::string aGozExpression =
+            WorkspaceLaneExpression(pGozLanes[aLane]);
+        if (aMuExpression.empty() || aLelExpression.empty() ||
+            aGozExpression.empty()) {
             return "";
         }
-        aOut << "    std::uint8_t *aStageOneLane"
+        aOut << "    std::uint8_t *aMuLane"
              << static_cast<char>('A' + aLane)
-             << " = " << aExpression << ";\n";
+             << " = " << aMuExpression << ";\n"
+             << "    std::uint8_t *aLelLane"
+             << static_cast<char>('A' + aLane)
+             << " = " << aLelExpression << ";\n"
+             << "    std::uint8_t *aGozLane"
+             << static_cast<char>('A' + aLane)
+             << " = " << aGozExpression << ";\n";
     }
     aOut << "\n";
     for (std::size_t aLane = 0U; aLane < 4U; ++aLane) {
@@ -279,136 +321,294 @@ std::string RenderTwistForkKeyHalf(
         if (aExpression.empty()) {
             return "";
         }
-        aOut << "    std::uint8_t *aStageTwoLane"
+        aOut << "    std::uint8_t *aFinalLane"
              << static_cast<char>('A' + aLane)
              << " = " << aExpression << ";\n";
     }
 
-    aOut << "\n"
-         << "    // Fold Stage I — 4 x 16,384 bytes into 4 x 8,192 bytes.\n\n";
-    for (std::size_t aDestination = 0U;
-         aDestination < KeyForkControl::kLaneCount;
-         ++aDestination) {
-        for (std::size_t aBlock = 0U;
-             aBlock < KeyForkControl::kStageOneBlockCount;
-             ++aBlock) {
-            const std::uint8_t aSourceLaneA =
-                pCandidate.mStageOne
-                    .mSourceLanes[aForkIndex][aDestination][aBlock][0U];
-            const std::uint8_t aSourceLaneB =
-                pCandidate.mStageOne
-                    .mSourceLanes[aForkIndex][aDestination][aBlock][1U];
-            const std::uint8_t aSourceHalfA =
-                pCandidate.mStageOne.mSourceHalves[aForkIndex][aSourceLaneA];
-            const std::uint8_t aSourceHalfB =
-                pCandidate.mStageOne.mSourceHalves[aForkIndex][aSourceLaneB];
-            const std::uint8_t aSourceBlockA =
-                pCandidate.mStageOne
-                    .mSourceBlocks[aForkIndex][aDestination][aBlock][0U];
-            const std::uint8_t aSourceBlockB =
-                pCandidate.mStageOne
-                    .mSourceBlocks[aForkIndex][aDestination][aBlock][1U];
-            aOut << "    // Destination "
-                 << static_cast<char>('A' + aDestination)
-                 << ", block " << aBlock << ": source "
-                 << static_cast<char>('A' + aSourceLaneA)
-                 << " half " << static_cast<std::size_t>(aSourceHalfA)
-                 << " block " << static_cast<std::size_t>(aSourceBlockA)
-                 << " + source "
-                 << static_cast<char>('A' + aSourceLaneB)
-                 << " half " << static_cast<std::size_t>(aSourceHalfB)
-                 << " block " << static_cast<std::size_t>(aSourceBlockB)
-                 << "\n"
-                 << "    for (std::size_t aIndex = 0U; aIndex < W_KEY; ++aIndex) {\n"
-                 << "        const std::size_t aSourceIndexA = "
-                 << static_cast<std::size_t>(aSourceHalfA)
-                 << "U * S_HALF + "
-                 << static_cast<std::size_t>(aSourceBlockA)
-                 << "U * W_KEY + ((aIndex + "
-                 << pCandidate.mStageOne
-                        .mSourceOffsets[aForkIndex][aDestination][aBlock][0U]
-                 << "U) & W_KEY1);\n"
-                 << "        const std::size_t aSourceIndexB = "
-                 << static_cast<std::size_t>(aSourceHalfB)
-                 << "U * S_HALF + "
-                 << static_cast<std::size_t>(aSourceBlockB)
-                 << "U * W_KEY + ((aIndex + "
-                 << pCandidate.mStageOne
-                        .mSourceOffsets[aForkIndex][aDestination][aBlock][1U]
-                 << "U) & W_KEY1);\n"
-                 << "        const std::size_t aDestinationIndex = "
-                 << aForkIndex << "U * (S_HALF >> 1U) + "
-                 << aBlock << "U * W_KEY + aIndex;\n\n"
-                 << "        std::uint16_t aFoldValue = 0U;\n"
-                 << "        aFoldValue |= static_cast<std::uint16_t>(aSourceLane"
-                 << static_cast<char>('A' + aSourceLaneA)
-                 << "[aSourceIndexA]) << "
-                 << static_cast<std::size_t>(
-                        pCandidate.mStageOne
-                            .mWordShifts[aForkIndex][aDestination][aBlock][0U]) * 8U
-                 << "U;\n"
-                 << "        aFoldValue |= static_cast<std::uint16_t>(aSourceLane"
-                 << static_cast<char>('A' + aSourceLaneB)
-                 << "[aSourceIndexB]) << "
-                 << static_cast<std::size_t>(
-                        pCandidate.mStageOne
-                            .mWordShifts[aForkIndex][aDestination][aBlock][1U]) * 8U
-                 << "U;\n"
-                 << "        aFoldValue = TwistMix16::DiffuseA(aFoldValue);\n\n"
-                 << "        aStageOneLane"
-                 << static_cast<char>('A' + aDestination)
-                 << "[aDestinationIndex] = static_cast<std::uint8_t>(aFoldValue >> "
-                 << static_cast<std::size_t>(
-                        pCandidate.mStageOne
-                            .mOutputShifts[aForkIndex][aDestination][aBlock]) * 8U
-                 << "U);\n"
-                 << "    }\n\n";
-        }
-    }
+    static constexpr std::array<const char *, 8U> kSourceLaneNames = {{
+        "aEarthLaneA", "aEarthLaneB", "aEarthLaneC", "aEarthLaneD",
+        "aCrystalLaneA", "aCrystalLaneB",
+        "aCrystalLaneC", "aCrystalLaneD",
+    }};
+    static constexpr std::array<const char *, 4U> kMuLaneNames = {{
+        "aMuLaneA", "aMuLaneB", "aMuLaneC", "aMuLaneD",
+    }};
+    static constexpr std::array<const char *, 4U> kLelLaneNames = {{
+        "aLelLaneA", "aLelLaneB", "aLelLaneC", "aLelLaneD",
+    }};
+    using SourceMembership =
+        std::array<std::size_t, KeyForkControl::kSourceLaneCount>;
+    using SourceBlocks =
+        std::array<std::vector<std::size_t>,
+                   KeyForkControl::kSourceLaneCount>;
 
-    aOut << "    // Fold Stage II — 4 x 8,192 bytes into 4 x W_KEY bytes.\n\n";
-    for (std::size_t aOutput = 0U;
-         aOutput < KeyForkControl::kStageTwoOutputCount;
-         ++aOutput) {
-        aOut << "    // Key piece "
-             << static_cast<char>('A' + aOutput) << "\n"
-             << "    for (std::size_t aIndex = 0U; aIndex < W_KEY; ++aIndex) {\n";
-        for (std::size_t aLane = 0U; aLane < 4U; ++aLane) {
-            const std::size_t aSourceBlock =
-                pCandidate.mStageTwo
-                    .mSourceBlocks[aForkIndex][aOutput][aLane];
-            const std::size_t aSourceOffset =
-                pCandidate.mStageTwo
-                    .mSourceOffsets[aForkIndex][aOutput][aLane];
-            aOut << "        const std::size_t aSourceIndex"
-                 << static_cast<char>('A' + aLane) << " = "
-                 << aForkIndex << "U * (S_HALF >> 1U) + "
-                 << aSourceBlock << "U * W_KEY + ((aIndex + "
-                 << aSourceOffset << "U) & W_KEY1);\n";
+    for (std::size_t aOutputLane = 0U;
+         aOutputLane < KeyForkControl::kOutputLaneCount;
+         ++aOutputLane) {
+        std::array<std::array<SourceMembership,
+                              KeyForkControl::kMuBlockCount>,
+                   KeyForkControl::kStageLaneCount> aMuMemberships{};
+        std::array<std::array<SourceMembership,
+                              KeyForkControl::kLelBlockCount>,
+                   KeyForkControl::kStageLaneCount> aLelMemberships{};
+        std::array<std::array<SourceMembership,
+                              KeyForkControl::kGozBlockCount>,
+                   KeyForkControl::kStageLaneCount> aGozMemberships{};
+        std::array<std::array<SourceBlocks,
+                              KeyForkControl::kMuBlockCount>,
+                   KeyForkControl::kStageLaneCount> aMuSourceBlocks{};
+        std::array<std::array<SourceBlocks,
+                              KeyForkControl::kLelBlockCount>,
+                   KeyForkControl::kStageLaneCount> aLelSourceBlocks{};
+        std::array<std::array<SourceBlocks,
+                              KeyForkControl::kGozBlockCount>,
+                   KeyForkControl::kStageLaneCount> aGozSourceBlocks{};
+        const char aOutputLetter = static_cast<char>('A' + aOutputLane);
+        aOut << "\n"
+             << "    // Grow input " << aOutputLetter
+             << " — balanced 512-byte fold graph.\n\n"
+             << "    // Mu — eight 512-byte blocks per lane.\n\n";
+
+        for (std::size_t aMu = 0U;
+             aMu < KeyForkControl::kStageLaneCount;
+             ++aMu) {
+            for (std::size_t aBlock = 0U;
+                 aBlock < KeyForkControl::kMuBlockCount;
+                 ++aBlock) {
+                const auto &aPair =
+                    pCandidate.mMu[aForkIndex][aOutputLane][aMu][aBlock];
+                const auto &aPickA = aPair[0U];
+                const auto &aPickB = aPair[1U];
+                const std::size_t aPhysicalBlockA =
+                    KeyForkControl::PhysicalSourceBlock(
+                        aForkIndex,
+                        aPickA.mLane,
+                        aPickA.mBlock);
+                const std::size_t aPhysicalBlockB =
+                    KeyForkControl::PhysicalSourceBlock(
+                        aForkIndex,
+                        aPickB.mLane,
+                        aPickB.mBlock);
+                ++aMuMemberships[aMu][aBlock][aPickA.mLane];
+                ++aMuMemberships[aMu][aBlock][aPickB.mLane];
+                aMuSourceBlocks[aMu][aBlock][aPickA.mLane]
+                    .push_back(aPhysicalBlockA);
+                aMuSourceBlocks[aMu][aBlock][aPickB.mLane]
+                    .push_back(aPhysicalBlockB);
+                aOut << "    // Mu " << static_cast<char>('A' + aMu)
+                     << "[" << aBlock << "]: "
+                     << kSourceLaneNames[aPickA.mLane] << "["
+                     << aPhysicalBlockA << "] + "
+                     << kSourceLaneNames[aPickB.mLane] << "["
+                     << aPhysicalBlockB << "].\n"
+                     << "    KEY_FOLD_BLOCK("
+                     << kSourceLaneNames[aPickA.mLane] << ", "
+                     << aPhysicalBlockA << "U, "
+                     << RandomKeyFoldOffset() << "U, "
+                     << kSourceLaneNames[aPickB.mLane] << ", "
+                     << aPhysicalBlockB << "U, "
+                     << RandomKeyFoldOffset() << "U, "
+                     << "aMuLane" << static_cast<char>('A' + aMu) << ", "
+                     << aBlock << "U);\n\n";
+            }
         }
-        aOut << "        const std::size_t aDestinationIndex = "
-             << aForkIndex << "U * W_KEY + aIndex;\n\n"
-             << "        std::uint32_t aFoldValue = 0U;\n";
-        for (std::size_t aLane = 0U; aLane < 4U; ++aLane) {
-            aOut << "        aFoldValue |= static_cast<std::uint32_t>(aStageOneLane"
-                 << static_cast<char>('A' + aLane)
-                 << "[aSourceIndex" << static_cast<char>('A' + aLane)
-                 << "]) << "
-                 << static_cast<std::size_t>(
-                        pCandidate.mStageTwo
-                            .mWordShifts[aForkIndex][aOutput][aLane]) * 8U
-                 << "U;\n";
+
+        aOut << "    // Lel — four 512-byte blocks per lane.\n\n";
+        for (std::size_t aLel = 0U;
+             aLel < KeyForkControl::kStageLaneCount;
+             ++aLel) {
+            for (std::size_t aBlock = 0U;
+                 aBlock < KeyForkControl::kLelBlockCount;
+                 ++aBlock) {
+                const auto &aPair =
+                    pCandidate.mLel[aForkIndex][aOutputLane][aLel][aBlock];
+                const auto &aPickA = aPair[0U];
+                const auto &aPickB = aPair[1U];
+                for (std::size_t aSource = 0U;
+                     aSource < KeyForkControl::kSourceLaneCount;
+                     ++aSource) {
+                    aLelMemberships[aLel][aBlock][aSource] =
+                        aMuMemberships[aPickA.mLane]
+                                      [aPickA.mBlock][aSource] +
+                        aMuMemberships[aPickB.mLane]
+                                      [aPickB.mBlock][aSource];
+                    const auto &aBlocksA =
+                        aMuSourceBlocks[aPickA.mLane]
+                                       [aPickA.mBlock][aSource];
+                    const auto &aBlocksB =
+                        aMuSourceBlocks[aPickB.mLane]
+                                       [aPickB.mBlock][aSource];
+                    auto &aBlocks = aLelSourceBlocks[aLel][aBlock][aSource];
+                    aBlocks.insert(aBlocks.end(),
+                                   aBlocksA.begin(), aBlocksA.end());
+                    aBlocks.insert(aBlocks.end(),
+                                   aBlocksB.begin(), aBlocksB.end());
+                }
+                aOut << "    // Lel " << static_cast<char>('A' + aLel)
+                     << "[" << aBlock << "]: "
+                     << kMuLaneNames[aPickA.mLane] << "["
+                     << static_cast<std::size_t>(aPickA.mBlock) << "] + "
+                     << kMuLaneNames[aPickB.mLane] << "["
+                     << static_cast<std::size_t>(aPickB.mBlock) << "].\n"
+                     << "    KEY_FOLD_BLOCK("
+                     << kMuLaneNames[aPickA.mLane] << ", "
+                     << static_cast<std::size_t>(aPickA.mBlock) << "U, "
+                     << RandomKeyFoldOffset() << "U, "
+                     << kMuLaneNames[aPickB.mLane] << ", "
+                     << static_cast<std::size_t>(aPickB.mBlock) << "U, "
+                     << RandomKeyFoldOffset() << "U, "
+                     << "aLelLane" << static_cast<char>('A' + aLel) << ", "
+                     << aBlock << "U);\n\n";
+            }
         }
-        aOut << "        aFoldValue = TwistMix32::DiffuseA(aFoldValue);\n\n"
-             << "        aStageTwoLane"
-             << static_cast<char>('A' + aOutput)
-             << "[aDestinationIndex] = static_cast<std::uint8_t>(aFoldValue >> "
-             << static_cast<std::size_t>(
-                    pCandidate.mStageTwo.mOutputShifts[aForkIndex][aOutput]) * 8U
-             << "U);\n"
-             << "    }\n";
-        if (aOutput != 3U) {
-            aOut << "\n";
+
+        aOut << "    // Goz — two 512-byte blocks per lane.\n\n";
+        for (std::size_t aGoz = 0U;
+             aGoz < KeyForkControl::kStageLaneCount;
+             ++aGoz) {
+            for (std::size_t aBlock = 0U;
+                 aBlock < KeyForkControl::kGozBlockCount;
+                 ++aBlock) {
+                const auto &aPair =
+                    pCandidate.mGoz[aForkIndex][aOutputLane][aGoz][aBlock];
+                const auto &aPickA = aPair[0U];
+                const auto &aPickB = aPair[1U];
+                for (std::size_t aSource = 0U;
+                     aSource < KeyForkControl::kSourceLaneCount;
+                     ++aSource) {
+                    aGozMemberships[aGoz][aBlock][aSource] =
+                        aLelMemberships[aPickA.mLane]
+                                       [aPickA.mBlock][aSource] +
+                        aLelMemberships[aPickB.mLane]
+                                       [aPickB.mBlock][aSource];
+                    const auto &aBlocksA =
+                        aLelSourceBlocks[aPickA.mLane]
+                                        [aPickA.mBlock][aSource];
+                    const auto &aBlocksB =
+                        aLelSourceBlocks[aPickB.mLane]
+                                        [aPickB.mBlock][aSource];
+                    auto &aBlocks = aGozSourceBlocks[aGoz][aBlock][aSource];
+                    aBlocks.insert(aBlocks.end(),
+                                   aBlocksA.begin(), aBlocksA.end());
+                    aBlocks.insert(aBlocks.end(),
+                                   aBlocksB.begin(), aBlocksB.end());
+                }
+                aOut << "    // Goz " << static_cast<char>('A' + aGoz)
+                     << "[" << aBlock << "]: "
+                     << kLelLaneNames[aPickA.mLane] << "["
+                     << static_cast<std::size_t>(aPickA.mBlock) << "] + "
+                     << kLelLaneNames[aPickB.mLane] << "["
+                     << static_cast<std::size_t>(aPickB.mBlock) << "].\n"
+                     << "    KEY_FOLD_BLOCK("
+                     << kLelLaneNames[aPickA.mLane] << ", "
+                     << static_cast<std::size_t>(aPickA.mBlock) << "U, "
+                     << RandomKeyFoldOffset() << "U, "
+                     << kLelLaneNames[aPickB.mLane] << ", "
+                     << static_cast<std::size_t>(aPickB.mBlock) << "U, "
+                     << RandomKeyFoldOffset() << "U, "
+                     << "aGozLane" << static_cast<char>('A' + aGoz) << ", "
+                     << aBlock << "U);\n\n";
+            }
+        }
+
+        std::array<SourceMembership, 4U> aKeyMemberships{};
+        std::array<SourceBlocks, 4U> aKeySourceBlocks{};
+        for (std::size_t aKeyBlock = 0U; aKeyBlock < 4U; ++aKeyBlock) {
+            const auto &aLeft = kFinalPairs[aKeyBlock][0U];
+            const auto &aRight = kFinalPairs[aKeyBlock][1U];
+            for (std::size_t aSource = 0U;
+                 aSource < KeyForkControl::kSourceLaneCount;
+                 ++aSource) {
+                aKeyMemberships[aKeyBlock][aSource] =
+                    aGozMemberships[aLeft.mLane][aLeft.mBlock][aSource] +
+                    aGozMemberships[aRight.mLane][aRight.mBlock][aSource];
+                const auto &aBlocksA =
+                    aGozSourceBlocks[aLeft.mLane]
+                                    [aLeft.mBlock][aSource];
+                const auto &aBlocksB =
+                    aGozSourceBlocks[aRight.mLane]
+                                    [aRight.mBlock][aSource];
+                auto &aBlocks = aKeySourceBlocks[aKeyBlock][aSource];
+                aBlocks.insert(aBlocks.end(),
+                               aBlocksA.begin(), aBlocksA.end());
+                aBlocks.insert(aBlocks.end(),
+                               aBlocksB.begin(), aBlocksB.end());
+            }
+        }
+
+        aOut << "    // Key source memberships.\n";
+        for (std::size_t aKeyBlock = 0U; aKeyBlock < 4U; ++aKeyBlock) {
+            aOut << "    // Block " << aKeyBlock
+                 << ": Earth={A:" << aKeyMemberships[aKeyBlock][0U]
+                 << ", B:" << aKeyMemberships[aKeyBlock][1U]
+                 << ", C:" << aKeyMemberships[aKeyBlock][2U]
+                 << ", D:" << aKeyMemberships[aKeyBlock][3U]
+                 << "} Crystal={A:" << aKeyMemberships[aKeyBlock][4U]
+                 << ", B:" << aKeyMemberships[aKeyBlock][5U]
+                 << ", C:" << aKeyMemberships[aKeyBlock][6U]
+                 << ", D:" << aKeyMemberships[aKeyBlock][7U]
+                 << "}.\n";
+            aOut << "    // Quarters: Earth={A:"
+                 << (aKeySourceBlocks[aKeyBlock][0U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][0U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << ", B:"
+                 << (aKeySourceBlocks[aKeyBlock][1U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][1U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << ", C:"
+                 << (aKeySourceBlocks[aKeyBlock][2U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][2U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << ", D:"
+                 << (aKeySourceBlocks[aKeyBlock][3U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][3U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << "} Crystal={A:"
+                 << (aKeySourceBlocks[aKeyBlock][4U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][4U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << ", B:"
+                 << (aKeySourceBlocks[aKeyBlock][5U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][5U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << ", C:"
+                 << (aKeySourceBlocks[aKeyBlock][6U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][6U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << ", D:"
+                 << (aKeySourceBlocks[aKeyBlock][7U][0U] /
+                     kPhysicalBlocksPerQuarter) << "/"
+                 << (aKeySourceBlocks[aKeyBlock][7U][1U] /
+                     kPhysicalBlocksPerQuarter)
+                 << "}.\n";
+        }
+        aOut << "\n"
+             << "    // Key — fixed two-input Goz fold.\n\n";
+        for (std::size_t aKeyBlock = 0U; aKeyBlock < 4U; ++aKeyBlock) {
+            const auto &aLeft = kFinalPairs[aKeyBlock][0U];
+            const auto &aRight = kFinalPairs[aKeyBlock][1U];
+            const char aLeftLane = static_cast<char>('A' + aLeft.mLane);
+            const char aRightLane = static_cast<char>('A' + aRight.mLane);
+            aOut << "    KEY_FOLD_BLOCK(aGozLane" << aLeftLane << ", "
+                 << static_cast<std::size_t>(aLeft.mBlock) << "U, "
+                 << RandomKeyFoldOffset() << "U, "
+                 << "aGozLane" << aRightLane << ", "
+                 << static_cast<std::size_t>(aRight.mBlock) << "U, "
+                 << RandomKeyFoldOffset() << "U, "
+                 << "aFinalLane" << aOutputLetter;
+            if (pIsHalfB) {
+                aOut << " + W_KEY";
+            }
+            aOut << ", " << aKeyBlock << "U);\n\n";
         }
     }
     aOut << "}\n";
@@ -1778,6 +1978,26 @@ void SetArxCallLaneFlow(ArxCallExport *pCall,
     pCall->mFlowDestinations = pConfig.mFlowDestinations;
 }
 
+bool UsesGrowCrossLanes(const GSeedRunStageConfig &pConfig) {
+    for (const GSeedRunStageSliceSpec &aSlice : pConfig.mSlices) {
+        std::vector<TwistWorkSpaceSlot> aSources =
+            aSlice.IngressSources();
+        const std::vector<TwistWorkSpaceSlot> aCrossSources =
+            aSlice.CrossSources();
+        aSources.insert(aSources.end(),
+                        aCrossSources.begin(),
+                        aCrossSources.end());
+
+        for (const TwistWorkSpaceSlot aSource : aSources) {
+            if ((aSource == TwistWorkSpaceSlot::kParamCrossA) ||
+                (aSource == TwistWorkSpaceSlot::kParamCrossB)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 const ArxCallExport *FindArxCallForBatch(const std::vector<const ArxCallExport *> &pArxCalls,
                                          const std::string &pBatchName) {
     for (const ArxCallExport *aArxCall : pArxCalls) {
@@ -1996,7 +2216,9 @@ void AppendArxCall(const ArxCallExport &pArxCall,
             aParameterMacro = "PARAMS_TWIST";
         } else if ((pArxCall.mKind == ArxCallKind::kGrow) &&
                    pForwardArxStateParameters) {
-            aParameterMacro = "PARAMS_GROW";
+            aParameterMacro = pArxCall.mUsesCrossLanes
+                ? "PARAMS_GROW_CROSS"
+                : "PARAMS_GROW";
         }
 
         if (aParameterMacro != nullptr) {
@@ -3136,6 +3358,7 @@ void AppendArxTwistSignature(std::ostringstream *pStream,
 void AppendArxGrowSignature(std::ostringstream *pStream,
                             const std::string &pClassName,
                             const std::string &pMethodName,
+                            const bool pUsesCrossLanes,
                             const bool pDefinition) {
     if (pStream == nullptr) {
         return;
@@ -3146,10 +3369,13 @@ void AppendArxGrowSignature(std::ostringstream *pStream,
         "    static void ";
     const std::string aSuffix = pDefinition ? " {\n" : ";\n";
     *pStream
-    << aPrefix << pMethodName << "(TwistWorkSpace *pWorkSpace,\n"
-    << "                     std::uint8_t *pCrossLaneA,\n"
-    << "                     std::uint8_t *pCrossLaneB,\n"
-    << "                     MUTABLE_PARAMS)" << aSuffix;
+    << aPrefix << pMethodName << "(TwistWorkSpace *pWorkSpace,\n";
+    if (pUsesCrossLanes) {
+        *pStream
+        << "                     std::uint8_t *pCrossLaneA,\n"
+        << "                     std::uint8_t *pCrossLaneB,\n";
+    }
+    *pStream << "                     MUTABLE_PARAMS)" << aSuffix;
 }
 
 void AppendKDFSignature(std::ostringstream *pStream,
@@ -3442,11 +3668,19 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
     AppendArxTwistSignature(&aHeader, aArxClassName, "TWIST_A", false, false);
     AppendArxTwistSignature(&aHeader, aArxClassName, "TWIST_B", false, false);
     AppendArxTwistSignature(&aHeader, aArxClassName, "TWIST_C", false, false);
-    for (const char *aMethodName : kGrowAMethodNames) {
-        AppendArxGrowSignature(&aHeader, aArxClassName, aMethodName, false);
+    for (std::size_t i = 0U; i < kGrowAMethodNames.size(); ++i) {
+        AppendArxGrowSignature(&aHeader,
+                               aArxClassName,
+                               kGrowAMethodNames[i],
+                               UsesGrowCrossLanes(aGrowAStageConfigs[i]),
+                               false);
     }
-    for (const char *aMethodName : kGrowBMethodNames) {
-        AppendArxGrowSignature(&aHeader, aArxClassName, aMethodName, false);
+    for (std::size_t i = 0U; i < kGrowBMethodNames.size(); ++i) {
+        AppendArxGrowSignature(&aHeader,
+                               aArxClassName,
+                               kGrowBMethodNames[i],
+                               UsesGrowCrossLanes(aGrowBStageConfigs[i]),
+                               false);
     }
     aHeader << "};\n"
             << "\n"
@@ -3562,6 +3796,7 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
         AppendArxGrowSignature(&aCpp,
                                aArxClassName,
                                kGrowAMethodNames[i],
+                               UsesGrowCrossLanes(aGrowAStageConfigs[i]),
                                true);
         if (!AppendCrossParameterBranchBody(aBranchesGrowA[i],
                                             &aCpp,
@@ -3574,6 +3809,7 @@ bool ExportArxCompanionFiles(const std::string &pRoot,
         AppendArxGrowSignature(&aCpp,
                                aArxClassName,
                                kGrowBMethodNames[i],
+                               UsesGrowCrossLanes(aGrowBStageConfigs[i]),
                                true);
         if (!AppendCrossParameterBranchBody(aBranchesGrowB[i],
                                             &aCpp,
@@ -3734,6 +3970,7 @@ public:
             const GSeedRunStageConfig &aConfig = aGrowAStageConfigs[i];
             aCall.mKind = ArxCallKind::kGrow;
             aCall.mUsesNonce = false;
+            aCall.mUsesCrossLanes = UsesGrowCrossLanes(aConfig);
             aCall.mBatchName = aConfig.mBatchName;
             aCall.mStartLine = aConfig.mStartLine;
             aCall.mEndLine = aConfig.mEndLine;
@@ -3746,6 +3983,7 @@ public:
             const GSeedRunStageConfig &aConfig = aGrowBStageConfigs[i];
             aCall.mKind = ArxCallKind::kGrow;
             aCall.mUsesNonce = false;
+            aCall.mUsesCrossLanes = UsesGrowCrossLanes(aConfig);
             aCall.mBatchName = aConfig.mBatchName;
             aCall.mStartLine = aConfig.mStartLine;
             aCall.mEndLine = aConfig.mEndLine;
@@ -4223,22 +4461,28 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
 
     const std::string aTwistForkKeyHalfAMethod =
         RenderTwistForkKeyHalf(aClassName,
-                               aSnapshot.mTwistForkSourceLanes,
-                               aSnapshot.mTwistForkMiddleLanes,
+                               aSnapshot.mTwistForkEarthLanes,
+                               aSnapshot.mTwistForkCrystalLanes,
+                               aSnapshot.mTwistForkMuLanes,
+                               aSnapshot.mTwistForkLelLanes,
+                               aSnapshot.mTwistForkGozLanes,
                                aSnapshot.mTwistForkFinalALanes,
                                *aKeyForkCandidate,
                                false);
     const std::string aTwistForkKeyHalfBMethod =
         RenderTwistForkKeyHalf(aClassName,
-                               aSnapshot.mTwistForkSourceLanes,
-                               aSnapshot.mTwistForkMiddleLanes,
+                               aSnapshot.mTwistForkEarthLanes,
+                               aSnapshot.mTwistForkCrystalLanes,
+                               aSnapshot.mTwistForkMuLanes,
+                               aSnapshot.mTwistForkLelLanes,
+                               aSnapshot.mTwistForkGozLanes,
                                aSnapshot.mTwistForkFinalBLanes,
                                *aKeyForkCandidate,
                                true);
     if (aTwistForkKeyHalfAMethod.empty() ||
         aTwistForkKeyHalfBMethod.empty()) {
         SetError(pError,
-                 "Twist fork source, middle, or final lanes could not be rendered.");
+                 "Twist fork source, scratch, or final lanes could not be rendered.");
         return false;
     }
 
@@ -4262,27 +4506,24 @@ bool GTwistExpander::ExportCPPProjectRoot(const std::string &pRootPath,
                                     pLane);
         };
         aMethod << "    TwistDiffuse::KeyDiffuseWithDomainWords(\n";
-        for (const TwistWorkSpaceSlot aLane : pInputs) {
-            aMethod << "        " << KeyLaneMacro(aLane) << ",\n";
-        }
-        for (const TwistWorkSpaceSlot aLane : pOutputs) {
-            aMethod << "        " << KeyLaneMacro(aLane) << ",\n";
-        }
-        for (const TwistWorkSpaceSlot aLane : pEntropy) {
-            aMethod << "        " << KeyLaneMacro(aLane) << ",\n";
-        }
         aMethod
-            << "        pWorkSpace->mIndexList256A, pWorkSpace->mIndexList256B,\n"
-            << "        pWorkSpace->mIndexList256C, pWorkSpace->mIndexList256D,\n"
-            << "        &mMatrix,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixSelectA,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixSelectB,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixUnrollA,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixUnrollB,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgA,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgB,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgC,\n"
-            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgD);\n";
+            << "        " << KeyLaneMacro(pEntropy[0U]) << ", "
+            << KeyLaneMacro(pEntropy[1U]) << ", // entropy lanes\n"
+            << "        " << KeyLaneMacro(pEntropy[2U]) << ", "
+            << KeyLaneMacro(pEntropy[3U]) << ", // entropy lanes\n"
+            << "        " << KeyLaneMacro(pInputs[0U]) << ", "
+            << KeyLaneMacro(pInputs[1U]) << ", // input lanes\n"
+            << "        " << KeyLaneMacro(pInputs[2U]) << ", "
+            << KeyLaneMacro(pInputs[3U]) << ", // input lanes\n"
+            << "        " << KeyLaneMacro(pOutputs[0U]) << ", "
+            << KeyLaneMacro(pOutputs[1U]) << ", // output lanes\n"
+            << "        " << KeyLaneMacro(pOutputs[2U]) << ", "
+            << KeyLaneMacro(pOutputs[3U]) << ", // output lanes\n";
+        aMethod
+            << "        pWorkSpace->mIndexList256A, pWorkSpace->mIndexList256B, pWorkSpace->mIndexList256C, pWorkSpace->mIndexList256D,\n"
+            << "        &mMatrix, pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixSelectA, pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixSelectB,\n"
+            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixUnrollA, pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixUnrollB,\n"
+            << "        pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgA, pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgB, pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgC, pWorkSpace->mDomainBundle." << aDomainName << ".mMatrixArgD);\n";
         aMethod << "}\n";
         return aMethod.str();
     };

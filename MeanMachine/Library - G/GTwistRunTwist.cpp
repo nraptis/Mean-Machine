@@ -10,7 +10,6 @@
 #include "GPassFactoryTrunk.hpp"
 #include "GFlowPlans.hpp"
 #include "GMagicNumbers.hpp"
-#include "ResidualBucket.hpp"
 #include "GSeedRunStageConfigValidator.hpp"
 #include <array>
 #include <cstdio>
@@ -126,12 +125,10 @@ bool AddTwistPrologue(TwistProgramBranch &pBranch,
 
 namespace GTwistRunTwistConfig {
 
-TwistStageConfigs MakeTwistConfig(ResidualBucket &pResidualBucket,
-                                  const std::size_t pCandidateIndex) {
+TwistStageConfigs MakeTwistConfig(const std::size_t pCandidateIndex) {
     using Slot = TwistWorkSpaceSlot;
 
     TwistStageConfigs aConfigs;
-    std::vector<Slot> aResidualsPool;
 
     // Lane Plan
     const std::vector<GFlowStep> aLanePlans =
@@ -154,21 +151,6 @@ TwistStageConfigs MakeTwistConfig(ResidualBucket &pResidualBucket,
         Slot::kParamCrossC, Slot::kParamCrossD,
     };
 
-    pResidualBucket.Remove(
-        GPassFactoryMidstage::ToVector(aPrimarySourcesA));
-    pResidualBucket.Remove(
-        GPassFactoryMidstage::ToVector(aDestinationsA));
-
-    pResidualBucket.AddResiduals(
-        "Twist — Stage A inputs",
-        GFlowPlans::InputSlots(aLanePlans[0]));
-    pResidualBucket.AddResiduals("Twist — Stage A cross lanes", {
-        GFlowPlans::FirstSlot(GFlowLane::kCrossA),
-        GFlowPlans::FirstSlot(GFlowLane::kCrossB),
-        GFlowPlans::FirstSlot(GFlowLane::kCrossC),
-        GFlowPlans::FirstSlot(GFlowLane::kCrossD),
-    }, 1U);
-
     //
     // Twist — Stage B
     //
@@ -176,27 +158,11 @@ TwistStageConfigs MakeTwistConfig(ResidualBucket &pResidualBucket,
         GFlowPlans::FamilySlots(aLanePlans[1].mInputs[0]);
     const GPassFactoryMidstage::SlotArray4 aDestinationsB =
         GFlowPlans::FamilySlots(aLanePlans[1].mOutput);
-
-    pResidualBucket.Remove(
-        GPassFactoryMidstage::ToVector(aPrimarySourcesB));
-    pResidualBucket.Remove(
-        GPassFactoryMidstage::ToVector(aDestinationsB));
-
-    aResidualsPool =
-        pResidualBucket.Withdraw("Twist — Stage B", 7);
-    const GPassFactoryMidstage::SlotArray7 aResidualsB = {
-        aResidualsPool[0], aResidualsPool[1],
-        aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6],
+    const GPassFactoryMidstage::SlotArray5 aResidualsB = {
+        Slot::kSourceLane,
+        Slot::kParamCrossA, Slot::kParamCrossB,
+        Slot::kParamCrossC, Slot::kParamCrossD,
     };
-
-    pResidualBucket.AddResiduals(
-        "Twist — After diffusion",
-        GFlowPlans::FamilySlotVector({
-            aLanePlans[0].mOutput,
-            aLanePlans[1].mOutput,
-        }));
 
     //
     // Twist — Stage C
@@ -205,29 +171,15 @@ TwistStageConfigs MakeTwistConfig(ResidualBucket &pResidualBucket,
         GFlowPlans::FamilySlots(aLanePlans[2].mInputs[0]);
     const GPassFactoryMidstage::SlotArray4 aDestinationsC =
         GFlowPlans::FamilySlots(aLanePlans[2].mOutput);
-
-    pResidualBucket.Remove(
-        GPassFactoryMidstage::ToVector(aPrimarySourcesC));
-    pResidualBucket.Remove(
-        GPassFactoryMidstage::ToVector(aDestinationsC));
-
-    aResidualsPool =
-        pResidualBucket.Withdraw("Twist — Stage C", 15);
-    const GPassFactoryMidstage::SlotArray15 aResidualsC = {
-        aResidualsPool[0], aResidualsPool[1],
-        aResidualsPool[2], aResidualsPool[3],
-        aResidualsPool[4], aResidualsPool[5],
-        aResidualsPool[6], aResidualsPool[7],
-        aResidualsPool[8], aResidualsPool[9],
-        aResidualsPool[10], aResidualsPool[11],
-        aResidualsPool[12], aResidualsPool[13],
-        aResidualsPool[14],
+    const GPassFactoryMidstage::SlotArray13 aResidualsC = {
+        Slot::kSourceLane,
+        Slot::kParamCrossA, Slot::kParamCrossB,
+        Slot::kParamCrossC, Slot::kParamCrossD,
+        Slot::kAetherLaneA, Slot::kAetherLaneB,
+        Slot::kAetherLaneC, Slot::kAetherLaneD,
+        Slot::kLunarLaneA, Slot::kLunarLaneB,
+        Slot::kLunarLaneC, Slot::kLunarLaneD,
     };
-
-    pResidualBucket.AddResiduals(
-        "Twist — Stage C",
-        GFlowPlans::FamilySlotVector(aLanePlans[2].mInputs[0]));
-    pResidualBucket.Print("Twist — Final");
 
     // Stage Construction
 
@@ -265,7 +217,7 @@ TwistStageConfigs MakeTwistConfig(ResidualBucket &pResidualBucket,
                                               "twist_loop_b",
                                               GAXSFormat::kN11);
     aConfigB.mSlices =
-        GPassFactoryMidstage::FourPassSevenResidualSlices(
+        GPassFactoryMidstage::FourPassFiveResidualSlices(
             aPrimarySourcesB,
             aResidualsB,
             aDestinationsB);

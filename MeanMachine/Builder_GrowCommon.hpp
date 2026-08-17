@@ -71,20 +71,24 @@ inline void AddMiniDiffusion(TwistProgramBranch &pBranch,
     std::string aCall =
         std::string("TwistDiffuse::KeyDiffuseWithDomainWords") +
         pKeyName + "(\n";
-    for (const GFlowLane aLane : {
-             pStep.mInputs[0], pStep.mOutput, pStep.mEntropy}) {
-        for (char aLetter = 'A'; aLetter <= 'D'; ++aLetter) {
-            aCall += "    " + WorkSpaceLane(aLane, aLetter) + ",\n";
-        }
-    }
+    const auto AddLanePair = [&aCall](const GFlowLane pLane,
+                                      const char pLaneA,
+                                      const char pLaneB,
+                                      const char *pComment) {
+        aCall += "    " + WorkSpaceLane(pLane, pLaneA) + ", " +
+            WorkSpaceLane(pLane, pLaneB) + ", // " + pComment + "\n";
+    };
+    AddLanePair(pStep.mEntropy, 'A', 'B', "entropy lanes");
+    AddLanePair(pStep.mEntropy, 'C', 'D', "entropy lanes");
+    AddLanePair(pStep.mInputs[0], 'A', 'B', "input lanes");
+    AddLanePair(pStep.mInputs[0], 'C', 'D', "input lanes");
+    AddLanePair(pStep.mOutput, 'A', 'B', "output lanes");
+    AddLanePair(pStep.mOutput, 'C', 'D', "output lanes");
     aCall +=
-        "    pWorkSpace->mIndexList256A, pWorkSpace->mIndexList256B,\n"
-        "    pWorkSpace->mIndexList256C, pWorkSpace->mIndexList256D,\n"
-        "    &mMatrix,\n"
-        "    aDomainWordMatrixSelectA, aDomainWordMatrixSelectB,\n"
+        "    pWorkSpace->mIndexList256A, pWorkSpace->mIndexList256B, pWorkSpace->mIndexList256C, pWorkSpace->mIndexList256D,\n"
+        "    &mMatrix, aDomainWordMatrixSelectA, aDomainWordMatrixSelectB,\n"
         "    aDomainWordMatrixUnrollA, aDomainWordMatrixUnrollB,\n"
-        "    aDomainWordMatrixArgA, aDomainWordMatrixArgB,\n"
-        "    aDomainWordMatrixArgC, aDomainWordMatrixArgD);";
+        "    aDomainWordMatrixArgA, aDomainWordMatrixArgB, aDomainWordMatrixArgC, aDomainWordMatrixArgD);";
     pBranch.AddLine(aCall);
     pBranch.AddLine("");
 }

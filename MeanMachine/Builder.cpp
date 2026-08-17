@@ -63,11 +63,11 @@ bool Builder::Go(const std::string &pOutputRoot,
         static_cast<std::size_t>(gCandidateIndex);
 
     // All six domain-specific KDF-A through KDF-C chains share one residual
-    // schedule. Seed deliberately starts a fresh Source/Nonce schedule.
-    ResidualBucket aKDFSeedResidualBucket;
+    // schedule.
+    ResidualBucket aKDFResidualBucket;
     Builder_KDF aKDFBuilder;
     if (!aKDFBuilder.Build(&aExpander,
-                           aKDFSeedResidualBucket,
+                           aKDFResidualBucket,
                            &aError)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "Builder_KDF failed:\n" + aError;
@@ -75,9 +75,12 @@ bool Builder::Go(const std::string &pOutputRoot,
         return false;
     }
 
+    // Main Seed and its independent key-row flows own a fresh residual
+    // schedule. No KDF usage counts cross this boundary.
+    ResidualBucket aSeedResidualBucket;
     Builder_Seeder aSeederBuilder;
     if (!aSeederBuilder.Build(&aExpander,
-                              aKDFSeedResidualBucket,
+                              aSeedResidualBucket,
                               &aError)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "Builder_Seeder failed:\n" + aError;
@@ -85,10 +88,8 @@ bool Builder::Go(const std::string &pOutputRoot,
         return false;
     }
 
-    ResidualBucket aTwistResidualBucket;
     Builder_Twister aTwisterBuilder;
     if (!aTwisterBuilder.Build(&aExpander,
-                               aTwistResidualBucket,
                                &aError)) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage = "Builder_Twister failed:\n" + aError;

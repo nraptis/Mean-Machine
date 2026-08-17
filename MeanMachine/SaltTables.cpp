@@ -117,6 +117,7 @@ void SaltTables::InjectRandomDomains(GTwistExpander *pExpander) {
             gSaltTableCursor += 1U;
         }
     }
+    printf("SALT: %zi of %zu...\n", gSaltTableCursor, gSaltTables.size());
 
 
     if (aUniqueTables.empty()) {

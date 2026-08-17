@@ -1,0 +1,173 @@
+#pragma once
+
+#include "TwistExpander.hpp"
+#include "TwistExpander_Arcturus_Arx.hpp"
+
+class TwistExpander_Arcturus : public TwistExpander {
+public:
+    TwistExpander_Arcturus();
+    ~TwistExpander_Arcturus() override = default;
+
+    void KDF_A_A(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_B_A(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_C_A(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_A_B(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_B_B(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_C_B(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_A_C(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_B_C(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_C_C(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_A_D(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_B_D(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_C_D(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_A_E(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_B_E(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_C_E(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_A_F(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_B_F(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void KDF_C_F(TwistWorkSpace *pWorkSpace,
+               std::uint64_t pNonce,
+               TwistDomainConstants *pConstants,
+               TwistDomainSaltSet *pDomainSaltSet,
+               MUTABLE_PARAMS);
+    void Seed(TwistWorkSpace *pWorkSpace,
+              TwistFarmSalt *pFarmSalt,
+              std::uint64_t pNonce,
+              std::uint8_t *pPassword,
+              std::size_t pPasswordByteLength,
+              std::uint8_t *pDestination,
+              MUTABLE_PARAMS) override;
+    void TwistBlock(TwistWorkSpace *pWorkSpace,
+                    std::uint8_t *pSource,
+                    std::uint8_t *pCrossLaneA,
+                    std::uint8_t *pCrossLaneB,
+                    std::uint8_t *pCrossLaneC,
+                    std::uint8_t *pCrossLaneD,
+                    std::uint8_t *pDestination,
+                    bool pStifleKey,
+                    MUTABLE_PARAMS) override;
+    void GrowKeyA(TwistWorkSpace *pWorkSpace,
+                  std::uint8_t *pCrossLaneA,
+                  std::uint8_t *pCrossLaneB,
+                  MUTABLE_PARAMS) override;
+    void GrowKeyB(TwistWorkSpace *pWorkSpace,
+                  std::uint8_t *pCrossLaneA,
+                  std::uint8_t *pCrossLaneB,
+                  MUTABLE_PARAMS) override;
+
+private:
+    void TwistForkKeyHalfA(TwistWorkSpace *pWorkSpace);
+    void TwistForkKeyHalfB(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_A(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_B(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_C(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_D(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_E(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_F(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_G(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_A_H(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_A(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_B(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_C(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_D(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_E(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_F(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_G(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_A_B_H(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_A(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_B(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_C(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_D(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_E(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_F(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_G(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_A_H(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_A(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_B(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_C(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_D(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_E(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_F(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_G(TwistWorkSpace *pWorkSpace);
+    void KeyDiffuse_B_B_H(TwistWorkSpace *pWorkSpace);
+    static const TwistDomainSaltSet kKeyRotateASalts;
+    static const TwistDomainConstants kKeyRotateAConstants;
+    static const TwistDomainSaltSet kKeyRotateBSalts;
+    static const TwistDomainConstants kKeyRotateBConstants;
+    static const TwistDomainSaltSet kKeySpawnASalts;
+    static const TwistDomainConstants kKeySpawnAConstants;
+    static const TwistDomainSaltSet kKeySpawnBSalts;
+    static const TwistDomainConstants kKeySpawnBConstants;
+    static const TwistDomainSaltSet kSeedSalts;
+    static const TwistDomainConstants kSeedConstants;
+    static const TwistDomainSaltSet kTwistSalts;
+    static const TwistDomainConstants kTwistConstants;
+};

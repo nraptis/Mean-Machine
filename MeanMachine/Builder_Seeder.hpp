@@ -18,7 +18,7 @@ class ResidualBucket;
 class Builder_Seeder {
 public:
     bool                                    Build(GTwistExpander *pExpander,
-                                                  ResidualBucket &pResidualBucket,
+                                                  ResidualBucket &pSeedResidualBucket,
                                                   std::string *pErrorMessage);
     
     bool                                    Build_PostKDF(GTwistExpander *pExpander,

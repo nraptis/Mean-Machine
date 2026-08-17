@@ -12,14 +12,11 @@
 #include <cstddef>
 #include <string>
 
-class ResidualBucket;
-
 namespace GTwistRunTwistConfig {
 
 using TwistStageConfigs = std::array<GSeedRunStageConfig, 3>;
 
-TwistStageConfigs                          MakeTwistConfig(ResidualBucket &pResidualBucket,
-                                                          std::size_t pCandidateIndex);
+TwistStageConfigs                          MakeTwistConfig(std::size_t pCandidateIndex);
 
 }
 

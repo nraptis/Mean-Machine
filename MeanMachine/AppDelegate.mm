@@ -22,7 +22,6 @@
 #include "KeyForkControl.hpp"
 #include "KeyLaneControl.hpp"
 #include "LoopRolePermutations.hpp"
-#include "ResidualKDFControl.hpp"
 
 int gCandidateIndex = 0;
 int gLoopIndex = 0;
@@ -169,36 +168,6 @@ bool GenerateKeyLaneControlValueAssets(
     );
 }
 
-bool GenerateResidualKDFControlValueAssets(
-    const std::uint64_t pExplorationCases,
-    const std::string &pFolder,
-    std::string *pErrorMessage) {
-    ResidualKDFControl::Reset();
-    for (std::size_t i = 0U;
-         i < ResidualKDFControl::kCandidateCount;
-         ++i) {
-        const std::string aSummary =
-            ResidualKDFControl::Generate(pExplorationCases);
-        if (aSummary.empty()) {
-            if (pErrorMessage != nullptr) {
-                *pErrorMessage =
-                    "ResidualKDFControl failed to generate candidate " +
-                    std::to_string(i + 1U);
-            }
-            return false;
-        }
-        std::printf("%s\n", aSummary.c_str());
-    }
-    if (!ResidualKDFControl::SaveValues(pFolder,
-                                        pErrorMessage)) {
-        return false;
-    }
-
-    ResidualKDFControl::Reset();
-    return ResidualKDFControl::LoadValues(pFolder,
-                                          pErrorMessage);
-}
-
 bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
                                 std::string *pErrorMessage) {
     const std::string aKeyForkFolder =
@@ -206,9 +175,6 @@ bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
                                 pExplorationCases);
     const std::string aKeyLaneFolder =
         ControlValueAssetFolder("key_lane_pre_planned",
-                                pExplorationCases);
-    const std::string aResidualKDFFolder =
-        ControlValueAssetFolder("residual_kdf_pre_planned",
                                 pExplorationCases);
     std::printf("\nGenerating control values with %llu exploration cases...\n",
                 static_cast<unsigned long long>(pExplorationCases));
@@ -225,19 +191,11 @@ bool GenerateControlValueAssets(const std::uint64_t pExplorationCases,
         return false;
     }
 
-    if (!GenerateResidualKDFControlValueAssets(pExplorationCases,
-                                               aResidualKDFFolder,
-                                               pErrorMessage)) {
-        return false;
-    }
-
     std::printf("Saved:\n"
-                "    %s\n"
                 "    %s\n"
                 "    %s\n",
                 aKeyForkFolder.c_str(),
-                aKeyLaneFolder.c_str(),
-                aResidualKDFFolder.c_str());
+                aKeyLaneFolder.c_str());
     return true;
 }
 
@@ -358,24 +316,6 @@ extern "C" int MeanMachineRegenerateKeyLaneControl(
     return 0;
 }
 
-extern "C" int MeanMachineRegenerateResidualKDFControl(
-    const std::uint64_t pExplorationCases) {
-    std::string aError;
-    if (!GenerateResidualKDFControlValueAssets(
-            pExplorationCases,
-            "Assets/residual_kdf_pre_planned",
-            &aError)) {
-        std::printf("Residual KDF control generation failed:\n%s\n",
-                    aError.c_str());
-        return 1;
-    }
-    std::printf(
-        "Regenerated mandatory ResidualKDF control with %llu trials "
-        "per candidate.\n",
-        static_cast<unsigned long long>(pExplorationCases));
-    return 0;
-}
-
 extern "C" int MeanMachineGenerateLoopRolePermutations(void) {
     std::string aError;
     if (!LoopRolePermutations::Generate("Assets/permutations", &aError)) {
@@ -404,25 +344,20 @@ extern "C" int MeanMachineGenerateLoopRolePermutations(void) {
         printf("skipping app, xc test...\n");
         return;
     }
-
+    
     //MeanMachineRunExporter();
-
-    //MeanMachineRegenerateKeyLaneControl(1000ULL);
-
-    //MeanMachineRegenerateResidualKDFControl(1000ULL);
-
+    
     //MeanMachineGenerateLoopRolePermutations();
-
+    
     MeanMachineBuildAllExpanders();
-
+    
     //MeanMachineBuildExpanderRange(0, 1);
+    
 }
-
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {
     (void)aNotification;
 }
-
 
 - (BOOL)applicationSupportsSecureRestorableState:(NSApplication *)app {
     return YES;

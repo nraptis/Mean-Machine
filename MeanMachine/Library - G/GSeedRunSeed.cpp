@@ -141,16 +141,26 @@ GSeedRunStageConfig BaseConfig(const std::string &pStageName,
     return aConfig;
 }
 
-std::vector<Slot> WithdrawResidualsWithSource(
+std::vector<Slot> WithdrawSeedResiduals(
     ResidualBucket &pResidualBucket,
+    const GFlowStep &pStep,
     const std::string &pStageName) {
-    const std::size_t aPoolCount =
-        std::min<std::size_t>(15U,
-                              pResidualBucket.CountValidResiduals());
+    constexpr std::size_t kMaximumResidualCount = 16U;
     std::vector<Slot> aResiduals =
+        GFlowPlans::ForcedResidualSlots(pStep);
+    if (aResiduals.size() > kMaximumResidualCount) {
+        return {};
+    }
+
+    const std::size_t aPoolCount =
+        std::min(kMaximumResidualCount - aResiduals.size(),
+                 pResidualBucket.CountValidResiduals());
+    std::vector<Slot> aWithdrawnResiduals =
         pResidualBucket.Withdraw(pStageName,
                                  static_cast<int>(aPoolCount));
-    aResiduals.push_back(Slot::kSourceLane);
+    aResiduals.insert(aResiduals.end(),
+                      aWithdrawnResiduals.begin(),
+                      aWithdrawnResiduals.end());
     return aResiduals;
 }
 
@@ -246,8 +256,9 @@ SeedStageConfigs MakeSeedConfig(const bool pUseNonces,
             aStageName, pUseNonces, GAXSFormat::kN11);
         std::string aErrorMessage;
         const std::vector<Slot> aResiduals =
-            WithdrawResidualsWithSource(pResidualBucket,
-                                        aStageTitle);
+            WithdrawSeedResiduals(pResidualBucket,
+                                  aPlan,
+                                  aStageTitle);
         aConfig.mExpectedSkeletonCount =
             static_cast<int>(aDestinations.size());
         aConfig.mHotPackCount =
@@ -298,8 +309,7 @@ SeedStageConfigs MakeSeedConfig(const bool pUseNonces,
         aConfigs[aConfigIndex] = aConfig;
         AddCompletedStageLanes(pResidualBucket, aPlan);
     }
-
-    pResidualBucket.Print("Seed — Final");
+    
     return aConfigs;
 }
 

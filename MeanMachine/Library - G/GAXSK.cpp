@@ -21,6 +21,8 @@ constexpr std::size_t kLoopPatternRoleCount11 = 11U;
 constexpr std::size_t kLoopPatternCandidateCount11 =
     LoopStitcher::kExpanderCount;
 constexpr std::size_t kLoopPatternCountPerCandidate11 = 656U;
+static_assert(LoopStitcher::kRequiredRecipesPerExpander ==
+              kLoopPatternCountPerCandidate11);
 
 std::array<std::vector<LoopRecipe11>,
            LoopStitcher::kExpanderCount> gLoopRecipes11;
@@ -432,13 +434,24 @@ bool GAXSK::LoadLoopPatterns11(std::string *pErrorMessage) {
     }
 
     gDidLoadLoopPatterns11 = true;
+    std::size_t aMinimumRecipeCount =
+        gLoopRecipes11.front().size();
+    std::size_t aMaximumRecipeCount = aMinimumRecipeCount;
+    for (const std::vector<LoopRecipe11> &aRecipes : gLoopRecipes11) {
+        aMinimumRecipeCount = std::min(aMinimumRecipeCount,
+                                       aRecipes.size());
+        aMaximumRecipeCount = std::max(aMaximumRecipeCount,
+                                       aRecipes.size());
+    }
     std::printf("GAXSK loaded %zu usable loop recipes and role "
-                "permutations per expander "
-                "from the stitched final-loop pool "
-                "(%zu spares per expander)\n",
+                "permutations per expander from a unique stitched pool; "
+                "recipe buckets contain %zu..%zu records "
+                "(%zu..%zu spares)\n",
                 kLoopPatternCountPerCandidate11,
-                LoopStitcher::kRecipesPerExpander -
-                    kLoopPatternCountPerCandidate11);
+                aMinimumRecipeCount,
+                aMaximumRecipeCount,
+                aMinimumRecipeCount - kLoopPatternCountPerCandidate11,
+                aMaximumRecipeCount - kLoopPatternCountPerCandidate11);
     return true;
 }
 

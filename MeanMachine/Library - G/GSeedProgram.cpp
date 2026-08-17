@@ -1565,18 +1565,18 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
     std::size_t *aIndexList256C = nullptr;
     std::size_t *aIndexList256D = nullptr;
 
-    if (!ResolveBufferArg(0U, "input lane A", &aInputLaneA) ||
-        !ResolveBufferArg(1U, "input lane B", &aInputLaneB) ||
-        !ResolveBufferArg(2U, "input lane C", &aInputLaneC) ||
-        !ResolveBufferArg(3U, "input lane D", &aInputLaneD) ||
-        !ResolveBufferArg(4U, "output lane A", &aOutputLaneA) ||
-        !ResolveBufferArg(5U, "output lane B", &aOutputLaneB) ||
-        !ResolveBufferArg(6U, "output lane C", &aOutputLaneC) ||
-        !ResolveBufferArg(7U, "output lane D", &aOutputLaneD) ||
-        !ResolveBufferArg(8U, "entropy lane A", &aEntropyLaneA) ||
-        !ResolveBufferArg(9U, "entropy lane B", &aEntropyLaneB) ||
-        !ResolveBufferArg(10U, "entropy lane C", &aEntropyLaneC) ||
-        !ResolveBufferArg(11U, "entropy lane D", &aEntropyLaneD) ||
+    if (!ResolveBufferArg(0U, "entropy lane A", &aEntropyLaneA) ||
+        !ResolveBufferArg(1U, "entropy lane B", &aEntropyLaneB) ||
+        !ResolveBufferArg(2U, "entropy lane C", &aEntropyLaneC) ||
+        !ResolveBufferArg(3U, "entropy lane D", &aEntropyLaneD) ||
+        !ResolveBufferArg(4U, "input lane A", &aInputLaneA) ||
+        !ResolveBufferArg(5U, "input lane B", &aInputLaneB) ||
+        !ResolveBufferArg(6U, "input lane C", &aInputLaneC) ||
+        !ResolveBufferArg(7U, "input lane D", &aInputLaneD) ||
+        !ResolveBufferArg(8U, "output lane A", &aOutputLaneA) ||
+        !ResolveBufferArg(9U, "output lane B", &aOutputLaneB) ||
+        !ResolveBufferArg(10U, "output lane C", &aOutputLaneC) ||
+        !ResolveBufferArg(11U, "output lane D", &aOutputLaneD) ||
         !ResolveIndexListArg(12U, "index list 256 A", &aIndexList256A) ||
         !ResolveIndexListArg(13U, "index list 256 B", &aIndexList256B) ||
         !ResolveIndexListArg(14U, "index list 256 C", &aIndexList256C) ||
@@ -1609,7 +1609,11 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
         return false;
     }
 
-    TwistDiffuse::DiffuseWithDomainWords(aInputLaneA,
+    TwistDiffuse::DiffuseWithDomainWords(aEntropyLaneA,
+                                         aEntropyLaneB,
+                                         aEntropyLaneC,
+                                         aEntropyLaneD,
+                                         aInputLaneA,
                                          aInputLaneB,
                                          aInputLaneC,
                                          aInputLaneD,
@@ -1617,10 +1621,6 @@ bool ExecuteRuntimeRawDiffuseLine(const std::string &pRawLine,
                                          aOutputLaneB,
                                          aOutputLaneC,
                                          aOutputLaneD,
-                                         aEntropyLaneA,
-                                         aEntropyLaneB,
-                                         aEntropyLaneC,
-                                         aEntropyLaneD,
                                          aIndexList256A,
                                          aIndexList256B,
                                          aIndexList256C,

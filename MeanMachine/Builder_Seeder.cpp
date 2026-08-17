@@ -278,7 +278,7 @@ bool BuildSeedDiffusion(TwistProgramBranch &pBranch,
 } // namespace
 
 bool Builder_Seeder::Build(GTwistExpander *pExpander,
-                           ResidualBucket &pResidualBucket,
+                           ResidualBucket &pSeedResidualBucket,
                            std::string *pErrorMessage) {
 
     if (pExpander == nullptr) {
@@ -444,9 +444,8 @@ bool Builder_Seeder::Build(GTwistExpander *pExpander,
     pExpander->mSeed.AddLine("//");
     pExpander->mSeed.AddLine("// Main seed loops");
 
-    ResidualBucket aSeedResidualBucket;
     return Build_PostKDF(pExpander,
-                         aSeedResidualBucket,
+                         pSeedResidualBucket,
                          pErrorMessage);
 
 }

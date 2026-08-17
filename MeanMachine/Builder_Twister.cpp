@@ -10,8 +10,6 @@
 #include "GTwistRunTwist.hpp"
 #include "GFlowPlans.hpp"
 #include "GRunMatrixDiffusion.hpp"
-#include "ResidualBucket.hpp"
-
 #include <vector>
 
 namespace {
@@ -112,7 +110,6 @@ std::vector<GSymbol> Symbols(
 } // namespace
 
 bool Builder_Twister::Build(GTwistExpander *pExpander,
-                            ResidualBucket &pResidualBucket,
                             std::string *pErrorMessage) {
     if (pExpander == nullptr) {
         if (pErrorMessage != nullptr) {
@@ -124,7 +121,6 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
     const GFlowPlan &aTwistPlan = GFlowPlans::Twist();
     const GTwistRunTwistConfig::TwistStageConfigs aBuiltStageConfigs =
         GTwistRunTwistConfig::MakeTwistConfig(
-            pResidualBucket,
             pExpander->mControlCandidateIndex);
     const std::vector<GSeedRunStageConfig> aStageConfigs(
         aBuiltStageConfigs.begin(),
@@ -144,28 +140,37 @@ bool Builder_Twister::Build(GTwistExpander *pExpander,
         GFlowPlans::DiffusionCount(aTwistPlan),
         TwistDomain::kTwist);
 
+    const std::vector<GFlowStep> aTwistARXSteps =
+        GFlowPlans::ARXSteps(aTwistPlan);
+    const std::vector<TwistWorkSpaceSlot> aForkEarthLanes =
+        GFlowPlans::InputSlots(aTwistARXSteps.back());
     if (aStageConfigs.empty() ||
         (aStageConfigs.back().mSlices.size() !=
-         pExpander->mTwistForkSourceLanes.size())) {
+         pExpander->mTwistForkCrystalLanes.size()) ||
+        (aForkEarthLanes.size() !=
+         pExpander->mTwistForkEarthLanes.size())) {
         if (pErrorMessage != nullptr) {
             *pErrorMessage =
-                "Twist's final stage must write exactly four fork lanes";
+                "Twist's final stage must read and write four fork lanes";
         }
         return false;
     }
     for (std::size_t i = 0U;
-         i < pExpander->mTwistForkSourceLanes.size();
+         i < pExpander->mTwistForkCrystalLanes.size();
          ++i) {
-        const TwistWorkSpaceSlot aForkSource =
+        const TwistWorkSpaceSlot aForkEarth = aForkEarthLanes[i];
+        const TwistWorkSpaceSlot aForkCrystal =
             aStageConfigs.back().mSlices[i].mDest;
-        if (TwistWorkSpace::GetBufferLength(aForkSource) != S_BLOCK) {
+        if ((TwistWorkSpace::GetBufferLength(aForkEarth) != S_BLOCK) ||
+            (TwistWorkSpace::GetBufferLength(aForkCrystal) != S_BLOCK)) {
             if (pErrorMessage != nullptr) {
                 *pErrorMessage =
-                    "Twist's fork source lanes must be full S_BLOCK lanes";
+                    "Twist's Earth/Crystal fork lanes must be full S_BLOCK lanes";
             }
             return false;
         }
-        pExpander->mTwistForkSourceLanes[i] = aForkSource;
+        pExpander->mTwistForkEarthLanes[i] = aForkEarth;
+        pExpander->mTwistForkCrystalLanes[i] = aForkCrystal;
     }
 
     std::size_t aStageIndex = 0U;

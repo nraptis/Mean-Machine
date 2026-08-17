@@ -38,92 +38,29 @@
    Grow A receives cross lanes A and C.  Grow B receives cross lanes B and D.
 
 
- Global main-flow symbols
- ------------------------
-
-   b  = Ice                 n  = Gloom
-   c  = Rainbow             o  = Lightning
-   d  = Alchemy             p  = Wind
-   e  = Augury              q  = Shadow
-   f  = Spirit              r  = Fire
-   g  = Divination          s  = Kinetic
-   h  = Psychic             t  = Evocation
-   i  = Voodoo              u  = Runic
-   j  = Spirit              v  = Abjuration
-   k  = Sonic               w  = Aether
-   l  = Planar              x  = Lunar
-   m  = Divination          y  = Earth
-
-   destination material = Crystal
-
-   The repeated families are deliberate, non-overlapping generations:
-
-       j reuses f = Spirit
-       m reuses g = Divination
-
-   A destination family is removed from its residual bucket before an
-   overwrite and re-added afterward.  This makes the new write a fresh
-   residual generation instead of inheriting the old generation's count.
-
-
- Shared key/grow symbols
- -----------------------
-
-   alpha = Arcane
-   beta  = Plasma
-   delta = Rainbow
-   mu    = Water
-   pi    = Vapor
-   sigma = Frost
-
-   key material = Ice
-
-   Key A, Key B, Grow A, and Grow B execute sequentially.  They may therefore
-   share these scratch families.  Each flow must squash Ice into its final key
-   row before the following flow overwrites the shared route.
-
-
  KDF flow -- repeated independently for each domain
  --------------------------------------------------
 
    KDF A:
 
-       [source, nonce] -> q Shadow
-       q Shadow        -> r Fire
-       diffuse(input: r Fire, entropy: q Shadow) -> d Vapor
-       d Vapor         -> s Kinetic
-
-       Farm Kinetic:
-           constants source = Kinetic A
-           salt sources      = Kinetic B, C, D
-           constants fold    = Stasis A -> Stasis B -> Stasis C
-           result            = ephemeral domain bundle A
+       [source, nonce] -> Shadow
+       Shadow          -> Fire
+       diffuse(input: Fire, entropy: Shadow) -> Vapor
+       Vapor           -> Kinetic
 
    KDF B:
 
-       s Kinetic       -> t Evocation
-       t Evocation     -> u Runic
-       diffuse(input: u Runic, entropy: t Evocation) -> g Divination
-       g Divination    -> v Abjuration
-
-       Farm Abjuration:
-           constants source = Abjuration A
-           salt sources      = Abjuration B, C, D
-           constants fold    = Stasis A -> Stasis B -> Stasis C
-           result            = ephemeral domain bundle B
+       Kinetic         -> Evocation
+       Evocation       -> Runic
+       diffuse(input: Runic, entropy: Evocation) -> Divination
+       Divination      -> Abjuration
 
    KDF C:
 
-       v Abjuration    -> w Aether
-       w Aether        -> x Lunar
-       diffuse(input: x Lunar, entropy: w Aether) -> y Earth
-       y Earth         -> Crystal
-
-       Farm Crystal:
-           constants source = Crystal A
-           salt sources      = Crystal B, C, D
-           constants fold    = Stasis A -> Stasis B -> Stasis C
-           result            = workspace domain bundle
+       Abjuration      -> Aether
+       Aether          -> Lunar
+       diffuse(input: Lunar, entropy: Aether) -> Earth
+       Earth           -> Crystal
 
    KDF does not pass a residual bucket into Seed.  Seed starts again from its
    external source and nonce.
@@ -132,62 +69,67 @@
  Seed flow
  ---------
 
-       [source, nonce] -> b Ice
-       b Ice           -> c Rainbow
-       diffuse(input: c Rainbow, entropy: b Ice) -> d Alchemy
+       [source, nonce] -> Ice
+       Ice             -> Rainbow
+       diffuse(input: Rainbow, entropy: Ice) -> Alchemy
 
-       d Alchemy       -> e Augury
-       e Augury        -> f Spirit
-       diffuse(input: f Spirit, entropy: e Augury) -> g Divination
+       Alchemy         -> Augury
+       Augury          -> Spirit
+       diffuse(input: Spirit, entropy: Augury) -> Divination
 
-       g Divination    -> h Psychic
-       h Psychic       -> i Voodoo
-       diffuse(input: i Voodoo, entropy: h Psychic) -> j Spirit
+       Divination      -> Psychic
+       Psychic         -> Voodoo
+       diffuse(input: Voodoo, entropy: Psychic) -> Vapor
 
-       j Spirit        -> k Sonic
-       k Sonic         -> l Planar
-       diffuse(input: l Planar, entropy: k Sonic) -> m Divination
+       Vapor           -> Sonic
+       Sonic           -> Planar
+       diffuse(input: Planar, entropy: Sonic) -> Frost
 
-       m Divination    -> n Gloom
-       n Gloom         -> o Lightning
-       diffuse(input: o Lightning, entropy: n Gloom) -> p Wind
+       Frost           -> Gloom
+       Gloom           -> Lightning
+       diffuse(input: Lightning, entropy: Gloom) -> Wind
 
-       p Wind          -> q Shadow
-       q Shadow        -> r Fire
-       diffuse(input: r Fire, entropy: q Shadow) -> s Kinetic
+       Wind            -> Shadow
+       Shadow          -> Fire
+       diffuse(input: Fire, entropy: Shadow) -> Kinetic
 
-       s Kinetic       -> t Evocation
-       t Evocation     -> u Runic
-       diffuse(input: u Runic, entropy: t Evocation) -> v Abjuration
+       Kinetic         -> Evocation
+       Evocation       -> Runic
+       diffuse(input: Runic, entropy: Evocation) -> Abjuration
 
-       v Abjuration    -> w Aether
-       w Aether        -> x Lunar
-       diffuse(input: x Lunar, entropy: w Aether) -> y Earth
+       Abjuration      -> Aether
+       Aether          -> Lunar
+       diffuse(input: Lunar, entropy: Aether) -> Earth
 
-       y Earth         -> Crystal
+       Earth           -> Crystal
        Crystal --Squash--> destination buffer
 
    Earth and Crystal remain intact after the destination squash.  Both are
    needed as the entry material for every independent Seed key-row flow.
 
-   Seed writes 25 family generations across 23 distinct families.  Spirit
-   and Divination are the only two families overwritten inside Seed (eight
-   physical lanes).  The fixed Seed/key route overlaps on four families:
-   Ice, Rainbow, Earth, and Crystal (sixteen physical lanes).
+   Seed writes 25 generations into 25 distinct lane families.  There is no
+   family overwrite inside the main Seed flow.
 
-   After the fixed key-route families, Source, and Nonce are excluded, each
-   independent key-row flow inherits nineteen residual families (76 lanes).
-   Its five phases consume 8 + 13 + 13 + 13 + 13 = 60 distinct lanes and must
-   finish with a sixteen-lane residual surplus.
+   Frost and Vapor replace the old repeated Spirit and Divination writes.
+   They are borrowed from the later key route.  Vapor is placed in the earlier
+   Seed position because it reappears first in the key route; Frost occupies
+   the later Seed position because it reappears afterward.  This pairing
+   maximizes the minimum reuse distance without adding another lane family.
+
+   Each key flow starts with 23 eligible residual families (92 physical
+   lanes) after Earth and Crystal are reserved for Phase A.  Rainbow, Vapor,
+   Frost, and Ice remain eligible until the phase that overwrites them.  The
+   flow consumes sixty distinct residual lanes and finishes with at least
+   sixteen lanes unused.
 
 
  Twist flow
  ----------
 
-       [source, key_read_a, key_read_b] -> w Aether
-       w Aether                         -> x Lunar
-       diffuse(input: x Lunar, entropy: w Aether) -> y Earth
-       y Earth                          -> Crystal
+       [source, key_read_a, key_read_b] -> Aether
+       Aether                           -> Lunar
+       diffuse(input: Lunar, entropy: Aether) -> Earth
+       Earth                            -> Crystal
        Crystal --Squash--> destination buffer
 
    Twist uses the same final Aether -> Lunar -> Earth -> Crystal suffix as KDF
@@ -200,15 +142,15 @@
    Each key has eight independent row flows.  Every row uses its assigned
    one-sixteenth slices, but follows the same family route:
 
-        [y Earth, Crystal] -> alpha Arcane
-        alpha Arcane       -> beta Plasma
-        diffuse(input: beta Plasma, entropy: alpha Arcane) -> delta Rainbow
+        [Earth, Crystal] -> Arcane
+        Arcane           -> Plasma
+        diffuse(input: Plasma, entropy: Arcane) -> Rainbow
 
-        delta Rainbow      -> mu Water
-        mu Water           -> pi Vapor
-        diffuse(input: pi Vapor, entropy: mu Water) -> sigma Frost
+        Rainbow          -> Water
+        Water            -> Vapor
+        diffuse(input: Vapor, entropy: Water) -> Frost
 
-        sigma Frost        -> Ice
+        Frost            -> Ice
         Ice --SquashKeyA/B--> corresponding key row
 
    Key A completes and saves each row before Key B reuses the shared scratch
@@ -216,56 +158,77 @@
    consumed them.
 
 
- Twist key forks
- ---------------
+Twist key forks
+---------------
 
-   Both forks consume the four full Crystal lanes left by Twist.  Celestial is
-   the shared fold-through family.  The second fork may overwrite Celestial
-   only after the first fork has completed its final Spirit output.
+   The two forks partition the Earth/Crystal pair left by Twist.  Every block
+   in every tier is 512 bytes.  Fork A alternates source parity across A-D:
+   odd/even/odd/even in both Earth and Crystal.  Fork B owns the complementary
+   even/odd/even/odd blocks.  Together they consume every block of every
+   original lane exactly once.
+
+   The topology is constructed backward from the final key blocks so that its
+   ancestry is exact rather than statistical:
+
+       each Mu block contains two different original source lanes;
+       each Lel block contains four different original source lanes;
+       each Goz block contains all eight Earth/Crystal source lanes once;
+       each final key block contains all eight source lanes twice.
+
+   The topology also balances immediate predecessor lanes within every tier.
+   After the ancestry is fixed, each fork assigns its 32 logical source blocks
+   independently, then maps them mechanically to even or odd physical blocks.
+   For every original source lane in every final key block, its two source
+   blocks come from opposite physical quarters: 0 with 2, or 1 with 3.  Each
+   source lane uses eight final blocks of each quarter pair, and consumes all
+   eight available blocks in every quarter exactly once.  Root assignment,
+   within-quarter order, and pair orientation are shuffled.  Candidate
+   distance weights Mu/Lel/Goz as 4/8/12, emphasizing differences nearest the
+   key output.  The final two-input Goz braid remains fixed.
 
    Fork A:
-
-       Crystal --Fold Stage I--> Celestial
-       Celestial --Fold Stage II--> j Spirit, four W_KEY regions
+       alternating [Earth, Crystal] --Mu  (4 x 8 x 512)--> Celestial
+       Celestial             --Lel (4 x 4 x 512)--> Alchemy
+       Alchemy               --Goz (4 x 2 x 512)--> Augury
+       Augury                --fixed Mix16-----> Spirit, four W_KEY regions
 
    Fork B:
+       complementary [Earth, Crystal] --Mu  (4 x 8 x 512)--> Celestial
+       Celestial            --Lel (4 x 4 x 512)--> Alchemy
+       Alchemy              --Goz (4 x 2 x 512)--> Augury
+       Augury               --fixed Mix16-----> Divination, four W_KEY regions
 
-       Crystal --Fold Stage I--> Celestial
-       Celestial --Fold Stage II--> m Divination, four W_KEY regions
-
-   Both forks run before Grow A starts.  Spirit and Divination must not be
-   members of the shared alpha-through-sigma scratch route.
-
+   Fork A finishes Spirit before Fork B reuses Celestial, Alchemy, and Augury.
+   Both forks finish before Grow A starts.  Spirit and Divination must not be
+   members of the shared Arcane-through-Frost scratch route.
 
  Grow A
  ------
 
-       [j Spirit, cross A, cross C] -> alpha Arcane
-       alpha Arcane                 -> beta Plasma
-       diffuse(input: beta Plasma, entropy: alpha Arcane) -> delta Rainbow
+       [Spirit, cross A, cross C] -> Arcane
+       Arcane                     -> Plasma
+       diffuse(input: Plasma, entropy: Arcane) -> Rainbow
 
-       delta Rainbow                -> mu Water
-       mu Water                     -> pi Vapor
-       diffuse(input: pi Vapor, entropy: mu Water) -> sigma Frost
+       Rainbow                    -> Water
+       Water                      -> Vapor
+       diffuse(input: Vapor, entropy: Water) -> Frost
 
-       sigma Frost                  -> Ice
+       Frost                      -> Ice
        Ice --SquashKeyA--> key buffer A
-
 
  Grow B
  ------
 
-       [m Divination, cross B, cross D] -> alpha Arcane
-       alpha Arcane                     -> beta Plasma
-       diffuse(input: beta Plasma, entropy: alpha Arcane) -> delta Rainbow
+       [Divination, cross B, cross D] -> Arcane
+       Arcane                          -> Plasma
+       diffuse(input: Plasma, entropy: Arcane) -> Rainbow
 
-       delta Rainbow                    -> mu Water
-       mu Water                         -> pi Vapor
-       diffuse(input: pi Vapor, entropy: mu Water) -> sigma Frost
+       Rainbow                         -> Water
+       Water                           -> Vapor
+       diffuse(input: Vapor, entropy: Water) -> Frost
 
-       sigma Frost                      -> Ice
+       Frost                           -> Ice
        Ice --SquashKeyA--> key buffer B
-
 
  Execution and lifetime requirements
  -----------------------------------
@@ -286,14 +249,14 @@
  ------------------------------
 
    Stasis A/B/C  = TwistFarm constant-fold scratch
-   Celestial     = shared TwistForkKeyHalf fold-through family
+   Celestial     = TwistForkKeyHalf Mu scratch
+   Alchemy       = TwistForkKeyHalf Lel scratch
+   Augury        = TwistForkKeyHalf Goz scratch
+   Spirit        = Fork A output / Grow A input
+   Divination    = Fork B output / Grow B input
 
-   Alchemy, Augury, Psychic, and Voodoo are early Seed-only families.  They
-   replace key-route scratch at the front of Seed and remain eligible for the
-   inherited key residual pool.
-
-   Prophecy, Transmutation, Restoration, Mystical, Fuse, and Stasis D were
-   removed after this plan made them unreachable.
+   Psychic and Voodoo are Seed-only families.  Alchemy and Augury remain
+   eligible for Seed key residuals before the later Twist forks reuse them.
  ==============================================================================
 */
 

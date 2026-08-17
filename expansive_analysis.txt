@@ -1,0 +1,1611 @@
+ALDEBARAN EXPANDER — EXPANSIVE FLOW AND ARX AUDIT
+Generated: 2026-08-16
+
+Targets
+-------
+Main orchestration: CornTesting/Gen/TwistExpander_Aldebaran.cpp
+Generated ARX code: CornTesting/Gen/TwistExpander_Aldebaran_Arx.cpp
+
+BOTTOM LINE
+-----------
+No major problem was found, so the requested early-termination condition did not fire.
+All 164 ARX functions were traced through all four of their generated loops (656 loops total).
+Every nearby src/dst summary in TwistExpander_Aldebaran.cpp accurately names the primary source family or families and the destination family used by its corresponding ARX function.
+No source-comment mismatch, destination-comment mismatch, internal loop-comment mismatch, destination read-before-write, wrong loop bound, cross-domain ARX use, scaffold mapping error, or exact executable-loop duplicate was found.
+
+PROBLEMS AND REVIEW NOTES — MOST IMPORTANT FIRST
+------------------------------------------------
+1. Resolved follow-up: unused Grow cross-lane parameters were removed.
+   GROW_A_B, GROW_A_C, GROW_A_D, GROW_A_E, GROW_B_B, GROW_B_C, GROW_B_D, and GROW_B_E now omit pCrossLaneA and pCrossLaneB. GROW_A_A and GROW_B_A retain both parameters because their executable loops use them. The warnings-enabled generated-code syntax check is now clean.
+
+2. The phrase "Independent key-row flows" describes the lane slices better than it describes mutable ARX state.
+   Seed stores its main Seed state to the caller before the key-box work. Key A starts from that state, and Key B is explicitly reset to that same stored Seed state. Thus A and B are state-separated branches. Inside each branch, however, rows A through H chain the mutable state from one row to the next. KEY_A_H_E and KEY_B_H_E intentionally omit the final write-back, so key-box work never replaces the caller-visible main Seed state. This is coherent and matches the established design, but a reviewer could read "independent" as meaning every row starts from the same state; it does not.
+
+3. Saved recipe/core use is valid but not uniform in this expander.
+   The 656 loops reference 569 distinct recipe files. Eighty-seven recipe identities are used twice; none is used more than twice. The generated executable text is nevertheless unique for all 656 loops because the orbiter/wanderer permutations and per-loop arithmetic material differ.
+   Heart/core counts are: nexus_00=38, 01=45, 02=44, 03=40, 04=79, 05=39, 06=38, 07=39, 08=53, 09=38, 10=83, 11=39, 12=39, 13=42. Hearts 04 and 10 are represented about twice as often as the least-used hearts. Every used heart passes the structural checks below, so this is not a correctness defect; it is worth confirming if near-uniform heart representation was an intended stitching property.
+
+4. The main src comments are deliberately summaries, not exhaustive input manifests.
+   For example, a comment may say src: [$earth] while detailed generated loops also read older residual families. The named primary sources are always present. The complete per-pass Ingress and Cross comments in the ARX file match the executable reads exactly. This report treats the concise main comments according to that intended meaning.
+
+COMMENT-TO-CODE AUDIT
+---------------------
+Definitions found in ARX file: 164
+Calls found in main file:       164
+Uncalled ARX definitions:        0
+Calls without definitions:       0
+Missing nearby src/dst blocks:   0
+Primary source mismatches:       0
+Destination-family mismatches:   0
+Internal Ingress mismatches:     0
+Internal Cross mismatches:       0
+Internal Destination mismatches: 0
+
+The src/dst comment block is immediately adjacent to every ARX call; the largest gap from the end of a dst comment to its call is 12 characters. The audit did not accidentally borrow comments from earlier calls.
+
+ARX FLOW ASSESSMENT
+-------------------
+The generated ARX flow is structurally strong and internally self-consistent. This is a structural/code audit, not a proof of cryptographic security.
+
+* Every function contains exactly four lane-writing loops.
+* KDF, Seed, and Twist loops run S_BLOCK iterations. Key and Grow loops run W_KEY iterations.
+* Every destination family writes A, B, C, and D exactly once. No pass reads one of its destination lanes before that lane has been written; later passes intentionally feed prior outputs forward.
+* Each loop advances aPrevious from aIngress exactly once, constructs Ingress and Cross from the recorded lane inputs, derives Scatter from Previous/Ingress/Cross/Carry, and domain-mixes all three contexts.
+* Each loop performs 11 head assignments, one for every orbiter and one mapped initial wanderer source per role.
+* Each loop performs 11 heart rounds. In every heart, all three columns are permutations of roles 0..10, so each role appears exactly once as lead, once as source, and once as feedback. Every triplet contains three distinct roles.
+* The post-heart Ingress fold consumes all 11 orbiters exactly once.
+* Each loop updates every wanderer exactly once. Tail A and Tail B are each permutations, and no update uses the same role twice.
+* The Carry fold consumes all 11 updated wanderers exactly once before its final DiffuseA/B/C call.
+* The executable head, heart, and tail statements agree exactly with the Head, Heart, Tail A, Tail B, Orbiters, and Wanderers metadata printed above them.
+* All 7,216 heart multiplication constants are odd, hence invertible modulo 2^64. No even multiplier was found.
+* Rotation amounts range from 3 through 60. No zero-bit or 64-bit no-op rotation was found.
+* All salt taps use S_SALT1 masking. Per loop, Orbiter Assign uses 3..5 taps, Orbiter Update uses 4..6, and Wanderer Update uses 3..5. All 27 allowed tap-count combinations appear in this export.
+* The 604 nonce-enabled loops use between 9 and 15 distinct nonce words, matching the configured range. The 52 Twist/Grow loops are nonce-free by signature and use none.
+* All forward/backward direction annotations agree with their executable indexing direction: 2,318 forward reads and 2,282 backward reads. The eight TWIST_A key-row reads correctly mask with W_KEY1 while the surrounding full-lane reads mask with S_BLOCK1.
+
+Nonce-word use distribution per loop:
+  0 words: 52 loops (the nonce-free Twist/Grow families)
+  9 words: 19 loops
+ 10 words: 74 loops
+ 11 words: 118 loops
+ 12 words: 170 loops
+ 13 words: 138 loops
+ 14 words: 69 loops
+ 15 words: 16 loops
+
+DIVERSITY OBSERVATIONS
+----------------------
+Heart/core patterns:             14 unique
+Head patterns:                   569 unique
+Tail A + Tail B pairs:           569 unique
+Orbiter permutations:            656 unique
+Wanderer permutations:           656 unique
+Exact executable loop bodies:    656 unique
+Exact executable-loop duplicates: 0
+
+The recipe reuse noted near the top therefore does not create cloned executable loops. It repeats a head/heart/tail recipe identity while applying a different role relabeling and different generated arithmetic material.
+
+DOMAIN AND STATE AUDIT
+----------------------
+* All 54 KDF ARX functions read only the passed pConstants and pDomainSaltSet. None reaches into a workspace domain bundle behind the caller.
+* All 17 SEED functions use only mSeedConstants and mSeedSalts.
+* All 40 KEY_A functions use only mKeySpawnAConstants and mKeySpawnASalts.
+* All 40 KEY_B functions use only mKeySpawnBConstants and mKeySpawnBSalts.
+* All 3 TWIST functions use only mTwistConstants and mTwistSalts.
+* All 5 GROW_A functions use only mKeyRotateAConstants and mKeyRotateASalts.
+* All 5 GROW_B functions use only mKeyRotateBConstants and mKeyRotateBSalts.
+* Every function reads mutable ARX state once. Every function writes it once except KEY_A_H_E and KEY_B_H_E, whose omitted write-back is intentional and correctly leaves the caller-visible main Seed state unchanged.
+* Seed and TwistBlock add their fixed constants to all incoming mutable variables rather than replacing those inputs. Their main states are written to the caller before the independent key-growing branches.
+
+HIGH-LEVEL SEQUENCING CHECK
+---------------------------
+* Each of the six KDF domains follows three ARX stages per KDF section: ARX -> ARX -> full diffusion -> ARX, repeated for KDF A, B, and C. Passed domain material progresses inbuilt -> ephemeral A -> ephemeral B -> workspace.
+* Main Seed follows the recorded 17-ARX chain with eight full diffusions and ends Earth -> Crystal -> SquashA(destination).
+* Main Twist follows Aether -> Lunar -> diffuse to Earth -> Crystal -> SquashB(destination).
+* Every key-row and grow branch follows Arcane -> Plasma -> diffuse to Rainbow -> Water -> Vapor -> diffuse to Frost -> Ice -> SquashKeyA(key row).
+* Grow A and Grow B operate on separate W_KEY slices and separate KeyRotate domains. Their caller-visible ARX state branches from the same completed Twist state rather than making Grow B descend from Grow A.
+
+PER-FUNCTION TRACE
+------------------
+Legend: "residuals" lists executable source families beyond the concise primary src comment and beyond the function's progressively written destination family. These are not comment mismatches.
+
+KDF ARX functions (54)
+~~~~~~~~~~~~~~~~~~~~~~
+KDF_A_A_A
+  location: main line 69; ARX line 8
+  comment:  [source, nonce] -> [$shadow]
+  writes:   shadow_a, shadow_b, shadow_c, shadow_d; four passes over S_BLOCK
+  residuals: none
+  hearts:   02,04,05,08
+  recipes:  nexus_02/loop_000428.bin, nexus_04/loop_000050.bin, nexus_05/loop_000021.bin, nexus_08/loop_000403.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_B_A
+  location: main line 75; ARX line 591
+  comment:  [$shadow] -> [$fire]
+  writes:   fire_a, fire_b, fire_c, fire_d; four passes over S_BLOCK
+  residuals: nonce, source
+  hearts:   04,09,00,05
+  recipes:  nexus_04/loop_000345.bin, nexus_09/loop_000248.bin, nexus_00/loop_000312.bin, nexus_05/loop_000744.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_C_A
+  location: main line 91; ARX line 1179
+  comment:  [$vapor] -> [$kinetic]
+  writes:   kinetic_a, kinetic_b, kinetic_c, kinetic_d; four passes over S_BLOCK
+  residuals: fire, nonce, shadow, source
+  hearts:   00,10,01,01
+  recipes:  nexus_00/loop_000466.bin, nexus_10/loop_000310.bin, nexus_01/loop_000075.bin, nexus_01/loop_000281.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_A_A
+  location: main line 130; ARX line 1782
+  comment:  [$kinetic] -> [$evocation]
+  writes:   evocation_a, evocation_b, evocation_c, evocation_d; four passes over S_BLOCK
+  residuals: fire, shadow, source, vapor
+  hearts:   02,13,08,02
+  recipes:  nexus_02/loop_000255.bin, nexus_13/loop_000240.bin, nexus_08/loop_000552.bin, nexus_02/loop_000123.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_B_A
+  location: main line 136; ARX line 2388
+  comment:  [$evocation] -> [$runic]
+  writes:   runic_a, runic_b, runic_c, runic_d; four passes over S_BLOCK
+  residuals: fire, kinetic, shadow, source, vapor
+  hearts:   12,10,08,07
+  recipes:  nexus_12/loop_000258.bin, nexus_10/loop_000415.bin, nexus_08/loop_000339.bin, nexus_07/loop_000208.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_C_A
+  location: main line 152; ARX line 2996
+  comment:  [$divination] -> [$abjuration]
+  writes:   abjuration_a, abjuration_b, abjuration_c, abjuration_d; four passes over S_BLOCK
+  residuals: evocation, fire, kinetic, runic, source, vapor
+  hearts:   04,02,09,03
+  recipes:  nexus_04/loop_000345.bin, nexus_02/loop_000227.bin, nexus_09/loop_000186.bin, nexus_03/loop_000299.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_A_A
+  location: main line 191; ARX line 3606
+  comment:  [$abjuration] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: divination, evocation, kinetic, runic, source, vapor
+  hearts:   08,10,04,12
+  recipes:  nexus_08/loop_000508.bin, nexus_10/loop_000365.bin, nexus_04/loop_000258.bin, nexus_12/loop_000371.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_B_A
+  location: main line 197; ARX line 4215
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: abjuration, divination, evocation, kinetic, runic, source
+  hearts:   05,02,04,02
+  recipes:  nexus_05/loop_000355.bin, nexus_02/loop_000455.bin, nexus_04/loop_000251.bin, nexus_02/loop_000128.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_C_A
+  location: main line 213; ARX line 4822
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: abjuration, aether, divination, lunar, runic, source
+  hearts:   08,12,11,13
+  recipes:  nexus_08/loop_000508.bin, nexus_12/loop_000486.bin, nexus_11/loop_000723.bin, nexus_13/loop_000366.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_A_B
+  location: main line 252; ARX line 5430
+  comment:  [source, nonce] -> [$shadow]
+  writes:   shadow_a, shadow_b, shadow_c, shadow_d; four passes over S_BLOCK
+  residuals: none
+  hearts:   09,10,06,06
+  recipes:  nexus_09/loop_000485.bin, nexus_10/loop_000415.bin, nexus_06/loop_000666.bin, nexus_06/loop_000126.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_B_B
+  location: main line 258; ARX line 6014
+  comment:  [$shadow] -> [$fire]
+  writes:   fire_a, fire_b, fire_c, fire_d; four passes over S_BLOCK
+  residuals: nonce, source
+  hearts:   12,09,07,07
+  recipes:  nexus_12/loop_000203.bin, nexus_09/loop_000108.bin, nexus_07/loop_000129.bin, nexus_07/loop_000192.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_C_B
+  location: main line 274; ARX line 6603
+  comment:  [$vapor] -> [$kinetic]
+  writes:   kinetic_a, kinetic_b, kinetic_c, kinetic_d; four passes over S_BLOCK
+  residuals: earth, fire, nonce, shadow, source
+  hearts:   02,13,13,10
+  recipes:  nexus_02/loop_000077.bin, nexus_13/loop_000082.bin, nexus_13/loop_000690.bin, nexus_10/loop_000058.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_A_B
+  location: main line 313; ARX line 7205
+  comment:  [$kinetic] -> [$evocation]
+  writes:   evocation_a, evocation_b, evocation_c, evocation_d; four passes over S_BLOCK
+  residuals: aether, earth, fire, lunar, shadow, source, vapor
+  hearts:   12,04,03,00
+  recipes:  nexus_12/loop_000099.bin, nexus_04/loop_000102.bin, nexus_03/loop_000752.bin, nexus_00/loop_000136.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_B_B
+  location: main line 319; ARX line 7811
+  comment:  [$evocation] -> [$runic]
+  writes:   runic_a, runic_b, runic_c, runic_d; four passes over S_BLOCK
+  residuals: aether, earth, fire, kinetic, shadow, source, vapor
+  hearts:   04,11,05,06
+  recipes:  nexus_04/loop_000693.bin, nexus_11/loop_000409.bin, nexus_05/loop_000379.bin, nexus_06/loop_000523.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_C_B
+  location: main line 335; ARX line 8421
+  comment:  [$divination] -> [$abjuration]
+  writes:   abjuration_a, abjuration_b, abjuration_c, abjuration_d; four passes over S_BLOCK
+  residuals: aether, earth, evocation, fire, kinetic, runic, source, vapor
+  hearts:   02,01,09,10
+  recipes:  nexus_02/loop_000046.bin, nexus_01/loop_000533.bin, nexus_09/loop_000235.bin, nexus_10/loop_000190.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_A_B
+  location: main line 374; ARX line 9030
+  comment:  [$abjuration] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: divination, evocation, kinetic, lunar, runic, source
+  hearts:   02,08,09,01
+  recipes:  nexus_02/loop_000712.bin, nexus_08/loop_000154.bin, nexus_09/loop_000266.bin, nexus_01/loop_000579.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_B_B
+  location: main line 380; ARX line 9640
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: abjuration, divination, earth, evocation, kinetic, shadow, source
+  hearts:   09,02,09,06
+  recipes:  nexus_09/loop_000409.bin, nexus_02/loop_000045.bin, nexus_09/loop_000356.bin, nexus_06/loop_000533.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_C_B
+  location: main line 396; ARX line 10249
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: abjuration, aether, evocation, lunar, runic, source
+  hearts:   08,05,01,06
+  recipes:  nexus_08/loop_000010.bin, nexus_05/loop_000550.bin, nexus_01/loop_000307.bin, nexus_06/loop_000340.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_A_C
+  location: main line 435; ARX line 10857
+  comment:  [source, nonce] -> [$shadow]
+  writes:   shadow_a, shadow_b, shadow_c, shadow_d; four passes over S_BLOCK
+  residuals: none
+  hearts:   08,06,13,11
+  recipes:  nexus_08/loop_000484.bin, nexus_06/loop_000241.bin, nexus_13/loop_000133.bin, nexus_11/loop_000236.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_B_C
+  location: main line 441; ARX line 11442
+  comment:  [$shadow] -> [$fire]
+  writes:   fire_a, fire_b, fire_c, fire_d; four passes over S_BLOCK
+  residuals: nonce, source
+  hearts:   08,13,03,06
+  recipes:  nexus_08/loop_000010.bin, nexus_13/loop_000093.bin, nexus_03/loop_000738.bin, nexus_06/loop_000484.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_C_C
+  location: main line 457; ARX line 12030
+  comment:  [$vapor] -> [$kinetic]
+  writes:   kinetic_a, kinetic_b, kinetic_c, kinetic_d; four passes over S_BLOCK
+  residuals: earth, fire, nonce, shadow, source
+  hearts:   04,05,00,06
+  recipes:  nexus_04/loop_000309.bin, nexus_05/loop_000344.bin, nexus_00/loop_000505.bin, nexus_06/loop_000138.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_A_C
+  location: main line 496; ARX line 12634
+  comment:  [$kinetic] -> [$evocation]
+  writes:   evocation_a, evocation_b, evocation_c, evocation_d; four passes over S_BLOCK
+  residuals: earth, fire, shadow, source, vapor
+  hearts:   08,10,10,08
+  recipes:  nexus_08/loop_000340.bin, nexus_10/loop_000600.bin, nexus_10/loop_000392.bin, nexus_08/loop_000380.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_B_C
+  location: main line 502; ARX line 13239
+  comment:  [$evocation] -> [$runic]
+  writes:   runic_a, runic_b, runic_c, runic_d; four passes over S_BLOCK
+  residuals: aether, earth, fire, kinetic, lunar, shadow, source, vapor
+  hearts:   12,03,08,13
+  recipes:  nexus_12/loop_000006.bin, nexus_03/loop_000205.bin, nexus_08/loop_000117.bin, nexus_13/loop_000126.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_C_C
+  location: main line 518; ARX line 13849
+  comment:  [$divination] -> [$abjuration]
+  writes:   abjuration_a, abjuration_b, abjuration_c, abjuration_d; four passes over S_BLOCK
+  residuals: aether, earth, evocation, kinetic, lunar, runic, source, vapor
+  hearts:   01,12,06,04
+  recipes:  nexus_01/loop_000284.bin, nexus_12/loop_000399.bin, nexus_06/loop_000492.bin, nexus_04/loop_000440.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_A_C
+  location: main line 557; ARX line 14458
+  comment:  [$abjuration] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: divination, evocation, kinetic, runic, shadow, source
+  hearts:   08,01,02,00
+  recipes:  nexus_08/loop_000345.bin, nexus_01/loop_000293.bin, nexus_02/loop_000090.bin, nexus_00/loop_000343.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_B_C
+  location: main line 563; ARX line 15067
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: abjuration, divination, earth, evocation, kinetic, runic, shadow, source, vapor
+  hearts:   13,13,06,07
+  recipes:  nexus_13/loop_000518.bin, nexus_13/loop_000286.bin, nexus_06/loop_000095.bin, nexus_07/loop_000534.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_C_C
+  location: main line 579; ARX line 15676
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: abjuration, aether, divination, evocation, kinetic, lunar, source
+  hearts:   00,07,03,10
+  recipes:  nexus_00/loop_000526.bin, nexus_07/loop_000203.bin, nexus_03/loop_000673.bin, nexus_10/loop_000303.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_A_D
+  location: main line 618; ARX line 16286
+  comment:  [source, nonce] -> [$shadow]
+  writes:   shadow_a, shadow_b, shadow_c, shadow_d; four passes over S_BLOCK
+  residuals: none
+  hearts:   04,02,03,07
+  recipes:  nexus_04/loop_000512.bin, nexus_02/loop_000351.bin, nexus_03/loop_000062.bin, nexus_07/loop_000615.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_B_D
+  location: main line 624; ARX line 16870
+  comment:  [$shadow] -> [$fire]
+  writes:   fire_a, fire_b, fire_c, fire_d; four passes over S_BLOCK
+  residuals: nonce, source
+  hearts:   02,00,00,07
+  recipes:  nexus_02/loop_000475.bin, nexus_00/loop_000709.bin, nexus_00/loop_000484.bin, nexus_07/loop_000458.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_C_D
+  location: main line 640; ARX line 17459
+  comment:  [$vapor] -> [$kinetic]
+  writes:   kinetic_a, kinetic_b, kinetic_c, kinetic_d; four passes over S_BLOCK
+  residuals: earth, fire, nonce, shadow, source
+  hearts:   06,02,04,08
+  recipes:  nexus_06/loop_000599.bin, nexus_02/loop_000589.bin, nexus_04/loop_000661.bin, nexus_08/loop_000150.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_A_D
+  location: main line 679; ARX line 18061
+  comment:  [$kinetic] -> [$evocation]
+  writes:   evocation_a, evocation_b, evocation_c, evocation_d; four passes over S_BLOCK
+  residuals: aether, earth, shadow, source, vapor
+  hearts:   12,04,04,10
+  recipes:  nexus_12/loop_000550.bin, nexus_04/loop_000096.bin, nexus_04/loop_000242.bin, nexus_10/loop_000725.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_B_D
+  location: main line 685; ARX line 18666
+  comment:  [$evocation] -> [$runic]
+  writes:   runic_a, runic_b, runic_c, runic_d; four passes over S_BLOCK
+  residuals: aether, fire, kinetic, lunar, shadow, source
+  hearts:   10,01,10,10
+  recipes:  nexus_10/loop_000310.bin, nexus_01/loop_000177.bin, nexus_10/loop_000296.bin, nexus_10/loop_000538.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_C_D
+  location: main line 701; ARX line 19274
+  comment:  [$divination] -> [$abjuration]
+  writes:   abjuration_a, abjuration_b, abjuration_c, abjuration_d; four passes over S_BLOCK
+  residuals: earth, evocation, fire, kinetic, runic, source, vapor
+  hearts:   01,04,01,02
+  recipes:  nexus_01/loop_000437.bin, nexus_04/loop_000580.bin, nexus_01/loop_000315.bin, nexus_02/loop_000070.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_A_D
+  location: main line 740; ARX line 19882
+  comment:  [$abjuration] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: divination, earth, evocation, runic, source, vapor
+  hearts:   12,08,07,09
+  recipes:  nexus_12/loop_000456.bin, nexus_08/loop_000118.bin, nexus_07/loop_000620.bin, nexus_09/loop_000239.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_B_D
+  location: main line 746; ARX line 20490
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: abjuration, divination, earth, evocation, fire, kinetic, shadow, source, vapor
+  hearts:   10,10,08,11
+  recipes:  nexus_10/loop_000472.bin, nexus_10/loop_000225.bin, nexus_08/loop_000262.bin, nexus_11/loop_000287.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_C_D
+  location: main line 762; ARX line 21099
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: abjuration, aether, evocation, fire, lunar, shadow, source
+  hearts:   08,04,04,01
+  recipes:  nexus_08/loop_000205.bin, nexus_04/loop_000268.bin, nexus_04/loop_000648.bin, nexus_01/loop_000164.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_A_E
+  location: main line 801; ARX line 21708
+  comment:  [source, nonce] -> [$shadow]
+  writes:   shadow_a, shadow_b, shadow_c, shadow_d; four passes over S_BLOCK
+  residuals: none
+  hearts:   08,04,09,10
+  recipes:  nexus_08/loop_000641.bin, nexus_04/loop_000085.bin, nexus_09/loop_000050.bin, nexus_10/loop_000338.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_B_E
+  location: main line 807; ARX line 22292
+  comment:  [$shadow] -> [$fire]
+  writes:   fire_a, fire_b, fire_c, fire_d; four passes over S_BLOCK
+  residuals: nonce, source
+  hearts:   08,13,10,00
+  recipes:  nexus_08/loop_000575.bin, nexus_13/loop_000455.bin, nexus_10/loop_000741.bin, nexus_00/loop_000350.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_C_E
+  location: main line 823; ARX line 22882
+  comment:  [$vapor] -> [$kinetic]
+  writes:   kinetic_a, kinetic_b, kinetic_c, kinetic_d; four passes over S_BLOCK
+  residuals: earth, fire, nonce, shadow, source
+  hearts:   10,11,03,12
+  recipes:  nexus_10/loop_000538.bin, nexus_11/loop_000095.bin, nexus_03/loop_000034.bin, nexus_12/loop_000464.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_A_E
+  location: main line 862; ARX line 23485
+  comment:  [$kinetic] -> [$evocation]
+  writes:   evocation_a, evocation_b, evocation_c, evocation_d; four passes over S_BLOCK
+  residuals: earth, fire, shadow, source, vapor
+  hearts:   12,11,02,03
+  recipes:  nexus_12/loop_000109.bin, nexus_11/loop_000330.bin, nexus_02/loop_000462.bin, nexus_03/loop_000258.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_B_E
+  location: main line 868; ARX line 24090
+  comment:  [$evocation] -> [$runic]
+  writes:   runic_a, runic_b, runic_c, runic_d; four passes over S_BLOCK
+  residuals: aether, earth, fire, kinetic, lunar, shadow, source, vapor
+  hearts:   11,00,10,04
+  recipes:  nexus_11/loop_000446.bin, nexus_00/loop_000734.bin, nexus_10/loop_000118.bin, nexus_04/loop_000160.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_C_E
+  location: main line 884; ARX line 24698
+  comment:  [$divination] -> [$abjuration]
+  writes:   abjuration_a, abjuration_b, abjuration_c, abjuration_d; four passes over S_BLOCK
+  residuals: evocation, fire, kinetic, lunar, runic, source, vapor
+  hearts:   01,12,08,13
+  recipes:  nexus_01/loop_000300.bin, nexus_12/loop_000719.bin, nexus_08/loop_000334.bin, nexus_13/loop_000213.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_A_E
+  location: main line 923; ARX line 25306
+  comment:  [$abjuration] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: divination, earth, evocation, kinetic, runic, source
+  hearts:   04,11,12,01
+  recipes:  nexus_04/loop_000648.bin, nexus_11/loop_000369.bin, nexus_12/loop_000017.bin, nexus_01/loop_000352.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_B_E
+  location: main line 929; ARX line 25915
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: abjuration, divination, earth, evocation, fire, runic, shadow, source
+  hearts:   13,05,02,01
+  recipes:  nexus_13/loop_000401.bin, nexus_05/loop_000234.bin, nexus_02/loop_000212.bin, nexus_01/loop_000451.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_C_E
+  location: main line 945; ARX line 26524
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: abjuration, aether, fire, lunar, source
+  hearts:   02,10,12,01
+  recipes:  nexus_02/loop_000438.bin, nexus_10/loop_000303.bin, nexus_12/loop_000376.bin, nexus_01/loop_000316.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_A_F
+  location: main line 984; ARX line 27132
+  comment:  [source, nonce] -> [$shadow]
+  writes:   shadow_a, shadow_b, shadow_c, shadow_d; four passes over S_BLOCK
+  residuals: none
+  hearts:   10,01,04,04
+  recipes:  nexus_10/loop_000109.bin, nexus_01/loop_000364.bin, nexus_04/loop_000709.bin, nexus_04/loop_000491.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_B_F
+  location: main line 990; ARX line 27715
+  comment:  [$shadow] -> [$fire]
+  writes:   fire_a, fire_b, fire_c, fire_d; four passes over S_BLOCK
+  residuals: nonce, source
+  hearts:   10,02,04,02
+  recipes:  nexus_10/loop_000327.bin, nexus_02/loop_000333.bin, nexus_04/loop_000579.bin, nexus_02/loop_000069.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_A_C_F
+  location: main line 1006; ARX line 28303
+  comment:  [$vapor] -> [$kinetic]
+  writes:   kinetic_a, kinetic_b, kinetic_c, kinetic_d; four passes over S_BLOCK
+  residuals: earth, fire, nonce, shadow, source
+  hearts:   02,10,04,02
+  recipes:  nexus_02/loop_000240.bin, nexus_10/loop_000437.bin, nexus_04/loop_000637.bin, nexus_02/loop_000062.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_A_F
+  location: main line 1045; ARX line 28906
+  comment:  [$kinetic] -> [$evocation]
+  writes:   evocation_a, evocation_b, evocation_c, evocation_d; four passes over S_BLOCK
+  residuals: aether, earth, fire, lunar, source, vapor
+  hearts:   10,04,01,00
+  recipes:  nexus_10/loop_000018.bin, nexus_04/loop_000125.bin, nexus_01/loop_000165.bin, nexus_00/loop_000077.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_B_F
+  location: main line 1051; ARX line 29511
+  comment:  [$evocation] -> [$runic]
+  writes:   runic_a, runic_b, runic_c, runic_d; four passes over S_BLOCK
+  residuals: aether, earth, fire, kinetic, shadow, source, vapor
+  hearts:   01,03,04,07
+  recipes:  nexus_01/loop_000292.bin, nexus_03/loop_000160.bin, nexus_04/loop_000693.bin, nexus_07/loop_000170.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_B_C_F
+  location: main line 1067; ARX line 30121
+  comment:  [$divination] -> [$abjuration]
+  writes:   abjuration_a, abjuration_b, abjuration_c, abjuration_d; four passes over S_BLOCK
+  residuals: earth, evocation, fire, kinetic, lunar, runic, shadow, source
+  hearts:   03,13,06,01
+  recipes:  nexus_03/loop_000099.bin, nexus_13/loop_000727.bin, nexus_06/loop_000588.bin, nexus_01/loop_000471.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_A_F
+  location: main line 1106; ARX line 30731
+  comment:  [$abjuration] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: divination, evocation, kinetic, lunar, runic, shadow, source
+  hearts:   12,06,13,05
+  recipes:  nexus_12/loop_000364.bin, nexus_06/loop_000656.bin, nexus_13/loop_000033.bin, nexus_05/loop_000556.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_B_F
+  location: main line 1112; ARX line 31340
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: abjuration, divination, earth, evocation, kinetic, runic, shadow, source, vapor
+  hearts:   13,10,03,06
+  recipes:  nexus_13/loop_000115.bin, nexus_10/loop_000485.bin, nexus_03/loop_000355.bin, nexus_06/loop_000006.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KDF_C_C_F
+  location: main line 1128; ARX line 31949
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: abjuration, aether, evocation, fire, lunar, shadow, source
+  hearts:   04,08,03,12
+  recipes:  nexus_04/loop_000160.bin, nexus_08/loop_000179.bin, nexus_03/loop_000039.bin, nexus_12/loop_000598.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+Main Seed ARX functions (17)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+SEED_A
+  location: main line 1517; ARX line 32558
+  comment:  [source, nonce] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over S_BLOCK
+  residuals: none
+  hearts:   08,11,02,10
+  recipes:  nexus_08/loop_000365.bin, nexus_11/loop_000564.bin, nexus_02/loop_000418.bin, nexus_10/loop_000741.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_B
+  location: main line 1523; ARX line 33140
+  comment:  [$ice] -> [$rainbow]
+  writes:   rainbow_a, rainbow_b, rainbow_c, rainbow_d; four passes over S_BLOCK
+  residuals: nonce, source
+  hearts:   12,10,10,04
+  recipes:  nexus_12/loop_000310.bin, nexus_10/loop_000594.bin, nexus_10/loop_000712.bin, nexus_04/loop_000169.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_C
+  location: main line 1550; ARX line 33727
+  comment:  [$alchemy] -> [$augury]
+  writes:   augury_a, augury_b, augury_c, augury_d; four passes over S_BLOCK
+  residuals: ice, nonce, rainbow, source
+  hearts:   13,05,01,08
+  recipes:  nexus_13/loop_000423.bin, nexus_05/loop_000087.bin, nexus_01/loop_000185.bin, nexus_08/loop_000707.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_D
+  location: main line 1556; ARX line 34329
+  comment:  [$augury] -> [$spirit]
+  writes:   spirit_a, spirit_b, spirit_c, spirit_d; four passes over S_BLOCK
+  residuals: alchemy, ice, nonce, rainbow, source
+  hearts:   00,04,10,12
+  recipes:  nexus_00/loop_000260.bin, nexus_04/loop_000050.bin, nexus_10/loop_000109.bin, nexus_12/loop_000454.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_E
+  location: main line 1572; ARX line 34934
+  comment:  [$divination] -> [$psychic]
+  writes:   psychic_a, psychic_b, psychic_c, psychic_d; four passes over S_BLOCK
+  residuals: alchemy, augury, ice, nonce, rainbow, source, spirit
+  hearts:   04,11,01,04
+  recipes:  nexus_04/loop_000085.bin, nexus_11/loop_000192.bin, nexus_01/loop_000024.bin, nexus_04/loop_000587.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_F
+  location: main line 1578; ARX line 35541
+  comment:  [$psychic] -> [$voodoo]
+  writes:   voodoo_a, voodoo_b, voodoo_c, voodoo_d; four passes over S_BLOCK
+  residuals: alchemy, augury, divination, nonce, source, spirit
+  hearts:   02,10,10,08
+  recipes:  nexus_02/loop_000301.bin, nexus_10/loop_000698.bin, nexus_10/loop_000520.bin, nexus_08/loop_000209.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_G
+  location: main line 1594; ARX line 36148
+  comment:  [$vapor] -> [$sonic]
+  writes:   sonic_a, sonic_b, sonic_c, sonic_d; four passes over S_BLOCK
+  residuals: alchemy, augury, divination, ice, psychic, source, voodoo
+  hearts:   12,07,04,04
+  recipes:  nexus_12/loop_000035.bin, nexus_07/loop_000045.bin, nexus_04/loop_000242.bin, nexus_04/loop_000747.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_H
+  location: main line 1600; ARX line 36754
+  comment:  [$sonic] -> [$planar]
+  writes:   planar_a, planar_b, planar_c, planar_d; four passes over S_BLOCK
+  residuals: ice, psychic, rainbow, source, vapor, voodoo
+  hearts:   09,00,13,09
+  recipes:  nexus_09/loop_000335.bin, nexus_00/loop_000122.bin, nexus_13/loop_000677.bin, nexus_09/loop_000173.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_I
+  location: main line 1616; ARX line 37361
+  comment:  [$frost] -> [$gloom]
+  writes:   gloom_a, gloom_b, gloom_c, gloom_d; four passes over S_BLOCK
+  residuals: alchemy, divination, planar, psychic, sonic, source, vapor
+  hearts:   08,10,11,02
+  recipes:  nexus_08/loop_000686.bin, nexus_10/loop_000229.bin, nexus_11/loop_000645.bin, nexus_02/loop_000647.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_J
+  location: main line 1622; ARX line 37968
+  comment:  [$gloom] -> [$lightning]
+  writes:   lightning_a, lightning_b, lightning_c, lightning_d; four passes over S_BLOCK
+  residuals: frost, ice, planar, psychic, sonic, source, voodoo
+  hearts:   12,12,08,10
+  recipes:  nexus_12/loop_000040.bin, nexus_12/loop_000696.bin, nexus_08/loop_000618.bin, nexus_10/loop_000235.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_K
+  location: main line 1638; ARX line 38575
+  comment:  [$wind] -> [$shadow]
+  writes:   shadow_a, shadow_b, shadow_c, shadow_d; four passes over S_BLOCK
+  residuals: divination, frost, gloom, lightning, nonce, vapor
+  hearts:   10,13,00,07
+  recipes:  nexus_10/loop_000544.bin, nexus_13/loop_000596.bin, nexus_00/loop_000577.bin, nexus_07/loop_000530.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_L
+  location: main line 1644; ARX line 39181
+  comment:  [$shadow] -> [$fire]
+  writes:   fire_a, fire_b, fire_c, fire_d; four passes over S_BLOCK
+  residuals: gloom, lightning, nonce, planar, spirit, voodoo, wind
+  hearts:   12,01,00,12
+  recipes:  nexus_12/loop_000578.bin, nexus_01/loop_000399.bin, nexus_00/loop_000426.bin, nexus_12/loop_000711.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_M
+  location: main line 1660; ARX line 39786
+  comment:  [$kinetic] -> [$evocation]
+  writes:   evocation_a, evocation_b, evocation_c, evocation_d; four passes over S_BLOCK
+  residuals: fire, lightning, planar, shadow, sonic, source, wind
+  hearts:   11,06,05,04
+  recipes:  nexus_11/loop_000427.bin, nexus_06/loop_000570.bin, nexus_05/loop_000292.bin, nexus_04/loop_000343.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_N
+  location: main line 1666; ARX line 40394
+  comment:  [$evocation] -> [$runic]
+  writes:   runic_a, runic_b, runic_c, runic_d; four passes over S_BLOCK
+  residuals: augury, fire, frost, kinetic, shadow, source, vapor
+  hearts:   13,06,01,03
+  recipes:  nexus_13/loop_000713.bin, nexus_06/loop_000715.bin, nexus_01/loop_000463.bin, nexus_03/loop_000610.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_O
+  location: main line 1682; ARX line 41001
+  comment:  [$abjuration] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: evocation, frost, kinetic, runic, sonic, source, voodoo
+  hearts:   08,06,13,03
+  recipes:  nexus_08/loop_000079.bin, nexus_06/loop_000591.bin, nexus_13/loop_000507.bin, nexus_03/loop_000452.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_P
+  location: main line 1688; ARX line 41607
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: abjuration, evocation, gloom, kinetic, runic, source, spirit
+  hearts:   03,04,07,10
+  recipes:  nexus_03/loop_000367.bin, nexus_04/loop_000215.bin, nexus_07/loop_000143.bin, nexus_10/loop_000365.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+SEED_Q
+  location: main line 1704; ARX line 42214
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: abjuration, aether, fire, lunar, planar, shadow
+  hearts:   06,11,11,02
+  recipes:  nexus_06/loop_000714.bin, nexus_11/loop_000118.bin, nexus_11/loop_000004.bin, nexus_02/loop_000137.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+Key A ARX functions (40)
+~~~~~~~~~~~~~~~~~~~~~~~~
+KEY_A_A_A
+  location: main line 1740; ARX line 42822
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: aether, augury, kinetic, runic, shadow, voodoo, wind
+  hearts:   10,13,07,09
+  recipes:  nexus_10/loop_000212.bin, nexus_13/loop_000011.bin, nexus_07/loop_000092.bin, nexus_09/loop_000074.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_B_A
+  location: main line 1778; ARX line 43423
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, divination, fire, gloom, spirit, voodoo
+  hearts:   09,03,11,05
+  recipes:  nexus_09/loop_000561.bin, nexus_03/loop_000285.bin, nexus_11/loop_000239.bin, nexus_05/loop_000514.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_C_A
+  location: main line 1816; ARX line 44024
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: aether, augury, gloom, lunar, rainbow, shadow
+  hearts:   07,08,09,09
+  recipes:  nexus_07/loop_000377.bin, nexus_08/loop_000686.bin, nexus_09/loop_000031.bin, nexus_09/loop_000214.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_D_A
+  location: main line 1854; ARX line 44625
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, evocation, frost, planar, shadow
+  hearts:   02,03,10,08
+  recipes:  nexus_02/loop_000527.bin, nexus_03/loop_000450.bin, nexus_10/loop_000395.bin, nexus_08/loop_000205.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_E_A
+  location: main line 1892; ARX line 45227
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: augury, frost, gloom, kinetic, lunar, rainbow, voodoo
+  hearts:   04,09,04,08
+  recipes:  nexus_04/loop_000747.bin, nexus_09/loop_000174.bin, nexus_04/loop_000515.bin, nexus_08/loop_000231.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_F_A
+  location: main line 1930; ARX line 45826
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: aether, alchemy, frost, ice, lunar, planar, wind
+  hearts:   01,05,05,04
+  recipes:  nexus_01/loop_000604.bin, nexus_05/loop_000632.bin, nexus_05/loop_000404.bin, nexus_04/loop_000113.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_G_A
+  location: main line 1968; ARX line 46427
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, alchemy, divination, evocation, lightning, runic, shadow, spirit
+  hearts:   02,10,09,03
+  recipes:  nexus_02/loop_000390.bin, nexus_10/loop_000600.bin, nexus_09/loop_000500.bin, nexus_03/loop_000596.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_H_A
+  location: main line 2006; ARX line 47027
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: aether, alchemy, divination, frost, kinetic, runic, shadow
+  hearts:   09,08,02,04
+  recipes:  nexus_09/loop_000294.bin, nexus_08/loop_000003.bin, nexus_02/loop_000172.bin, nexus_04/loop_000637.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_A_B
+  location: main line 1746; ARX line 52437
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: aether, augury, divination, fire, frost, psychic, rainbow, runic, shadow, spirit
+  hearts:   13,10,05,03
+  recipes:  nexus_13/loop_000023.bin, nexus_10/loop_000725.bin, nexus_05/loop_000279.bin, nexus_03/loop_000417.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_B_B
+  location: main line 1784; ARX line 53038
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: divination, frost, ice, planar, psychic, rainbow, runic, shadow, sonic, vapor, voodoo
+  hearts:   09,02,13,00
+  recipes:  nexus_09/loop_000125.bin, nexus_02/loop_000662.bin, nexus_13/loop_000059.bin, nexus_00/loop_000645.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_C_B
+  location: main line 1822; ARX line 53640
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: alchemy, divination, fire, frost, ice, kinetic, planar, psychic, rainbow, spirit, wind
+  hearts:   07,04,01,07
+  recipes:  nexus_07/loop_000690.bin, nexus_04/loop_000718.bin, nexus_01/loop_000660.bin, nexus_07/loop_000197.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_D_B
+  location: main line 1860; ARX line 54243
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: aether, divination, evocation, frost, gloom, ice, planar, shadow, spirit, vapor, wind
+  hearts:   11,10,04,03
+  recipes:  nexus_11/loop_000312.bin, nexus_10/loop_000181.bin, nexus_04/loop_000309.bin, nexus_03/loop_000079.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_E_B
+  location: main line 1898; ARX line 54845
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: abjuration, augury, evocation, fire, frost, gloom, ice, lightning, rainbow, runic, spirit, vapor
+  hearts:   11,00,08,00
+  recipes:  nexus_11/loop_000720.bin, nexus_00/loop_000590.bin, nexus_08/loop_000575.bin, nexus_00/loop_000071.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_F_B
+  location: main line 1936; ARX line 55448
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: augury, fire, gloom, kinetic, lunar, planar, psychic, shadow, sonic, spirit, vapor, wind
+  hearts:   09,10,05,03
+  recipes:  nexus_09/loop_000452.bin, nexus_10/loop_000036.bin, nexus_05/loop_000233.bin, nexus_03/loop_000208.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_G_B
+  location: main line 1974; ARX line 56049
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: aether, divination, frost, gloom, ice, planar, psychic, voodoo, wind
+  hearts:   04,08,03,04
+  recipes:  nexus_04/loop_000718.bin, nexus_08/loop_000735.bin, nexus_03/loop_000267.bin, nexus_04/loop_000215.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_H_B
+  location: main line 2012; ARX line 56652
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: alchemy, augury, evocation, gloom, ice, lunar, planar, psychic, rainbow, spirit, vapor, voodoo, wind
+  hearts:   11,04,05,03
+  recipes:  nexus_11/loop_000257.bin, nexus_04/loop_000059.bin, nexus_05/loop_000634.bin, nexus_03/loop_000534.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_A_C
+  location: main line 1754; ARX line 62071
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: abjuration, alchemy, augury, fire, gloom, kinetic, planar, shadow, vapor, voodoo, wind
+  hearts:   08,04,07,12
+  recipes:  nexus_08/loop_000334.bin, nexus_04/loop_000727.bin, nexus_07/loop_000354.bin, nexus_12/loop_000447.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_B_C
+  location: main line 1792; ARX line 62672
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: abjuration, augury, divination, lightning, lunar, runic, shadow, sonic, spirit, vapor, wind
+  hearts:   13,09,09,02
+  recipes:  nexus_13/loop_000439.bin, nexus_09/loop_000184.bin, nexus_09/loop_000728.bin, nexus_02/loop_000041.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_C_C
+  location: main line 1830; ARX line 63275
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: augury, divination, evocation, fire, gloom, lightning, runic, shadow, voodoo, wind
+  hearts:   08,05,10,06
+  recipes:  nexus_08/loop_000707.bin, nexus_05/loop_000477.bin, nexus_10/loop_000188.bin, nexus_06/loop_000560.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_D_C
+  location: main line 1868; ARX line 63876
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: augury, evocation, fire, frost, kinetic, lunar, runic, sonic, voodoo
+  hearts:   07,04,01,07
+  recipes:  nexus_07/loop_000549.bin, nexus_04/loop_000076.bin, nexus_01/loop_000664.bin, nexus_07/loop_000661.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_E_C
+  location: main line 1906; ARX line 64477
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, divination, evocation, frost, kinetic, runic, shadow, vapor, voodoo, wind
+  hearts:   10,13,08,08
+  recipes:  nexus_10/loop_000485.bin, nexus_13/loop_000718.bin, nexus_08/loop_000543.bin, nexus_08/loop_000497.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_F_C
+  location: main line 1944; ARX line 65078
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: abjuration, aether, augury, evocation, frost, lightning, planar, psychic, runic, spirit, vapor, voodoo
+  hearts:   10,09,13,07
+  recipes:  nexus_10/loop_000547.bin, nexus_09/loop_000003.bin, nexus_13/loop_000417.bin, nexus_07/loop_000014.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_G_C
+  location: main line 1982; ARX line 65681
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: abjuration, alchemy, augury, evocation, fire, gloom, kinetic, planar, psychic, sonic, wind
+  hearts:   03,11,08,03
+  recipes:  nexus_03/loop_000723.bin, nexus_11/loop_000698.bin, nexus_08/loop_000534.bin, nexus_03/loop_000674.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_H_C
+  location: main line 2020; ARX line 66283
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, ice, lightning, lunar, planar, sonic, spirit, vapor, wind
+  hearts:   07,02,06,01
+  recipes:  nexus_07/loop_000659.bin, nexus_02/loop_000376.bin, nexus_06/loop_000628.bin, nexus_01/loop_000138.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_A_D
+  location: main line 1760; ARX line 71699
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, alchemy, divination, evocation, gloom, ice, lightning, lunar, psychic, runic, spirit
+  hearts:   04,02,05,04
+  recipes:  nexus_04/loop_000113.bin, nexus_02/loop_000551.bin, nexus_05/loop_000091.bin, nexus_04/loop_000442.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_B_D
+  location: main line 1798; ARX line 72301
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: aether, alchemy, gloom, ice, kinetic, lunar, psychic, shadow, sonic
+  hearts:   01,07,10,12
+  recipes:  nexus_01/loop_000573.bin, nexus_07/loop_000646.bin, nexus_10/loop_000360.bin, nexus_12/loop_000291.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_C_D
+  location: main line 1836; ARX line 72903
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, aether, augury, evocation, gloom, ice, kinetic, lunar, sonic, spirit
+  hearts:   03,10,10,10
+  recipes:  nexus_03/loop_000231.bin, nexus_10/loop_000327.bin, nexus_10/loop_000472.bin, nexus_10/loop_000544.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_D_D
+  location: main line 1874; ARX line 73505
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, ice, lightning, planar, psychic, spirit, voodoo, wind
+  hearts:   10,05,01,02
+  recipes:  nexus_10/loop_000288.bin, nexus_05/loop_000470.bin, nexus_01/loop_000461.bin, nexus_02/loop_000630.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_E_D
+  location: main line 1912; ARX line 74107
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: aether, alchemy, divination, fire, frost, ice, lightning, lunar, planar, psychic, voodoo
+  hearts:   03,10,05,10
+  recipes:  nexus_03/loop_000196.bin, nexus_10/loop_000392.bin, nexus_05/loop_000207.bin, nexus_10/loop_000560.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_F_D
+  location: main line 1950; ARX line 74708
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, augury, divination, evocation, fire, gloom, ice, lightning, shadow, spirit, wind
+  hearts:   04,09,08,09
+  recipes:  nexus_04/loop_000329.bin, nexus_09/loop_000088.bin, nexus_08/loop_000641.bin, nexus_09/loop_000271.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_G_D
+  location: main line 1988; ARX line 75309
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, divination, frost, ice, sonic, spirit, voodoo
+  hearts:   11,02,01,06
+  recipes:  nexus_11/loop_000275.bin, nexus_02/loop_000083.bin, nexus_01/loop_000297.bin, nexus_06/loop_000385.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_H_D
+  location: main line 2026; ARX line 75910
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: aether, evocation, fire, gloom, kinetic, shadow, sonic, wind
+  hearts:   11,03,08,03
+  recipes:  nexus_11/loop_000726.bin, nexus_03/loop_000476.bin, nexus_08/loop_000608.bin, nexus_03/loop_000391.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_A_E
+  location: main line 1768; ARX line 81325
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, evocation, kinetic, lightning, planar, psychic, runic, sonic, voodoo
+  hearts:   00,00,01,04
+  recipes:  nexus_00/loop_000054.bin, nexus_00/loop_000348.bin, nexus_01/loop_000436.bin, nexus_04/loop_000169.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_B_E
+  location: main line 1806; ARX line 81927
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, augury, divination, evocation, lightning, planar, psychic, shadow, spirit
+  hearts:   00,10,02,04
+  recipes:  nexus_00/loop_000556.bin, nexus_10/loop_000018.bin, nexus_02/loop_000688.bin, nexus_04/loop_000193.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_C_E
+  location: main line 1844; ARX line 82528
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, alchemy, divination, gloom, lightning, planar, runic, sonic, spirit, voodoo
+  hearts:   03,03,06,11
+  recipes:  nexus_03/loop_000234.bin, nexus_03/loop_000277.bin, nexus_06/loop_000422.bin, nexus_11/loop_000040.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_D_E
+  location: main line 1882; ARX line 83131
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, alchemy, augury, fire, gloom, kinetic, lightning, psychic, shadow, sonic, wind
+  hearts:   13,09,12,07
+  recipes:  nexus_13/loop_000662.bin, nexus_09/loop_000275.bin, nexus_12/loop_000335.bin, nexus_07/loop_000555.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_E_E
+  location: main line 1920; ARX line 83733
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, aether, augury, evocation, fire, gloom, lunar, planar, psychic, sonic, spirit, voodoo
+  hearts:   03,06,10,08
+  recipes:  nexus_03/loop_000106.bin, nexus_06/loop_000107.bin, nexus_10/loop_000632.bin, nexus_08/loop_000475.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_F_E
+  location: main line 1958; ARX line 84334
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: alchemy, divination, evocation, fire, kinetic, lightning, psychic, runic, sonic, voodoo, wind
+  hearts:   06,10,00,10
+  recipes:  nexus_06/loop_000085.bin, nexus_10/loop_000437.bin, nexus_00/loop_000265.bin, nexus_10/loop_000334.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_G_E
+  location: main line 1996; ARX line 84935
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: aether, augury, evocation, fire, lightning, lunar, planar, runic, shadow, spirit, wind
+  hearts:   10,00,10,03
+  recipes:  nexus_10/loop_000188.bin, nexus_00/loop_000075.bin, nexus_10/loop_000181.bin, nexus_03/loop_000542.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_A_H_E
+  location: main line 2034; ARX line 85537
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, augury, divination, fire, gloom, lightning, psychic, runic, voodoo
+  hearts:   03,00,13,00
+  recipes:  nexus_03/loop_000107.bin, nexus_00/loop_000379.bin, nexus_13/loop_000136.bin, nexus_00/loop_000679.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+Key B ARX functions (40)
+~~~~~~~~~~~~~~~~~~~~~~~~
+KEY_B_A_A
+  location: main line 2058; ARX line 47629
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, aether, fire, gloom, ice, spirit, voodoo, wind
+  hearts:   00,10,10,02
+  recipes:  nexus_00/loop_000202.bin, nexus_10/loop_000547.bin, nexus_10/loop_000650.bin, nexus_02/loop_000035.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_B_A
+  location: main line 2096; ARX line 48231
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, aether, ice, lunar, psychic, shadow, wind
+  hearts:   04,05,10,06
+  recipes:  nexus_04/loop_000442.bin, nexus_05/loop_000304.bin, nexus_10/loop_000487.bin, nexus_06/loop_000132.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_C_A
+  location: main line 2134; ARX line 48833
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, gloom, lightning, lunar, psychic, runic, sonic
+  hearts:   00,04,10,04
+  recipes:  nexus_00/loop_000552.bin, nexus_04/loop_000491.bin, nexus_10/loop_000288.bin, nexus_04/loop_000193.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_D_A
+  location: main line 2172; ARX line 49434
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: alchemy, augury, evocation, rainbow, vapor, wind
+  hearts:   04,07,12,04
+  recipes:  nexus_04/loop_000715.bin, nexus_07/loop_000017.bin, nexus_12/loop_000406.bin, nexus_04/loop_000579.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_E_A
+  location: main line 2210; ARX line 50033
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, augury, evocation, frost, psychic, runic, spirit
+  hearts:   13,13,04,07
+  recipes:  nexus_13/loop_000605.bin, nexus_13/loop_000034.bin, nexus_04/loop_000076.bin, nexus_07/loop_000338.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_F_A
+  location: main line 2248; ARX line 50635
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, aether, fire, lunar, planar, sonic, vapor, voodoo
+  hearts:   04,08,00,02
+  recipes:  nexus_04/loop_000576.bin, nexus_08/loop_000249.bin, nexus_00/loop_000403.bin, nexus_02/loop_000374.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_G_A
+  location: main line 2286; ARX line 51236
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: aether, gloom, kinetic, psychic, rainbow, voodoo
+  hearts:   12,05,04,07
+  recipes:  nexus_12/loop_000239.bin, nexus_05/loop_000334.bin, nexus_04/loop_000727.bin, nexus_07/loop_000199.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_H_A
+  location: main line 2324; ARX line 51837
+  comment:  [$earth, $crystal] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, frost, lightning, sonic, vapor
+  hearts:   11,04,06,08
+  recipes:  nexus_11/loop_000125.bin, nexus_04/loop_000622.bin, nexus_06/loop_000007.bin, nexus_08/loop_000519.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_A_B
+  location: main line 2064; ARX line 57254
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: aether, alchemy, augury, frost, kinetic, lightning, psychic, runic, shadow, vapor, voodoo
+  hearts:   13,07,10,09
+  recipes:  nexus_13/loop_000495.bin, nexus_07/loop_000443.bin, nexus_10/loop_000712.bin, nexus_09/loop_000039.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_B_B
+  location: main line 2102; ARX line 57856
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: aether, augury, evocation, gloom, kinetic, lightning, planar, rainbow, spirit, voodoo
+  hearts:   08,12,00,04
+  recipes:  nexus_08/loop_000721.bin, nexus_12/loop_000141.bin, nexus_00/loop_000456.bin, nexus_04/loop_000268.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_C_B
+  location: main line 2140; ARX line 58458
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, evocation, fire, frost, kinetic, sonic, voodoo, wind
+  hearts:   09,08,05,11
+  recipes:  nexus_09/loop_000352.bin, nexus_08/loop_000339.bin, nexus_05/loop_000701.bin, nexus_11/loop_000523.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_D_B
+  location: main line 2178; ARX line 59060
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: aether, augury, frost, kinetic, planar, psychic, runic, shadow, sonic, voodoo
+  hearts:   10,09,13,01
+  recipes:  nexus_10/loop_000235.bin, nexus_09/loop_000592.bin, nexus_13/loop_000504.bin, nexus_01/loop_000261.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_E_B
+  location: main line 2216; ARX line 59663
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: abjuration, aether, alchemy, divination, frost, gloom, ice, rainbow, sonic, vapor, voodoo
+  hearts:   13,08,12,08
+  recipes:  nexus_13/loop_000392.bin, nexus_08/loop_000253.bin, nexus_12/loop_000247.bin, nexus_08/loop_000543.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_F_B
+  location: main line 2254; ARX line 60265
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: augury, divination, evocation, fire, ice, kinetic, lunar, psychic, rainbow, runic, spirit, vapor
+  hearts:   03,00,07,13
+  recipes:  nexus_03/loop_000473.bin, nexus_00/loop_000602.bin, nexus_07/loop_000564.bin, nexus_13/loop_000164.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_G_B
+  location: main line 2292; ARX line 60868
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: abjuration, alchemy, divination, evocation, gloom, kinetic, lightning, lunar, shadow, wind
+  hearts:   12,01,13,11
+  recipes:  nexus_12/loop_000197.bin, nexus_01/loop_000369.bin, nexus_13/loop_000640.bin, nexus_11/loop_000541.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_H_B
+  location: main line 2330; ARX line 61469
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: abjuration, alchemy, augury, divination, fire, kinetic, planar, psychic, spirit, vapor, voodoo, wind
+  hearts:   06,04,10,05
+  recipes:  nexus_06/loop_000545.bin, nexus_04/loop_000661.bin, nexus_10/loop_000395.bin, nexus_05/loop_000078.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_A_C
+  location: main line 2072; ARX line 66886
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: augury, divination, evocation, frost, ice, kinetic, lunar, planar, runic, shadow, spirit, wind
+  hearts:   02,12,10,11
+  recipes:  nexus_02/loop_000404.bin, nexus_12/loop_000127.bin, nexus_10/loop_000058.bin, nexus_11/loop_000357.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_B_C
+  location: main line 2110; ARX line 67488
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: aether, alchemy, augury, fire, frost, gloom, lightning, lunar, planar, shadow, sonic
+  hearts:   04,10,04,01
+  recipes:  nexus_04/loop_000709.bin, nexus_10/loop_000229.bin, nexus_04/loop_000468.bin, nexus_01/loop_000592.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_C_C
+  location: main line 2148; ARX line 68090
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: alchemy, augury, divination, fire, ice, kinetic, lightning, lunar, runic, shadow, vapor
+  hearts:   05,06,07,10
+  recipes:  nexus_05/loop_000471.bin, nexus_06/loop_000214.bin, nexus_07/loop_000120.bin, nexus_10/loop_000031.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_D_C
+  location: main line 2186; ARX line 68691
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: abjuration, evocation, frost, gloom, lightning, planar, shadow, sonic, voodoo, wind
+  hearts:   00,13,07,10
+  recipes:  nexus_00/loop_000569.bin, nexus_13/loop_000342.bin, nexus_07/loop_000009.bin, nexus_10/loop_000594.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_E_C
+  location: main line 2224; ARX line 69291
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: aether, evocation, kinetic, lightning, lunar, planar, psychic, runic, sonic, spirit, vapor, voodoo
+  hearts:   04,10,09,02
+  recipes:  nexus_04/loop_000072.bin, nexus_10/loop_000561.bin, nexus_09/loop_000021.bin, nexus_02/loop_000631.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_F_C
+  location: main line 2262; ARX line 69893
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: alchemy, evocation, gloom, ice, lunar, planar, runic, sonic, spirit, wind
+  hearts:   05,09,12,06
+  recipes:  nexus_05/loop_000199.bin, nexus_09/loop_000251.bin, nexus_12/loop_000472.bin, nexus_06/loop_000088.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_G_C
+  location: main line 2300; ARX line 70496
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: aether, evocation, fire, frost, ice, planar, psychic, shadow, spirit, vapor
+  hearts:   09,04,05,10
+  recipes:  nexus_09/loop_000111.bin, nexus_04/loop_000043.bin, nexus_05/loop_000745.bin, nexus_10/loop_000650.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_H_C
+  location: main line 2338; ARX line 71097
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: alchemy, augury, divination, gloom, lightning, lunar, planar, runic, vapor, voodoo, wind
+  hearts:   07,07,04,01
+  recipes:  nexus_07/loop_000706.bin, nexus_07/loop_000171.bin, nexus_04/loop_000607.bin, nexus_01/loop_000435.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_A_D
+  location: main line 2078; ARX line 76511
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, aether, divination, evocation, fire, gloom, ice, lunar, shadow, sonic, spirit
+  hearts:   04,10,04,13
+  recipes:  nexus_04/loop_000251.bin, nexus_10/loop_000296.bin, nexus_04/loop_000096.bin, nexus_13/loop_000602.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_B_D
+  location: main line 2116; ARX line 77113
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: augury, divination, evocation, gloom, ice, lightning, lunar, psychic, runic, spirit
+  hearts:   04,05,05,04
+  recipes:  nexus_04/loop_000258.bin, nexus_05/loop_000562.bin, nexus_05/loop_000106.bin, nexus_04/loop_000072.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_C_D
+  location: main line 2154; ARX line 77713
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: aether, divination, evocation, ice, psychic, runic, sonic, spirit, voodoo, wind
+  hearts:   11,12,01,08
+  recipes:  nexus_11/loop_000573.bin, nexus_12/loop_000690.bin, nexus_01/loop_000240.bin, nexus_08/loop_000345.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_D_D
+  location: main line 2192; ARX line 78314
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: aether, augury, divination, evocation, lunar, psychic, runic, spirit, voodoo, wind
+  hearts:   03,11,04,10
+  recipes:  nexus_03/loop_000201.bin, nexus_11/loop_000155.bin, nexus_04/loop_000170.bin, nexus_10/loop_000560.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_E_D
+  location: main line 2230; ARX line 78915
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: divination, fire, ice, kinetic, planar, psychic, shadow, spirit, voodoo, wind
+  hearts:   00,08,04,12
+  recipes:  nexus_00/loop_000318.bin, nexus_08/loop_000626.bin, nexus_04/loop_000587.bin, nexus_12/loop_000397.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_F_D
+  location: main line 2268; ARX line 79518
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, aether, augury, divination, frost, ice, kinetic, planar, psychic, shadow, sonic
+  hearts:   00,00,06,01
+  recipes:  nexus_00/loop_000033.bin, nexus_00/loop_000021.bin, nexus_06/loop_000745.bin, nexus_01/loop_000301.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_G_D
+  location: main line 2306; ARX line 80121
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: abjuration, alchemy, augury, fire, frost, gloom, ice, runic, sonic, spirit, voodoo, wind
+  hearts:   05,12,03,06
+  recipes:  nexus_05/loop_000384.bin, nexus_12/loop_000231.bin, nexus_03/loop_000431.bin, nexus_06/loop_000119.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_H_D
+  location: main line 2343; ARX line 80723
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: aether, alchemy, divination, fire, frost, gloom, lunar, psychic, runic, shadow, sonic, spirit, voodoo
+  hearts:   02,01,04,08
+  recipes:  nexus_02/loop_000313.bin, nexus_01/loop_000317.bin, nexus_04/loop_000102.bin, nexus_08/loop_000684.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_A_E
+  location: main line 2086; ARX line 86139
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, alchemy, evocation, kinetic, lightning, lunar, planar, psychic, shadow, sonic, voodoo, wind
+  hearts:   05,09,06,04
+  recipes:  nexus_05/loop_000414.bin, nexus_09/loop_000016.bin, nexus_06/loop_000269.bin, nexus_04/loop_000329.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_B_E
+  location: main line 2124; ARX line 86741
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, aether, divination, evocation, fire, kinetic, lightning, lunar, runic, voodoo, wind
+  hearts:   07,05,11,04
+  recipes:  nexus_07/loop_000232.bin, nexus_05/loop_000357.bin, nexus_11/loop_000150.bin, nexus_04/loop_000440.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_C_E
+  location: main line 2162; ARX line 87344
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, aether, augury, fire, gloom, planar, runic, shadow, spirit, voodoo, wind
+  hearts:   07,06,10,06
+  recipes:  nexus_07/loop_000533.bin, nexus_06/loop_000456.bin, nexus_10/loop_000698.bin, nexus_06/loop_000433.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_D_E
+  location: main line 2200; ARX line 87947
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: alchemy, fire, kinetic, lightning, lunar, planar, sonic, spirit
+  hearts:   09,11,11,08
+  recipes:  nexus_09/loop_000226.bin, nexus_11/loop_000405.bin, nexus_11/loop_000059.bin, nexus_08/loop_000117.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_E_E
+  location: main line 2238; ARX line 88550
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, alchemy, evocation, gloom, kinetic, lunar, runic, shadow, spirit, wind
+  hearts:   03,07,06,12
+  recipes:  nexus_03/loop_000615.bin, nexus_07/loop_000361.bin, nexus_06/loop_000530.bin, nexus_12/loop_000693.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_F_E
+  location: main line 2276; ARX line 89151
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, divination, gloom, lightning, planar, runic, shadow, spirit, voodoo
+  hearts:   13,12,11,06
+  recipes:  nexus_13/loop_000383.bin, nexus_12/loop_000064.bin, nexus_11/loop_000002.bin, nexus_06/loop_000283.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_G_E
+  location: main line 2314; ARX line 89749
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, alchemy, divination, kinetic, lightning, lunar, planar, psychic, sonic, voodoo
+  hearts:   06,10,10,12
+  recipes:  nexus_06/loop_000740.bin, nexus_10/loop_000373.bin, nexus_10/loop_000036.bin, nexus_12/loop_000128.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+KEY_B_H_E
+  location: main line 2351; ARX line 90351
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: abjuration, evocation, gloom, kinetic, lightning, psychic, shadow, sonic, spirit, wind
+  hearts:   08,07,11,10
+  recipes:  nexus_08/loop_000179.bin, nexus_07/loop_000240.bin, nexus_11/loop_000361.bin, nexus_10/loop_000334.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+Main Twist ARX functions (3)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TWIST_A
+  location: main line 2414; ARX line 90951
+  comment:  [source, key_read_a, key_read_b] -> [$aether]
+  writes:   aether_a, aether_b, aether_c, aether_d; four passes over S_BLOCK
+  residuals: cross
+  hearts:   07,10,02,01
+  recipes:  nexus_07/loop_000535.bin, nexus_10/loop_000632.bin, nexus_02/loop_000654.bin, nexus_01/loop_000167.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+TWIST_B
+  location: main line 2420; ARX line 91526
+  comment:  [$aether] -> [$lunar]
+  writes:   lunar_a, lunar_b, lunar_c, lunar_d; four passes over S_BLOCK
+  residuals: cross, source
+  hearts:   05,05,05,10
+  recipes:  nexus_05/loop_000469.bin, nexus_05/loop_000117.bin, nexus_05/loop_000245.bin, nexus_10/loop_000520.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+TWIST_C
+  location: main line 2447; ARX line 92101
+  comment:  [$earth] -> [$crystal]
+  writes:   crystal_a, crystal_b, crystal_c, crystal_d; four passes over S_BLOCK
+  residuals: aether, cross, lunar, source
+  hearts:   01,13,04,05
+  recipes:  nexus_01/loop_000071.bin, nexus_13/loop_000539.bin, nexus_04/loop_000622.bin, nexus_05/loop_000291.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+Grow A ARX functions (5)
+~~~~~~~~~~~~~~~~~~~~~~~~
+GROW_A_A
+  location: main line 2515; ARX line 92689
+  comment:  [$spirit, cross_a, cross_b] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: aether, earth, lunar
+  hearts:   05,10,10,10
+  recipes:  nexus_05/loop_000643.bin, nexus_10/loop_000225.bin, nexus_10/loop_000706.bin, nexus_10/loop_000212.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_A_B
+  location: main line 2521; ARX line 93288
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: spirit
+  hearts:   04,04,04,02
+  recipes:  nexus_04/loop_000043.bin, nexus_04/loop_000125.bin, nexus_04/loop_000512.bin, nexus_02/loop_000739.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_A_C
+  location: main line 2548; ARX line 93877
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: arcane, plasma
+  hearts:   03,00,11,01
+  recipes:  nexus_03/loop_000125.bin, nexus_00/loop_000579.bin, nexus_11/loop_000353.bin, nexus_01/loop_000211.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_A_D
+  location: main line 2554; ARX line 94459
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: arcane, plasma, rainbow
+  hearts:   13,00,01,07
+  recipes:  nexus_13/loop_000306.bin, nexus_00/loop_000363.bin, nexus_01/loop_000532.bin, nexus_07/loop_000478.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_A_E
+  location: main line 2572; ARX line 95048
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: plasma, water
+  hearts:   02,09,11,00
+  recipes:  nexus_02/loop_000353.bin, nexus_09/loop_000412.bin, nexus_11/loop_000665.bin, nexus_00/loop_000489.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+Grow B ARX functions (5)
+~~~~~~~~~~~~~~~~~~~~~~~~
+GROW_B_A
+  location: main line 2591; ARX line 95629
+  comment:  [$divination, cross_a, cross_b] -> [$arcane]
+  writes:   arcane_a, arcane_b, arcane_c, arcane_d; four passes over W_KEY
+  residuals: aether, earth, lunar
+  hearts:   01,11,03,07
+  recipes:  nexus_01/loop_000107.bin, nexus_11/loop_000599.bin, nexus_03/loop_000657.bin, nexus_07/loop_000114.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_B_B
+  location: main line 2597; ARX line 96227
+  comment:  [$arcane] -> [$plasma]
+  writes:   plasma_a, plasma_b, plasma_c, plasma_d; four passes over W_KEY
+  residuals: divination
+  hearts:   01,08,09,00
+  recipes:  nexus_01/loop_000348.bin, nexus_08/loop_000249.bin, nexus_09/loop_000492.bin, nexus_00/loop_000297.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_B_C
+  location: main line 2624; ARX line 96815
+  comment:  [$rainbow] -> [$water]
+  writes:   water_a, water_b, water_c, water_d; four passes over W_KEY
+  residuals: arcane
+  hearts:   05,13,11,06
+  recipes:  nexus_05/loop_000437.bin, nexus_13/loop_000656.bin, nexus_11/loop_000367.bin, nexus_06/loop_000454.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_B_D
+  location: main line 2630; ARX line 97396
+  comment:  [$water] -> [$vapor]
+  writes:   vapor_a, vapor_b, vapor_c, vapor_d; four passes over W_KEY
+  residuals: plasma, rainbow
+  hearts:   10,01,13,09
+  recipes:  nexus_10/loop_000561.bin, nexus_01/loop_000140.bin, nexus_13/loop_000511.bin, nexus_09/loop_000032.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+GROW_B_E
+  location: main line 2648; ARX line 97985
+  comment:  [$frost] -> [$ice]
+  writes:   ice_a, ice_b, ice_c, ice_d; four passes over W_KEY
+  residuals: rainbow, vapor
+  hearts:   05,11,11,10
+  recipes:  nexus_05/loop_000627.bin, nexus_11/loop_000607.bin, nexus_11/loop_000417.bin, nexus_10/loop_000373.bin
+  verdict:  PASS — primary source present, destination exact, internal metadata exact, and structural ARX checks pass.
+
+BUILD VERIFICATION
+------------------
+The two generated translation units pass:
+  clang++ -std=c++20 -fsyntax-only ...
+
+With -Wall -Wextra -Wpedantic the generated files compile without warnings.
+
+LIMITS OF THIS AUDIT
+--------------------
+This audit proves correspondence and a large set of structural invariants in the exported source. It does not prove resistance to differential, rotational, related-key, side-channel, or other cryptanalytic attacks; those require dedicated analysis and empirical testing. The conclusion here is narrower: the Aldebaran exporter emitted what its comments and scaffold metadata claim, and the resulting ARX dataflow contains no obvious structural/code-generation fault in the checks performed.

@@ -5,9 +5,12 @@
 
 #include "GSeedRunKeyBox.hpp"
 
+#include "ArrangementFour.hpp"
+#include "GPassFactoryTrunk.hpp"
 #include "GPassFactoryMidstage.hpp"
 #include "GPassFactoryStarter.hpp"
 #include "GFlowPlans.hpp"
+#include "GSeedRunStageConfigValidator.hpp"
 #include "KeyLaneAssignments.hpp"
 #include "ResidualBucket.hpp"
 
@@ -135,6 +138,24 @@ void AppendUniqueSlots(std::vector<Slot> *pDestination,
             pDestination->push_back(aSlot);
         }
     }
+}
+
+template <std::size_t SourceCount, std::size_t DestinationCount>
+void RemoveCurrentPhaseLanes(
+    ResidualBucket &pResidualBucket,
+    const std::array<Slot, SourceCount> &pPrimarySources,
+    const std::array<Slot, DestinationCount> &pDestinations) {
+    std::vector<Slot> aUnavailable;
+    aUnavailable.reserve(SourceCount + DestinationCount);
+    AppendUniqueSlots(
+        &aUnavailable,
+        std::vector<Slot>(pPrimarySources.begin(),
+                          pPrimarySources.end()));
+    AppendUniqueSlots(
+        &aUnavailable,
+        std::vector<Slot>(pDestinations.begin(),
+                          pDestinations.end()));
+    pResidualBucket.Remove(aUnavailable);
 }
 
 std::uint8_t KeyLaneSplit(
@@ -281,6 +302,11 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
     //
     const GPassFactoryMidstage::SlotArray4 aPrimarySourcesC =
         GFlowPlans::FamilySlots(aLanePlans[2].mInputs[0]);
+    const ArrangementFour::SlotArray4 aArrangedPrimarySourcesC =
+        ArrangementFour::Arrange(
+            aPrimarySourcesC,
+            static_cast<int>(pCandidateIndex),
+            aLanePlans[2].mArrangementOffset);
     const GPassFactoryMidstage::SlotArray4 aDestinationsC =
         GFlowPlans::FamilySlots(aLanePlans[2].mOutput);
 
@@ -301,23 +327,20 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
     //
     const GPassFactoryMidstage::SlotArray4 aPrimarySourcesE =
         GFlowPlans::FamilySlots(aLanePlans[4].mInputs[0]);
+    const ArrangementFour::SlotArray4 aArrangedPrimarySourcesE =
+        ArrangementFour::Arrange(
+            aPrimarySourcesE,
+            static_cast<int>(pCandidateIndex),
+            aLanePlans[4].mArrangementOffset);
     const GPassFactoryMidstage::SlotArray4 aDestinationsE =
         GFlowPlans::FamilySlots(aLanePlans[4].mOutput);
 
-    // These lanes have fixed jobs in the five phases. Source and Nonce are
-    // deliberately excluded from key construction. No phase adds its output
-    // lanes back; each independent flow drains this inherited bucket.
-    std::vector<Slot> aUnavailableResiduals = {
+    // Source and Nonce are never key residuals. Fixed key-route lanes remain
+    // eligible until the phase that is about to read or overwrite them.
+    const std::vector<Slot> aAlwaysUnavailableResiduals = {
         Slot::kSourceLane,
         Slot::kNonceLane,
     };
-    for (const GFlowStep &aPlan : aLanePlans) {
-        AppendUniqueSlots(&aUnavailableResiduals,
-                          GFlowPlans::InputSlots(aPlan));
-        AppendUniqueSlots(
-            &aUnavailableResiduals,
-            GFlowPlans::FamilySlotVector(aPlan.mOutput));
-    }
 
     // Stage Construction
 
@@ -336,46 +359,70 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
         // Seed residual state. Its withdrawals never affect another key flow
         // or the caller's bucket. Flattening the surviving lanes to three
         // makes every withdrawal terminal: a selected lane advances to four
-        // and cannot be selected again within this key flow.
+        // and cannot be selected again within this key flow. A fixed-route
+        // lane remains available until its read/write phase, then leaves the
+        // bucket before that phase's residual withdrawal.
         ResidualBucket aFlowResidualBucket = pSeedResidualBucket;
-        aFlowResidualBucket.Remove(aUnavailableResiduals);
+        aFlowResidualBucket.Remove(aAlwaysUnavailableResiduals);
         aFlowResidualBucket.FlattenUsageCounts(3U);
 
+        RemoveCurrentPhaseLanes(aFlowResidualBucket,
+                                aPrimarySourcesA,
+                                aDestinationsA);
+        
         const GPassFactoryStarter::SlotArray8 aResidualsA =
             WithdrawFlowResiduals<8U>(
                 aFlowResidualBucket,
                 aFlowName + " — Phase A");
 
+        
+        
+        RemoveCurrentPhaseLanes(aFlowResidualBucket,
+                                aPrimarySourcesB,
+                                aDestinationsB);
+        
         const GPassFactoryMidstage::SlotArray13 aResidualsB =
             WithdrawFlowResiduals<13U>(
                 aFlowResidualBucket,
                 aFlowName + " — Phase B");
 
+        RemoveCurrentPhaseLanes(aFlowResidualBucket,
+                                aPrimarySourcesC,
+                                aDestinationsC);
+        
         const GPassFactoryMidstage::SlotArray13 aResidualsC =
             WithdrawFlowResiduals<13U>(
                 aFlowResidualBucket,
                 aFlowName + " — Phase C");
 
+        RemoveCurrentPhaseLanes(aFlowResidualBucket,
+                                aPrimarySourcesD,
+                                aDestinationsD);
+        
         const GPassFactoryMidstage::SlotArray13 aResidualsD =
             WithdrawFlowResiduals<13U>(
                 aFlowResidualBucket,
                 aFlowName + " — Phase D");
 
+        RemoveCurrentPhaseLanes(aFlowResidualBucket,
+                                aPrimarySourcesE,
+                                aDestinationsE);
+        
         const GPassFactoryMidstage::SlotArray13 aResidualsE =
             WithdrawFlowResiduals<13U>(
                 aFlowResidualBucket,
                 aFlowName + " — Phase E");
 
-        constexpr std::size_t kExpectedResidualSurplus = 16U;
+        constexpr std::size_t kMinimumResidualSurplus = 16U;
         const std::size_t aResidualSurplus =
             aFlowResidualBucket.CountValidResiduals();
-        if (aResidualSurplus != kExpectedResidualSurplus) {
+        if (aResidualSurplus < kMinimumResidualSurplus) {
             if (pErrorMessage != nullptr) {
                 *pErrorMessage =
                     aFlowName + " ended with " +
                     std::to_string(aResidualSurplus) +
-                    " residual lanes; expected " +
-                    std::to_string(kExpectedResidualSurplus);
+                    " residual lanes; expected at least " +
+                    std::to_string(kMinimumResidualSurplus);
             }
             return false;
         }
@@ -400,6 +447,14 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
                                         aDomain,
                                         pErrorMessage);
         if (aConfigA.mStageName.empty()) {
+            return false;
+        }
+        if (!GSeedRunStageConfigValidator::ValidateKeyEightInput(
+                aConfigA,
+                GPassFactoryMidstage::ToVector(aPrimarySourcesA),
+                GPassFactoryMidstage::ToVector(aResidualsA),
+                GPassFactoryMidstage::ToVector(aDestinationsA),
+                pErrorMessage)) {
             return false;
         }
         (*pConfigs)[kPhaseAConfigOffset + aLogicalIndex] =
@@ -427,6 +482,14 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
         if (aConfigB.mStageName.empty()) {
             return false;
         }
+        if (!GSeedRunStageConfigValidator::ValidateMidstage(
+                aConfigB,
+                GPassFactoryMidstage::ToVector(aPrimarySourcesB),
+                GPassFactoryMidstage::ToVector(aResidualsB),
+                GPassFactoryMidstage::ToVector(aDestinationsB),
+                pErrorMessage)) {
+            return false;
+        }
         (*pConfigs)[kPhaseBConfigOffset + aLogicalIndex] =
             std::move(aConfigB);
 
@@ -439,8 +502,8 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
             aDomain,
             GAXSFormat::kN11);
         aConfigC.mSlices =
-            GPassFactoryMidstage::FourPassThirteenResidualSlices(
-                aPrimarySourcesC,
+            GPassFactoryTrunk::FourPassTrunkSlices(
+                aArrangedPrimarySourcesC,
                 aResidualsC,
                 aDestinationsC);
         aConfigC.SetLaneFlow(aPrimarySourcesC, aDestinationsC);
@@ -450,6 +513,15 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
                                         aDomain,
                                         pErrorMessage);
         if (aConfigC.mStageName.empty()) {
+            return false;
+        }
+        if (!GSeedRunStageConfigValidator::ValidateTrunk(
+                aConfigC,
+                GPassFactoryMidstage::ToVector(
+                    aArrangedPrimarySourcesC),
+                GPassFactoryMidstage::ToVector(aResidualsC),
+                GPassFactoryMidstage::ToVector(aDestinationsC),
+                pErrorMessage)) {
             return false;
         }
         (*pConfigs)[kPhaseCConfigOffset + aLogicalIndex] =
@@ -477,6 +549,14 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
         if (aConfigD.mStageName.empty()) {
             return false;
         }
+        if (!GSeedRunStageConfigValidator::ValidateMidstage(
+                aConfigD,
+                GPassFactoryMidstage::ToVector(aPrimarySourcesD),
+                GPassFactoryMidstage::ToVector(aResidualsD),
+                GPassFactoryMidstage::ToVector(aDestinationsD),
+                pErrorMessage)) {
+            return false;
+        }
         (*pConfigs)[kPhaseDConfigOffset + aLogicalIndex] =
             std::move(aConfigD);
 
@@ -489,8 +569,8 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
             aDomain,
             GAXSFormat::kN11);
         aConfigE.mSlices =
-            GPassFactoryMidstage::FourPassThirteenResidualSlices(
-                aPrimarySourcesE,
+            GPassFactoryTrunk::FourPassTrunkSlices(
+                aArrangedPrimarySourcesE,
                 aResidualsE,
                 aDestinationsE);
         aConfigE.SetLaneFlow(aPrimarySourcesE, aDestinationsE);
@@ -500,6 +580,15 @@ bool MakeKeyBoxConfigs(const std::size_t pCandidateIndex,
                                         aDomain,
                                         pErrorMessage);
         if (aConfigE.mStageName.empty()) {
+            return false;
+        }
+        if (!GSeedRunStageConfigValidator::ValidateTrunk(
+                aConfigE,
+                GPassFactoryMidstage::ToVector(
+                    aArrangedPrimarySourcesE),
+                GPassFactoryMidstage::ToVector(aResidualsE),
+                GPassFactoryMidstage::ToVector(aDestinationsE),
+                pErrorMessage)) {
             return false;
         }
         (*pConfigs)[kPhaseEConfigOffset + aLogicalIndex] =

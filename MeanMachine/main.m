@@ -19,7 +19,6 @@ extern int MeanMachineBuildAllExpanders(void);
 extern int MeanMachineBuildExpanderRange(int pStartIndex, int pCount);
 extern int MeanMachineRegenerateKeyForkControl(uint64_t pExplorationCases);
 extern int MeanMachineRegenerateKeyLaneControl(uint64_t pExplorationCases);
-extern int MeanMachineRegenerateResidualKDFControl(uint64_t pExplorationCases);
 extern int MeanMachineGenerateLoopRolePermutations(void);
 
 int main(int argc, const char * argv[]) {
@@ -58,15 +57,6 @@ int main(int argc, const char * argv[]) {
                     ? strtoull(argv[2], NULL, 10)
                     : 1000ULL;
             return MeanMachineRegenerateKeyLaneControl(
-                aExplorationCases == 0ULL ? 1ULL : aExplorationCases);
-        }
-        if ((argc > 1) &&
-            (strcmp(argv[1], "--regenerate-residual-kdf-control") == 0)) {
-            const uint64_t aExplorationCases =
-                argc > 2
-                    ? strtoull(argv[2], NULL, 10)
-                    : 1000ULL;
-            return MeanMachineRegenerateResidualKDFControl(
                 aExplorationCases == 0ULL ? 1ULL : aExplorationCases);
         }
         if ((argc > 1) &&

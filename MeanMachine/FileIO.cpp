@@ -15,12 +15,14 @@
 #include <vector>
 #include <mach-o/dyld.h>
 
+
+
 namespace {
 
 std::filesystem::path ExecutablePath() {
-    std::uint32_t aBufferSize = 0;
+    std::uint32_t aBufferSize = 0U;
     _NSGetExecutablePath(nullptr, &aBufferSize);
-    if (aBufferSize == 0) {
+    if (aBufferSize == 0U) {
         return {};
     }
 
@@ -30,7 +32,8 @@ std::filesystem::path ExecutablePath() {
     }
 
     std::error_code aError;
-    const std::filesystem::path aPath = std::filesystem::weakly_canonical(aBuffer.data(), aError);
+    const std::filesystem::path aPath =
+        std::filesystem::weakly_canonical(aBuffer.data(), aError);
     if (aError) {
         return std::filesystem::path(aBuffer.data()).lexically_normal();
     }
@@ -44,7 +47,10 @@ std::filesystem::path CompileTimeProjectRoot() {
 
 bool LooksLikeProjectRoot(const std::filesystem::path &pPath) {
     std::error_code aError;
-    return std::filesystem::exists(pPath / "MeanMachine.xcodeproj", aError);
+    return std::filesystem::exists(
+        pPath / "MeanMachine.xcodeproj",
+        aError
+    );
 }
 
 std::filesystem::path FindProjectRoot(const std::filesystem::path &pStart) {
@@ -71,9 +77,52 @@ std::filesystem::path FindProjectRoot(const std::filesystem::path &pStart) {
     return {};
 }
 
+std::string ResolveProjectRoot() {
+    const char *aProjectDir = std::getenv("PROJECT_DIR");
+    if ((aProjectDir != nullptr) && (aProjectDir[0] != '\0')) {
+        const std::filesystem::path aRoot = FindProjectRoot(aProjectDir);
+        if (!aRoot.empty()) {
+            return aRoot.generic_string();
+        }
+    }
+
+    const char *aPWD = std::getenv("PWD");
+    if ((aPWD != nullptr) && (aPWD[0] != '\0')) {
+        const std::filesystem::path aRoot = FindProjectRoot(aPWD);
+        if (!aRoot.empty()) {
+            return aRoot.generic_string();
+        }
+    }
+
+    std::error_code aCurrentError;
+    const std::filesystem::path aCurrentPath =
+        std::filesystem::current_path(aCurrentError);
+    if (!aCurrentError) {
+        const std::filesystem::path aRoot = FindProjectRoot(aCurrentPath);
+        if (!aRoot.empty()) {
+            return aRoot.generic_string();
+        }
+    }
+
+    const std::filesystem::path aExecutableRoot =
+        FindProjectRoot(ExecutablePath());
+    if (!aExecutableRoot.empty()) {
+        return aExecutableRoot.generic_string();
+    }
+
+    const std::filesystem::path aSourceRoot =
+        FindProjectRoot(CompileTimeProjectRoot());
+    if (!aSourceRoot.empty()) {
+        return aSourceRoot.generic_string();
+    }
+
+    if (!aCurrentError) {
+        return aCurrentPath.lexically_normal().generic_string();
+    }
+    return ".";
+}
+
 } // namespace
-
-
 
 bool FileIO::Load(std::string pPath, std::vector<std::uint8_t> &pDest) {
     FILE *aFile = std::fopen(pPath.c_str(), "rb");
@@ -170,39 +219,8 @@ std::string FileIO::CurrentWorkingDirectory() {
 }
 
 std::string FileIO::ProjectRoot() {
-
-    const char *aProjectDir = std::getenv("PROJECT_DIR");
-    if (aProjectDir != NULL && aProjectDir[0] != '\0') {
-        const std::filesystem::path aRoot = FindProjectRoot(aProjectDir);
-        if (!aRoot.empty()) {
-            return aRoot.generic_string();
-        }
-    }
-
-    const char *aPWD = std::getenv("PWD");
-    if (aPWD != NULL && aPWD[0] != '\0') {
-        const std::filesystem::path aRoot = FindProjectRoot(aPWD);
-        if (!aRoot.empty()) {
-            return aRoot.generic_string();
-        }
-    }
-
-    const std::filesystem::path aCwdRoot = FindProjectRoot(CurrentWorkingDirectory());
-    if (!aCwdRoot.empty()) {
-        return aCwdRoot.generic_string();
-    }
-
-    const std::filesystem::path aExecRoot = FindProjectRoot(ExecutablePath());
-    if (!aExecRoot.empty()) {
-        return aExecRoot.generic_string();
-    }
-
-    const std::filesystem::path aSourceRoot = FindProjectRoot(CompileTimeProjectRoot());
-    if (!aSourceRoot.empty()) {
-        return aSourceRoot.generic_string();
-    }
-
-    return CurrentWorkingDirectory();
+    static const std::string kProjectRoot = ResolveProjectRoot();
+    return kProjectRoot;
 }
 
 std::string FileIO::CurrentWorkingDirectory(const std::string& pRight) {
